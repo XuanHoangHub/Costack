@@ -1,0 +1,4779 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Task, User, Document, SyncLog, Space, TaskStatus } from '../types';
+import { supabase } from '../lib/supabaseClient';
+
+// Import modular layouts
+import LoginScreen from '../components/LoginScreen';
+import DashboardOverview from '../components/DashboardOverview';
+import SpacePage from '../components/SpacePage';
+import CalendarView from '../components/CalendarView';
+import Whiteboard from '../components/Whiteboard';
+import ChatRoom from '../components/ChatRoom';
+import DocumentHub from '../components/DocumentHub';
+import TeamDirectory from '../components/TeamDirectory';
+import AvaxaBrainAssistant from '../components/AvaxaBrainAssistant';
+import SettingsPanel, { WORKSPACE_COVERS } from '../components/SettingsPanel';
+import ProfilePage from '../components/ProfilePage';
+import ToastNotification, { Toast } from '../components/ToastNotification';
+import ProductivityHub from '../components/ProductivityHub';
+
+import { 
+  Briefcase, MessageSquare, Edit3, Users, 
+  Grid, LogOut, Wifi, WifiOff, Cloud, RefreshCw, Sparkles, LayoutDashboard,
+  Search, X, FileText, Hash, ArrowRight, CornerDownLeft, Check, ChevronDown,
+  Play, Pause, RotateCcw, Timer, Bell, BellOff, Calendar, Moon, Sun, Settings, Plus,
+  Trash2, CheckCheck, Zap, User as UserIcon, ChevronRight, ChevronLeft, Layers, Folder, FolderClosed, MoreHorizontal,
+  Star, List
+} from 'lucide-react';
+
+export default function App() {
+  const isLoaded = useRef(false);
+
+  // Authentication check with 1-month persistence
+  const [currentUser, setCurrentUser] = useState<{ id?: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; isPremium?: boolean } | null>(null);
+
+  // Track and listen to live auth changes from Supabase (standard security practice)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        const displayName = u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
+        const userObj = {
+          id: u.id,
+          name: displayName,
+          email: u.email || '',
+          avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          isPremium
+        };
+        setCurrentUser(userObj);
+      }
+    }).catch(err => {
+      console.warn('Error verifying Supabase session at launch:', err);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const u = session.user;
+        const displayName = u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
+        const userObj = {
+          id: u.id,
+          name: displayName,
+          email: u.email || '',
+          avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          isPremium
+        };
+        setCurrentUser(userObj);
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+  
+  // Accent color presets for Glassmorphic UI (Classic Indigo, Ocean, Forest, Sunset)
+  const [accentPreset, setAccentPreset] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
+  
+  // Custom Dark Mode State - DEACTIVATED (Forced pure light white space theme)
+  const isDarkMode = false;
+  const setIsDarkMode = (val: boolean) => {};
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('avaxa_dark_mode', 'false');
+    } catch (e) {}
+    document.documentElement.classList.remove('dark');
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded.current) {
+      try {
+        localStorage.setItem('avaxa_accent_preset', accentPreset);
+      } catch (e) {
+        console.error('Error saving color preset:', e);
+      }
+    }
+
+    const presets = {
+      indigo: {
+        primary: 'rgb(123, 97, 255)',    // original brand violet (#7B61FF)
+        primaryHover: 'rgb(96, 69, 235)',
+        primaryLight: '#f5f3ff',
+        primaryRgb: '123, 97, 255',
+        gradientStart: '#7B61FF',
+        gradientEnd: '#FF3366',          // pink-500
+        glow: 'rgba(123, 97, 255, 0.15)',
+        text: '#7B61FF',
+        badgeBg: 'rgba(123, 97, 255, 0.08)',
+        badgeText: '#7B61FF',
+        subtasksBar: '#7B61FF',
+        liquidColor: 'rgba(51, 209, 255, 0.12)', // cyan-205 aspect
+      },
+      ocean: {
+        primary: 'rgb(2, 132, 199)',    // sky-600
+        primaryHover: 'rgb(3, 105, 161)',
+        primaryLight: '#f0f9ff',
+        primaryRgb: '2, 132, 199',
+        gradientStart: '#0284c7',
+        gradientEnd: '#06b6d4',          // cyan-500
+        glow: 'rgba(14, 165, 233, 0.15)',
+        text: '#0284c7',
+        badgeBg: 'rgba(2, 132, 199, 0.08)',
+        badgeText: '#0284c7',
+        subtasksBar: '#0284c7',
+        liquidColor: 'rgba(14, 165, 233, 0.12)',
+      },
+      forest: {
+        primary: 'rgb(5, 150, 105)',    // emerald-600
+        primaryHover: 'rgb(4, 120, 87)',
+        primaryLight: '#ecfdf5',
+        primaryRgb: '5, 150, 105',
+        gradientStart: '#10b981',
+        gradientEnd: '#06b6d4',          // cyan-500 or teal-500
+        glow: 'rgba(16, 185, 129, 0.15)',
+        text: '#059669',
+        badgeBg: 'rgba(5, 150, 105, 0.08)',
+        badgeText: '#059669',
+        subtasksBar: '#059669',
+        liquidColor: 'rgba(16, 185, 129, 0.12)',
+      },
+      sunset: {
+        primary: 'rgb(225, 29, 72)',   // rose-600
+        primaryHover: 'rgb(190, 24, 74)',
+        primaryLight: '#fff1f2',
+        primaryRgb: '225, 29, 72',
+        gradientStart: '#ea580c',        // orange-600
+        gradientEnd: '#db2777',          // pink-600
+        glow: 'rgba(244, 63, 94, 0.15)',
+        text: '#e11d48',
+        badgeBg: 'rgba(225, 29, 72, 0.08)',
+        badgeText: '#e11d48',
+        subtasksBar: '#e11d48',
+        liquidColor: 'rgba(244, 63, 94, 0.12)',
+      }
+    };
+
+    const active = presets[accentPreset] || presets.indigo;
+    
+    // Set custom CSS properties on the root document
+    const root = document.documentElement;
+    root.style.setProperty('--avaxa-primary', active.primary);
+    root.style.setProperty('--avaxa-primary-hover', active.primaryHover);
+    root.style.setProperty('--avaxa-primary-light', active.primaryLight);
+    root.style.setProperty('--avaxa-primary-rgb', active.primaryRgb);
+    root.style.setProperty('--avaxa-gradient-start', active.gradientStart);
+    root.style.setProperty('--avaxa-gradient-end', active.gradientEnd);
+    root.style.setProperty('--avaxa-glow', active.glow);
+    root.style.setProperty('--avaxa-text', active.text);
+    root.style.setProperty('--avaxa-badge-bg', active.badgeBg);
+    root.style.setProperty('--avaxa-badge-text', active.badgeText);
+    root.style.setProperty('--avaxa-subtasks-bar', active.subtasksBar);
+    root.style.setProperty('--avaxa-liquid-color', active.liquidColor);
+    
+  }, [accentPreset]);
+
+  // Custom Sound and Blur Intensity Settings for Immersive UI/UX
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  const [blurIntensity, setBlurIntensity] = useState<'soft' | 'default' | 'immersive'>('default');
+
+  useEffect(() => {
+    if (isLoaded.current) {
+      try {
+        localStorage.setItem('avaxa_sound_enabled', String(soundEnabled));
+      } catch (e) {}
+    }
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    if (isLoaded.current) {
+      try {
+        localStorage.setItem('avaxa_blur_intensity', blurIntensity);
+      } catch (e) {}
+    }
+
+    // Map intensity to exact pixel values
+    let glassBlur = '12px';
+    let glassBlurDark = '16px';
+    let liquidBlur = '28px';
+
+    if (blurIntensity === 'soft') {
+      glassBlur = '6px';
+      glassBlurDark = '8px';
+      liquidBlur = '10px';
+    } else if (blurIntensity === 'immersive') {
+      glassBlur = '24px';
+      glassBlurDark = '30px';
+      liquidBlur = '45px';
+    }
+
+    const root = document.documentElement;
+    root.style.setProperty('--avaxa-glass-blur', glassBlur);
+    root.style.setProperty('--avaxa-glass-blur-dark', glassBlurDark);
+    root.style.setProperty('--avaxa-liquid-blur', liquidBlur);
+  }, [blurIntensity]);
+  
+  // Custom Notification Control Settings
+  const [notificationSettings, setNotificationSettings] = useState<any>({
+    enableAll: true,
+    enableSound: true,
+    onlyImportant: false,
+    enableAssignments: true,
+    enableDeadlines: true,
+    enableComments: true,
+    enableStatusChanges: true,
+    enableFilteringTags: false, // OFF by default
+    enableSystemNotify: true,
+    toastDuration: 4000,
+    dndActive: false,
+    frequencyLimit: 'throttled'
+  });
+
+  useEffect(() => {
+    if (isLoaded.current) {
+      try {
+        localStorage.setItem('avaxa_notification_settings', JSON.stringify(notificationSettings));
+      } catch (e) {}
+    }
+  }, [notificationSettings]);
+
+  // Dynamic Browser Web Audio Sound Synthesizer (No media file weight!)
+  useEffect(() => {
+    (window as any).showPremiumModal = () => setShowPremiumModal(true);
+    (window as any).playSystemSound = (type: 'click' | 'success' | 'toggle' | 'delete' | 'notification') => {
+      try {
+        if (!soundEnabled) return;
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+
+        if (type === 'click') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1000, now);
+          osc.frequency.exponentialRampToValueAtTime(350, now + 0.08);
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'toggle') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(550, now);
+          osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'success') {
+          // Double pitch melodic chime chord sound
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'delete') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } else if (type === 'notification') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.setValueAtTime(900, now + 0.12);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        }
+      } catch (err) {}
+    };
+  }, [soundEnabled]);
+
+  // Navigation active tab controller
+  const [activeTab, setActiveTab2] = useState<string>('dashboard');
+  const [isMainSidebarCollapsed, setIsMainSidebarCollapsed] = useState(false);
+  const setActiveTab = (tab: string) => {
+    setActiveTab2(tab);
+    // Sidemenu change muted strictly as requested by user
+  };
+  const [userStatus, setUserStatus] = useState<'online' | 'focused' | 'away'>('online');
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+  const handleTogglePremium = (status: boolean) => {
+    localStorage.setItem('avaxa_premium', String(status));
+    if (currentUser) {
+      const updatedUser = { ...currentUser, isPremium: status };
+      setCurrentUser(updatedUser);
+      // Update local storage session
+      const sessionObj = {
+        user: updatedUser,
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+      };
+      localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
+
+      // Update members list
+      setMembers(prev => prev.map(m => m.id === 'user' ? { ...m, isPremium: status } : m));
+
+      // Update Supabase if online
+      if (!isOffline && currentUser.id) {
+        supabase.from('members').update({
+          is_premium: status
+        }).eq('id', `user-${currentUser.id}`).then(({ error }) => {
+          if (error) console.error('Error updating premium status on Supabase:', error.message || error);
+        });
+      }
+
+      addSyncLog(status ? 'Successfully activated Avaxa Premium Pro' : 'Cancelled Avaxa Premium Pro subscription');
+      if (status) {
+        triggerToast('success', 'Premium Pro Upgrade! 🎉', 'Welcome to Avaxa Premium! Unlocked all advanced features.');
+        (window as any).playSystemSound?.('success');
+      } else {
+        triggerToast('info', 'Account Downgraded', 'Account has been downgraded to the Free tier.');
+      }
+    }
+  };
+
+  // Workspaces Feature
+  const [workspaces, setWorkspaces] = useState<any[]>([
+    { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&auto=format&fit=crop&q=80' },
+    { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', coverUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=400&auto=format&fit=crop&q=80' },
+    { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', coverUrl: 'https://images.unsplash.com/photo-1483168527879-c66136b56105?w=400&auto=format&fit=crop&q=80' },
+  ]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState('w2');
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const [showAddWorkspaceModal, setShowAddWorkspaceModal] = useState(false);
+  const [modalSelectedCover, setModalSelectedCover] = useState<string>('');
+
+  // ClickUp Space & Lists Feature
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+  const [activeListId, setActiveListId] = useState<string | null>(null);
+  const [isSpacesExpanded, setIsSpacesExpanded] = useState<boolean>(true);
+  const [isChannelsExpanded, setIsChannelsExpanded] = useState<boolean>(true);
+  const [isDmsExpanded, setIsDmsExpanded] = useState<boolean>(true);
+  const [isOtherAppsExpanded, setIsOtherAppsExpanded] = useState<boolean>(true);
+  
+  // Modals for Spaces & Lists
+  const [showAddSpaceModal, setShowAddSpaceModal] = useState<boolean>(false);
+  const [newSpaceName, setNewSpaceName] = useState<string>('');
+  const [newSpaceEmoji, setNewSpaceEmoji] = useState<string>('📦');
+  const [newSpaceColor, setNewSpaceColor] = useState<string>('indigo');
+  const [showAddListSpaceId, setShowAddListSpaceId] = useState<string | null>(null);
+  const [newListName, setNewListName] = useState<string>('');
+  const [showSpaceSettingsId, setShowSpaceSettingsId] = useState<string | null>(null);
+  const [newSpaceDescription, setNewSpaceDescription] = useState<string>('');
+  const [newSpaceIsPrivate, setNewSpaceIsPrivate] = useState<boolean>(false);
+  const [newSpacePermission, setNewSpacePermission] = useState<string>('Full edit');
+  
+  // Localized Space Settings Modal States
+  const [editSpaceName, setEditSpaceName] = useState<string>('');
+  const [editSpaceEmoji, setEditSpaceEmoji] = useState<string>('📦');
+  const [editSpaceColor, setEditSpaceColor] = useState<string>('indigo');
+  const [editSpaceClickApps, setEditSpaceClickApps] = useState<any>({});
+  const [editSpaceStatuses, setEditSpaceStatuses] = useState<any[]>([]);
+
+  // Load / Seed Spaces (Offline/Fallback)
+  useEffect(() => {
+    if (currentUser?.id) {
+      const savedSpaces = localStorage.getItem(`avaxa_spaces_${currentUser.id}`);
+      if (savedSpaces) {
+        try {
+          setSpaces(JSON.parse(savedSpaces));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, [currentUser?.id]);
+
+  const handleSaveSpaces = async (newSpaces: Space[]) => {
+    setSpaces(newSpaces);
+    if (!currentUser?.id) return;
+    localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const userId = session.user.id;
+
+          // 1. Detect deleted spaces
+          const oldSpaceIds = spaces.map(s => s.id);
+          const newSpaceIds = newSpaces.map(s => s.id);
+          const deletedSpaceIds = oldSpaceIds.filter(id => !newSpaceIds.includes(id));
+
+          if (deletedSpaceIds.length > 0) {
+            await supabase.from('spaces').delete().in('id', deletedSpaceIds).eq('user_id', userId);
+          }
+
+          // 2. Upsert each space and sync lists
+          for (const space of newSpaces) {
+            await supabase.from('spaces').upsert({
+              id: space.id,
+              name: space.name,
+              emoji: space.emoji || null,
+              theme_color: space.themeColor || null,
+              workspace_id: space.workspaceId,
+              folders: space.folders || [],
+              whiteboards: space.whiteboards || [],
+              channels: space.channels || [],
+              statuses: space.statuses || [],
+              click_apps: space.clickApps || {},
+              user_id: userId
+            });
+
+            // Sync lists for this space
+            const oldSpace = spaces.find(s => s.id === space.id);
+            const oldListIds = oldSpace ? oldSpace.lists.map(l => l.id) : [];
+            const newListIds = space.lists.map(l => l.id);
+
+            // Delete removed lists
+            const deletedListIds = oldListIds.filter(id => !newListIds.includes(id));
+            if (deletedListIds.length > 0) {
+              await supabase.from('lists').delete().in('id', deletedListIds).eq('user_id', userId);
+            }
+
+            // Upsert current lists
+            if (space.lists.length > 0) {
+              const listsToUpsert = space.lists.map(list => ({
+                id: list.id,
+                name: list.name,
+                space_id: space.id,
+                folder_id: list.folderId || null,
+                user_id: userId
+              }));
+              await supabase.from('lists').upsert(listsToUpsert);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing spaces/lists with Supabase:', err);
+      }
+    }
+  };
+
+  const handleAddSpace = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSpaceName.trim()) return;
+    const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
+      id: `s-${Date.now()}`,
+      name: newSpaceName.trim(),
+      emoji: newSpaceEmoji,
+      themeColor: newSpaceColor,
+      workspaceId: activeWorkspaceId,
+      lists: [{ id: `l-${Date.now()}-default`, name: 'General Tasks' }],
+      clickApps: { subtasks: true, priorities: true, customFields: true },
+      description: newSpaceDescription,
+      isPrivate: newSpaceIsPrivate,
+      defaultPermission: newSpacePermission
+    };
+    const updated = [...spaces, newSpace];
+    handleSaveSpaces(updated);
+    setNewSpaceName('');
+    setNewSpaceDescription('');
+    setNewSpaceIsPrivate(false);
+    setNewSpacePermission('Full edit');
+    setShowAddSpaceModal(false);
+    triggerToast('success', 'New Space Created', `Created space "${newSpace.name}"`);
+    addSyncLog(`Created new Space: "${newSpace.name}"`);
+  };
+
+  const handleAddList = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newListName.trim() || !showAddListSpaceId) return;
+    const updated = spaces.map(s => {
+      if (s.id === showAddListSpaceId) {
+        return {
+          ...s,
+          lists: [...s.lists, { id: `l-${Date.now()}`, name: newListName.trim() }]
+        };
+      }
+      return s;
+    });
+    handleSaveSpaces(updated);
+    setNewListName('');
+    setShowAddListSpaceId(null);
+    triggerToast('success', 'New List Created', 'List added successfully');
+  };
+
+  const handleAddFolderToSpace = (spaceId: string, name: string) => {
+    const updated = spaces.map(s => {
+      if (s.id === spaceId) {
+        const folders = s.folders || [];
+        return {
+          ...s,
+          folders: [...folders, { id: `folder-${Date.now()}`, name }]
+        };
+      }
+      return s;
+    });
+    handleSaveSpaces(updated);
+    triggerToast('success', 'New Folder Created', `Created folder "${name}"`);
+    addSyncLog(`Created Folder "${name}" in Space`);
+  };
+
+  const handleAddDocToSpace = (spaceId: string, title: string, folderId?: string) => {
+    handleAddDoc({
+      title,
+      content: '',
+      category: 'General',
+      updatedBy: currentUser?.name || 'User',
+      spaceId,
+      folderId
+    });
+    triggerToast('success', 'New Document Created', `Created doc "${title}"`);
+  };
+
+  const handleAddWhiteboardToSpace = (spaceId: string, name: string, folderId?: string) => {
+    const updated = spaces.map(s => {
+      if (s.id === spaceId) {
+        const whiteboards = s.whiteboards || [];
+        return {
+          ...s,
+          whiteboards: [...whiteboards, { id: `wb-${Date.now()}`, name, folderId }]
+        };
+      }
+      return s;
+    });
+    handleSaveSpaces(updated);
+    triggerToast('success', 'New Whiteboard Created', `Created whiteboard "${name}"`);
+    addSyncLog(`Created Whiteboard "${name}" in Space`);
+  };
+
+  const handleAddListToFolder = (spaceId: string, folderId: string, name: string) => {
+    const updated = spaces.map(s => {
+      if (s.id === spaceId) {
+        return {
+          ...s,
+          lists: [...s.lists, { id: `l-${Date.now()}`, name, folderId }]
+        };
+      }
+      return s;
+    });
+    handleSaveSpaces(updated);
+    triggerToast('success', 'New List Created', `Created list "${name}" in folder`);
+    addSyncLog(`Created List "${name}" under Folder`);
+  };
+
+  const handleDeleteSpace = (spaceId: string) => {
+    const updated = spaces.filter(s => s.id !== spaceId);
+    handleSaveSpaces(updated);
+    if (activeSpaceId === spaceId) {
+      setActiveSpaceId(null);
+      setActiveListId(null);
+    }
+    triggerToast('info', 'Space Deleted', 'Workspace has been deleted.');
+  };
+
+  const handleSaveSpaceSettings = () => {
+    if (!showSpaceSettingsId || !editSpaceName.trim()) return;
+    const updated = spaces.map(s => {
+      if (s.id === showSpaceSettingsId) {
+        return {
+          ...s,
+          name: editSpaceName.trim(),
+          emoji: editSpaceEmoji,
+          themeColor: editSpaceColor,
+          clickApps: editSpaceClickApps,
+          statuses: editSpaceStatuses
+        };
+      }
+      return s;
+    });
+    handleSaveSpaces(updated);
+    setShowSpaceSettingsId(null);
+    triggerToast('success', 'Settings Saved', 'Updated space configurations.');
+  };
+
+  const openSpaceSettings = (space: Space) => {
+    setShowSpaceSettingsId(space.id);
+    setEditSpaceName(space.name);
+    setEditSpaceEmoji(space.emoji || '📦');
+    setEditSpaceColor(space.themeColor || 'indigo');
+    setEditSpaceClickApps(space.clickApps || { subtasks: true, priorities: true });
+    setEditSpaceStatuses(space.statuses || [
+      { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
+      { id: 'inprogress', label: 'In Progress', color: '#f59e0b', type: 'inprogress' },
+      { id: 'review', label: 'Review', color: '#06b6d4', type: 'review' },
+      { id: 'completed', label: 'Done', color: '#10b981', type: 'completed' }
+    ]);
+  };
+
+  // Map tasks helper
+  const mapTasksToSpaces = (tasksList: Task[]): Task[] => {
+    return tasksList.map(t => {
+      if (t.spaceId && t.listId) {
+        return {
+          ...t,
+          assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
+        };
+      }
+      
+      let spaceId = t.spaceId;
+      let listId = t.listId;
+      
+      if (t.workspaceId === 'w2' || !t.workspaceId) {
+        const title = t.title.toLowerCase();
+        if (title.includes('seo') || title.includes('keyword')) {
+          spaceId = 's-w2-marketing';
+          listId = 'l-w2-seo';
+        } else if (title.includes('campaign') || title.includes('kickoff')) {
+          spaceId = 's-w2-marketing';
+          listId = 'l-w2-campaign';
+        } else if (title.includes('email') || title.includes('launch')) {
+          spaceId = 's-w2-marketing';
+          listId = 'l-w2-email';
+        } else if (title.includes('bug') || title.includes('error') || title.includes('fix') || title.includes('test')) {
+          spaceId = 's-w2-qe';
+          listId = title.includes('test') ? 'l-w2-tests' : 'l-w2-bugs';
+        } else if (title.includes('design') || title.includes('ui') || title.includes('ux') || title.includes('mockup') || title.includes('logo')) {
+          spaceId = 's-w2-design';
+          listId = 'l-w2-mockups';
+        } else {
+          spaceId = 's-w2-product';
+          listId = 'l-w2-sprint1';
+        }
+      } else if (t.workspaceId === 'w1') {
+        spaceId = 's-w1-personal';
+        listId = 'l-w1-todo';
+      } else if (t.workspaceId === 'w3') {
+        spaceId = 's-w3-prep';
+        listId = 'l-w3-roadmap';
+      }
+      
+      return {
+        ...t,
+        spaceId,
+        listId,
+        assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
+      };
+    });
+  };
+
+
+
+  const handleWorkspaceChange = (w: typeof workspaces[0]) => {
+    setActiveWorkspaceId(w.id);
+    setAccentPreset(w.theme as any);
+    setShowWorkspaceMenu(false);
+    // Mimic a loading/refresh effect by dispatching a custom event or reloading data
+    addSyncLog(`Switched to workspace: ${w.name}`);
+  };
+
+  // Pomodoro Focus Timer enhanced states
+  const [workDuration, setWorkDuration] = useState(25);
+  const [shortBreakDuration, setShortBreakDuration] = useState(5);
+  const [longBreakDuration, setLongBreakDuration] = useState(15);
+  const [pomodoroMode, setPomodoroMode] = useState<'work' | 'short' | 'long'>('work');
+  const [showPomoSettings, setShowPomoSettings] = useState(false);
+
+  const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
+  const [pomodoroActive, setPomodoroActive] = useState(false);
+  const [previousStatus, setPreviousStatus] = useState<'online' | 'focused' | 'away'>('online');
+
+  // Mount-only effect to load all persisted settings from localStorage safely in Next.js SSR
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const savedSession = localStorage.getItem('avaxa_session');
+      if (savedSession) {
+        const { user, expiresAt } = JSON.parse(savedSession);
+        if (Date.now() < expiresAt) {
+          setCurrentUser(user);
+        } else {
+          localStorage.removeItem('avaxa_session');
+        }
+      }
+    } catch (e) {
+      console.error('Error restoring login session:', e);
+    }
+
+    try {
+      const saved = localStorage.getItem('avaxa_accent_preset');
+      if (saved === 'ocean' || saved === 'forest' || saved === 'sunset' || saved === 'indigo') {
+        setAccentPreset(saved);
+      }
+    } catch (e) {
+      console.error('Error restoring color preset:', e);
+    }
+
+    try {
+      const savedSound = localStorage.getItem('avaxa_sound_enabled');
+      if (savedSound !== null) {
+        setSoundEnabled(savedSound !== 'false');
+      }
+    } catch (e) {}
+
+    try {
+      const savedBlur = localStorage.getItem('avaxa_blur_intensity');
+      if (savedBlur === 'soft' || savedBlur === 'default' || savedBlur === 'immersive') {
+        setBlurIntensity(savedBlur);
+      }
+    } catch (e) {}
+
+    try {
+      const savedNotifications = localStorage.getItem('avaxa_notification_settings');
+      if (savedNotifications) {
+        setNotificationSettings((prev: any) => ({ ...prev, ...JSON.parse(savedNotifications) }));
+      }
+    } catch (e) {}
+
+    try {
+      const workVal = localStorage.getItem('avaxa_pomo_work');
+      const shortVal = localStorage.getItem('avaxa_pomo_short');
+      const longVal = localStorage.getItem('avaxa_pomo_long');
+      if (workVal) {
+        const workNum = Number(workVal);
+        setWorkDuration(workNum);
+        setPomodoroTime(workNum * 60);
+      }
+      if (shortVal) setShortBreakDuration(Number(shortVal));
+      if (longVal) setLongBreakDuration(Number(longVal));
+    } catch (e) {}
+
+    // Mark as loaded so subsequent state updates save back to localStorage
+    isLoaded.current = true;
+  }, []);
+
+  // Pomodoro timer handlers
+  const handleStartPomodoro = () => {
+    if (!pomodoroActive) {
+      setPreviousStatus(userStatus);
+      if (pomodoroMode === 'work') {
+        setUserStatus('focused');
+      }
+      setPomodoroActive(true);
+      const modeLabel = pomodoroMode === 'work' ? 'Focus' : (pomodoroMode === 'short' ? 'Short Break' : 'Long Break');
+      const minutes = pomodoroMode === 'work' ? workDuration : (pomodoroMode === 'short' ? shortBreakDuration : longBreakDuration);
+      triggerToast('info', 'Focus Mode Active', `Launched Pomodoro ${modeLabel} for ${minutes} minutes. Blocking non-critical notifications.`);
+      addSyncLog(`Activated Pomodoro ${modeLabel} session (${minutes} minutes)`);
+    }
+  };
+
+  const handlePausePomodoro = () => {
+    setPomodoroActive(false);
+    triggerToast('info', 'Paused', 'Pomodoro focus timer paused.');
+    addSyncLog('Paused Pomodoro focus session');
+  };
+
+  const handleStopPomodoro = () => {
+    setPomodoroActive(false);
+    const d = pomodoroMode === 'work' ? workDuration : (pomodoroMode === 'short' ? shortBreakDuration : longBreakDuration);
+    setPomodoroTime(d * 60);
+    setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
+    triggerToast('info', 'Focus Ended', 'Pomodoro stopped, restoring notifications.');
+    addSyncLog('Stopped Pomodoro focus session');
+  };
+
+  const handleSwitchPomodoroMode = (mode: 'work' | 'short' | 'long') => {
+    setPomodoroActive(false);
+    setPomodoroMode(mode);
+    const d = mode === 'work' ? workDuration : (mode === 'short' ? shortBreakDuration : longBreakDuration);
+    setPomodoroTime(d * 60);
+    setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
+    addSyncLog(`Changed Pomodoro mode to: ${mode === 'work' ? 'Work' : (mode === 'short' ? 'Short Break' : 'Long Break')}`);
+  };
+
+  const handleUpdatePomoDurations = (workVal: number, shortVal: number, longVal: number) => {
+    setWorkDuration(workVal);
+    setShortBreakDuration(shortVal);
+    setLongBreakDuration(longVal);
+    localStorage.setItem('avaxa_pomo_work', String(workVal));
+    localStorage.setItem('avaxa_pomo_short', String(shortVal));
+    localStorage.setItem('avaxa_pomo_long', String(longVal));
+
+    const currentDuration = pomodoroMode === 'work' ? workVal : (pomodoroMode === 'short' ? shortVal : longVal);
+    if (!pomodoroActive) {
+      setPomodoroTime(currentDuration * 60);
+    }
+    triggerToast('success', 'Updated Successfully', 'New Pomodoro durations configuration applied.');
+  };
+
+  // Global search navigation & selection triggers
+  const [initialSelectedTaskId, setInitialSelectedTaskId] = useState<string | null>(null);
+  const [initialSelectedDocId, setInitialSelectedDocId] = useState<string | null>(null);
+  const [initialSelectedChannelId, setInitialSelectedChannelId] = useState<string | null>(null);
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCategory, setSearchCategory] = useState<'all' | 'tasks' | 'docs' | 'channels'>('all');
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Reset category filter when search modal is opened/closed
+  useEffect(() => {
+    if (!isSearchOpen) {
+      setSearchCategory('all');
+    }
+  }, [isSearchOpen]);
+
+  // Keyboard shortcut listener (Ctrl+K / Cmd+K to focus search, Esc to close)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 80);
+      } else if (e.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Pomodoro Focus Timer countdown loop and status trigger
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (pomodoroActive) {
+      interval = setInterval(() => {
+        setPomodoroTime(prev => {
+          if (prev <= 1) {
+            setPomodoroActive(false);
+            setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
+            
+            const modeLabel = pomodoroMode === 'work' ? 'Focus' : (pomodoroMode === 'short' ? 'Short Break' : 'Long Break');
+            const minutes = pomodoroMode === 'work' ? workDuration : (pomodoroMode === 'short' ? shortBreakDuration : longBreakDuration);
+            
+            // Auto switch modes: work completed -> short break; break completed -> work duration
+            let nextMode: 'work' | 'short' | 'long' = 'work';
+            let nextTime = workDuration * 60;
+            if (pomodoroMode === 'work') {
+              nextMode = 'short';
+              nextTime = shortBreakDuration * 60;
+            } else {
+              nextMode = 'work';
+              nextTime = workDuration * 60;
+            }
+            
+            setPomodoroMode(nextMode);
+            
+            setTimeout(() => {
+              triggerToast('success', 'Focus Completed!', `Pomodoro focus session ${modeLabel} of ${minutes} minutes completed successfully.`);
+              addSyncLog(`Completed Pomodoro focus session ${modeLabel} of ${minutes} minutes`);
+            }, 0);
+            return nextTime;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [pomodoroActive, previousStatus, pomodoroMode, workDuration, shortBreakDuration, longBreakDuration]);
+
+  // Sync Activity log state
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([
+    { id: 'l1', action: 'Initialized Avaxa OS Engine', time: '09:00 AM', status: 'synced' },
+    { id: 'l2', action: 'Synchronized real-time collaboration channels', time: '09:05 AM', status: 'synced' }
+  ]);
+
+  // Tasks ClickUp dataset (synchronized and persisted via Supabase cloud storage)
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // Documents Wiki dataset (synchronized and persisted via Supabase cloud storage)
+  const [docs, setDocs] = useState<Document[]>([]);
+
+  // Search indexing and query data filtering
+  const channelsList = [
+    { id: 'general', name: 'general', description: 'General company discussions, announcements of new updates' },
+    { id: 'project-planning', name: 'project-planning', description: 'Weekly planning maps & KPI schedules' },
+    { id: 'avaxa-brain-ai', name: 'avaxa-brain-ai', description: 'Gemini-powered AI Avaxa Brain smart assistant chat room' },
+    { id: 'design-review', name: 'design-review', description: 'Evaluate sketches, whiteboard drawings, design previews' }
+  ];
+
+  const filteredTasks = searchQuery.trim() === '' ? [] : tasks.filter(t => 
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    t.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDocs = searchQuery.trim() === '' ? [] : docs.filter(d => 
+    d.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    d.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredChannels = searchQuery.trim() === '' ? [] : channelsList.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalResultsCount = filteredTasks.length + filteredDocs.length + filteredChannels.length;
+
+  // Toast notification state
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const lastToastsRef = useRef<Record<string, number>>({});
+
+  // Persistent notifications history list (for visual management tray)
+  const [notificationsList, setNotificationsList] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('avaxa_notifications_list');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return [
+      { id: 'notif-1', type: 'assignment', title: 'New Task Assigned', message: 'You have been assigned to "Complete Dashboard UI"', timestamp: '10:30 15/06', read: false },
+      { id: 'notif-2', type: 'deadline', title: 'Upcoming Task Deadline', message: 'Task "Integrate AI API" is due tomorrow!', timestamp: '08:15 15/06', read: true }
+    ];
+  });
+  const [showNotificationsMenu, setShowNotificationsMenu] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('avaxa_notifications_list', JSON.stringify(notificationsList));
+    } catch (e) {}
+  }, [notificationsList]);
+
+  // Dynamic Toast notification trigger function
+  const triggerToast = (type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message', title: string, message: string) => {
+    // If a Pomodoro focus timer session is active, block all standard notifications (toasts)
+    // we only allow 'success' list or 'info' updates triggered by some administrative actions or pomodoro timer itself
+    if (pomodoroActive && type !== 'success' && type !== 'info') {
+      console.log(`[Pomodoro Active - Notification Blocked]: ${title}: ${message}`);
+      return;
+    }
+
+    const titleLower = title.toLowerCase();
+    const msgLower = message.toLowerCase();
+
+    // Guard on global switches
+    if (!notificationSettings.enableAll || notificationSettings.dndActive) {
+      console.log(`[Notification Suppressed - Off or DND]: ${title}`);
+      return;
+    }
+
+    // Filter tag updates click annoyances
+    if ((titleLower.includes('nhãn') || msgLower.includes('nhãn') || titleLower.includes('lọc')) && !notificationSettings.enableFilteringTags) {
+      return;
+    }
+
+    // Filter task status change popups
+    const isStatusChange = titleLower.includes('trạng thái') || 
+                           msgLower.includes('trạng thái') || 
+                           msgLower.includes('chuyển sang "cần làm"') || 
+                           msgLower.includes('chuyển sang "đang làm"') || 
+                           msgLower.includes('chuyển sang "đang duyệt"') || 
+                           titleLower.includes('hoàn tất') ||
+                           titleLower.includes('đã hoàn thành') ||
+                           titleLower.includes('đã mở lại');
+    if (isStatusChange && !notificationSettings.enableStatusChanges) {
+      return;
+    }
+
+    // Category overrides
+    if (type === 'assignment' && !notificationSettings.enableAssignments) return;
+    if (type === 'deadline' && !notificationSettings.enableDeadlines) return;
+    if ((type === 'comment' || type === 'message') && !notificationSettings.enableComments) return;
+    if ((type === 'success' || type === 'info') && !isStatusChange && !notificationSettings.enableSystemNotify) {
+      return;
+    }
+
+    // If important filter is on, only allow high/urgent/critical indicators
+    if (notificationSettings.onlyImportant) {
+      const isImportant = type === 'deadline' || 
+                          type === 'assignment' || 
+                          titleLower.includes('gấp') || 
+                          titleLower.includes('quan trọng') || 
+                          msgLower.includes('hoàn tất!') || 
+                          titleLower.includes('hạn chót') || 
+                          titleLower.includes('cảnh báo');
+      if (!isImportant) return;
+    }
+
+    // Throttling logic (prevents continuous rapid repeats)
+    const now = Date.now();
+    if (notificationSettings.frequencyLimit === 'throttled') {
+      // Identical suppress in last 3 seconds
+      const key = `${type}_${title}_${message}`;
+      const lastTime = lastToastsRef.current[key] || 0;
+      if (now - lastTime < 3000) {
+        console.log(`[Anti-Spam Suppress]: Repeated too quickly: ${title}`);
+        return;
+      }
+      lastToastsRef.current[key] = now;
+
+      // Category pacing - limit to one every 1.5 seconds to avoid flooding
+      const catKey = `cat_${type}`;
+      const lastCatTime = lastToastsRef.current[catKey] || 0;
+      if (now - lastCatTime < 1500) {
+        console.log(`[Anti-Spam Suppress]: Category paced: ${type}`);
+        return;
+      }
+      lastToastsRef.current[catKey] = now;
+    } else if (notificationSettings.frequencyLimit === 'minimal') {
+      // Minimal: max one notification of any type every 5 seconds, only very critical/deadlines
+      const key = `global_minimal`;
+      const lastTime = lastToastsRef.current[key] || 0;
+      const isImportant = type === 'deadline' || type === 'assignment' || titleLower.includes('hạn chót');
+      if (!isImportant || now - lastTime < 5000) {
+        return;
+      }
+      lastToastsRef.current[key] = now;
+    }
+
+    // Save into Notification Tray History
+    const newNotifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setNotificationsList(prev => [
+      {
+        id: newNotifId,
+        type,
+        title,
+        message,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
+        read: false
+      },
+      ...prev
+    ].slice(0, 50));
+
+    // Play synthetic chime if enabled
+    if (notificationSettings.enableSound) {
+      try {
+        const playSystemSoundFn = (window as any).playSystemSound;
+        if (playSystemSoundFn) {
+          playSystemSoundFn('notification');
+        }
+      } catch (e) {
+        console.warn('System sound play failed:', e);
+      }
+    }
+
+    setToasts(prev => {
+      const current = prev.slice(-3); // Limit active concurrent toasts and prevent screen spill
+      return [...current, {
+        id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        type,
+        title,
+        message,
+        duration: notificationSettings.toastDuration
+      }];
+    });
+  };
+
+  // Auto-scan tasks for upcoming deadlines and alert user via Toast on login
+  useEffect(() => {
+    if (currentUser && tasks.length > 0) {
+      const timer = setTimeout(() => {
+        const now = new Date();
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(now.getDate() + 3);
+
+        // Find tasks approaching their deadline (due within 3 days or overdue)
+        const upcomingTasks = tasks.filter(t => {
+          if (t.status === 'completed' || !t.dueDate) return false;
+          try {
+            const due = new Date(t.dueDate);
+            return !isNaN(due.getTime()) && due <= threeDaysFromNow;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        if (upcomingTasks.length > 0) {
+          // Read already notified deadlines from local storage to prevent duplicate warnings
+          let notifiedMap: Record<string, string> = {};
+          try {
+            const stored = localStorage.getItem('avaxa_notified_deadlines');
+            if (stored) notifiedMap = JSON.parse(stored);
+          } catch (e) {
+            console.error('Error loading notified deadlines:', e);
+          }
+
+          let wasUpdated = false;
+          const newNotifiedMap = { ...notifiedMap };
+
+          upcomingTasks.forEach((t, index) => {
+            // Skip if already notified for this exact task ID and due date combination
+            if (notifiedMap[t.id] === t.dueDate) {
+              return;
+            }
+
+            setTimeout(() => {
+              triggerToast(
+                'deadline',
+                'Deadline Warning',
+                `Task "${t.title}" is approaching its completion date (${t.dueDate}). Please check!`
+              );
+            }, index * 1200); // Elegant staggered animations
+
+            newNotifiedMap[t.id] = t.dueDate || '';
+            wasUpdated = true;
+          });
+
+          if (wasUpdated) {
+            try {
+              localStorage.setItem('avaxa_notified_deadlines', JSON.stringify(newNotifiedMap));
+            } catch (e) {
+              console.error('Error saving notified deadlines:', e);
+            }
+          }
+        }
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser, tasks]);
+
+  // Synchronize dynamic members configuration when current user state loads or toggles
+  useEffect(() => {
+    if (currentUser) {
+      setMembers(prev => prev.map(m => m.id === 'user' ? {
+        ...m,
+        name: currentUser.name,
+        email: currentUser.email,
+        avatar: currentUser.avatar,
+        role: currentUser.role
+      } : m));
+    }
+  }, [currentUser]);
+
+  // Network offline simulation
+  const [isOffline, setIsOffline] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+
+  // Optimized offline mutation queues to reduce sync network overhead
+  const [offlineTasksQueue, setOfflineTasksQueue] = useState<Record<string, Task>>({});
+  const [offlineDocsQueue, setOfflineDocsQueue] = useState<Record<string, Document>>({});
+  const [offlineMembersQueue, setOfflineMembersQueue] = useState<Record<string, User>>({});
+  const [offlineDeletedTasks, setOfflineDeletedTasks] = useState<string[]>([]);
+  const [offlineDeletedDocs, setOfflineDeletedDocs] = useState<string[]>([]);
+  const [offlineDeletedMembers, setOfflineDeletedMembers] = useState<string[]>([]);
+
+  // Members corporate list dataset (synchronized and persisted via Supabase cloud storage)
+  const [members, setMembers] = useState<User[]>([]);
+
+  // Auto-save member workspace mappings to localStorage
+  useEffect(() => {
+    if (!currentUser?.email || members.length === 0) return;
+    const mappings: Record<string, string[]> = {};
+    let hasWorkspaceIds = false;
+    members.forEach(m => {
+      if (m.workspaceIds && m.workspaceIds.length > 0) {
+        mappings[m.id] = m.workspaceIds;
+        hasWorkspaceIds = true;
+      }
+    });
+    if (hasWorkspaceIds) {
+      localStorage.setItem(`avaxa_member_workspaces_${currentUser.email}`, JSON.stringify(mappings));
+    }
+  }, [members, currentUser]);
+
+  // Global SyncLog adder
+  const addSyncLog = (action: string) => {
+    const newLog: SyncLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      action,
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      status: isOffline ? 'offline_saved' : 'synced'
+    };
+    setSyncLogs(prev => [...prev, newLog]);
+  };
+
+  // Sync animation triggers when going online
+  const handleToggleOffline = () => {
+    if (isOffline) {
+      // Trigger smooth synchronization animations
+      setSyncing(true);
+      setSyncProgress(10);
+      
+      const interval = setInterval(() => {
+        setSyncProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+              setSyncing(false);
+              setIsOffline(false);
+              // Clean all offline saved logs into synchronized status
+              setSyncLogs(prevLogs => prevLogs.map(l => l.status === 'offline_saved' ? { ...l, status: 'synced' as const } : l));
+              addSyncLog('Data successfully synchronized with the cloud server!');
+
+              // Synchronize all local changes to Supabase in the background
+              const syncOfflineData = async () => {
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session?.user) {
+                    const userId = session.user.id;
+                    const syncPromises: PromiseLike<any>[] = [];
+
+                    // 1. Batch Sync tasks
+                    const tasksToUpsert = Object.values(offlineTasksQueue) as Task[];
+                    if (tasksToUpsert.length > 0) {
+                      const formattedTasks = tasksToUpsert.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        description: t.description,
+                        priority: t.priority,
+                        status: t.status,
+                        assigneeId: t.assigneeId || null,
+                        startDate: t.startDate || null,
+                        dueDate: t.dueDate || null,
+                        subtasks: t.subtasks,
+                        progress: t.progress,
+                        created_at: t.createdAt,
+                        hoursEstimate: t.hoursEstimate || null,
+                        hoursLogged: t.hoursLogged || null,
+                        commentsCount: t.commentsCount,
+                        tags: t.tags || [],
+                        isPinned: t.isPinned || false,
+                        comments: t.comments,
+                        user_id: userId,
+                        workspace_id: t.workspaceId || null,
+                        space_id: t.spaceId || null,
+                        list_id: t.listId || null,
+                        custom_fields: t.custom_fields || {},
+                        recurrence: t.recurrence || null
+                      }));
+                      
+                      syncPromises.push(
+                        supabase.from('tasks')
+                          .upsert(formattedTasks)
+                          .then(({ error }) => {
+                            if (error) console.error('Error syncing batched offline tasks:', error);
+                          })
+                      );
+                    }
+
+                    // 2. Batch Delete tasks
+                    if (offlineDeletedTasks.length > 0) {
+                      syncPromises.push(
+                        supabase.from('tasks')
+                          .delete()
+                          .in('id', offlineDeletedTasks)
+                          .eq('user_id', userId)
+                          .then(({ error }) => {
+                            if (error) console.error('Error batch deleting offline tasks:', error);
+                          })
+                      );
+                    }
+
+                    // 3. Batch Sync docs
+                    const docsToUpsert = Object.values(offlineDocsQueue) as Document[];
+                    if (docsToUpsert.length > 0) {
+                      const formattedDocs = docsToUpsert.map(d => ({
+                        id: d.id,
+                        title: d.title,
+                        content: d.content,
+                        category: d.category,
+                        updatedAt: d.updatedAt,
+                        updatedBy: d.updatedBy,
+                        isAiGenerated: d.isAiGenerated || false,
+                        user_id: userId,
+                        workspace_id: d.workspaceId || null
+                      }));
+                      
+                      syncPromises.push(
+                        supabase.from('docs')
+                          .upsert(formattedDocs)
+                          .then(({ error }) => {
+                            if (error) console.error('Error syncing batched offline docs:', error);
+                          })
+                      );
+                    }
+
+                    // 4. Batch Delete docs
+                    if (offlineDeletedDocs.length > 0) {
+                      syncPromises.push(
+                        supabase.from('docs')
+                          .delete()
+                          .in('id', offlineDeletedDocs)
+                          .eq('user_id', userId)
+                          .then(({ error }) => {
+                            if (error) console.error('Error batch deleting offline docs:', error);
+                          })
+                      );
+                    }
+
+                    // 5. Batch Sync members
+                    const membersToUpsert = Object.values(offlineMembersQueue) as User[];
+                    if (membersToUpsert.length > 0) {
+                      const formattedMembers = membersToUpsert.map(m => ({
+                        id: m.id === 'user' ? `user-${userId}` : m.id,
+                        name: m.name,
+                        email: m.email,
+                        avatar: m.avatar,
+                        role: m.role,
+                        status: m.status,
+                        user_id: userId,
+                        phone: m.phone || null,
+                        department: m.department || null,
+                        bio: m.bio || null,
+                        joined_date: m.joinedDate || null,
+                        workspace_ids: m.workspaceIds || null
+                      }));
+                      
+                      syncPromises.push(
+                        supabase.from('members')
+                          .upsert(formattedMembers)
+                          .then(({ error }) => {
+                            if (error) console.error('Error syncing batched offline members:', error);
+                          })
+                      );
+                    }
+
+                    // 6. Batch Delete members
+                    if (offlineDeletedMembers.length > 0) {
+                      syncPromises.push(
+                        supabase.from('members')
+                          .delete()
+                          .in('id', offlineDeletedMembers)
+                          .eq('user_id', userId)
+                          .then(({ error }) => {
+                            if (error) console.error('Error batch deleting offline members:', error);
+                          })
+                      );
+                    }
+
+                    // Run all batch database transaction updates concurrently to minimize network roundtrips!
+                    if (syncPromises.length > 0) {
+                      await Promise.all(syncPromises);
+                      addSyncLog(`System merge successful: Optimized sync (${tasksToUpsert.length} new/modified tasks, ${offlineDeletedTasks.length} deleted tasks, ${docsToUpsert.length} new/modified docs, ${offlineDeletedDocs.length} deleted docs).`);
+                    } else {
+                      addSyncLog('No new offline changes detected for synchronization.');
+                    }
+
+                    // Clear the offline queue states upon successful batch processing to reset database transaction trackers
+                    setOfflineTasksQueue({});
+                    setOfflineDocsQueue({});
+                    setOfflineMembersQueue({});
+                    setOfflineDeletedTasks([]);
+                    setOfflineDeletedDocs([]);
+                    setOfflineDeletedMembers([]);
+                  }
+                } catch (err) {
+                  console.error('Error uploading synchronized data to Supabase:', err);
+                }
+              };
+              syncOfflineData();
+            }, 600);
+            return 100;
+          }
+          return prev + 15;
+        });
+      }, 150);
+    } else {
+      setIsOffline(true);
+      addSyncLog('Disconnected from local network. Switched to offline cache storage.');
+    }
+  };
+
+  // --- Real-time Supabase Data Synchronization Engine ---
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!currentUser || isOffline) return;
+
+    let tasksChannel: any = null;
+    let docsChannel: any = null;
+    let membersChannel: any = null;
+    let workspacesChannel: any = null;
+    let spacesChannel: any = null;
+    let listsChannel: any = null;
+
+    const loadAndSubscribe = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        const userId = session.user.id;
+
+        // A0. Load Workspaces from Supabase with safe fallback
+        let wsSuccess = false;
+        try {
+          const { data: dbWorkspaces, error: wsError } = await supabase
+            .from('workspaces')
+            .select('*')
+            .eq('user_id', userId);
+
+          if (!active) return;
+
+          if (wsError) {
+            console.warn('workspaces table check or fetch failed, falling back to offline workspaces caching:', wsError.message);
+          } else {
+            wsSuccess = true;
+            let finalWorkspaces = dbWorkspaces || [];
+            const hasSeededWS = localStorage.getItem(`avaxa_seeded_workspaces_${userId}`);
+            
+            if (finalWorkspaces.length === 0 && !hasSeededWS) {
+              const initialWorkspaces = [
+                { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
+                { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
+                { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
+              ];
+              const { data: seededWorkspaces } = await supabase.from('workspaces').insert(initialWorkspaces).select();
+              if (seededWorkspaces) finalWorkspaces = seededWorkspaces;
+              try { localStorage.setItem(`avaxa_seeded_workspaces_${userId}`, 'true'); } catch (e) {}
+            }
+
+            if (finalWorkspaces.length > 0) {
+              setWorkspaces(finalWorkspaces.map(w => ({
+                id: w.id,
+                name: w.name,
+                theme: w.theme || 'indigo',
+                initial: w.initial || w.name.charAt(0).toUpperCase(),
+                user_id: w.user_id
+              })));
+            }
+          }
+        } catch (e) {
+          console.warn('Exception querying workspaces (custom table might not exist in database yet). Using localStorage fallback.', e);
+        }
+
+        if (!wsSuccess && active) {
+          // Local storage fallback cache
+          const cachedWS = localStorage.getItem(`avaxa_fallback_workspaces_${userId}`);
+          if (cachedWS) {
+            try { setWorkspaces(JSON.parse(cachedWS)); } catch (e) {}
+          } else {
+            const initialWorkspaces = [
+              { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
+              { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
+              { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
+            ];
+            setWorkspaces(initialWorkspaces);
+            try { localStorage.setItem(`avaxa_fallback_workspaces_${userId}`, JSON.stringify(initialWorkspaces)); } catch (e) {}
+          }
+        }
+
+        // A. Load Team Members (Auto-upsert current real logged-in user, then fetch all real global users)
+        const myMemberId = `user-${userId}`;
+        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const myEmail = currentUser?.email || session.user.email || '';
+        const myAvatar = currentUser?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
+        const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
+        
+        const { data: dbMembers, error: membersErr } = await supabase
+          .from('members')
+          .select('*');
+
+        if (!active) return;
+
+        const finalMembers = dbMembers || [];
+        const myDbProfile = finalMembers.find(m => m.id === myMemberId);
+
+        if (!myDbProfile) {
+          const myPhone = session.user.user_metadata?.phone || '';
+          const myDepartment = session.user.user_metadata?.department || '';
+          const myBio = session.user.user_metadata?.bio || '';
+          const myJoinedDate = session.user.user_metadata?.joinedDate || '2026';
+          const myWorkspaceIds = ['w1', 'w2', 'w3'];
+
+          const newProfile = {
+            id: myMemberId,
+            name: myName,
+            email: myEmail,
+            avatar: myAvatar,
+            role: myRole,
+            status: 'online',
+            user_id: userId,
+            phone: myPhone,
+            department: myDepartment,
+            bio: myBio,
+            joined_date: myJoinedDate,
+            workspace_ids: myWorkspaceIds
+          };
+
+          await supabase.from('members').upsert([newProfile], { onConflict: 'id' });
+          finalMembers.push(newProfile);
+        } else {
+          // If profile exists, make sure status is online.
+          // Also sync any missing details from session user metadata to database.
+          const updatedFields: any = { status: 'online' };
+          let needsUpdate = false;
+
+          if (!myDbProfile.phone && session.user.user_metadata?.phone) {
+            updatedFields.phone = session.user.user_metadata.phone;
+            myDbProfile.phone = session.user.user_metadata.phone;
+            needsUpdate = true;
+          }
+          if (!myDbProfile.department && session.user.user_metadata?.department) {
+            updatedFields.department = session.user.user_metadata.department;
+            myDbProfile.department = session.user.user_metadata.department;
+            needsUpdate = true;
+          }
+          if (!myDbProfile.bio && session.user.user_metadata?.bio) {
+            updatedFields.bio = session.user.user_metadata.bio;
+            myDbProfile.bio = session.user.user_metadata.bio;
+            needsUpdate = true;
+          }
+          if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) {
+            updatedFields.joined_date = session.user.user_metadata.joinedDate;
+            myDbProfile.joined_date = session.user.user_metadata.joinedDate;
+            needsUpdate = true;
+          }
+          if (!myDbProfile.avatar && session.user.user_metadata?.avatar) {
+            updatedFields.avatar = session.user.user_metadata.avatar;
+            myDbProfile.avatar = session.user.user_metadata.avatar;
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            await supabase.from('members').update(updatedFields).eq('id', myMemberId);
+          } else {
+            await supabase.from('members').update({ status: 'online' }).eq('id', myMemberId);
+          }
+          myDbProfile.status = 'online';
+        }
+
+        if (finalMembers.length > 0) {
+          const userEmail = session.user.email || 'default';
+          const storedWorkspaceMapRaw = localStorage.getItem(`avaxa_member_workspaces_${userEmail}`);
+          const storedWorkspaceMap = storedWorkspaceMapRaw ? JSON.parse(storedWorkspaceMapRaw) : {};
+
+          setMembers(finalMembers.map(m => {
+            const isMe = m.id === myMemberId;
+            const memberId = isMe ? 'user' : m.id;
+            const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || ['w1', 'w2', 'w3'];
+            return {
+              id: memberId,
+              name: m.name,
+              email: m.email,
+              avatar: m.avatar,
+              role: m.role as any,
+              status: m.status as any,
+              workspaceIds,
+              phone: m.phone || '',
+              department: m.department || '',
+              bio: m.bio || '',
+              joinedDate: m.joined_date || '2026'
+            };
+          }));
+        }
+
+        // B. Load Tasks (No mock data seeding, fetch user tasks)
+        const { data: dbTasks, error: tasksErr } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (!active) return;
+
+        const finalTasks = dbTasks || [];
+
+        if (finalTasks.length > 0) {
+          setTasks(finalTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            priority: t.priority as any,
+            status: t.status as any,
+            assigneeId: t.assigneeId || undefined,
+            startDate: t.startDate || undefined,
+            dueDate: t.dueDate || undefined,
+            subtasks: t.subtasks || [],
+            progress: t.progress || 0,
+            createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+            hoursEstimate: t.hoursEstimate || undefined,
+            hoursLogged: t.hoursLogged || undefined,
+            commentsCount: t.commentsCount || 0,
+            tags: t.tags || [],
+            isPinned: t.isPinned || false,
+            comments: t.comments || [],
+            attachments: t.attachments || [],
+            workspaceId: t.workspace_id || undefined,
+            spaceId: t.space_id || undefined,
+            listId: t.list_id || undefined,
+            custom_fields: t.custom_fields || {},
+            recurrence: t.recurrence || undefined
+          })));
+        } else {
+          setTasks([]);
+        }
+
+        // C. Load Documents (No mock data seeding, fetch user documents)
+        const { data: dbDocs, error: docsErr } = await supabase
+          .from('docs')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (!active) return;
+
+        const finalDocs = dbDocs || [];
+
+        if (finalDocs.length > 0) {
+          // Pre-populate manual task order lists from db to localstorage for instant sync
+          finalDocs.forEach(d => {
+            if (d.title && d.title.startsWith('System Task Order: ')) {
+              const wsId = d.title.replace('System Task Order: ', '');
+              if (wsId && d.content) {
+                try {
+                  localStorage.setItem(`avaxa_task_order_${wsId}`, d.content);
+                } catch (e) {}
+              }
+            }
+          });
+
+          setDocs(finalDocs.map(d => ({
+            id: d.id,
+            title: d.title,
+            category: d.category,
+            content: d.content,
+            updatedAt: d.updatedAt,
+            updatedBy: d.updatedBy,
+            isAiGenerated: d.isAiGenerated || false,
+            workspaceId: d.workspace_id || undefined
+          })));
+        } else {
+          setDocs([]);
+        }
+
+        // D. Load Spaces and Lists from Supabase
+        const fetchSpacesAndLists = async () => {
+          try {
+            const { data: dbSpaces, error: spacesErr } = await supabase
+              .from('spaces')
+              .select('*')
+              .eq('user_id', userId);
+            
+            const { data: dbLists, error: listsErr } = await supabase
+              .from('lists')
+              .select('*')
+              .eq('user_id', userId);
+
+            if (!active) return false;
+
+            if (spacesErr) {
+              console.warn('Spaces table fetch failed:', spacesErr.message);
+              return false;
+            }
+
+            const finalSpaces = dbSpaces || [];
+            if (finalSpaces.length > 0) {
+              const formattedSpaces = finalSpaces.map(s => ({
+                id: s.id,
+                name: s.name,
+                emoji: s.emoji || '📦',
+                themeColor: s.theme_color || 'indigo',
+                workspaceId: s.workspace_id,
+                lists: (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
+                  id: l.id,
+                  name: l.name,
+                  folderId: l.folder_id || undefined
+                })),
+                folders: s.folders || [],
+                whiteboards: s.whiteboards || [],
+                channels: s.channels || [],
+                statuses: s.statuses || [],
+                clickApps: s.click_apps || {}
+              }));
+              setSpaces(formattedSpaces);
+              return true;
+            }
+            return false;
+          } catch (e) {
+            console.error('Exception loading spaces/lists:', e);
+            return false;
+          }
+        };
+
+        let spacesSuccess = await fetchSpacesAndLists();
+        
+        if (!spacesSuccess && active) {
+          // Seed from localStorage or defaults
+          const savedSpaces = localStorage.getItem(`avaxa_spaces_${userId}`);
+          let localSpaces: Space[] = [];
+          if (savedSpaces) {
+            try { localSpaces = JSON.parse(savedSpaces); } catch (e) {}
+          }
+
+          if (localSpaces.length === 0) {
+            localSpaces = [
+              {
+                id: 's-w1-personal',
+                name: 'Personal Space',
+                emoji: '🧘',
+                themeColor: 'indigo',
+                workspaceId: 'w1',
+                lists: [
+                  { id: 'l-w1-inbox', name: 'Inbox' },
+                  { id: 'l-w1-todo', name: 'To Do' }
+                ],
+                clickApps: { subtasks: true, priorities: true }
+              },
+              {
+                id: 's-w2-product',
+                name: 'Product Space',
+                emoji: '🔮',
+                themeColor: 'indigo',
+                workspaceId: 'w2',
+                lists: [
+                  { id: 'l-w2-roadmap', name: 'Product Roadmap' },
+                  { id: 'l-w2-sprint1', name: 'Sprint 1' }
+                ],
+                clickApps: { subtasks: true, priorities: true, customFields: true, timeTracking: true }
+              },
+              {
+                id: 's-w2-marketing',
+                name: 'Marketing Space',
+                emoji: '📢',
+                themeColor: 'rose',
+                workspaceId: 'w2',
+                lists: [
+                  { id: 'l-w2-campaign', name: 'Campaign Kickoff' },
+                  { id: 'l-w2-seo', name: 'SEO Plan' },
+                  { id: 'l-w2-email', name: 'Email Launch' }
+                ],
+                clickApps: { subtasks: true, priorities: true, customFields: true, relationships: true }
+              }
+            ];
+          }
+
+          // Migrate to Supabase
+          try {
+            for (const space of localSpaces) {
+              await supabase.from('spaces').insert({
+                id: space.id,
+                name: space.name,
+                emoji: space.emoji || null,
+                theme_color: space.themeColor || null,
+                workspace_id: space.workspaceId,
+                folders: space.folders || [],
+                whiteboards: space.whiteboards || [],
+                channels: space.channels || [],
+                statuses: space.statuses || [],
+                click_apps: space.clickApps || {},
+                user_id: userId
+              });
+              
+              if (space.lists.length > 0) {
+                const listsToInsert = space.lists.map(l => ({
+                  id: l.id,
+                  name: l.name,
+                  space_id: space.id,
+                  folder_id: l.folderId || null,
+                  user_id: userId
+                }));
+                await supabase.from('lists').insert(listsToInsert);
+              }
+            }
+          } catch (e) {
+            console.error('Error during seeding spaces migration:', e);
+          }
+
+          setSpaces(localSpaces);
+        }
+
+        setDataLoaded(true);
+        addSyncLog('Cloud storage synchronized with Supabase successfully!');
+
+        // Set up Realtime Postgres Changes Channels
+        if (active) {
+          tasksChannel = supabase.channel('realtime-tasks')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'tasks',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const t = payload.new as any;
+                  if (!t || !t.id) return;
+                  const mappedTask: Task = {
+                    id: t.id,
+                    title: t.title,
+                    description: t.description,
+                    priority: t.priority as any,
+                    status: t.status as any,
+                    assigneeId: t.assigneeId || undefined,
+                    startDate: t.startDate || undefined,
+                    dueDate: t.dueDate || undefined,
+                    subtasks: t.subtasks || [],
+                    progress: t.progress || 0,
+                    createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+                    hoursEstimate: t.hoursEstimate || undefined,
+                    hoursLogged: t.hoursLogged || undefined,
+                    commentsCount: t.commentsCount || 0,
+                    tags: t.tags || [],
+                    isPinned: t.isPinned || false,
+                    comments: t.comments || [],
+                    attachments: t.attachments || [],
+                    workspaceId: t.workspace_id || undefined,
+                    spaceId: t.space_id || undefined,
+                    listId: t.list_id || undefined,
+                    custom_fields: t.custom_fields || {},
+                    recurrence: t.recurrence || undefined
+                  };
+                  setTasks(prev => {
+                    const exists = prev.some(item => item.id === mappedTask.id);
+                    if (exists) {
+                      return prev.map(item => item.id === mappedTask.id ? mappedTask : item);
+                    } else {
+                      return [...prev, mappedTask];
+                    }
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setTasks(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
+              }
+            )
+            .subscribe();
+
+          docsChannel = supabase.channel('realtime-docs')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'docs',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const d = payload.new as any;
+                  if (!d || !d.id) return;
+                  const mappedDoc: Document = {
+                    id: d.id,
+                    title: d.title,
+                    category: d.category,
+                    content: d.content,
+                    updatedAt: d.updatedAt,
+                    updatedBy: d.updatedBy,
+                    isAiGenerated: d.isAiGenerated || false,
+                    workspaceId: d.workspace_id || undefined
+                  };
+                  setDocs(prev => {
+                    const exists = prev.some(item => item.id === mappedDoc.id);
+                    if (exists) {
+                      return prev.map(item => item.id === mappedDoc.id ? mappedDoc : item);
+                    } else {
+                      return [...prev, mappedDoc];
+                    }
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setDocs(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
+              }
+            )
+            .subscribe();
+
+          membersChannel = supabase.channel('realtime-members')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'members'
+              },
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const m = payload.new as any;
+                  if (!m || !m.id) return;
+                  const mappedMember: User = {
+                    id: m.id,
+                    name: m.name,
+                    email: m.email,
+                    avatar: m.avatar,
+                    role: m.role as any,
+                    status: m.status as any
+                  };
+                  setMembers(prev => {
+                    const exists = prev.some(item => item.id === mappedMember.id);
+                    if (exists) {
+                      return prev.map(item => item.id === mappedMember.id ? mappedMember : item);
+                    } else {
+                      return [...prev, mappedMember];
+                    }
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setMembers(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
+              }
+            )
+            .subscribe();
+
+          workspacesChannel = supabase.channel('realtime-workspaces')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'workspaces',
+                filter: `user_id=eq.${userId}`
+              },
+              (payload) => {
+                const eventType = payload.eventType;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                  const w = payload.new as any;
+                  if (!w || !w.id) return;
+                  const mappedWS = {
+                    id: w.id,
+                    name: w.name,
+                    theme: w.theme || 'indigo',
+                    initial: w.initial || w.name.charAt(0).toUpperCase(),
+                    user_id: w.user_id
+                  };
+                  setWorkspaces(prev => {
+                    const exists = prev.some(item => item.id === mappedWS.id);
+                    if (exists) {
+                      return prev.map(item => item.id === mappedWS.id ? mappedWS : item);
+                    } else {
+                      return [...prev, mappedWS];
+                    }
+                  });
+                } else if (eventType === 'DELETE') {
+                  if (payload.old && payload.old.id) {
+                    setWorkspaces(prev => prev.filter(item => item.id !== payload.old.id));
+                  }
+                }
+              }
+            )
+            .subscribe();
+
+          spacesChannel = supabase.channel('realtime-spaces')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'spaces',
+                filter: `user_id=eq.${userId}`
+              },
+              () => {
+                fetchSpacesAndLists();
+              }
+            )
+            .subscribe();
+
+          listsChannel = supabase.channel('realtime-lists')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'lists',
+                filter: `user_id=eq.${userId}`
+              },
+              () => {
+                fetchSpacesAndLists();
+              }
+            )
+            .subscribe();
+
+          addSyncLog('Realtime sync via Supabase channels successful!');
+        }
+      } catch (err) {
+        console.error('Error during realtime data sync:', err);
+      }
+    };
+
+    loadAndSubscribe();
+    return () => {
+      active = false;
+      if (tasksChannel) supabase.removeChannel(tasksChannel);
+      if (docsChannel) supabase.removeChannel(docsChannel);
+      if (membersChannel) supabase.removeChannel(membersChannel);
+      if (workspacesChannel) supabase.removeChannel(workspacesChannel);
+      if (spacesChannel) supabase.removeChannel(spacesChannel);
+      if (listsChannel) supabase.removeChannel(listsChannel);
+    };
+  }, [currentUser, isOffline]);
+
+  // --- Supabase CRUD Wrapper Functions ---
+
+  const handleCreateWorkspace = async (name: string, theme: string, coverUrl?: string) => {
+    const initial = name.charAt(0).toUpperCase();
+    const newId = `w-${Date.now()}`;
+    const newWS = { id: newId, name, theme, initial, coverUrl };
+
+    if (currentUser && !isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          let { data, error } = await supabase.from('workspaces').insert([{
+            id: newId,
+            name,
+            theme,
+            initial,
+            user_id: session.user.id,
+            coverUrl
+          }]).select();
+
+          if (error) {
+            console.warn('Error creating with coverUrl on DB (retrying without coverUrl):', error.message);
+            const fallbackResult = await supabase.from('workspaces').insert([{
+              id: newId,
+              name,
+              theme,
+              initial,
+              user_id: session.user.id
+            }]).select();
+            data = fallbackResult.data;
+            error = fallbackResult.error;
+          }
+
+          if (!error && data && data.length > 0) {
+            const saved = data[0];
+            const mappedSaved = {
+              id: saved.id,
+              name: saved.name,
+              theme: saved.theme || 'indigo',
+              initial: saved.initial || initial,
+              user_id: saved.user_id,
+              coverUrl: saved.coverUrl || coverUrl
+            };
+            setWorkspaces(prev => {
+              const alreadyHas = prev.some(item => item.id === mappedSaved.id);
+              if (alreadyHas) return prev;
+              return [...prev, mappedSaved];
+            });
+            setActiveWorkspaceId(saved.id);
+            setAccentPreset(saved.theme as any);
+            triggerToast('success', 'Success', `Created new workspace: ${name}`);
+            addSyncLog(`Synchronized new workspace: ${name} to Supabase`);
+            return;
+          } else if (error) {
+            console.error('Error saving workspace to database (falling back to offline caching):', error);
+          }
+        }
+      } catch (err) {
+        console.error('Exception error creating workspace:', err);
+      }
+    }
+
+    // Fallback/offline
+    setWorkspaces(prev => {
+      const updated = [...prev, newWS];
+      if (currentUser) {
+        try { localStorage.setItem(`avaxa_fallback_workspaces_${currentUser.id}`, JSON.stringify(updated)); } catch (e) {}
+      }
+      return updated;
+    });
+    setActiveWorkspaceId(newId);
+    setAccentPreset(theme as any);
+    triggerToast('success', 'Success', `Created and switched to new workspace: ${name}`);
+    addSyncLog(`Saved new workspace offline: ${name}`);
+  };
+
+  const handleUpdateWorkspace = async (id: string, name: string, theme: string, coverUrl?: string, logoUrl?: string, settings?: any) => {
+    const initial = name.charAt(0).toUpperCase();
+
+    if (currentUser && !isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase
+            .from('workspaces')
+            .update({ name, theme, initial, coverUrl, logoUrl, settings })
+            .eq('id', id);
+
+          if (error) {
+            console.warn('Error updating with settings on DB (retrying without):', error.message);
+            await supabase
+              .from('workspaces')
+              .update({ name, theme, initial })
+              .eq('id', id);
+          } else {
+            addSyncLog(`Synchronized workspace update "${name}" to Supabase`);
+          }
+        }
+      } catch (err) {
+        console.error('Exception error updating workspace:', err);
+      }
+    }
+
+    setWorkspaces(prev => {
+      const updated = prev.map(w => w.id === id ? { ...w, name, theme, initial, coverUrl, logoUrl, settings } : w);
+      if (currentUser) {
+        try { localStorage.setItem(`avaxa_fallback_workspaces_${currentUser.id}`, JSON.stringify(updated)); } catch (e) {}
+      }
+      return updated;
+    });
+
+    if (id === activeWorkspaceId) {
+      setAccentPreset(theme as any);
+    }
+
+    triggerToast('success', 'Success', `Updated space: ${name}`);
+  };
+
+  const handleDeleteWorkspace = async (id: string) => {
+    if (workspaces.length <= 1) {
+      triggerToast('info', 'Notification', 'You must retain at least one Workspace.');
+      return;
+    }
+
+    const targetWS = workspaces.find(w => w.id === id);
+    if (!targetWS) return;
+
+    if (currentUser && !isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase
+            .from('workspaces')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error('Error deleting workspace from database:', error.message);
+          } else {
+            addSyncLog(`Synchronized workspace deletion "${targetWS.name}" on Supabase`);
+          }
+        }
+      } catch (err) {
+        console.error('Exception error deleting workspace:', err);
+      }
+    }
+
+    let nextActiveId = activeWorkspaceId;
+    if (activeWorkspaceId === id) {
+      const remaining = workspaces.filter(w => w.id !== id);
+      nextActiveId = remaining[0].id;
+      setActiveWorkspaceId(nextActiveId);
+      setAccentPreset(remaining[0].theme as any);
+    }
+
+    setWorkspaces(prev => {
+      const updated = prev.filter(w => w.id !== id);
+      if (currentUser) {
+        try { localStorage.setItem(`avaxa_fallback_workspaces_${currentUser.id}`, JSON.stringify(updated)); } catch (e) {}
+      }
+      return updated;
+    });
+
+    triggerToast('success', 'Success', `Deleted workspace: ${targetWS.name}`);
+  };
+
+  const handleAddTask = async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
+    const assignee = members.find(m => m.id === t.assigneeId);
+    if (assignee) {
+      triggerToast(
+        'assignment',
+        'New Task Assigned',
+        `Task "${t.title}" has been assigned to ${assignee.name}.`
+      );
+    } else {
+      triggerToast(
+        'success',
+        'New Task Created',
+        `Task "${t.title}" was recorded successfully.`
+      );
+    }
+
+    const taskId = `task-${Date.now()}`;
+    const newTask: Task = {
+      ...t,
+      id: taskId,
+      createdAt: new Date().toISOString(),
+      commentsCount: 0,
+      progress: 0,
+      comments: [],
+      attachments: [],
+      workspaceId: t.workspaceId || activeWorkspaceId
+    };
+
+    // Update locally instantly for smooth UI response
+    setTasks(prev => [...prev, newTask]);
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const payload: any = {
+            id: newTask.id,
+            title: newTask.title,
+            description: newTask.description,
+            priority: newTask.priority,
+            status: newTask.status,
+            assigneeId: newTask.assigneeId || null,
+            startDate: newTask.startDate || null,
+            dueDate: newTask.dueDate || null,
+            subtasks: newTask.subtasks,
+            progress: newTask.progress,
+            created_at: newTask.createdAt,
+            hoursEstimate: newTask.hoursEstimate || null,
+            hoursLogged: newTask.hoursLogged || null,
+            commentsCount: newTask.commentsCount,
+            tags: newTask.tags || [],
+            isPinned: newTask.isPinned || false,
+            comments: newTask.comments,
+            user_id: session.user.id,
+            workspace_id: activeWorkspaceId,
+            space_id: newTask.spaceId || null,
+            list_id: newTask.listId || null,
+            custom_fields: newTask.custom_fields || {},
+            recurrence: newTask.recurrence || null
+          };
+
+          const { error } = await supabase.from('tasks').insert([payload]);
+          
+          if (error) {
+            console.warn('First task insert attempt failed, retrying without workspace_id column:', error.message);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('column') || error.message.includes('relation'))) {
+              delete payload.workspace_id;
+              const { error: retryError } = await supabase.from('tasks').insert([payload]);
+              if (retryError) {
+                console.error('Retry task insert failed:', retryError);
+                triggerToast('info', 'Task Save Error (Supabase)', `${retryError.message}`);
+              } else {
+                addSyncLog(`Task saved successfully in compatibility mode (No workspace_id): "${newTask.title}"`);
+              }
+            } else {
+              triggerToast('info', 'Task Save Error (Supabase)', `${error.message}`);
+            }
+          } else {
+            addSyncLog(`Task synchronized successfully to Supabase: "${newTask.title}"`);
+          }
+        }
+      } catch (err) {
+        console.error('Task sync failure:', err);
+      }
+    } else {
+      setOfflineTasksQueue(prev => ({ ...prev, [newTask.id]: newTask }));
+      setOfflineDeletedTasks(prev => prev.filter(id => id !== newTask.id));
+    }
+  };
+
+  const handleUpdateTask = async (updated: Task) => {
+    const oldTask = tasks.find(t => t.id === updated.id);
+    if (oldTask) {
+      if (oldTask.assigneeId !== updated.assigneeId && updated.assigneeId) {
+        const targetUser = members.find(m => m.id === updated.assigneeId);
+        triggerToast(
+          'assignment',
+          'Assignee Changed',
+          `Task "${updated.title}" has been handed over to ${targetUser ? targetUser.name : 'another colleague'}.`
+        );
+      }
+      if (oldTask.status !== updated.status) {
+        if (updated.status === 'completed') {
+          triggerToast(
+            'success',
+            'Task Completed! 🎉',
+            `Member has completed the task: "${updated.title}".`
+          );
+        } else {
+          const statusTranslation: Record<string, string> = {
+            todo: 'TO DO',
+            inprogress: 'IN PROGRESS',
+            review: 'REVIEW',
+            completed: 'COMPLETED'
+          };
+          triggerToast(
+            'info',
+            'Status Updated',
+            `Task "${updated.title}" moved to "${statusTranslation[updated.status] || updated.status}".`
+          );
+        }
+      }
+    }
+
+    setTasks(prev => {
+      console.log('[handleUpdateTask] setTasks called. updated.id:', updated.id, 'updated.status:', updated.status);
+      console.log('[handleUpdateTask] prev task statuses:', prev.map(t => `${t.id}:${t.status}`));
+      const result = prev.map(t => t.id === updated.id ? updated : t);
+      console.log('[handleUpdateTask] result task statuses:', result.map(t => `${t.id}:${t.status}`));
+      return result;
+    });
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').update({
+            title: updated.title,
+            description: updated.description,
+            priority: updated.priority,
+            status: updated.status,
+            assigneeId: updated.assigneeId || null,
+            startDate: updated.startDate || null,
+            dueDate: updated.dueDate || null,
+            subtasks: updated.subtasks,
+            progress: updated.progress,
+            hoursEstimate: updated.hoursEstimate || null,
+            hoursLogged: updated.hoursLogged || null,
+            commentsCount: updated.commentsCount,
+            tags: updated.tags || [],
+            isPinned: updated.isPinned || false,
+            comments: updated.comments,
+            space_id: updated.spaceId || null,
+            list_id: updated.listId || null,
+            custom_fields: updated.custom_fields || {},
+            recurrence: updated.recurrence || null
+          }).eq('id', updated.id).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Task Update Error:', error);
+        }
+      } catch (err) {
+        console.error('Task update sync failure:', err);
+      }
+    } else {
+      setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    const targetTask = tasks.find(t => t.id === id);
+    if (targetTask) {
+      triggerToast(
+        'info',
+        'Task Deleted',
+        `Task "${targetTask.title}" has been removed from the system.`
+      );
+    }
+
+    setTasks(prev => prev.filter(t => t.id !== id));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Task Delete Error:', error);
+        }
+      } catch (err) {
+        console.error('Task delete sync failure:', err);
+      }
+    } else {
+      setOfflineTasksQueue(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      setOfflineDeletedTasks(prev => [...prev, id]);
+    }
+  };
+
+  const handleUpdateTaskOrder = async (workspaceId: string, orderedIds: string[]) => {
+    if (currentUser && !isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const payload = {
+            id: `task-order-${workspaceId}`,
+            title: `System Task Order: ${workspaceId}`,
+            content: JSON.stringify(orderedIds),
+            category: 'System',
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.name || 'System',
+            user_id: session.user.id,
+            workspace_id: workspaceId
+          };
+          const { error } = await supabase.from('docs').upsert([payload]);
+          if (error) {
+            console.warn('First task order upsert attempt failed, retrying without workspace_id:', error.message);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('column'))) {
+              delete (payload as any).workspace_id;
+              const { error: retryError } = await supabase.from('docs').upsert([payload]);
+              if (retryError) {
+                console.error('Retry task order upsert failed:', retryError);
+              } else {
+                addSyncLog(`Synchronized task sorting order to DB (Compatibility mode)`);
+              }
+            }
+          } else {
+            addSyncLog(`Synchronized task sorting order to the cloud`);
+          }
+        }
+      } catch (err) {
+        console.error('Task order sync failure:', err);
+      }
+    }
+  };
+
+  const handleAddDoc = async (d: Omit<Document, 'id' | 'updatedAt'>) => {
+    const newDocId = `doc-${Date.now()}`;
+    const newDocObj: Document = {
+      ...d,
+      id: newDocId,
+      updatedAt: new Date().toISOString().split('T')[0],
+      workspaceId: activeWorkspaceId
+    };
+
+    setDocs(prev => [...prev, newDocObj]);
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const payload: any = {
+            id: newDocObj.id,
+            title: newDocObj.title,
+            content: newDocObj.content,
+            category: newDocObj.category,
+            updatedAt: newDocObj.updatedAt,
+            updatedBy: newDocObj.updatedBy,
+            isAiGenerated: newDocObj.isAiGenerated || false,
+            user_id: session.user.id,
+            workspace_id: activeWorkspaceId
+          };
+
+          const { error } = await supabase.from('docs').insert([payload]);
+          
+          if (error) {
+            console.warn('First doc insert attempt failed, retrying without workspace_id column:', error.message);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('column') || error.message.includes('relation'))) {
+              delete payload.workspace_id;
+              const { error: retryError } = await supabase.from('docs').insert([payload]);
+              if (retryError) {
+                console.error('Retry doc insert failed:', retryError);
+                triggerToast('info', 'Document Save Error (Supabase)', `${retryError.message}`);
+              } else {
+                addSyncLog(`Document saved successfully in compatibility mode (No workspace_id): "${newDocObj.title}"`);
+              }
+            } else {
+              triggerToast('info', 'Document Save Error (Supabase)', `${error.message}`);
+            }
+          } else {
+            addSyncLog(`Document synchronized successfully to Supabase: "${newDocObj.title}"`);
+          }
+        }
+      } catch (err) {
+        console.error('Doc insert sync failure:', err);
+      }
+    } else {
+      setOfflineDocsQueue(prev => ({ ...prev, [newDocObj.id]: newDocObj }));
+      setOfflineDeletedDocs(prev => prev.filter(id => id !== newDocObj.id));
+    }
+  };
+
+  const handleUpdateDoc = async (updated: Document) => {
+    setDocs(prev => prev.map(d => d.id === updated.id ? updated : d));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('docs').update({
+            title: updated.title,
+            content: updated.content,
+            category: updated.category,
+            updatedAt: updated.updatedAt,
+            updatedBy: updated.updatedBy,
+            isAiGenerated: updated.isAiGenerated || false
+          }).eq('id', updated.id).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Doc Update Error:', error);
+        }
+      } catch (err) {
+        console.error('Doc update sync failure:', err);
+      }
+    } else {
+      setOfflineDocsQueue(prev => ({ ...prev, [updated.id]: updated }));
+    }
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    setDocs(prev => prev.filter(d => d.id !== id));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('docs').delete().eq('id', id).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Doc Delete Error:', error);
+        }
+      } catch (err) {
+        console.error('Doc delete sync failure:', err);
+      }
+    } else {
+      setOfflineDocsQueue(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      setOfflineDeletedDocs(prev => [...prev, id]);
+    }
+  };
+
+  const handleAddMember = async (m: Omit<User, 'id'>) => {
+    const newMemberId = `member-${Date.now()}`;
+    const newMemberObj: User = {
+      ...m,
+      id: newMemberId
+    };
+
+    setMembers(prev => [...prev, newMemberObj]);
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase.from('members').insert([{
+            id: newMemberObj.id,
+            name: newMemberObj.name,
+            email: newMemberObj.email,
+            avatar: newMemberObj.avatar,
+            role: newMemberObj.role,
+            status: newMemberObj.status,
+            user_id: session.user.id,
+            phone: newMemberObj.phone || null,
+            department: newMemberObj.department || null,
+            bio: newMemberObj.bio || null,
+            joined_date: newMemberObj.joinedDate || null,
+            workspace_ids: newMemberObj.workspaceIds || null
+          }]);
+          if (error) console.error('Supabase Member Insert Error:', error);
+        }
+      } catch (err) {
+        console.error('Member insert sync failure:', err);
+      }
+    } else {
+      setOfflineMembersQueue(prev => ({ ...prev, [newMemberObj.id]: newMemberObj }));
+      setOfflineDeletedMembers(prev => prev.filter(id => id !== newMemberObj.id));
+    }
+  };
+
+  const handleUpdateMember = async (updated: User) => {
+    setMembers(prev => prev.map(m => m.id === updated.id ? updated : m));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const dbId = updated.id === 'user' ? `user-${session.user.id}` : updated.id;
+          const { error } = await supabase.from('members').update({
+            name: updated.name,
+            email: updated.email,
+            avatar: updated.avatar,
+            role: updated.role,
+            status: updated.status,
+            phone: updated.phone || null,
+            department: updated.department || null,
+            bio: updated.bio || null,
+            joined_date: updated.joinedDate || null,
+            workspace_ids: updated.workspaceIds || null
+          }).eq('id', dbId).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Member Update Error:', error);
+        }
+      } catch (err) {
+        console.error('Member update sync failure:', err);
+      }
+    } else {
+      setOfflineMembersQueue(prev => ({ ...prev, [updated.id]: updated }));
+    }
+  };
+
+  const handleDeleteMember = async (id: string) => {
+    setMembers(prev => prev.filter(m => m.id !== id));
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const dbId = id === 'user' ? `user-${session.user.id}` : id;
+          const { error } = await supabase.from('members').delete().eq('id', dbId).eq('user_id', session.user.id);
+          if (error) console.error('Supabase Member Delete Error:', error);
+        }
+      } catch (err) {
+        console.error('Member delete sync failure:', err);
+      }
+    } else {
+      setOfflineMembersQueue(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      setOfflineDeletedMembers(prev => [...prev, id]);
+    }
+  };
+
+  // Navigation categories for sidebar grouping
+  const categories = [
+    { id: 'workspace', label: 'Primary Spaces' },
+    { id: 'collaboration', label: 'Collaboration & Channels' },
+    { id: 'system', label: 'System' },
+  ];
+
+  // Navigation menu items definition
+  const sidebarItems = [
+    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, category: 'workspace' },
+    { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
+    { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
+    { id: 'whiteboard', label: 'Mind Whiteboard', icon: Grid, category: 'collaboration' },
+    { id: 'chat', label: 'Chat Room', icon: MessageSquare, category: 'collaboration' },
+    { id: 'docs', label: 'Wiki Docs', icon: Edit3, category: 'collaboration' },
+    { id: 'team', label: 'Team Directory', icon: Users, category: 'collaboration' },
+    { id: 'profile', label: 'User Profile', icon: UserIcon, category: 'system' },
+    { id: 'settings', label: 'System Settings', icon: Settings, category: 'system' },
+  ];
+
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={(user, rememberMe) => {
+      setCurrentUser(user);
+      if (rememberMe) {
+        const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
+        localStorage.setItem('avaxa_session', JSON.stringify({
+          user,
+          expiresAt: Date.now() + oneMonthInMs
+        }));
+        addSyncLog(`Saved automatic login session for 1 month for ${user.name}`);
+      } else {
+        localStorage.removeItem('avaxa_session');
+      }
+      
+      // Update in members directory
+      setMembers(prev => prev.map(m => m.id === 'user' ? {
+        ...m,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role
+      } : m));
+    }} />;
+  }
+
+  return (
+    <div className="fixed inset-0 w-full h-full bg-white text-slate-800 dark:text-slate-50 flex flex-col md:flex-row overflow-hidden font-sans select-none">
+      
+      {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
+      <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none" />
+      <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none" />
+      <div className="liquid-blob blob-3 animate-liquid-1 pointer-events-none" />
+
+      {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
+      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 transition-all duration-350 ease-in-out ${
+        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-slate-50 dark:bg-slate-900 px-4 py-5 space-y-6'
+      }`}>
+        
+        <div className="space-y-6">
+          {/* Main Launcher App Branding Header */}
+          <div className="flex items-center justify-between px-1 relative">
+            <div 
+              className="flex-1 flex items-center justify-between p-2 rounded-2xl bg-slate-50/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 cursor-pointer group select-none shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]"
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: 2 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-extrabold text-[15px] shadow-sm transition-transform duration-300 shrink-0 overflow-hidden relative"
+                  style={workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl ? {
+                    backgroundImage: `url(${workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  } : {
+                    background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))',
+                  }}
+                >
+                  {workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl && <div className="absolute inset-0 bg-slate-950/20" />}
+                  <span className="relative z-10 drop-shadow-xs uppercase">
+                    {workspaces.find(w => w.id === activeWorkspaceId)?.initial || 'A'}
+                  </span>
+                </motion.div>
+                
+                <div className="leading-tight text-left min-w-0">
+                  <span className="font-display font-black tracking-tight text-slate-850 dark:text-slate-105 text-[13.5px] block truncate max-w-[110px]">
+                    {workspaces.find(w => w.id === activeWorkspaceId)?.name}
+                  </span>
+                  <span className="text-[8px] tracking-widest font-black uppercase text-indigo-505 dark:text-indigo-400 block mt-0.5">Workspace</span>
+                </div>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-300 shrink-0 mr-1 group-hover:text-slate-650 dark:group-hover:text-slate-350 ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
+            </div>
+
+            {/* Micro-breathing Live status glow */}
+            <div className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 z-20">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOffline ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-3 w-3 border-2 border-white dark:border-slate-900 shadow-sm ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+            </div>
+
+            {/* Workspace Dropdown Menu */}
+            <AnimatePresence>
+              {showWorkspaceMenu && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setShowWorkspaceMenu(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-2 w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30 space-y-0.5 text-left origin-top"
+                  >
+                    <div className="px-2 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch Workspace</div>
+                    {workspaces.map(w => (
+                      <motion.button
+                        key={w.id}
+                        onClick={() => handleWorkspaceChange(w)}
+                        whileHover={{ 
+                          scale: 1.025, 
+                          boxShadow: '0 6px 16px rgba(99, 102, 241, 0.16)',
+                          y: -0.5
+                        }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 22 }}
+                        className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left border border-transparent ${
+                          activeWorkspaceId === w.id 
+                            ? 'bg-slate-150/80 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-200/30 dark:border-slate-600/30 shadow-md' 
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
+                        }`}
+                      >
+                        <div 
+                          className="w-9 h-6 rounded-md shrink-0 select-none overflow-hidden relative font-sans font-extrabold text-white text-[9px] flex items-center justify-center shadow-xs"
+                          style={w.coverUrl ? {
+                            backgroundImage: `url(${w.coverUrl})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                          } : {
+                            background: activeWorkspaceId === w.id 
+                              ? 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))'
+                              : 'var(--avaxa-primary)'
+                          }}
+                        >
+                          {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
+                          <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
+                        </div>
+                        <span className="truncate">{w.name}</span>
+                        {activeWorkspaceId === w.id && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500 shrink-0" />}
+                      </motion.button>
+                    ))}
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+                    <button 
+                      onClick={() => {
+                        setShowAddWorkspaceModal(true);
+                        setShowWorkspaceMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer text-left"
+                    >
+                      <div className="w-6 h-6 shrink-0 rounded-md border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                        <span className="text-lg leading-none mb-0.5">+</span>
+                      </div>
+                      <span>Create new workspace</span>
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="space-y-4">
+            {/* Removed User Badge from sidebar */}
+
+          <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-220px)] scrollbar-none pb-4">
+            {/* ClickUp Sidebar Hierarchy */}
+            <div className="space-y-3 relative px-1 flex flex-col pt-1">
+              
+              {/* Home, Inbox, Space (with nested spaces list) */}
+              <div className="space-y-0.5">
+                {[
+                  { id: 'dashboard', label: 'Home Overview', icon: LayoutDashboard },
+                  { id: 'inbox', label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setActiveSpaceId(null);
+                        setActiveListId(null);
+                        addSyncLog(`Switched to: ${item.label}`);
+                      }}
+                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+                        isActive 
+                          ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span className="truncate">{item.label}</span>
+                      {item.count !== undefined && item.count > 0 && (
+                        <span className="ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce">{item.count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Flat Space menu item (replaces My Tasks) */}
+                <button
+                  onClick={() => {
+                    setActiveTab('tasks');
+                    setActiveSpaceId(null);
+                    setActiveListId(null);
+                    addSyncLog(`Switched to: Space`);
+                  }}
+                  className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+                    activeTab === 'tasks' && activeSpaceId === null && activeListId === null
+                      ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Briefcase className="w-4 h-4 shrink-0 text-slate-400" />
+                  <span className="truncate">Space</span>
+                </button>
+              </div>
+
+              {/* Removed Sidebar App Links as requested */}
+
+            </div>
+          </div>
+
+            {/* Widget Area: Pomodoro & Sprint Compact */}
+            <div className="space-y-3 px-1 pt-2 border-t border-slate-200/20 dark:border-slate-800/20">
+              <div className="group rounded-2xl border border-slate-200/50 bg-white/90 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+                {/* Visual Accent */}
+                {pomodoroActive && (
+                  <motion.div 
+                    layoutId="pomodoroActiveBorder"
+                    className="absolute top-0 left-0 w-1 h-full animate-pulse"
+                    style={{ background: 'var(--avaxa-primary)' }}
+                  />
+                )}
+
+                {/* Mode Selector Segmented Control grid */}
+                <div className="grid grid-cols-3 gap-0.5 bg-slate-105/85 p-0.5 rounded-lg border border-slate-200/30 select-none mb-2.5">
+                  {[
+                    { id: 'work', label: 'Work' },
+                    { id: 'short', label: 'Short Break' },
+                    { id: 'long', label: 'Long Break' }
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => handleSwitchPomodoroMode(m.id as any)}
+                      className={`text-[9px] font-bold py-1 rounded-md transition-all cursor-pointer text-center ${
+                        pomodoroMode === m.id
+                          ? 'bg-white text-slate-850 shadow-xs border border-slate-200/20'
+                          : 'text-slate-455 hover:text-slate-700 hover:bg-white/40'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-xl flex items-center justify-center transition-all ${
+                      pomodoroMode === 'work' ? 'bg-indigo-50 text-[var(--avaxa-text)] ' + (pomodoroActive ? 'animate-pulse' : '') :
+                      pomodoroMode === 'short' ? 'bg-emerald-50 text-emerald-600' :
+                      'bg-sky-50 text-sky-600'
+                    }`}>
+                      <Timer className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">
+                        {pomodoroMode === 'work' ? 'TẬP TRUNG' : pomodoroMode === 'short' ? 'NGHỈ NGẮN' : 'NGHỈ DÀI'}
+                      </span>
+                      <span className="font-mono text-base font-black text-slate-805 tracking-tight leading-none block">
+                        {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Controls */}
+                  <div className="flex gap-1 items-center">
+                    <button 
+                      onClick={() => setShowPomoSettings(!showPomoSettings)} 
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                        showPomoSettings 
+                          ? 'bg-slate-100 text-indigo-650 border-slate-200' 
+                          : 'text-slate-400 hover:bg-slate-50 border-transparent hover:border-slate-100'
+                      }`}
+                      title="Cấu hình khoảng thời gian"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+
+                    {pomodoroActive ? (
+                      <button 
+                        onClick={handlePausePomodoro} 
+                        className="p-1.5 bg-amber-55 hover:bg-amber-100 text-amber-600 rounded-lg transition-all cursor-pointer border border-amber-200/50 shadow-xs flex items-center justify-center animate-pulse" 
+                        title="Dừng"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleStartPomodoro} 
+                        className="p-1.5 hover:scale-105 rounded-lg transition-all cursor-pointer text-white shadow-sm flex items-center justify-center border border-transparent"
+                        style={{ 
+                          background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))',
+                          boxShadow: '0 4px 10px rgba(var(--avaxa-primary-rgb), 0.2)'
+                        }} 
+                        title="Start"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      </button>
+                    )}
+                    <button 
+                      onClick={handleStopPomodoro} 
+                      className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-100" 
+                      title="Cancel"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Inline Collapsible Pomodoro Settings Popover Panel */}
+                <AnimatePresence>
+                  {showPomoSettings && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden mt-2 border-t border-slate-100 dark:border-slate-800/20 pt-2.5 space-y-2.5"
+                      id="pomodoro_inner_settings_popover"
+                    >
+                      <div className="text-[9px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Duration (Minutes)</span>
+                        <span className="text-[8px] text-indigo-500 lowercase font-semibold">Auto Synced</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div className="space-y-0.5">
+                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Focus</label>
+                          <input 
+                            type="number"
+                            min="1"
+                            max="180"
+                            value={workDuration}
+                            onChange={(e) => {
+                              const v = Math.max(1, Math.min(180, Number(e.target.value) || 25));
+                              handleUpdatePomoDurations(v, shortBreakDuration, longBreakDuration);
+                            }}
+                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Short Break</label>
+                          <input 
+                            type="number"
+                            min="1"
+                            max="60"
+                            value={shortBreakDuration}
+                            onChange={(e) => {
+                              const v = Math.max(1, Math.min(60, Number(e.target.value) || 5));
+                              handleUpdatePomoDurations(workDuration, v, longBreakDuration);
+                            }}
+                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                          />
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Long Break</label>
+                          <input 
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={longBreakDuration}
+                            onChange={(e) => {
+                              const v = Math.max(1, Math.min(120, Number(e.target.value) || 15));
+                              handleUpdatePomoDurations(workDuration, shortBreakDuration, v);
+                            }}
+                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Presets Quick Actions */}
+                      <div className="flex gap-1 pt-0.5 justify-end">
+                        <button
+                          onClick={() => handleUpdatePomoDurations(25, 5, 15)}
+                          className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+                        >
+                          Default (25/5/15)
+                        </button>
+                        <button
+                          onClick={() => handleUpdatePomoDurations(50, 10, 20)}
+                          className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+                        >
+                          High (50/10/20)
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Sprint Compact */}
+              <div className="px-2.5 py-3 rounded-2xl bg-slate-50/50 border border-slate-105 space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-455">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Sprint Progress
+                  </span>
+                  <span className="text-slate-800 font-extrabold text-[10px] bg-white px-1.5 py-0.5 rounded-md border border-slate-200/50 shadow-xs">
+                    {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
+                  </span>
+                </div>
+                
+                <div className="relative">
+                  <div className="h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full rounded-full"
+                      style={{ background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))' }}
+                    />
+                  </div>
+                  {/* Glowing layer */}
+                  <div 
+                    className="absolute inset-0 h-2 blur-md opacity-25 rounded-full overflow-hidden"
+                    style={{ 
+                      background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))',
+                      width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%`
+                    }} 
+                  />
+                </div>
+              </div>
+
+              {/* Compact Themes & Accent Selectors */}
+              <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50/50 border border-slate-105 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Theme Color</span>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'indigo', color: 'bg-indigo-500', glow: 'shadow-indigo-500/20' },
+                    { id: 'ocean', color: 'bg-sky-500', glow: 'shadow-sky-500/20' },
+                    { id: 'forest', color: 'bg-emerald-500', glow: 'shadow-emerald-500/20' },
+                    { id: 'sunset', color: 'bg-orange-500', glow: 'shadow-orange-500/20' }
+                  ].map(theme => (
+                    <button
+                      key={theme.id}
+                      onClick={() => setAccentPreset(theme.id as any)}
+                      className={`w-4 h-4 rounded-full transition-all outline outline-offset-2 relative cursor-pointer ${
+                        accentPreset === theme.id 
+                          ? 'scale-110 outline-slate-400 shadow-md ' + theme.glow 
+                          : 'outline-transparent hover:scale-110 hover:outline-slate-200'
+                      } ${theme.color}`}
+                      title={theme.id}
+                    >
+                      {accentPreset === theme.id && (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="w-1 h-1 rounded-full bg-white animate-ping" />
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Sync panel actions block */}
+        <div className="space-y-2 pt-3 border-t border-slate-200/10">
+          <div className="flex items-center justify-between text-[10px] px-2.5 font-bold">
+            <span className="text-slate-400 uppercase tracking-widest text-[9px]">Live Sync</span>
+            <button 
+              onClick={handleToggleOffline} 
+              className={`hover:scale-105 transition-all flex items-center gap-1.5 py-1 px-2.5 rounded-full border text-[8px] font-black uppercase shadow-xs ${
+                isOffline ? 'bg-amber-50 text-amber-600 border-amber-200/50' : 'bg-emerald-50 text-emerald-600 border-emerald-200/50'
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+              {isOffline ? 'Offline' : 'Synced'}
+            </button>
+          </div>
+          
+          <button
+            onClick={() => setIsMainSidebarCollapsed(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer border border-transparent hover:border-slate-200/55 dark:hover:border-slate-700/55"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Collapse Navigation</span>
+          </button>
+        </div>
+
+      </div>
+
+      {/* Main workspace layout wrapper */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        {/* Floating Sidebar Restore Trigger Button */}
+        {isMainSidebarCollapsed && (
+          <button
+            onClick={() => setIsMainSidebarCollapsed(false)}
+            className="absolute left-3 top-3.5 z-50 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:text-indigo-650 hover:bg-slate-50 transition-all cursor-pointer hidden md:block"
+            title="Expand Navigation Sidebar"
+          >
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </button>
+        )}
+        
+        {/* Dynamic Glass Top Header Status Strip */}
+        <header className="px-6 py-3 md:py-3.5 liquid-glass relative z-30 flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            {(() => {
+              let label = '';
+              let ActiveIcon = null;
+              const activeItem = sidebarItems.find(i => i.id === activeTab);
+              if (activeItem) {
+                label = activeItem.label;
+                ActiveIcon = activeItem.icon;
+              } else if (activeTab === 'tasks' || activeTab === 'my-tasks') {
+                label = 'Space';
+                ActiveIcon = Briefcase;
+              }
+              return (
+                <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1 rounded-xl border border-slate-200/10 dark:border-slate-800/10">
+                  {ActiveIcon && <ActiveIcon className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" style={{ color: 'var(--avaxa-text)' }} />}
+                  <h1 className="text-xs font-black font-sans text-slate-800 dark:text-slate-100 tracking-wide capitalize">
+                    {label}
+                  </h1>
+                </div>
+              );
+            })()}
+            
+            {/* Mobile search trigger */}
+            <button
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className="sm:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 rounded-xl transition-colors cursor-pointer ml-1"
+              title="Global Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
+          <div className="relative max-w-md w-64 md:w-80 lg:w-96 mx-4 hidden sm:block">
+            <button
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-slate-105/75 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-150/90 hover:border-slate-300 dark:hover:bg-slate-900/90 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-xs"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="truncate">Quick search tasks, docs, teammates...</span>
+              </div>
+              <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-white dark:bg-slate-950 text-slate-400 dark:text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-800/80 shadow-xs shrink-0">
+                <span>⌘</span>
+                <span>K</span>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {(() => {
+              const formattedDate = new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+              });
+              return (
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-100/45 dark:bg-slate-900/35 px-2.5 py-1 rounded-lg border border-slate-200/40 dark:border-slate-800/40 select-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                  {formattedDate}
+                </span>
+              );
+            })()}
+            
+            
+            {/* Upgrade Premium Button */}
+            {!currentUser.isPremium && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowPremiumModal(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10.5px] font-bold text-white shadow-md hover:shadow-amber-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer relative overflow-hidden group"
+                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span>Upgrade Premium</span>
+                <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
+              </motion.button>
+            )}
+
+            {/* 🔔 Notification Center Dropdown & Badge Manager */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700 border border-transparent hover:border-slate-200/50 relative cursor-pointer"
+                title="Notification Settings"
+              >
+                <Bell className="w-5 h-5" />
+                {notificationsList.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 bg-rose-500 rounded-full text-[9px] font-black text-white items-center justify-center animate-pulse shadow-sm">
+                    {notificationsList.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotificationsMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowNotificationsMenu(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 font-sans"
+                    >
+                      {/* Header */}
+                      <div className="p-3.5 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-1.5">
+                          <Bell className="w-4 h-4 text-indigo-500" />
+                          <span className="text-xs font-black text-slate-800">Notifications ({notificationsList.length})</span>
+                        </div>
+                        {notificationsList.length > 0 && (
+                          <div className="flex gap-2.5">
+                            <button
+                              onClick={() => {
+                                setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
+                                (window as any).playSystemSound?.('success');
+                              }}
+                              className="text-[10px] font-extrabold text-indigo-600 hover:underline cursor-pointer"
+                            >
+                              Read all
+                            </button>
+                            <button
+                              onClick={() => {
+                                setNotificationsList([]);
+                                (window as any).playSystemSound?.('delete');
+                              }}
+                              className="text-[10px] font-extrabold text-rose-500 hover:underline cursor-pointer flex items-center gap-0.5"
+                            >
+                              Clear all
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notifications List scrollable */}
+                      <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                        {notificationsList.length === 0 ? (
+                          <div className="py-8 px-4 text-center space-y-2">
+                            <span className="text-xl inline-block">🎉</span>
+                            <p className="text-xs font-bold text-slate-800">Inbox empty!</p>
+                            <p className="text-[10px] text-slate-450 font-medium">You have no new notifications.</p>
+                          </div>
+                        ) : (
+                          notificationsList.map(notif => {
+                            const isUnread = !notif.read;
+                            return (
+                              <div 
+                                key={notif.id} 
+                                className={`p-3 relative transition-colors flex gap-3 hover:bg-slate-50/70 group ${isUnread ? 'bg-indigo-50/20' : ''}`}
+                              >
+                                {/* Left Icon indicator based on type */}
+                                <div className="shrink-0 mt-0.5">
+                                  <div className={`p-1.5 rounded-lg ${
+                                    notif.type === 'assignment' ? 'bg-indigo-50 text-indigo-600' :
+                                    notif.type === 'deadline' ? 'bg-rose-50 text-rose-600' :
+                                    notif.type === 'comment' || notif.type === 'message' ? 'bg-sky-50 text-sky-600' :
+                                    'bg-emerald-50 text-emerald-600'
+                                  }`}>
+                                    {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
+                                    {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
+                                    {(notif.type === 'comment' || notif.type === 'message') && <MessageSquare className="w-3.5 h-3.5" />}
+                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && <Sparkles className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
+
+                                {/* Body */}
+                                <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
+                                  // mark as read
+                                  setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                }}>
+                                  <div className="flex items-center justify-between">
+                                    <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>
+                                      {notif.title}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-mono shrink-0">{notif.timestamp}</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 leading-relaxed break-words">
+                                    {notif.message}
+                                  </p>
+                                </div>
+
+                                {/* Quick Individual Delete & Read markers */}
+                                <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
+                                  {isUnread && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setNotificationsList(prev => prev.filter(n => n.id !== notif.id));
+                                      (window as any).playSystemSound?.('delete');
+                                    }}
+                                    className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                    title="Delete notification"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      
+                      {/* Footer link to settings */}
+                      <div className="p-2.5 text-center bg-slate-50">
+                        <button
+                          onClick={() => {
+                            setActiveTab('settings');
+                            setShowNotificationsMenu(false);
+                          }}
+                          className="text-[10px] font-black text-indigo-700 hover:underline cursor-pointer inline-flex items-center gap-1 animate-pulse"
+                        >
+                          ⚙️ Settings & Anti-Spam Frequency
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Interactive Connected User Badge and Status Switcher */}
+            <div className="relative font-sans text-left">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
+                className="cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl transition-all select-none shadow-xs"
+              >
+                <div className="relative shrink-0 flex">
+                  <img src={currentUser.avatar} className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/50 shadow-xs transition-all" alt={currentUser.name} />
+                  {/* Status indicator absolute dot on avatar */}
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${
+                    userStatus === 'online' ? 'bg-emerald-500' :
+                    userStatus === 'focused' ? 'bg-indigo-500' : 'bg-amber-400'
+                  }`} />
+                </div>
+                
+                <div className="text-left hidden sm:flex flex-col select-none pr-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-[12px] text-slate-800 leading-none truncate max-w-[90px]">
+                      {currentUser.name}
+                    </span>
+                    {currentUser.isPremium ? (
+                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90">PRO</span>
+                    ) : (
+                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90 font-mono">FREE</span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">
+                    {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
+                  </span>
+                </div>
+
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showStatusMenu ? 'rotate-180' : ''}`} />
+              </motion.div>
+              
+              {/* Dropdown status content menu */}
+              <AnimatePresence>
+                {showStatusMenu && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setShowStatusMenu(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 p-1.5 bg-white border border-slate-200/80 rounded-xl shadow-xl z-30 space-y-0.5 text-left origin-top-right font-sans"
+                    >
+                      {/* User Info Header with Role */}
+                      <div className="px-2.5 py-2.5 mb-1 bg-slate-50/70 border-b border-slate-100 flex flex-col rounded-lg">
+                        <span className="font-extrabold text-xs text-slate-800 truncate">{currentUser.name}</span>
+                        <span className="text-[10px] text-slate-400 truncate mt-0.5">{currentUser.email}</span>
+                        <span className="text-[9px] text-indigo-600 font-extrabold uppercase mt-1.5 bg-indigo-50 w-max px-1.5 py-0.5 rounded-md">
+                          {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
+                        </span>
+                      </div>
+
+                      {/* Trạng thái section header */}
+                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        Work Status
+                      </div>
+
+                      {/* Status options */}
+                      <button
+                        onClick={() => {
+                          setUserStatus('online');
+                          setShowStatusMenu(false);
+                          if (pomodoroActive) {
+                            setPomodoroActive(false);
+                            setPomodoroTime(workDuration * 60);
+                            addSyncLog('Changed status: Online (Paused Pomodoro)');
+                          } else {
+                            addSyncLog('Changed status: Online');
+                          }
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
+                          <span>Online</span>
+                        </div>
+                        {userStatus === 'online' && <Check className="w-3.5 h-3.5 text-emerald-500 font-bold" />}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserStatus('focused');
+                          setShowStatusMenu(false);
+                          addSyncLog(`Changed status: Focused`);
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />
+                          <span>Focusing</span>
+                        </div>
+                        {userStatus === 'focused' && <Check className="w-3.5 h-3.5 text-indigo-500 font-bold" />}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserStatus('away');
+                          setShowStatusMenu(false);
+                          if (pomodoroActive) {
+                            setPomodoroActive(false);
+                            setPomodoroTime(workDuration * 60);
+                            addSyncLog('Changed status: Away (Paused Pomodoro)');
+                          } else {
+                            addSyncLog('Changed status: Away');
+                          }
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
+                          <span>Away</span>
+                        </div>
+                        {userStatus === 'away' && <Check className="w-3.5 h-3.5 text-amber-500 font-bold" />}
+                      </button>
+
+                      {/* Divider */}
+                      <div className="border-t border-slate-100 my-1" />
+
+                      {/* Quick access system controls inside profile */}
+                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        My Applications
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab('profile');
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                      >
+                        <UserIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>User Profile</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab('settings');
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                      >
+                        <Settings className="w-4 h-4 text-slate-400" />
+                        <span>System Settings</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowPremiumModal(true);
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-955/20 transition-colors cursor-pointer border border-dashed border-amber-200 dark:border-amber-800/40 my-1 bg-amber-500/5"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                        <span>{currentUser.isPremium ? 'Pro Activated' : 'Upgrade Premium Pro'}</span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          setShowStatusMenu(false);
+                          addSyncLog('Signed out of account');
+                          (window as any).playSystemSound?.('delete');
+                          try { await supabase.auth.signOut(); } catch (e) {}
+                          setCurrentUser(null);
+                          localStorage.removeItem('avaxa_session');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </header>
+
+        {(() => {
+          const currentWorkspaceTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
+          const currentWorkspaceDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks';
+          
+          return (
+            <main className={`flex-1 relative ${
+              isSpaceTab 
+                ? 'h-full overflow-hidden' 
+                : 'overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-6'
+            }`}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  id={`workspace_container_${activeTab}`}
+                  className={isSpaceTab ? "w-full h-full" : "space-y-4 md:space-y-6 w-full max-w-none px-1 lg:px-3"}
+                >
+                  {activeTab === 'dashboard' && (
+                    <DashboardOverview
+                      tasks={currentWorkspaceTasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      docs={currentWorkspaceDocs}
+                      syncLogs={syncLogs}
+                      isOffline={isOffline}
+                      onNavigate={setActiveTab}
+                      onToggleOffline={handleToggleOffline}
+                      currentUser={currentUser}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      onClearSyncLogs={() => {
+                        setSyncLogs([]);
+                      }}
+                    />
+                  )}
+
+                  {activeTab === 'inbox' && (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 p-6 space-y-6 max-w-4xl mx-auto shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <div>
+                          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-550 flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-pink-500" />
+                            Notification Center (Inbox)
+                          </h2>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Your notifications, updates, reminders, and assignments.</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
+                            triggerToast('success', 'Marked all as read', 'All notifications marked as read.');
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700 dark:text-slate-350 text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Mark all as read
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {notificationsList.map(notif => (
+                          <div 
+                            key={notif.id}
+                            className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                              notif.read 
+                                ? 'bg-slate-50/50 dark:bg-slate-950/20 border-slate-100 dark:border-slate-800/40 opacity-75' 
+                                : 'bg-pink-50/30 dark:bg-pink-955/10 border-pink-100 dark:border-pink-900/25 shadow-xs'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-xl shrink-0 ${
+                              notif.type === 'assignment' ? 'bg-indigo-55/65 text-indigo-600' : 'bg-rose-50 text-rose-600'
+                            }`}>
+                              <Briefcase className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-4">
+                                <span className={`text-xs font-bold ${notif.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{notif.title}</span>
+                                <span className="text-[10px] text-slate-400">{notif.timestamp}</span>
+                              </div>
+                              <p className="text-xs text-slate-500 dark:text-slate-450 mt-1">{notif.message}</p>
+                              
+                              {!notif.read && (
+                                <button 
+                                  onClick={() => {
+                                    setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                  }}
+                                  className="text-[10px] text-pink-500 font-extrabold hover:underline mt-2 cursor-pointer block"
+                                >
+                                  Mark as read
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {notificationsList.length === 0 && (
+                          <div className="text-center py-10 text-slate-405 italic">Inbox empty. No notifications.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {(activeTab === 'tasks' || activeTab === 'my-tasks') && (
+                    <SpacePage
+                      tasks={mapTasksToSpaces(tasks)}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      onAddTask={handleAddTask}
+                      onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      initialSelectedTaskId={initialSelectedTaskId}
+                      onClearInitialSelectedTaskId={() => setInitialSelectedTaskId(null)}
+                      onUpdateTaskOrder={handleUpdateTaskOrder}
+                      allWorkspaces={workspaces}
+                      activeWorkspaceId={activeWorkspaceId}
+                      onActiveWorkspaceChange={handleWorkspaceChange}
+                      currentUser={currentUser}
+                      onUpgradePremium={() => setShowPremiumModal(true)}
+                      onAddSpace={() => setShowAddSpaceModal(true)}
+                      onAddWorkspace={(name, theme, coverUrl) => {
+                        const newWs = {
+                          id: `w-${Date.now()}`,
+                          name,
+                          theme: theme || 'indigo',
+                          initial: name.charAt(0).toUpperCase(),
+                          user_id: currentUser?.id,
+                          coverUrl
+                        };
+                        setWorkspaces(prev => [...prev, newWs]);
+                        if (!isOffline) {
+                          supabase.from('workspaces').insert([newWs]).then(({ error }) => {
+                            if (error) console.error('Error adding workspace:', error);
+                          });
+                        } else {
+                          try {
+                            localStorage.setItem(`avaxa_fallback_workspaces_${currentUser?.id}`, JSON.stringify([...workspaces, newWs]));
+                          } catch (e) {}
+                        }
+                      }}
+                      
+                      // Space states
+                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      onSaveSpaces={handleSaveSpaces}
+                      activeSpaceId={activeSpaceId}
+                      setActiveSpaceId={setActiveSpaceId}
+                      activeListId={activeListId}
+                      setActiveListId={setActiveListId}
+                      myTasksOnly={activeTab === 'my-tasks'}
+                      onOpenSpaceSettings={openSpaceSettings}
+                      onAddListSpace={(spaceId) => setShowAddListSpaceId(spaceId)}
+                      allDocs={docs}
+                      syncLogs={syncLogs}
+                      onNavigate={setActiveTab}
+                      onToggleOffline={handleToggleOffline}
+                      onAddFolderToSpace={handleAddFolderToSpace}
+                      onAddDocToSpace={handleAddDocToSpace}
+                      onAddWhiteboardToSpace={handleAddWhiteboardToSpace}
+                      onAddListToFolder={handleAddListToFolder}
+                      onAddDoc={handleAddDoc}
+                      onUpdateDoc={handleUpdateDoc}
+                      onDeleteDoc={handleDeleteDoc}
+                    />
+                  )}
+
+                  {activeTab === 'calendar' && (
+                    <CalendarView
+                      tasks={currentWorkspaceTasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      onAddTask={handleAddTask}
+                      onUpdateTask={handleUpdateTask}
+                    />
+                  )}
+
+                  {activeTab === 'productivity' && (
+                    <ProductivityHub
+                      tasks={currentWorkspaceTasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+
+                  {activeTab === 'whiteboard' && (
+                    <Whiteboard
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                    />
+                  )}
+
+                  {activeTab === 'chat' && (
+                    <ChatRoom
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      currentUser={currentUser}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      activeTab={activeTab}
+                      initialSelectedChannelId={initialSelectedChannelId}
+                      onClearInitialSelectedChannelId={() => setInitialSelectedChannelId(null)}
+                      workspaceId={activeWorkspaceId}
+                    />
+                  )}
+
+                  {activeTab === 'docs' && (
+                    <DocumentHub
+                      docs={currentWorkspaceDocs}
+                      currentUser={currentUser}
+                      onAddDoc={handleAddDoc}
+                      onUpdateDoc={handleUpdateDoc}
+                      onDeleteDoc={handleDeleteDoc}
+                      isOffline={isOffline}
+                      onAddSyncLog={addSyncLog}
+                      initialSelectedDocId={initialSelectedDocId}
+                      onClearInitialSelectedDocId={() => setInitialSelectedDocId(null)}
+                    />
+                  )}
+
+                  {activeTab === 'team' && (
+                    <TeamDirectory
+                      members={members}
+                      tasks={tasks}
+                      workspaces={workspaces}
+                      activeWorkspaceId={activeWorkspaceId}
+                      onAddMember={handleAddMember}
+                      onUpdateMember={handleUpdateMember}
+                      onDeleteMember={handleDeleteMember}
+                      onAddSyncLog={addSyncLog}
+                    />
+                  )}
+
+                  {activeTab === 'profile' && (
+                    <ProfilePage
+                      currentUser={currentUser}
+                      setCurrentUser={setCurrentUser}
+                      members={members}
+                      setMembers={setMembers}
+                      tasks={tasks}
+                      isOffline={isOffline}
+                      addSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      onUpdateMember={handleUpdateMember}
+                    />
+                  )}
+
+                  {activeTab === 'settings' && (
+                    <SettingsPanel 
+                      isDarkMode={isDarkMode}
+                      setIsDarkMode={setIsDarkMode}
+                      accentPreset={accentPreset}
+                      setAccentPreset={setAccentPreset}
+                      soundEnabled={soundEnabled}
+                      setSoundEnabled={(val) => {
+                        setSoundEnabled(val);
+                        if (val) {
+                          setTimeout(() => {
+                            (window as any).playSystemSound?.('success');
+                          }, 50);
+                        }
+                      }}
+                      blurIntensity={blurIntensity}
+                      setBlurIntensity={(val) => {
+                        setBlurIntensity(val);
+                        (window as any).playSystemSound?.('toggle');
+                      }}
+                      notificationSettings={notificationSettings}
+                      setNotificationSettings={setNotificationSettings}
+                      workspaces={workspaces}
+                      activeWorkspaceId={activeWorkspaceId}
+                      onUpdateWorkspace={handleUpdateWorkspace}
+                      onDeleteWorkspace={handleDeleteWorkspace}
+                      onAddWorkspace={handleCreateWorkspace}
+                      members={members}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          );
+        })()}
+
+      </div>
+
+      {/* Mobile Bottom Navigation Bar replacing sidebar on mobile */}
+      <nav className="md:hidden shrink-0 liquid-glass flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom)] border-t border-slate-200/50 dark:border-slate-800">
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'tasks', label: 'Tasks', icon: Briefcase },
+          { id: 'chat', label: 'Chat', icon: MessageSquare },
+          { id: 'whiteboard', label: 'Whiteboard', icon: Grid },
+          { id: 'settings', label: 'Settings', icon: Settings },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                addSyncLog(`Bottom menu: Switched to ${item.label}`);
+              }}
+              className="flex-1 flex flex-col items-center justify-center p-1.5 gap-1 relative cursor-pointer"
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="mobileActiveIndicator"
+                  className="absolute inset-x-2.5 top-0.5 bottom-0.5 rounded-xl bg-white dark:bg-slate-800/90 shadow-[0_1px_3px_rgba(0,0,0,0.02)] border border-slate-200/40 dark:border-slate-700/60"
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                />
+              )}
+              <Icon 
+                className={`w-4 h-4 z-10 transition-colors ${isActive ? 'text-indigo-600 font-bold' : 'text-slate-400 dark:text-slate-500'}`} 
+                style={{ color: isActive ? 'var(--avaxa-text)' : undefined }}
+              />
+              <span 
+                className={`text-[9px] font-bold z-10 transition-colors ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
+                style={{ color: isActive ? 'var(--avaxa-text)' : undefined }}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Persistent Floating AI Brain Assistant */}
+      <AvaxaBrainAssistant
+        tasks={tasks}
+        documents={docs}
+        members={members}
+        isOffline={isOffline}
+        onUpdateTask={handleUpdateTask}
+        onAddSyncLog={addSyncLog}
+      />
+
+      {/* Modern interactive full-screen sync transition loader */}
+      <AnimatePresence>
+        {syncing && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center"
+          >
+            <div className="space-y-6 max-w-sm w-full font-sans">
+              <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+                <RefreshCw className="w-12 h-12 text-indigo-400 animate-spin" />
+                <Cloud className="w-5 h-5 text-white absolute" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-black font-display text-indigo-100 tracking-tight">Merging storage...</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Avaxa OS is syncing offline actions to the cloud server.</p>
+              </div>
+
+              {/* Progress counter bar styling */}
+              <div className="space-y-1.5">
+                <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700 p-0.5">
+                  <div className="bg-gradient-to-r from-indigo-505 from-indigo-500 to-pink-500 h-full rounded-full transition-all duration-150" style={{ width: `${syncProgress}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono">
+                  <span>SYNCHRONIZING</span>
+                  <span>{syncProgress}%</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Real-time Toast Notification container in top-right corner */}
+      <ToastNotification toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+
+      {/* Immersive Global Search Modal overlay */}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh] overflow-hidden">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsSearchOpen(false);
+                setSearchQuery('');
+              }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs cursor-pointer"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: -12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: -12 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-700/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[70vh] z-10"
+            >
+              {/* Searching Bar Input Field */}
+              <div className="px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between gap-3 bg-white/40 dark:bg-slate-900/40 focus-within:border-indigo-500/50 transition-colors">
+                <Search className="w-4 h-4 text-indigo-500 shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search for tasks, documents, chat channels..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchQuery(val);
+                    if (val.trim() === '') {
+                      setSearchCategory('all');
+                    }
+                  }}
+                  className="w-full bg-transparent text-slate-800 dark:text-slate-50 placeholder-slate-400 font-sans text-sm focus:outline-none"
+                />
+                <button
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className="p-1 px-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/60 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Category-based filter pills (visible immediately after typing) */}
+              {searchQuery.trim() !== '' && (
+                <div className="px-5 py-2.5 bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+                  <button
+                    onClick={() => setSearchCategory('all')}
+                    type="button"
+                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1 ${
+                      searchCategory === 'all'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    }`}
+                  >
+                    All ({filteredTasks.length + filteredDocs.length + filteredChannels.length})
+                  </button>
+                  <button
+                    onClick={() => setSearchCategory('tasks')}
+                    type="button"
+                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                      searchCategory === 'tasks'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    }`}
+                  >
+                    <Briefcase className="w-3 h-3 shrink-0" />
+                    <span>Tasks ({filteredTasks.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setSearchCategory('docs')}
+                    type="button"
+                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                      searchCategory === 'docs'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    }`}
+                  >
+                    <FileText className="w-3 h-3 shrink-0" />
+                    <span>Documents ({filteredDocs.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setSearchCategory('channels')}
+                    type="button"
+                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                      searchCategory === 'channels'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                    }`}
+                  >
+                    <Hash className="w-3 h-3 shrink-0" />
+                    <span>Chat ({filteredChannels.length})</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Scrolling list results */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[50vh]">
+                {searchQuery.trim() === '' ? (
+                  // Default Suggested Searches Screen
+                  <div className="space-y-3.5 p-2">
+                    <span className="text-[10px] uppercase font-mono font-extrabold tracking-wider text-slate-400 dark:text-slate-500 block px-1">Quick Suggestions</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          setSearchQuery('Design');
+                          setSearchCategory('all');
+                        }}
+                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-3.5 h-3.5 text-indigo-500 font-bold" />
+                          <span>UI/UX Interface Design</span>
+                        </div>
+                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setSearchQuery('offline');
+                          setSearchCategory('all');
+                        }}
+                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-3.5 h-3.5 text-indigo-500 font-bold" />
+                          <span>Offline Algorithms</span>
+                        </div>
+                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSearchQuery('brain');
+                          setSearchCategory('all');
+                        }}
+                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-3.5 h-3.5 text-purple-500 font-bold" />
+                          <span>Avaxa Brain Core</span>
+                        </div>
+                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSearchQuery('Culture');
+                          setSearchCategory('all');
+                        }}
+                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-3.5 h-3.5 text-pink-500 font-bold" />
+                          <span>CRM Culture Deck Document</span>
+                        </div>
+                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
+
+                    <div className="pt-3.5 border-t border-slate-100 dark:border-slate-800/80 px-1 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+                      <span>Shortcut: <strong className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700/80 text-slate-500 dark:text-slate-400">Esc</strong> to close</span>
+                      <span className="flex items-center gap-1"><CornerDownLeft className="w-3 h-3" /> Click to jump to tab</span>
+                    </div>
+                  </div>
+                ) : (
+                  searchCategory === 'all'
+                    ? totalResultsCount === 0
+                    : searchCategory === 'tasks'
+                    ? filteredTasks.length === 0
+                    : searchCategory === 'docs'
+                    ? filteredDocs.length === 0
+                    : filteredChannels.length === 0
+                ) ? (
+                  // No Results Screen
+                  <div className="py-8 text-center space-y-2">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No matching results found</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
+                      {searchCategory === 'all'
+                        ? 'We searched tasks, docs, and channels but found no matches.'
+                        : searchCategory === 'tasks'
+                        ? 'No tasks match this keyword.'
+                        : searchCategory === 'docs'
+                        ? 'No documents match this keyword.'
+                        : 'No channels match this keyword.'}
+                    </p>
+                  </div>
+                ) : (
+                  // Display Categorized Results
+                  <div className="space-y-4">
+                    {/* Filtered Tasks section */}
+                    {(searchCategory === 'all' || searchCategory === 'tasks') && filteredTasks.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Tasks ({filteredTasks.length})</span>
+                        <div className="space-y-1">
+                          {filteredTasks.map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setInitialSelectedTaskId(t.id);
+                                setActiveTab('tasks');
+                                setIsSearchOpen(false);
+                                setSearchQuery('');
+                                addSyncLog(`Jumped to task: "${t.title}" from global search`);
+                              }}
+                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-indigo-50/20 hover:border-indigo-200/70 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                                  <Briefcase className="w-4 h-4" />
+                                </div>
+                                <div className="truncate">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-indigo-600 transition-colors truncate">{t.title}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{t.description}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-[8px] font-extrabold px-2 py-0.5 rounded border ${
+                                  t.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                  t.status === 'inprogress' ? 'bg-indigo-50 text-indigo-600 border-indigo-105' :
+                                  'bg-slate-50 dark:bg-slate-950 text-slate-505 dark:text-slate-400 border-slate-100 dark:border-slate-800/80'
+                                }`}>
+                                  {t.status.toUpperCase()}
+                                </span>
+                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Filtered Documents section */}
+                    {(searchCategory === 'all' || searchCategory === 'docs') && filteredDocs.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Documents ({filteredDocs.length})</span>
+                        <div className="space-y-1">
+                          {filteredDocs.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => {
+                                setInitialSelectedDocId(d.id);
+                                setActiveTab('docs');
+                                setIsSearchOpen(false);
+                                setSearchQuery('');
+                                addSyncLog(`Opened document: "${d.title}" from global search`);
+                              }}
+                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-pink-50/20 hover:border-pink-200/70 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="p-2 rounded-xl bg-pink-50 text-pink-600 shrink-0">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="truncate">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-pink-650 transition-colors truncate">{d.title}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate leading-none">Category: {d.category} • Author: {d.updatedBy}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[8px] font-bold bg-pink-50 border border-pink-100 text-pink-600 px-2 py-0.5 rounded uppercase font-mono">DOC</span>
+                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Filtered Chat Channels section */}
+                    {(searchCategory === 'all' || searchCategory === 'channels') && filteredChannels.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Chat Channels ({filteredChannels.length})</span>
+                        <div className="space-y-1">
+                          {filteredChannels.map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                setInitialSelectedChannelId(c.id);
+                                setActiveTab('chat');
+                                setIsSearchOpen(false);
+                                setSearchQuery('');
+                                addSyncLog(`Activated chat channel: #${c.name}`);
+                              }}
+                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-purple-50/20 hover:border-purple-200/70 hover:shadow-xs transition-colors flex items-center justify-between group cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+                                  <Hash className="w-4 h-4" />
+                                </div>
+                                <div className="truncate">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-purple-655 transition-colors truncate">#{c.name}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{c.description}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[8px] font-bold bg-purple-50 border border-purple-100 text-purple-600 px-2 py-0.5 rounded uppercase font-mono">CHAT</span>
+                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Immersive Glassmorphic Add Workspace Modal */}
+      <AnimatePresence>
+        {showAddWorkspaceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddWorkspaceModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs cursor-pointer"
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
+              className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl w-full max-w-sm p-5 overflow-hidden shadow-2xl z-10 space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-gradient-to-tr from-indigo-500 to-sky-500 rounded-xl text-white shadow-xs">
+                    <Plus className="w-4 h-4 shrink-0 font-bold" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-55 tracking-wide uppercase">Create New Workspace</h3>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Set up a new isolated collaboration area.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAddWorkspaceModal(false)}
+                  className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer text-slate-400"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Form Block */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const target = e.target as any;
+                  const name = target.workspaceName.value;
+                  const theme = target.workspaceTheme.value;
+                  if (!name.trim()) return;
+                  handleCreateWorkspace(name, theme, modalSelectedCover);
+                  setModalSelectedCover('');
+                  setShowAddWorkspaceModal(false);
+                }}
+                className="space-y-4"
+              >
+                {/* Name field */}
+                <div className="space-y-1.5">
+                  <label htmlFor="workspaceName" className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Workspace Name</label>
+                  <input
+                    required
+                    id="workspaceName"
+                    name="workspaceName"
+                    type="text"
+                    placeholder="Example: Marketing Project, Product B..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800/85 focus:border-indigo-500 text-slate-800 dark:text-slate-50 placeholder-slate-400 font-sans text-xs focus:outline-none transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* Theme presets */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Theme Color</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: 'indigo', name: 'Indigo', color: 'bg-indigo-500' },
+                      { id: 'ocean', name: 'Ocean', color: 'bg-sky-500' },
+                      { id: 'forest', name: 'Emerald', color: 'bg-emerald-500' },
+                      { id: 'sunset', name: 'Sunset', color: 'bg-rose-500' }
+                    ].map((p) => (
+                      <label key={p.id} className="relative cursor-pointer group flex flex-col items-center justify-center gap-1.5 p-2 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-200/50 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800/55 transition-all">
+                        <input
+                          type="radio"
+                          name="workspaceTheme"
+                          value={p.id}
+                          defaultChecked={p.id === 'indigo'}
+                          className="sr-only peer"
+                        />
+                        <div className={`w-4 h-4 rounded-full ${p.color} shadow-xs group-hover:scale-110 transition-transform`} />
+                        <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 select-none truncate max-w-full block text-center leading-none mt-0.5">{p.name}</span>
+                        <div className="absolute inset-0 rounded-xl border border-transparent peer-checked:border-indigo-500 pointer-events-none transition-all" />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cover selection */}
+                <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/40 pt-3">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Choose Representative Cover Background</label>
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() => setModalSelectedCover('')}
+                      className={`relative shrink-0 w-16 h-11 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${!modalSelectedCover ? 'border-indigo-500 bg-white dark:bg-slate-900 shadow-sm' : 'border-dashed border-slate-200 dark:border-slate-800/70'}`}
+                    >
+                      <span className="text-[8px] font-bold text-slate-400">Default</span>
+                      {!modalSelectedCover && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                    </button>
+                    {WORKSPACE_COVERS.map(cover => (
+                      <button
+                        key={cover.id}
+                        type="button"
+                        onClick={() => setModalSelectedCover(cover.url)}
+                        className={`relative shrink-0 w-16 h-11 rounded-lg border overflow-hidden transition-all group cursor-pointer ${modalSelectedCover === cover.url ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'border-slate-200/65 dark:border-slate-800 opacity-80 hover:opacity-100'}`}
+                      >
+                        <img
+                          src={cover.url}
+                          alt={cover.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 bg-black/50 text-[6px] font-black text-white text-center py-0.5 truncate px-1 uppercase tracking-tight">
+                          {cover.name}
+                        </div>
+                        {modalSelectedCover === cover.url && (
+                          <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
+                            ✓
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Submit button bar */}
+                <div className="flex items-center gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalSelectedCover('');
+                      setShowAddWorkspaceModal(false);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer text-center"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 rounded-xl text-xs font-bold text-white shadow-md hover:shadow-indigo-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center"
+                    style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                  >
+                    Create Workspace
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── PREMIUM SUBSCRIPTION MODAL ── */}
+      <AnimatePresence>
+        {showPremiumModal && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            {/* Overlay backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPremiumModal(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-[460px] rounded-3xl bg-white/95 border border-amber-200/50 shadow-2xl p-6 overflow-hidden md:p-7 backdrop-blur-xl"
+            >
+              {/* Premium Glow effect background */}
+              <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-amber-500/10 blur-[60px] pointer-events-none" />
+              <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full bg-indigo-500/10 blur-[60px] pointer-events-none" />
+
+              {/* Header Info */}
+              <div className="flex items-start justify-between mb-5 relative">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-300/40 flex items-center justify-center shadow-sm">
+                    <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5 leading-none">
+                      Avaxa Premium Pro <span className="text-[9px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full uppercase">PRO</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-medium mt-1">Unlock the absolute power of your productivity assistant.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPremiumModal(false)}
+                  className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer text-slate-400"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Subscriptions Features List */}
+              <div className="space-y-3 mb-6 relative text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Features unlocked:</p>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {[
+                    { title: 'Professional Visual Gantt Charts', desc: 'Plan and manage timelines with visual drag-and-drop.' },
+                    { title: 'AI Automated Subtasks Suggestions', desc: 'Break large tasks into subtasks using AI.' },
+                    { title: 'AI Progress Summary & Productivity Reports', desc: 'Instantly summarize project progress using Gemini AI.' },
+                    { title: 'AI Smart Priority Suggestions', desc: 'Automatically calculate urgency levels based on deadlines.' },
+                  ].map((feat, i) => (
+                    <div key={i} className="flex gap-2.5 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100/80">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-300/40 text-emerald-600 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">✓</div>
+                      <div>
+                        <h4 className="text-[11px] font-bold text-slate-700">{feat.title}</h4>
+                        <p className="text-[9.5px] text-slate-500 leading-normal">{feat.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing Cards Selector */}
+              <div className="grid grid-cols-2 gap-3.5 mb-6">
+                <div className="p-3.5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 text-center relative cursor-pointer hover:border-indigo-300 transition-all">
+                  <span className="text-[9px] font-black text-slate-405 uppercase tracking-widest block mb-1">Monthly Plan</span>
+                  <div className="text-lg font-black text-slate-800">$9 <span className="text-[10px] font-bold text-slate-400">/month</span></div>
+                  <p className="text-[8.5px] text-slate-450 mt-1">Billed monthly</p>
+                </div>
+                <div className="p-3.5 rounded-2xl border-2 border-amber-300 bg-amber-50/30 text-center relative cursor-pointer shadow-xs hover:border-amber-400 transition-all">
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-amber-500 text-[7px] font-black text-white uppercase tracking-widest select-none">Best Seller</span>
+                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block mb-1">Yearly Plan</span>
+                  <div className="text-lg font-black text-slate-800">$79 <span className="text-[10px] font-bold text-slate-400">/year</span></div>
+                  <p className="text-[8.5px] text-emerald-600 font-bold mt-1">Save 25%</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3 relative">
+                {currentUser?.isPremium ? (
+                  <button
+                    onClick={() => {
+                      handleTogglePremium(false);
+                      setShowPremiumModal(false);
+                    }}
+                    className="w-full py-2.5 rounded-2xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all border border-rose-200 cursor-pointer text-center"
+                  >
+                    Cancel Premium Pro Subscription
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      handleTogglePremium(true);
+                      setShowPremiumModal(false);
+                    }}
+                    className="w-full py-3 rounded-2xl text-xs font-bold text-white shadow-lg hover:shadow-amber-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center relative overflow-hidden group"
+                    style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Activate Premium Pro Now
+                    </span>
+                    <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
+                  </button>
+                )}
+                
+                <p className="text-center text-[9px] text-slate-400">By subscribing, you agree to Avaxa's Terms of Service and Privacy Policy.</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ADD SPACE MODAL ── */}
+      <AnimatePresence>
+        {showAddSpaceModal && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowAddSpaceModal(false)} 
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }} 
+              animate={{ scale: 1, y: 0, opacity: 1 }} 
+              exit={{ scale: 0.95, y: 15, opacity: 0 }} 
+              className="relative w-full max-w-[620px] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-7 overflow-hidden z-10 text-left font-sans select-none"
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setShowAddSpaceModal(false)} 
+                className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-slate-655 dark:hover:text-slate-200 hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <form onSubmit={handleAddSpace} className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white">Create a Space</h3>
+                  <p className="text-xs text-slate-455 mt-1 leading-relaxed">
+                    A Space represents teams, departments, or groups, each with its own Lists, workflows, and settings.
+                  </p>
+                </div>
+
+                {/* Icon & Name Row */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Icon & name</label>
+                  <div className="flex items-center gap-3">
+                    {/* Icon Preview Box */}
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold text-sm shadow-3xs shrink-0 select-none uppercase">
+                      {newSpaceEmoji ? newSpaceEmoji : (newSpaceName.trim() ? newSpaceName.trim().charAt(0) : 'S')}
+                    </div>
+                    {/* Name Input */}
+                    <input 
+                      type="text" 
+                      required 
+                      value={newSpaceName} 
+                      onChange={e => setNewSpaceName(e.target.value)} 
+                      placeholder="e.g. Marketing, Engineering, HR" 
+                      className="flex-1 px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Description Box */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description (optional)</label>
+                  <input 
+                    type="text" 
+                    value={newSpaceDescription} 
+                    onChange={e => setNewSpaceDescription(e.target.value)} 
+                    placeholder="Provide a brief description..." 
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                  />
+                </div>
+
+                {/* Permission Row */}
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-355">Default permission</span>
+                  </div>
+                  
+                  <select 
+                    value={newSpacePermission}
+                    onChange={e => setNewSpacePermission(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
+                  >
+                    <option value="Full edit">Full edit</option>
+                    <option value="Edit only">Edit only</option>
+                    <option value="Read only">Read only</option>
+                    <option value="Comment only">Comment only</option>
+                  </select>
+                </div>
+
+                {/* Private Toggle Switch Row */}
+                <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-4">
+                  <div className="text-left">
+                    <span className="block text-xs font-bold text-slate-850 dark:text-slate-200">Make Private</span>
+                    <span className="block text-[10px] text-slate-455 mt-0.5">Only you and invited members have access</span>
+                  </div>
+                  
+                  {/* Switch toggle styling */}
+                  <button
+                    type="button"
+                    onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
+                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-250 outline-none ${
+                      newSpaceIsPrivate ? 'bg-[#007fff]' : 'bg-slate-200 dark:bg-slate-800'
+                    }`}
+                  >
+                    <div 
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-250 ${
+                        newSpaceIsPrivate ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                  <button 
+                    type="button"
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                  >
+                    Use Templates
+                  </button>
+                  
+                  <button 
+                    type="submit" 
+                    className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-[#007fff] hover:bg-blue-600 shadow-md cursor-pointer transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ADD LIST MODAL ── */}
+      <AnimatePresence>
+        {showAddListSpaceId && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddListSpaceId(null)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-2xl p-6 overflow-hidden z-10 text-left">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-105">
+                <h3 className="text-sm font-bold text-slate-800">Create New Task List</h3>
+                <button onClick={() => setShowAddListSpaceId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50"><X className="w-4 h-4" /></button>
+              </div>
+              <form onSubmit={handleAddList} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">List Name</label>
+                  <input type="text" required value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="List Name..." className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 text-slate-800 font-semibold" />
+                </div>
+                <div className="flex gap-3.5 pt-2">
+                  <button type="button" onClick={() => setShowAddListSpaceId(null)} className="flex-1 py-2 rounded-xl border border-slate-250 hover:bg-slate-50 text-xs font-bold text-slate-500 cursor-pointer">Cancel</button>
+                  <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer">Create List</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── SPACE SETTINGS MODAL ── */}
+      <AnimatePresence>
+        {showSpaceSettingsId && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSpaceSettingsId(null)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl p-6 overflow-hidden z-10 text-left">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-105">
+                <h3 className="text-sm font-bold text-slate-800">Space Settings</h3>
+                <button onClick={() => setShowSpaceSettingsId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Space Name</label>
+                  <input type="text" value={editSpaceName} onChange={e => setEditSpaceName(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-slate-50 focus:bg-white text-slate-800 font-semibold" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Icon (Emoji)</label>
+                    <input type="text" value={editSpaceEmoji} onChange={e => setEditSpaceEmoji(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-slate-50 focus:bg-white text-slate-850 font-semibold text-center" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Theme Color</label>
+                    <select value={editSpaceColor} onChange={e => setEditSpaceColor(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-slate-50 focus:bg-white text-slate-850 font-semibold">
+                      <option value="indigo">Purple</option>
+                      <option value="rose">Pink</option>
+                      <option value="sky">Sky Blue</option>
+                      <option value="emerald">Emerald</option>
+                      <option value="sunset">Sunset</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* ClickApps Configuration */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block">ClickApps (Active Features)</span>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      { key: 'timeTracking', label: 'Time Tracking' },
+                      { key: 'multipleAssignees', label: 'Multiple Assignees' },
+                      { key: 'customFields', label: 'Custom Fields' },
+                      { key: 'relationships', label: 'Relationships & References' },
+                      { key: 'subtasks', label: 'Subtasks' },
+                      { key: 'priorities', label: 'Task Priorities' }
+                    ].map(app => (
+                      <label key={app.key} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 hover:bg-slate-105 border border-slate-100 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="checkbox" checked={!!editSpaceClickApps[app.key]} onChange={e => setEditSpaceClickApps({ ...editSpaceClickApps, [app.key]: e.target.checked })} className="rounded text-indigo-650" />
+                        <span>{app.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Statuses Configuration */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block">Task Statuses</span>
+                  <div className="space-y-1.5">
+                    {editSpaceStatuses.map((status, index) => (
+                      <div key={status.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-105">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: status.color }} />
+                        <span className="text-xs font-bold text-slate-700 uppercase flex-1">{status.label}</span>
+                        <span className="text-[9px] bg-slate-205 text-slate-500 px-1.5 py-0.5 rounded font-black uppercase">{status.type}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            if (editSpaceStatuses.length <= 2) {
+                              triggerToast('info', 'Notification', 'You must keep at least 2 statuses.');
+                              return;
+                            }
+                            setEditSpaceStatuses(prev => prev.filter(s => s.id !== status.id));
+                          }}
+                          className="text-rose-500 hover:bg-rose-50 p-1 rounded-lg cursor-pointer animate-pulse"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const name = prompt('Enter new status name:');
+                        if (!name) return;
+                        const colors = ['#94a3b8', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#a855f7'];
+                        const newStatus = {
+                          id: `status-${Date.now()}`,
+                          label: name,
+                          color: colors[Math.floor(Math.random() * colors.length)],
+                          type: 'inprogress' as TaskStatus
+                        };
+                        setEditSpaceStatuses(prev => [...prev, newStatus]);
+                      }}
+                      className="w-full py-1.5 border border-dashed border-slate-300 hover:bg-slate-50 text-[10px] font-extrabold text-slate-500 rounded-xl cursor-pointer text-center"
+                    >
+                      + Add new task status
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-3 border-t border-slate-105">
+                  <button type="button" onClick={() => { handleDeleteSpace(showSpaceSettingsId); setShowSpaceSettingsId(null); }} className="mr-auto py-2 px-4 rounded-xl border border-rose-200 hover:bg-rose-50 text-xs font-bold text-rose-600 cursor-pointer">Delete Space</button>
+                  <button type="button" onClick={() => setShowSpaceSettingsId(null)} className="py-2 px-4 rounded-xl border border-slate-250 hover:bg-slate-50 text-xs font-bold text-slate-500 cursor-pointer">Cancel</button>
+                  <button type="button" onClick={handleSaveSpaceSettings} className="py-2 px-4 rounded-xl text-xs font-black text-white bg-indigo-650 hover:bg-indigo-750 cursor-pointer">Save Settings</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}

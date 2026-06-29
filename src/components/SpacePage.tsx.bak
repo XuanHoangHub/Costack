@@ -1,0 +1,1531 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Task, TaskStatus, Priority, User, Space, Document, SyncLog } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import {
+  List, Kanban, Plus, Bot, Calendar, Trash2, Search, Filter, ArrowUpDown,
+  SlidersHorizontal, Table, X, CheckSquare, Clock, Play, Pause, RotateCcw,
+  Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown,
+  Folder, Share2, ChevronRight, Star, Eye, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
+  Activity, Users, Brain, Map as MapIcon
+} from 'lucide-react';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect } from './tasks/TaskSelects';
+import TaskListView from './tasks/TaskListView';
+import TaskBoardView from './tasks/TaskBoardView';
+import TaskTableView from './tasks/TaskTableView';
+import TaskGanttView from './tasks/TaskGanttView';
+import TaskDetailsPanel from './tasks/TaskDetailsPanel';
+import SpaceOverviewTab from './SpaceOverviewTab';
+
+// Import other workspace view modules
+import CalendarView from './CalendarView';
+import Whiteboard from './Whiteboard';
+import ChatRoom from './ChatRoom';
+import DocumentHub from './DocumentHub';
+import TeamDirectory from './TeamDirectory';
+import DashboardOverview from './DashboardOverview';
+
+const STATUS_LABELS: Record<TaskStatus, { label: string }> = {
+  todo: { label: 'TO DO' }, inprogress: { label: 'IN PROGRESS' },
+  review: { label: 'REVIEW' }, completed: { label: 'DONE' }
+};
+
+interface SpacePageProps {
+  tasks: Task[];
+  members: User[];
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void;
+  onUpdateTask: (task: Task) => void;
+  onDeleteTask: (id: string) => void;
+  isOffline: boolean;
+  onAddSyncLog: (action: string) => void;
+  triggerToast?: (type: string, title: string, message: string) => void;
+  initialSelectedTaskId?: string | null;
+  onClearInitialSelectedTaskId?: () => void;
+  onUpdateTaskOrder?: (workspaceId: string, orderedIds: string[]) => void;
+  allWorkspaces?: Workspace[];
+  activeWorkspaceId?: string;
+  onActiveWorkspaceChange?: (id: string) => void;
+  onAddWorkspace?: (name: string, theme: string, coverUrl?: string) => void;
+  currentUser?: User;
+  onUpgradePremium?: () => void;
+  allDocs?: Document[];
+
+  // Space context props
+  spaces?: Space[];
+  onSaveSpaces?: (newSpaces: Space[]) => void;
+  activeSpaceId?: string | null;
+  setActiveSpaceId?: (id: string | null) => void;
+  activeListId?: string | null;
+  setActiveListId?: (id: string | null) => void;
+  myTasksOnly?: boolean;
+  onOpenSpaceSettings?: (space: Space) => void;
+  onAddListSpace?: (spaceId: string) => void;
+  onAddSpace?: () => void;
+
+  // Dashboard properties
+  syncLogs?: SyncLog[];
+  onNavigate?: (tab: string) => void;
+  onToggleOffline?: () => void;
+}
+
+export default function SpacePage({
+  tasks, members, onAddTask: rawOnAddTask, onUpdateTask, onDeleteTask, isOffline, onAddSyncLog,
+  triggerToast, initialSelectedTaskId, onClearInitialSelectedTaskId, onUpdateTaskOrder,
+  allWorkspaces, activeWorkspaceId, onActiveWorkspaceChange, onAddWorkspace,
+  currentUser, onUpgradePremium, allDocs = [],
+  spaces = [], onSaveSpaces, activeSpaceId = null, setActiveSpaceId, activeListId = null, setActiveListId,
+  myTasksOnly = false, onOpenSpaceSettings, onAddListSpace, onAddSpace,
+  syncLogs = [], onNavigate, onToggleOffline
+}: SpacePageProps) {
+
+// Local handler to insert space/list context
+   const onAddTask = (taskObj: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => {
+     rawOnAddTask({
+       workspaceId: taskObj.workspaceId || activeWorkspaceId,
+       spaceId: taskObj.spaceId || activeSpaceId || undefined,
+       listId: taskObj.listId || activeListId || undefined,
+       ...taskObj
+     });
+   };
+
+  // Find active space object
+  const activeSpace = useMemo(() => {
+    return spaces.find(s => s.id === activeSpaceId) || spaces[0] || {
+      id: 'default-space',
+      name: 'Primary Space',
+      emoji: '📦',
+      themeColor: 'indigo',
+      lists: []
+    };
+  }, [spaces, activeSpaceId]);
+
+  // Favorite star state
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // Active View Tab State (Overview, List, Board, Table, Gantt, etc.)
+  const [activeView, setActiveView] = useState<string>('list');
+
+  // Spaces sub-sidebar collapsible states
+  const [isSubSidebarCollapsed, setIsSubSidebarCollapsed] = useState(false);
+  const [isSpacesExpanded, setIsSpacesExpanded] = useState(true);
+
+  // ClickUp exact views from screenshot
+  const [staticTabs, setStaticTabs] = useState<any[]>([
+    { id: 'tab-channel', label: 'Channel', icon: Hash, viewId: 'overview' },
+    { id: 'tab-board-1', label: 'Board', icon: Kanban, viewId: 'board' },
+    { id: 'tab-list-1', label: 'List', icon: List, viewId: 'list' },
+    { id: 'tab-form-1', label: 'Feedback Form', icon: CheckSquare, viewId: 'form' },
+    { id: 'tab-board-2', label: 'Board', icon: Kanban, viewId: 'board' },
+    { id: 'tab-gantt-1', label: 'Gantt', icon: GanttChart, viewId: 'gantt' },
+    { id: 'tab-list-2', label: 'List', icon: List, viewId: 'list' },
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>('tab-list-1');
+  const [isSearchViewOpen, setIsSearchViewOpen] = useState(false);
+
+  // Search input for views list
+  const [searchViewQuery, setSearchViewQuery] = useState('');
+  const [showAddViewMenu, setShowAddViewMenu] = useState(false);
+  const [privateView, setPrivateView] = useState(false);
+  const [pinView, setPinView] = useState(false);
+
+  // Auto refresh simulation
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState('just now');
+
+  // Customize layout/card sizing drawer states
+  const [showCustomizeDrawer, setShowCustomizeDrawer] = useState(false);
+  const [cardSize, setCardSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [cardCover, setCardCover] = useState<boolean>(true);
+  const [stackFields, setStackFields] = useState(false);
+
+  // Search and Filter States for Tasks
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterAssignee, setFilterAssignee] = useState<string>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('manual');
+  // Selection and Sorting states
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [isSmartSort, setIsSmartSort] = useState(false);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [boardGroupBy, setBoardGroupBy] = useState<'status' | 'priority'>('status');
+  const [boardSwimlaneBy, setBoardSwimlaneBy] = useState<'none' | 'priority' | 'assignee'>('none');
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeOverDropId, setActiveOverDropId] = useState<string | null>(null);
+
+  const isUrgentNearDueTask = (t: Task) => {
+    if (t.status === 'completed') return false;
+    if (t.priority !== 'urgent' && t.priority !== 'high') return false;
+    if (!t.dueDate) return false;
+    try {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const due = new Date(t.dueDate); due.setHours(0, 0, 0, 0);
+      return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) <= 3;
+    } catch (e) { return false; }
+  };
+
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Detail Drawer & Quick Modals
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Task Form States
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newPrio, setNewPrio] = useState<Priority>('medium');
+  const [newStatus, setNewStatus] = useState<TaskStatus>('todo');
+  const [newAssignee, setNewAssignee] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+
+  // AI & Pomodoro States
+  const [showAiPriorityModal, setShowAiPriorityModal] = useState(false);
+  const [loadingAiPriority, setLoadingAiPriority] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  interface AiSuggestions {
+    suggestions?: string[];
+    generalSummary?: string;
+  }
+  
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
+
+  const [isFocusActive, setIsFocusActive] = useState(false);
+  const [timerTask, setTimerTask] = useState<Task | null>(null);
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Track task orders
+  const [taskOrder, setTaskOrder] = useState<string[]>([]);
+  const currentWorkspaceId = activeWorkspaceId || 'default';
+
+  // Sync auto refresh label
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      setLastRefreshed('just now');
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Load task ordering
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`avaxa_task_order_${currentWorkspaceId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setTaskOrder(parsed);
+          return;
+        }
+      }
+    } catch (e) {}
+    setTaskOrder([]);
+  }, [currentWorkspaceId]);
+
+  // Sync new task ids to ordering
+  useEffect(() => {
+    setTaskOrder(prev => {
+      const existing = new Set(prev);
+      const newIds = tasks.map(t => t.id).filter(id => !existing.has(id));
+      if (newIds.length === 0) return prev;
+      const updated = [...prev, ...newIds];
+      try {
+        localStorage.setItem(`avaxa_task_order_${currentWorkspaceId}`, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  }, [tasks, currentWorkspaceId]);
+
+  // Sync initial task selection
+  useEffect(() => {
+    if (initialSelectedTaskId) {
+      const task = tasks.find(t => t.id === initialSelectedTaskId);
+      if (task) {
+        setSelectedTask(task);
+        onClearInitialSelectedTaskId?.();
+      }
+    }
+  }, [initialSelectedTaskId, tasks, onClearInitialSelectedTaskId]);
+
+// Pomodoro countdown effect
+   useEffect(() => {
+     let interval: NodeJS.Timeout | null = null;
+     if (timerRunning && timeLeft > 0) {
+       interval = setInterval(() => {
+         setTimeLeft(prev => prev - 1);
+       }, 1000);
+     } else if (timeLeft === 0 && timerRunning) {
+       setTimerRunning(false);
+       if (triggerToast) {
+         triggerToast('success', 'Pomodoro Session Finished!', `Focus block on "${timerTask?.title || 'task'}" completed.`);
+       }
+       if (!isMuted) {
+         try {
+           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-200.wav');
+           audio.volume = 0.3;
+           audio.play();
+         } catch (e) {}
+       }
+     }
+     return () => clearInterval(interval);
+   }, [timerRunning, timeLeft, timerTask, triggerToast, isMuted]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // ClickUp style Views Dropdown Menu Definitions
+  const POPULAR_VIEWS = [
+    { id: 'list', label: 'List', desc: 'Track tasks, bugs, people & more', icon: List, color: '#7c828d', bg: 'rgba(124, 130, 141, 0.08)' },
+    { id: 'gantt', label: 'Gantt', desc: 'Plan dependencies & time', icon: GanttChart, color: '#f04438', bg: 'rgba(240, 68, 56, 0.08)' },
+    { id: 'calendar', label: 'Calendar', desc: 'Plan, schedule, & delegate', icon: Calendar, color: '#ff5f5f', bg: 'rgba(255, 95, 95, 0.08)' },
+    { id: 'doc', label: 'Doc', desc: 'Collaborate & document anything', icon: FileText, color: '#1570ef', bg: 'rgba(21, 112, 239, 0.08)' },
+    { id: 'board', label: 'Board - Kanban', desc: 'Move tasks between columns', icon: Kanban, color: '#7b68ee', bg: 'rgba(123, 104, 238, 0.08)' },
+    { id: 'form', label: 'Form', desc: 'Collect, track, & report data', icon: CheckSquare, color: '#9c27b0', bg: 'rgba(156, 39, 176, 0.08)' },
+    { id: 'dashboard', label: 'Dashboard', desc: 'Track metrics & insights', icon: SlidersHorizontal, color: '#ee46bc', bg: 'rgba(238, 70, 188, 0.08)' },
+  ];
+
+  const MORE_VIEWS = [
+    { id: 'table', label: 'Table', desc: 'Structured table format', icon: Table, color: '#12b76a', bg: 'rgba(18, 183, 106, 0.08)' },
+    { id: 'whiteboard', label: 'Whiteboard', desc: 'Visualize & brainstorm ideas', icon: Sparkles, color: '#f79009', bg: 'rgba(247, 144, 9, 0.08)' },
+    { id: 'timeline', label: 'Timeline', desc: 'See tasks by start & due date', icon: Clock, color: '#ff7e33', bg: 'rgba(255, 126, 51, 0.08)' },
+    { id: 'activity', label: 'Activity', desc: 'Real-time activity feed', icon: Activity, color: '#00bcd4', bg: 'rgba(0, 188, 212, 0.08)' },
+    { id: 'workload', label: 'Workload', desc: 'Visualize team capacity', icon: Users, color: '#009688', bg: 'rgba(0, 150, 136, 0.08)' },
+    { id: 'mindmap', label: 'Mind Map', desc: 'Visual brainstorming of ideas', icon: Brain, color: '#e91e63', bg: 'rgba(233, 30, 99, 0.08)' },
+    { id: 'team', label: 'Team', desc: 'Monitor work being done', icon: UserIcon, color: '#9c27b0', bg: 'rgba(156, 39, 176, 0.08)' },
+    { id: 'map', label: 'Map', desc: 'Tasks visualized by address', icon: MapIcon, color: '#ff9800', bg: 'rgba(255, 152, 0, 0.08)' }
+  ];
+
+  // Filtering and Sorting operations
+  const filteredTasks = useMemo(() => {
+    let result = tasks.filter(t => {
+      // Space filter
+      if (activeSpaceId && t.spaceId !== activeSpaceId) return false;
+      // List filter
+      if (activeListId && t.listId !== activeListId) return false;
+      // My Tasks Only filter
+      if (myTasksOnly && t.assigneeId !== 'user') return false;
+      return true;
+    });
+
+    // Search query filter
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(q) || 
+        t.description.toLowerCase().includes(q) ||
+        (t.tags && t.tags.some(tag => tag.toLowerCase().includes(q)))
+      );
+    }
+
+    // Priority filter
+    if (filterPriority !== 'all') {
+      result = result.filter(t => t.priority === filterPriority);
+    }
+
+    // Assignee filter
+    if (filterAssignee !== 'all') {
+      result = result.filter(t => t.assigneeId === filterAssignee);
+    }
+
+    // Tag filter
+    if (filterTag !== 'all') {
+      result = result.filter(t => t.tags && t.tags.includes(filterTag));
+    }
+
+    // Sorting
+    if (sortBy === 'priority') {
+      const weight = { urgent: 4, high: 3, medium: 2, low: 1 };
+      result = [...result].sort((a, b) => (weight[b.priority] || 0) - (weight[a.priority] || 0));
+    } else if (sortBy === 'dueDate') {
+      result = [...result].sort((a, b) => {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+    } else if (sortBy === 'title') {
+      result = [...result].sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortBy === 'manual') {
+      const orderMap = new Map(taskOrder.map((id, idx) => [id, idx]));
+      result = [...result].sort((a, b) => {
+        const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
+        const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+        return idxA - idxB;
+      });
+    }
+
+    return result;
+  }, [tasks, activeSpaceId, activeListId, myTasksOnly, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, taskOrder]);
+
+  // Handle Form Submission for Quick Add Task Modal
+  const handleCreateTaskSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
+    onAddTask({
+      title: newTitle.trim(),
+      description: newDesc.trim(),
+      priority: newPrio,
+      status: newStatus,
+      assigneeId: newAssignee || undefined,
+      dueDate: newDueDate || undefined,
+      startDate: newStartDate || undefined,
+      subtasks: [],
+      tags: [],
+      isPinned: false
+    });
+
+    setNewTitle('');
+    setNewDesc('');
+    setNewPrio('medium');
+    setNewStatus('todo');
+    setNewAssignee('');
+    setNewDueDate('');
+    setNewStartDate('');
+    setShowAddModal(false);
+  };
+
+  const activeFilterCount = (filterPriority !== 'all' ? 1 : 0) + (filterAssignee !== 'all' ? 1 : 0) + (filterTag !== 'all' ? 1 : 0);
+
+  // Fetch AI task suggestions
+  const fetchAiPriority = async () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
+    setLoadingAiPriority(true);
+    try {
+      const active = tasks.filter(t => t.status !== 'completed');
+      if (active.length === 0) {
+        setAiSuggestions({ suggestions: [], generalSummary: 'No active tasks!' });
+        setLoadingAiPriority(false);
+        return;
+      }
+      const res = await fetch('/api/ai/priority-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: active })
+      });
+      const data = await res.json();
+      if (data.success && data.text) {
+        setAiSuggestions(JSON.parse(data.text));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAiPriority(false);
+    }
+  };
+
+  // AI Subtask Generation
+  const triggerAiSubtasks = async (task: Task) => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      const res = await fetch('/api/ai/subtasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: task.title, description: task.description })
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.subtasks)) {
+        const gen = data.subtasks.map((t: string, i: number) => ({
+          id: `ai-${Date.now()}-${i}`,
+          title: t,
+          completed: false
+        }));
+        const updated = {
+          ...task,
+          subtasks: [...task.subtasks, ...gen],
+          progress: Math.round((task.subtasks.filter(s => s.completed).length / Math.max(1, task.subtasks.length + gen.length)) * 100)
+        };
+        onUpdateTask(updated);
+        setSelectedTask(updated);
+        onAddSyncLog(`AI suggested ${gen.length} subtasks for "${task.title}"`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  // AI Summary
+  const handleAiSummary = async (task: Task) => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
+    setIsSummarizing(true);
+    try {
+      const assignee = members.find(m => m.id === task.assigneeId);
+      const res = await fetch('/api/ai/task-summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task, assigneeName: assignee?.name || 'Unassigned' })
+      });
+      const data = await res.json();
+      if (data.success && data.text) {
+        setAiSummary(data.text);
+        localStorage.setItem(`avaxa_task_ai_summary_${task.id}`, data.text);
+        onAddSyncLog(`AI summary for "${task.title}"`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  // Attachment Handlers
+  const handleAttachmentUpload = async (task: Task, e: React.ChangeEvent<HTMLInputElement> | File) => {
+    const file = e instanceof File ? e : e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const uuid = crypto.randomUUID();
+      const ext = file.name.split('.').pop() || 'png';
+      const filePath = `${session.user.id}/tasks/${task.id}/${uuid}.${ext}`;
+      onAddSyncLog(`Uploading: ${file.name}...`);
+      const { error } = await supabase.storage.from('app-files').upload(filePath, file);
+      if (error) {
+        console.error('Upload error:', error);
+        return;
+      }
+      const att = {
+        id: uuid,
+        name: file.name,
+        filePath,
+        size: file.size,
+        uploadedAt: new Date().toISOString()
+      };
+      const updated = {
+        ...task,
+        attachments: [...(task.attachments || []), att]
+      };
+      setSelectedTask(updated);
+      onUpdateTask(updated);
+      onAddSyncLog(`Uploaded successfully: ${file.name}`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAttachmentDelete = async (task: Task, att: TaskAttachment) => {
+    try {
+      await supabase.storage.from('app-files').remove([att.filePath]);
+      const updated = {
+        ...task,
+        attachments: (task.attachments || []).filter(a => a.id !== att.id)
+      };
+      setSelectedTask(updated);
+      onUpdateTask(updated);
+      onAddSyncLog(`Deleted: ${att.name}`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSelectView = (view: { id: string; label: string; icon: React.ElementType; desc: string; color: string; bg: string }) => {
+    // Check if view is already in staticTabs
+    const existingTab = staticTabs.find(t => t.viewId === view.id);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      setActiveView(existingTab.viewId);
+    } else {
+      const newTabId = `tab-custom-${Date.now()}`;
+      const newTab = {
+        id: newTabId,
+        label: view.label,
+        icon: view.icon,
+        viewId: view.id
+      };
+      setStaticTabs([...staticTabs, newTab]);
+      setActiveTabId(newTabId);
+      setActiveView(view.id);
+      onAddSyncLog(`Added view: ${view.label}`);
+    }
+    setShowAddViewMenu(false);
+    setIsSearchViewOpen(false);
+  };
+
+  // Breadcrumbs title for space page header
+  const spaceBreadcrumb = activeListId 
+    ? `${activeSpace.name} / ${activeSpace.lists.find(l => l.id === activeListId)?.name || 'List'}` 
+    : activeSpace.name;
+
+  return (
+    <div className="flex-grow flex h-full bg-slate-50/50 dark:bg-slate-950/20 font-sans overflow-hidden relative">
+      
+      {/* ── Sub-sidebar for Spaces (Left side, matching ClickUp) ── */}
+      <AnimatePresence initial={false}>
+        {!isSubSidebarCollapsed && (
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 240, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden hidden md:flex"
+          >
+            {/* Header: Spaces */}
+            <div className="p-4 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+              <span className="text-sm font-extrabold text-slate-850 dark:text-slate-100 uppercase tracking-wider">Spaces</span>
+              <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                <button 
+                  onClick={() => onAddSpace?.()}
+                  className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded cursor-pointer transition-colors" 
+                  title="Add Space"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setIsSpacesExpanded(!isSpacesExpanded)}
+                  className="p-1 hover:bg-slate-105 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-202 rounded cursor-pointer transition-colors"
+                  title="Expand/Collapse All"
+                >
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Spaces navigation list */}
+            <div className="flex-1 overflow-y-auto p-2 space-y-3.5 scrollbar-none">
+              
+              {/* All Tasks Link */}
+              <button
+                onClick={() => {
+                  if (setActiveSpaceId) setActiveSpaceId(null);
+                  if (setActiveListId) setActiveListId(null);
+                  setActiveView('overview');
+                  onAddSyncLog(`Switched to All Tasks view`);
+                }}
+                className={`w-full py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                  activeSpaceId === null && activeListId === null
+                    ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-3xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-805 hover:text-slate-850 dark:hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-500 shrink-0" />
+                  <span className="truncate">All Tasks - {currentUser?.name || 'Xuan Hoang'}</span>
+                </div>
+              </button>
+
+              {/* Spaces list */}
+              <div className="space-y-1">
+                {spaces.map(space => {
+                  const isSpaceActive = activeSpaceId === space.id && activeListId === null;
+                  const isAnyChildActive = activeSpaceId === space.id;
+                  const isExpanded = isSpacesExpanded;
+
+                  const themeBgColors: Record<string, string> = {
+                    indigo: 'bg-[#7B61FF]',
+                    rose: 'bg-[#FF3366]',
+                    sky: 'bg-[#33D1FF]',
+                    emerald: 'bg-[#10b981]',
+                    amber: 'bg-[#f59e0b]',
+                    sunset: 'bg-[#f97316]'
+                  };
+                  const bgClass = themeBgColors[space.themeColor || 'indigo'] || 'bg-[#7B61FF]';
+                  const initialLetter = space.name.charAt(0).toUpperCase();
+
+                  return (
+                    <div key={space.id} className="space-y-0.5">
+                      <div 
+                        className={`flex items-center justify-between py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer group/space transition-all ${
+                          isSpaceActive 
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-extrabold shadow-3xs' 
+                            : isAnyChildActive
+                              ? 'text-slate-850 dark:text-slate-100 font-extrabold'
+                              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-850 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="flex-1 flex items-center gap-2 text-left min-w-0"
+                          onClick={() => {
+                            if (setActiveSpaceId) setActiveSpaceId(space.id);
+                            if (setActiveListId) setActiveListId(null);
+                            setActiveView('overview');
+                            onAddSyncLog(`Entered Space: ${space.name}`);
+                          }}
+                        >
+                          {/* Space Icon */}
+                          {space.emoji && space.emoji !== '📦' ? (
+                            <span className="text-sm shrink-0">{space.emoji}</span>
+                          ) : (
+                            <div className={`w-4.5 h-4.5 rounded-lg flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-3xs ${bgClass}`}>
+                              {initialLetter}
+                            </div>
+                          )}
+                          <span className="truncate">{space.name}</span>
+                        </div>
+
+                        {/* Space Hover actions */}
+                        <div className="opacity-0 group-hover/space:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddListSpace?.(space.id);
+                            }}
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+                            title="Add List"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenSpaceSettings?.(space);
+                            }}
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+                            title="Space Settings"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Lists nested under Space */}
+                      {isExpanded && (
+                        <div className="pl-4 space-y-0.5 border-l border-slate-200 dark:border-slate-800 ml-4.5 mt-0.5">
+                          {space.lists?.map(list => {
+                            const isListActive = activeSpaceId === space.id && activeListId === list.id;
+                            const taskCount = tasks.filter(t => t.listId === list.id).length;
+                            return (
+                              <button
+                                key={list.id}
+                                onClick={() => {
+                                  if (setActiveSpaceId) setActiveSpaceId(space.id);
+                                  if (setActiveListId) setActiveListId(list.id);
+                                  setActiveView('list');
+                                  onAddSyncLog(`Entered List: ${list.name}`);
+                                }}
+                                className={`w-full flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer ${
+                                  isListActive
+                                    ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
+                                    : 'text-slate-500 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span className="truncate">{list.name}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold pl-1 shrink-0">{taskCount}</span>
+                              </button>
+                            );
+                          })}
+                          {(!space.lists || space.lists.length === 0) && (
+                            <div className="text-[10px] text-slate-400 italic pl-5 py-1 select-none font-medium">No lists yet.</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Create space row */}
+              <button
+                onClick={() => onAddSpace?.()}
+                className="w-full flex items-center gap-2 py-2 px-2.5 mt-1 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all cursor-pointer text-left"
+              >
+                <Plus className="w-4 h-4 shrink-0" />
+                <span>+ New Space</span>
+              </button>
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Restore sub-sidebar trigger if collapsed */}
+      {isSubSidebarCollapsed && (
+        <button
+          onClick={() => setIsSubSidebarCollapsed(false)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-slate-900 border border-l-0 border-slate-200/80 dark:border-slate-800 rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
+          title="Expand Spaces Sidebar"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Main Page Workspace Content Container (Right) */}
+      <div className="flex-grow flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* ── Space Page Header Top Bar (ClickUp layout) ── */}
+        <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/80 px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-30 select-none shadow-3xs">
+        
+        {/* Left Side: Space Selector Breadcrumb & View Tabs */}
+        <div className="flex items-center gap-5 flex-wrap">
+          <div className="flex            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+              {/* Space Icon & Name */}
+              <div className="flex items-center gap-1.5 hover:text-slate-900 cursor-pointer">
+                {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
+                  <span className="text-sm shrink-0">{activeSpace.emoji}</span>
+                ) : (
+                  <div 
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-3xs"
+                    style={{ 
+                      backgroundColor: 
+                        activeSpace.themeColor === 'rose' ? '#FF3366' : 
+                        activeSpace.themeColor === 'sky' ? '#33D1FF' : 
+                        activeSpace.themeColor === 'emerald' ? '#10b981' : 
+                        activeSpace.themeColor === 'amber' ? '#f59e0b' : 
+                        activeSpace.themeColor === 'sunset' ? '#f97316' : '#7B61FF' 
+                    }}
+                  >
+                    {(activeSpace.name || 'S').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-slate-800 dark:text-slate-200">{activeSpace.name}</span>
+              </div>
+
+              {activeListId && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700 mx-0.5">/</span>
+                  
+                  {/* List Icon, Name, and Down Chevron selector */}
+                  <div className="flex items-center gap-1 hover:text-slate-900 cursor-pointer">
+                    <List className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-slate-800 dark:text-slate-200">{activeSpace.lists?.find(l => l.id === activeListId)?.name || 'List'}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </>
+              )}
+
+              {/* Favorite Star Button */}
+              <button 
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="p-1 text-slate-400 hover:text-amber-500 rounded-md transition-colors ml-1"
+              >
+                <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+
+          {/* View Tab Selector Bar */}
+          <div className="flex items-center gap-3.5 flex-wrap">
+            {staticTabs.map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTabId === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTabId(tab.id);
+                    setActiveView(tab.viewId);
+                  }}
+                  className={`py-1.5 px-0.5 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer relative border-b-2 ${
+                    isActive 
+                      ? 'text-slate-900 dark:text-white border-indigo-500 font-extrabold' 
+                      : 'text-slate-500 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+
+            {/* Search views input inline in the tabs bar with views popover anchored */}
+            <div className="relative">
+              {isSearchViewOpen ? (
+                <div className="relative flex items-center">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input 
+                    type="text" 
+                    autoFocus
+                    placeholder="Search views..."
+                    value={searchViewQuery}
+                    onChange={(e) => {
+                      setSearchViewQuery(e.target.value);
+                      setShowAddViewMenu(true);
+                    }}
+                    onFocus={() => setShowAddViewMenu(true)}
+                    className="bg-white dark:bg-slate-950 border border-indigo-500 rounded-lg pl-8 pr-7 py-1 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-100 w-44 transition-all shadow-xs"
+                  />
+                  <button 
+                    onClick={() => {
+                      setIsSearchViewOpen(false);
+                      setShowAddViewMenu(false);
+                      setSearchViewQuery('');
+                    }} 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-650"
+                  >
+                    ✕
+                  </button>
+
+                  {/* ClickUp Dropdown Menu to add views */}
+                  <AnimatePresence>
+                    {showAddViewMenu && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setShowAddViewMenu(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-2 w-[280px] sm:w-[480px] p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.16)] z-40 origin-top-right text-left"
+                        >
+                          <div className="space-y-4 max-h-[360px] overflow-y-auto scrollbar-none pr-1">
+                            {/* Popular Views grid */}
+                            <div className="space-y-2">
+                              <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Popular</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {POPULAR_VIEWS.filter(v => v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
+                                  const Icon = view.icon;
+                                  return (
+                                    <button 
+                                      key={view.id}
+                                      onClick={() => handleSelectView(view)}
+                                      className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-950 text-left transition-colors cursor-pointer group"
+                                    >
+                                      <div 
+                                        className="p-2 rounded-lg shrink-0 transition-colors"
+                                        style={{ backgroundColor: view.bg, color: view.color }}
+                                      >
+                                        <Icon className="w-4 h-4" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{view.label}</p>
+                                        <p className="text-[9px] text-slate-400 mt-0.5 truncate">{view.desc}</p>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* More Views grid */}
+                            <div className="space-y-2">
+                              <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">More Views</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {MORE_VIEWS.filter(v => v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
+                                  const Icon = view.icon;
+                                  return (
+                                    <button 
+                                      key={view.id}
+                                      onClick={() => handleSelectView(view)}
+                                      className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-955 text-left transition-colors cursor-pointer group"
+                                    >
+                                      <div 
+                                        className="p-2 rounded-lg shrink-0 transition-colors"
+                                        style={{ backgroundColor: view.bg, color: view.color }}
+                                      >
+                                        <Icon className="w-4 h-4" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{view.label}</p>
+                                        <p className="text-[9px] text-slate-400 mt-0.5 truncate">{view.desc}</p>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Dropdown footer settings */}
+                          <div className="border-t border-slate-150 dark:border-slate-800 mt-4 pt-3 flex items-center justify-between flex-wrap gap-2 text-[10px] font-semibold text-slate-400 uppercase">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={privateView}
+                                onChange={(e) => setPrivateView(e.target.checked)}
+                                className="rounded text-indigo-650 accent-indigo-600 w-3.5 h-3.5"
+                              />
+                              <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Private View</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={pinView}
+                                onChange={(e) => setPinView(e.target.checked)}
+                                className="rounded text-indigo-650 accent-indigo-600 w-3.5 h-3.5"
+                              />
+                              <Pin className="w-3.5 h-3.5 text-slate-400 rotate-45" />
+                              <span>Pin View</span>
+                            </label>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => {
+                    setIsSearchViewOpen(true);
+                    setShowAddViewMenu(true);
+                  }}
+                  className="py-1 px-2.5 text-xs font-bold text-slate-500 hover:text-indigo-650 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-slate-100"
+                >
+                  <Plus className="w-3.5 h-3.5 text-slate-450" />
+                  <span>View</span>
+                </button>
+              )}
+            </div>
+          </div>   </div>
+
+          </div>
+        </div>
+
+        {/* Right Side: Agents, Automate, Refresh Status, and +Card */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* ClickUp Style Extra Header Options */}
+          <div className="flex items-center gap-1">
+            <button className="py-1.5 px-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+              <Bot className="w-3.5 h-3.5 text-slate-450" />
+              <span>Agents</span>
+            </button>
+            <button className="py-1.5 px-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
+              <span>Automate</span>
+            </button>
+            <button className="py-1.5 px-2 text-slate-550 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Brain²</span>
+            </button>
+            <button className="py-1.5 px-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer mr-1">
+              <Share2 className="w-3.5 h-3.5 text-slate-450" />
+              <span>Share</span>
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-250 dark:bg-slate-800 hidden sm:block" />
+
+          {/* Autorefresh indicator */}
+          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold select-none">
+            <span>Refreshed: {lastRefreshed}</span>
+            <button 
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`px-2 py-1 border rounded-lg transition-colors cursor-pointer ${
+                autoRefresh 
+                  ? 'border-indigo-200 bg-indigo-50/50 text-indigo-650 dark:border-indigo-900/50 dark:bg-indigo-950/20' 
+                  : 'border-slate-200 dark:border-slate-800 text-slate-450 hover:bg-slate-50'
+              }`}
+            >
+              Auto refresh: {autoRefresh ? 'On' : 'Off'}
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-850" />
+
+          {/* Quick task card create button */}
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Card</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt views) ── */}
+      {['list', 'board', 'table', 'gantt'].includes(activeView) && (
+        <div className="shrink-0 bg-white dark:bg-slate-900/40 border-b border-slate-200/50 dark:border-slate-800/60 px-5 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-3xs">
+          
+          {/* Search task input */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl px-3 py-1.5 flex-1 max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+            <input 
+              type="text" 
+              placeholder="Search tasks..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent text-[11px] font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">✕</button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Filter Drawer Toggle */}
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-3 py-1.5 border rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                showFilters || activeFilterCount > 0
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-650 dark:bg-indigo-950/20 dark:border-indigo-905'
+                  : 'bg-white border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filter</span>
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[8px] font-black flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* Sorter Selector */}
+            <div className="relative">
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none px-3 py-1.5 pr-7 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-900 text-slate-655 outline-none cursor-pointer"
+              >
+                <option value="manual">Manual Sorting</option>
+                <option value="priority">Sort by Priority</option>
+                <option value="dueDate">Sort by Due Date</option>
+                <option value="title">Sort alphabetically (A-Z)</option>
+              </select>
+              <ArrowUpDown className="w-3 h-3 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* AI suggestions suggestions suggestions */}
+            <button
+              onClick={() => {
+                if (!currentUser?.isPremium) {
+                  onUpgradePremium?.();
+                  return;
+                }
+                setShowAiPriorityModal(true);
+                fetchAiPriority();
+              }}
+              className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 rounded-xl text-[11px] font-bold hover:bg-indigo-100 cursor-pointer flex items-center gap-1.5 transition-colors"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>AI Priorities</span>
+            </button>
+
+            {/* Pomodoro Focus indicator */}
+            {isFocusActive && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-rose-50 dark:bg-rose-950/20 border border-rose-150 rounded-xl text-[11px] font-bold text-rose-600">
+                <Timer className="w-3.5 h-3.5 animate-pulse" />
+                <span className="font-mono">{formatTime(timeLeft)}</span>
+                <button onClick={() => setTimerRunning(!timerRunning)}>
+                  {timerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Inline Filters Panel */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-3.5"
+          >
+            <div className="flex gap-4 flex-wrap text-xs font-bold text-slate-700 dark:text-slate-350">
+              {/* Priority Filters */}
+              <div className="space-y-1">
+                <label className="text-[9px] text-slate-400 uppercase">Priority</label>
+                <div className="flex gap-1.5">
+                  {['all', 'urgent', 'high', 'medium', 'low'].map(p => (
+                    <button 
+                      key={p} 
+                      onClick={() => setFilterPriority(p)}
+                      className={`px-2.5 py-1 text-[11px] rounded-lg border transition-all cursor-pointer ${
+                        filterPriority === p 
+                          ? 'bg-indigo-600 border-indigo-650 text-white' 
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Assignee Filters */}
+              <div className="space-y-1">
+                <label className="text-[9px] text-slate-400 uppercase">Assignee</label>
+                <select 
+                  value={filterAssignee}
+                  onChange={(e) => setFilterAssignee(e.target.value)}
+                  className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-905 outline-none"
+                >
+                  <option value="all">Everyone</option>
+                  <option value="user">Me Only</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reset button */}
+              <div className="flex items-end">
+                <button 
+                  onClick={() => {
+                    setFilterPriority('all');
+                    setFilterAssignee('all');
+                    setFilterTag('all');
+                  }}
+                  className="px-3 py-1 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-[11px] transition-colors"
+                >
+                  Reset filters
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Active Module Rendering Body Section ── */}
+      <main className="flex-1 overflow-y-auto p-5 select-none scrollbar-none">
+        
+        {/* Render Overview Dashboard */}
+        {activeView === 'overview' && (
+          <SpaceOverviewTab 
+            space={activeSpace}
+            tasks={tasks}
+            members={members}
+            onOpenList={(listId) => {
+              if (setActiveListId) setActiveListId(listId);
+              setActiveView('list');
+            }}
+            onAddList={() => onAddListSpace?.(activeSpace.id)}
+            onAddTask={onAddTask}
+            triggerToast={triggerToast}
+          />
+        )}
+
+        {/* Render Task List View */}
+        {activeView === 'list' && (
+          <TaskListView 
+            filteredTasks={filteredTasks}
+            tasks={tasks}
+            members={members}
+            workspaces={allWorkspaces || []}
+            selectedTaskIds={selectedTaskIds}
+            setSelectedTaskIds={setSelectedTaskIds}
+            setSelectedTask={setSelectedTask}
+            onUpdateTask={onUpdateTask}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+            filterTag={filterTag}
+            setFilterTag={setFilterTag}
+            isSmartSort={isSmartSort}
+            isUrgentNearDueTask={isUrgentNearDueTask}
+            isMultiSelectMode={isMultiSelectMode}
+            onAddTask={onAddTask}
+            setViewType={setActiveView as any}
+          />
+        )}
+
+        {/* Render Kanban Board View */}
+        {activeView === 'board' && (
+          <TaskBoardView 
+            filteredTasks={filteredTasks}
+            members={members}
+            workspaces={allWorkspaces || []}
+            selectedTaskIds={selectedTaskIds}
+            setSelectedTaskIds={setSelectedTaskIds}
+            setSelectedTask={setSelectedTask}
+            onUpdateTask={onUpdateTask}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+            boardGroupBy={boardGroupBy}
+            setBoardGroupBy={setBoardGroupBy}
+            boardSwimlaneBy={boardSwimlaneBy}
+            setBoardSwimlaneBy={setBoardSwimlaneBy}
+            filterTag={filterTag}
+            setFilterTag={setFilterTag}
+            isSmartSort={isSmartSort}
+            isUrgentNearDueTask={isUrgentNearDueTask}
+            isMultiSelectMode={isMultiSelectMode}
+            activeDragId={activeDragId}
+            activeOverDropId={activeOverDropId}
+            cardSize={cardSize}
+            cardCover={cardCover}
+            onAddTask={onAddTask}
+          />
+        )}
+
+        {/* Render Table View */}
+        {activeView === 'table' && (
+          <TaskTableView 
+            filteredTasks={filteredTasks}
+            members={members}
+            workspaces={allWorkspaces || []}
+            selectedTaskIds={selectedTaskIds}
+            setSelectedTaskIds={setSelectedTaskIds}
+            setSelectedTask={setSelectedTask}
+            onUpdateTask={onUpdateTask}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+          />
+        )}
+
+        {/* Render Gantt Chart View */}
+        {activeView === 'gantt' && (
+          <TaskGanttView 
+            filteredTasks={filteredTasks}
+            members={members}
+            selectedTaskIds={selectedTaskIds}
+            setSelectedTaskIds={setSelectedTaskIds}
+            setSelectedTask={setSelectedTask}
+            onUpdateTask={onUpdateTask}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+          />
+        )}
+
+        {/* Integrate Calendar Module */}
+        {activeView === 'calendar' && (
+          <CalendarView 
+            tasks={filteredTasks}
+            members={members}
+            isOffline={isOffline}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+            onAddTask={onAddTask}
+            onUpdateTask={onUpdateTask}
+          />
+        )}
+
+        {/* Integrate Whiteboard Module */}
+        {activeView === 'whiteboard' && (
+          <Whiteboard 
+            members={members}
+            isOffline={isOffline}
+            onAddSyncLog={onAddSyncLog}
+          />
+        )}
+
+        {/* Integrate Document Hub Module */}
+        {activeView === 'doc' && (
+          <DocumentHub 
+            docs={allDocs.filter(d => !activeSpaceId || d.workspaceId === activeWorkspaceId)}
+            currentUser={currentUser}
+            onAddDoc={() => {}}
+            onUpdateDoc={() => {}}
+            onDeleteDoc={() => {}}
+            isOffline={isOffline}
+            onAddSyncLog={onAddSyncLog}
+            initialSelectedDocId={null}
+            onClearInitialSelectedDocId={() => {}}
+          />
+        )}
+
+        {/* Integrate Team Directory Module */}
+        {activeView === 'team' && (
+          <TeamDirectory 
+            members={members}
+            tasks={tasks}
+            workspaces={allWorkspaces || []}
+            activeWorkspaceId={activeWorkspaceId || ''}
+            onAddMember={() => {}}
+            onUpdateMember={() => {}}
+            onDeleteMember={() => {}}
+            onAddSyncLog={onAddSyncLog}
+          />
+        )}
+
+        {/* Integrate Dashboard/Analytics Overview Module */}
+        {activeView === 'dashboard' && (
+          <DashboardOverview 
+            tasks={filteredTasks}
+            members={members}
+            docs={allDocs}
+            syncLogs={syncLogs}
+            isOffline={isOffline}
+            onNavigate={(tab) => onNavigate?.(tab)}
+            onToggleOffline={() => onToggleOffline?.()}
+            currentUser={currentUser}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+          />
+        )}
+
+      </main>
+
+      {/* Task Detail Drawer Panel */}
+      <AnimatePresence>
+        {selectedTask && (
+          <TaskDetailsPanel 
+            task={selectedTask}
+            members={members}
+            workspaces={allWorkspaces || []}
+            spaces={spaces}
+            onClose={() => setSelectedTask(null)}
+            onUpdateTask={(t) => {
+              onUpdateTask(t);
+              setSelectedTask(t);
+            }}
+            onDeleteTask={(id) => {
+              onDeleteTask(id);
+              setSelectedTask(null);
+            }}
+            onAddSyncLog={onAddSyncLog}
+            triggerToast={triggerToast}
+            onAttachmentUpload={handleAttachmentUpload}
+            onAttachmentDelete={handleAttachmentDelete}
+            onAiSubtasks={triggerAiSubtasks}
+            aiGenerating={aiGenerating}
+            onAiSummary={handleAiSummary}
+            isSummarizing={isSummarizing}
+            aiSummary={aiSummary}
+            allTasks={tasks}
+            allDocs={allDocs}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Full Task Create Dialog Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[140] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-indigo-500" />
+                <span>Create New Task</span>
+              </h3>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTaskSubmit} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Task Title</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="What needs to be done?" 
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-805 outline-none focus:border-indigo-500 font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
+                <textarea 
+                  placeholder="Task details & notes..." 
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  className="w-full h-24 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-805 outline-none focus:border-indigo-500 font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Priority</label>
+                  <PriorityPillSelect value={newPrio} onChange={setNewPrio} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assignee</label>
+                  <AssigneePillSelect 
+                    members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))} 
+                    value={newAssignee || null} 
+                    onChange={(val) => setNewAssignee(val || '')} 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Date</label>
+                  <PremiumDatePicker dateValue={newStartDate} onChange={(val) => setNewStartDate(val || '')} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Due Date</label>
+                  <PremiumDatePicker dateValue={newDueDate} onChange={(val) => setNewDueDate(val || '')} />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddModal(false)}
+                  className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 text-white font-black rounded-xl shadow-md cursor-pointer transition-colors"
+                >
+                  Create Task
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* AI Urgency Suggestion Modal */}
+      {showAiPriorityModal && (
+        <div className="fixed inset-0 z-[140] bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-500" />
+                <span>AI Urgency Suggestions</span>
+              </h3>
+              <button onClick={() => setShowAiPriorityModal(false)} className="text-slate-400 hover:text-slate-650 text-sm">✕</button>
+            </div>
+
+            {loadingAiPriority ? (
+              <div className="text-center py-10 space-y-3">
+                <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
+                <p className="text-xs text-slate-400 font-bold">Avaxa AI is calculating urgency factors...</p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs font-semibold text-slate-600 dark:text-slate-350">
+                <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl">
+                  <p className="leading-relaxed">{aiSuggestions?.explanation}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase">Recommended Actions</h4>
+                  {aiSuggestions?.suggestedTasks.map((t: Task) => (
+                    <div 
+                      key={t.id} 
+                      className="p-3 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 flex items-center justify-between gap-3 cursor-pointer hover:border-indigo-500/30 transition-all"
+                      onClick={() => {
+                        setSelectedTask(t);
+                        setShowAiPriorityModal(false);
+                      }}
+                    >
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{t.title}</span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
+                        t.priority === 'urgent' ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-amber-50 border-amber-100 text-amber-600'
+                      }`}>{t.priority}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      </div> {/* Closing tag for Main Page Workspace Content Container */}
+    </div>
+  );
+}

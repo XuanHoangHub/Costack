@@ -1,0 +1,261 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+
+:root {
+  --slate-55: #f4f6f9;
+  --slate-105: #f1f5f9;
+  --slate-150: #e2e8f0;
+  --slate-250: #cbd5e1;
+  --slate-305: #94a3b8;
+  --slate-350: #94a3b8;
+  --slate-455: #64748b;
+  --slate-550: #64748b;
+  --slate-555: #475569;
+  --slate-705: #334155;
+  --slate-750: #1e293b;
+  --slate-805: #0f172a;
+  --slate-955: #020617;
+}
+
+.dark {
+  --slate-55: #1e293b;
+  --slate-105: #1e293b;
+  --slate-150: #334155;
+  --slate-250: #334155;
+  --slate-305: #475569;
+  --slate-350: #475569;
+  --slate-455: #94a3b8;
+  --slate-550: #94a3b8;
+  --slate-555: #cbd5e1;
+  --slate-705: #cbd5e1;
+  --slate-750: #cbd5e1;
+  --slate-805: #1e293b;
+  --slate-955: #0f172a;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-indigo-50: var(--avaxa-primary-light, #f5f3ff);
+  --color-indigo-100: var(--avaxa-primary-light, #ede9fe);
+  --color-indigo-200: var(--avaxa-primary-light, #ddd6fe);
+  --color-indigo-300: var(--avaxa-primary-light, #c7d2fe);
+  --color-indigo-505: var(--avaxa-primary, #7B61FF);
+  --color-indigo-500: var(--avaxa-primary, #7B61FF);
+  --color-indigo-600: var(--avaxa-primary, #7B61FF);
+  --color-indigo-700: var(--avaxa-primary-hover, #6045EB);
+  --color-indigo-800: var(--avaxa-primary-hover, #492FD4);
+  --color-indigo-900: var(--avaxa-primary-hover, #3E24A0);
+  
+  --color-pink-50: #fff1f2;
+  --color-pink-100: #ffe4e6;
+  --color-pink-200: #fecdd3;
+  --color-pink-500: #FF3366;
+  --color-pink-600: #e11d48;
+  --color-pink-700: #be123c;
+
+  --color-cyan-100: #ecfeff;
+  --color-cyan-205: #33D1FF;
+  --color-cyan-500: #33D1FF;
+  --color-cyan-600: #0891b2;
+
+  --color-slate-50: #F8FAFC;
+  --color-slate-55: var(--slate-55);
+  --color-slate-105: var(--slate-105);
+  --color-slate-150: var(--slate-150);
+  --color-slate-250: var(--slate-250);
+  --color-slate-305: var(--slate-305);
+  --color-slate-350: var(--slate-350);
+  --color-slate-455: var(--slate-455);
+  --color-slate-550: var(--slate-550);
+  --color-slate-555: var(--slate-555);
+  --color-slate-705: var(--slate-705);
+  --color-slate-750: var(--slate-750);
+  --color-slate-805: var(--slate-805);
+  --color-slate-955: var(--slate-955);
+}
+
+/* Custom Interactive Animations & Visual Effects */
+.glass-panel {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.04);
+}
+.dark .glass-panel {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.04);
+}
+
+.liquid-glass {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 6px 24px 0 rgba(15, 23, 42, 0.05);
+}
+.dark .liquid-glass {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 6px 24px 0 rgba(15, 23, 42, 0.05);
+}
+
+.liquid-blob {
+  display: none;
+}
+
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--avaxa-primary, #7B61FF);
+  top: -100px;
+  left: -100px;
+  opacity: 0.15;
+}
+
+.blob-2 {
+  width: 500px;
+  height: 500px;
+  background: var(--avaxa-gradient-end, #FF3366);
+  bottom: -150px;
+  right: -150px;
+  opacity: 0.1;
+}
+
+.blob-3 {
+  width: 300px;
+  height: 300px;
+  background: var(--avaxa-liquid-color, #33D1FF);
+  top: 20%;
+  right: 10%;
+  opacity: 0.1;
+}
+
+.glass-panel-dark {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.04);
+}
+
+.glass-liquid-bg {
+  position: relative;
+  overflow: hidden;
+  background-color: #FFFFFF;
+}
+.dark .glass-liquid-bg {
+  background-color: #FFFFFF;
+}
+
+@keyframes liquid-drift {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-liquid-1 {
+  animation: liquid-drift 20s infinite alternate ease-in-out;
+}
+
+.animate-liquid-2 {
+  animation: liquid-drift 25s infinite alternate-reverse ease-in-out;
+}
+
+.clickup-card-active {
+  box-shadow: 0 10px 30px -10px rgba(123, 97, 255, 0.2), 0 1px 3px rgba(123, 97, 255, 0.1);
+  border-color: rgba(123, 97, 255, 0.4);
+}
+
+@keyframes border-beam {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam 3.5s linear infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.45);
+}
+
+@keyframes orbit-clockwise {
+  0% { transform: rotate(0deg) translateX(65px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(65px) rotate(-360deg); }
+}
+
+@keyframes orbit-counterclockwise {
+  0% { transform: rotate(360deg) translateX(100px) rotate(-360deg); }
+  100% { transform: rotate(0deg) translateX(100px) rotate(0deg); }
+}
+
+.animate-orbit-1 {
+  animation: orbit-clockwise 20s linear infinite;
+}
+
+.animate-orbit-2 {
+  animation: orbit-counterclockwise 28s linear infinite;
+}
+
+@keyframes floating-particle {
+  0% { transform: translateY(0px) translateX(0px) scale(1) rotate(0deg); }
+  33% { transform: translateY(-15px) translateX(10px) scale(1.05) rotate(120deg); }
+  66% { transform: translateY(10px) translateX(-15px) scale(0.95) rotate(240deg); }
+  100% { transform: translateY(0px) translateX(0px) scale(1) rotate(360deg); }
+}
+
+.animate-float-p1 {
+  animation: floating-particle 14s infinite ease-in-out;
+}
+
+.animate-float-p2 {
+  animation: floating-particle 18s infinite ease-in-out 3s;
+}
+
+.animate-float-p3 {
+  animation: floating-particle 16s infinite ease-in-out 6s;
+}
+
+.login-spotlight-bg {
+  background: radial-gradient(
+    circle 650px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(99, 102, 241, 0.08) 0%,
+    rgba(244, 114, 182, 0.04) 40%,
+    transparent 70%
+  );
+}
