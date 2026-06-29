@@ -95,14 +95,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded.current) {
-      try {
-        localStorage.setItem('avaxa_accent_preset', accentPreset);
-      } catch (e) {
-        console.error('Error saving color preset:', e);
-      }
-    }
-
     const presets = {
       indigo: {
         primary: 'rgb(123, 97, 255)',    // original brand violet (#7B61FF)
@@ -187,21 +179,6 @@ export default function App() {
   const [blurIntensity, setBlurIntensity] = useState<'soft' | 'default' | 'immersive'>('default');
 
   useEffect(() => {
-    if (isLoaded.current) {
-      try {
-        localStorage.setItem('avaxa_sound_enabled', String(soundEnabled));
-      } catch (e) {}
-    }
-  }, [soundEnabled]);
-
-  useEffect(() => {
-    if (isLoaded.current) {
-      try {
-        localStorage.setItem('avaxa_blur_intensity', blurIntensity);
-      } catch (e) {}
-    }
-
-    // Map intensity to exact pixel values
     let glassBlur = '12px';
     let glassBlurDark = '16px';
     let liquidBlur = '28px';
@@ -222,7 +199,6 @@ export default function App() {
     root.style.setProperty('--avaxa-liquid-blur', liquidBlur);
   }, [blurIntensity]);
   
-  // Custom Notification Control Settings
   const [notificationSettings, setNotificationSettings] = useState<any>({
     enableAll: true,
     enableSound: true,
@@ -231,20 +207,12 @@ export default function App() {
     enableDeadlines: true,
     enableComments: true,
     enableStatusChanges: true,
-    enableFilteringTags: false, // OFF by default
+    enableFilteringTags: false,
     enableSystemNotify: true,
     toastDuration: 4000,
     dndActive: false,
     frequencyLimit: 'throttled'
   });
-
-  useEffect(() => {
-    if (isLoaded.current) {
-      try {
-        localStorage.setItem('avaxa_notification_settings', JSON.stringify(notificationSettings));
-      } catch (e) {}
-    }
-  }, [notificationSettings]);
 
   // Dynamic Browser Web Audio Sound Synthesizer (No media file weight!)
   useEffect(() => {

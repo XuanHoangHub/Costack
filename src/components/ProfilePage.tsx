@@ -258,11 +258,11 @@ export default function ProfilePage({
     setSaveStatus('saved');
   };
 
-  // Debounced Auto-save Effect
+  // Track dirty state for save button (no auto-save)
   useEffect(() => {
     if (isFirstMountRef.current) return;
 
-    const isDirty = 
+    const isDirty =
       name !== loadedProfileRef.current.name ||
       role !== loadedProfileRef.current.role ||
       avatar !== loadedProfileRef.current.avatar ||
@@ -270,15 +270,7 @@ export default function ProfilePage({
       department !== loadedProfileRef.current.department ||
       bio !== loadedProfileRef.current.bio;
 
-    if (!isDirty) return;
-
-    setSaveStatus('dirty');
-
-    const timer = setTimeout(() => {
-      triggerSave();
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    setSaveStatus(isDirty ? 'dirty' : 'saved');
   }, [name, role, avatar, phone, department, bio]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
