@@ -106,16 +106,6 @@ export default function ChatRoom({
   useEffect(() => {
     if (!activeChannelId) return;
 
-    if (forcedChannelId && activeChannelId === forcedChannelId) {
-      setMessages([
-        { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: `Welcome to the #${forcedChannelName || 'Channel'} discussion! Send messages here to collaborate.`, timestamp: '09:12' },
-        { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: `Hi team, let's keep all communication related to this workspace view inside this chat.`, timestamp: '09:15' }
-      ]);
-      scrollToBottom();
-      return;
-    }
-
-    // Seeding mock messages for first loading
     const seedMessages: Record<string, ChatMessage[]> = {
       'general': [
         { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: 'Welcome to the general discussion channel! Share your ideas here.', timestamp: '09:12' },
@@ -132,10 +122,130 @@ export default function ChatRoom({
       ]
     };
 
-    const channelKey = activeChannelId.split(':').pop() || 'general';
-    setMessages(seedMessages[channelKey] || []);
-    scrollToBottom();
-  }, [activeChannelId, forcedChannelId, forcedChannelName]);
+    const loadMessages = async () => {
+      if (isOffline) {
+        if (forcedChannelId && activeChannelId === forcedChannelId) {
+          setMessages([
+            { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: `Welcome to the #${forcedChannelName || 'Channel'} discussion! Send messages here to collaborate.`, timestamp: '09:12' },
+            { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: `Hi team, let's keep all communication related to this workspace view inside this chat.`, timestamp: '09:15' }
+          ]);
+        } else {
+          const channelKey = activeChannelId.split(':').pop() || 'general';
+          setMessages(seedMessages[channelKey] || []);
+        }
+        scrollToBottom();
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          if (data.length === 0) {
+            // Seed default messages
+            const channelKey = activeChannelId.split(':').pop() || 'general';
+            let defaultMsgs: ChatMessage[] = [];
+            if (forcedChannelId && activeChannelId === forcedChannelId) {
+              defaultMsgs = [
+                { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: `Welcome to the #${forcedChannelName || 'Channel'} discussion! Send messages here to collaborate.`, timestamp: '09:12' },
+                { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: `Hi team, let's keep all communication related to this workspace view inside this chat.`, timestamp: '09:15' }
+              ];
+            } else {
+              defaultMsgs = seedMessages[channelKey] || [];
+            }
+
+            if (defaultMsgs.length > 0) {
+              const { data: { session } } = await supabase.auth.getSession();
+              const userId = session?.user?.id;
+              const toInsert = defaultMsgs.map(m => ({
+                id: m.id,
+                sender_id: m.senderId,
+                sender_name: m.senderName,
+                sender_avatar: m.senderAvatar || null,
+                content: m.content,
+                timestamp: m.timestamp,
+                channel_id: activeChannelId,
+                is_ai_response: m.isAi || false,
+                workspace_id: workspaceId,
+                user_id: userId || null
+              }));
+              await supabase.from('chat_messages').insert(toInsert);
+              setMessages(defaultMsgs);
+            } else {
+              setMessages([]);
+            }
+          } else {
+            setMessages(data.map(m => ({
+              id: m.id,
+              senderId: m.sender_id,
+              senderName: m.sender_name,
+              senderAvatar: m.sender_avatar || '',
+              content: m.content,
+              timestamp: m.timestamp,
+              isAi: m.is_ai_response
+            })));
+          }
+        }
+      } catch (err) {
+        console.error('Error loading messages from Supabase:', err);
+      }
+      scrollToBottom();
+    };
+
+    loadMessages();
+
+    // Set up Supabase Realtime channel subscription
+    let channelSubscription: any = null;
+    if (!isOffline) {
+      channelSubscription = supabase.channel(`realtime-chat-${activeChannelId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'chat_messages',
+            filter: `channel_id=eq.${activeChannelId}`
+          },
+          (payload) => {
+            const eventType = payload.eventType;
+            if (eventType === 'INSERT') {
+              const m = payload.new;
+              const newMsg: ChatMessage = {
+                id: m.id,
+                senderId: m.sender_id,
+                senderName: m.sender_name,
+                senderAvatar: m.sender_avatar || '',
+                content: m.content,
+                timestamp: m.timestamp,
+                isAi: m.is_ai_response
+              };
+              setMessages(prev => {
+                if (prev.some(x => x.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+              });
+              scrollToBottom();
+            } else if (eventType === 'UPDATE') {
+              const m = payload.new;
+              setMessages(prev => prev.map(x => x.id === m.id ? { ...x, content: m.content } : x));
+            } else if (eventType === 'DELETE') {
+              const m = payload.old;
+              setMessages(prev => prev.filter(x => x.id !== m.id));
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channelSubscription) {
+        supabase.removeChannel(channelSubscription);
+      }
+    };
+  }, [activeChannelId, forcedChannelId, forcedChannelName, isOffline]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -151,17 +261,42 @@ export default function ChatRoom({
     const userMsgText = inputVal.trim();
     setInputVal('');
     
+    const msgId = `msg-${Date.now()}`;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
     const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: msgId,
       senderId: 'user',
       senderName: currentUser.name,
       senderAvatar: currentUser.avatar,
       content: userMsgText,
-      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      timestamp: timeStr
     };
 
     setMessages(prev => [...prev, newMsg]);
     scrollToBottom();
+
+    let userId: string | null = null;
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        userId = session?.user?.id || null;
+        await supabase.from('chat_messages').insert({
+          id: msgId,
+          sender_id: 'user',
+          sender_name: currentUser.name,
+          sender_avatar: currentUser.avatar,
+          content: userMsgText,
+          timestamp: timeStr,
+          channel_id: activeChannelId,
+          is_ai_response: false,
+          workspace_id: workspaceId,
+          user_id: userId
+        });
+      } catch (err) {
+        console.error('Error saving user message to Supabase:', err);
+      }
+    }
 
     // Check if chat is with AI Assistant channel
     if (activeChannelId.endsWith('avaxa-brain-ai')) {
@@ -176,17 +311,34 @@ export default function ChatRoom({
         const data = await response.json();
         
         if (data.success && data.text) {
+          const aiMsgId = `ai-msg-${Date.now()}`;
+          const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
           const aiResponseMsg: ChatMessage = {
-            id: `ai-msg-${Date.now()}`,
+            id: aiMsgId,
             senderId: 'avaxa-ai',
             senderName: 'Avaxa Brain AI',
             senderAvatar: '',
             content: data.text,
-            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            timestamp: aiMsgTime,
             isAi: true
           };
           setMessages(prev => [...prev, aiResponseMsg]);
           (window as any).playSystemSound?.('notification');
+
+          if (!isOffline) {
+            await supabase.from('chat_messages').insert({
+              id: aiMsgId,
+              sender_id: 'avaxa-ai',
+              sender_name: 'Avaxa Brain AI',
+              sender_avatar: '',
+              content: data.text,
+              timestamp: aiMsgTime,
+              channel_id: activeChannelId,
+              is_ai_response: true,
+              workspace_id: workspaceId,
+              user_id: userId
+            });
+          }
         }
       } catch (err) {
         console.error('Error fetching AI response:', err);
@@ -200,15 +352,29 @@ export default function ChatRoom({
   };
 
   // Message Actions: Edit & Delete & Reaction
-  const handleEditMessage = (id: string, newText: string) => {
+  const handleEditMessage = async (id: string, newText: string) => {
     if (!newText.trim()) return;
     setMessages(prev => prev.map(m => m.id === id ? { ...m, content: newText } : m));
     setEditingMsgId(null);
+    if (!isOffline) {
+      try {
+        await supabase.from('chat_messages').update({ content: newText }).eq('id', id);
+      } catch (err) {
+        console.error('Error updating message in Supabase:', err);
+      }
+    }
     triggerToast?.('success', 'Message updated 📝', 'Your message changes have been saved.');
   };
 
-  const handleDeleteMessage = (id: string) => {
+  const handleDeleteMessage = async (id: string) => {
     setMessages(prev => prev.filter(m => m.id !== id));
+    if (!isOffline) {
+      try {
+        await supabase.from('chat_messages').delete().eq('id', id);
+      } catch (err) {
+        console.error('Error deleting message in Supabase:', err);
+      }
+    }
     (window as any).playSystemSound?.('delete');
     triggerToast?.('info', 'Message deleted 🗑️', 'The message has been removed from the channel.');
   };
@@ -221,7 +387,6 @@ export default function ChatRoom({
       
       let updated;
       if (exists) {
-        // Toggle vote (simulate)
         updated = currentReactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1 } : r);
       } else {
         updated = [...currentReactions, { emoji, count: 1, userIds: ['user'] }];

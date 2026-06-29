@@ -332,6 +332,9 @@ export default function App() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showAddWorkspaceModal, setShowAddWorkspaceModal] = useState(false);
   const [modalSelectedCover, setModalSelectedCover] = useState<string>('');
+  const [showWorkspaceSettingsId, setShowWorkspaceSettingsId] = useState<string | null>(null);
+  const [editWSName, setEditWSName] = useState<string>('');
+  const [editWSTheme, setEditWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
 
   // ClickUp Space & Lists Feature
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -647,6 +650,26 @@ export default function App() {
     setShowWorkspaceMenu(false);
     // Mimic a loading/refresh effect by dispatching a custom event or reloading data
     addSyncLog(`Switched to workspace: ${w.name}`);
+  };
+
+  const openWorkspaceSettings = (w: any) => {
+    if (showWorkspaceSettingsId === w.id) {
+      setShowWorkspaceSettingsId(null);
+      return;
+    }
+    setShowWorkspaceSettingsId(w.id);
+    setEditWSName(w.name);
+    setEditWSTheme(w.theme || 'indigo');
+  };
+
+  const saveWorkspaceSettings = () => {
+    if (!showWorkspaceSettingsId) return;
+    handleUpdateWorkspace(showWorkspaceSettingsId, editWSName, editWSTheme);
+    setShowWorkspaceSettingsId(null);
+  };
+
+  const cancelWorkspaceSettings = () => {
+    setShowWorkspaceSettingsId(null);
   };
 
   // Pomodoro Focus Timer enhanced states
@@ -2682,40 +2705,101 @@ export default function App() {
                   >
                     <div className="px-2 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch Workspace</div>
                     {workspaces.map(w => (
-                      <motion.button
-                        key={w.id}
-                        onClick={() => handleWorkspaceChange(w)}
-                        whileHover={{ 
-                          scale: 1.025, 
-                          boxShadow: '0 6px 16px rgba(99, 102, 241, 0.16)',
-                          y: -0.5
-                        }}
-                        whileTap={{ scale: 0.985 }}
-                        transition={{ type: "spring", stiffness: 380, damping: 22 }}
-                        className={`w-full flex items-center gap-2.5 p-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left border border-transparent ${
-                          activeWorkspaceId === w.id 
-                            ? 'bg-slate-150/80 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-200/30 dark:border-slate-600/30 shadow-md' 
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
-                        }`}
-                      >
-                        <div 
-                          className="w-9 h-6 rounded-md shrink-0 select-none overflow-hidden relative font-sans font-extrabold text-white text-[9px] flex items-center justify-center shadow-xs"
-                          style={w.coverUrl ? {
-                            backgroundImage: `url(${w.coverUrl})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                          } : {
-                            background: activeWorkspaceId === w.id 
-                              ? 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))'
-                              : 'var(--avaxa-primary)'
+                      <div key={w.id} className="relative group">
+                        <motion.button
+                          onClick={() => handleWorkspaceChange(w)}
+                          whileHover={{ 
+                            scale: 1.025, 
+                            boxShadow: '0 6px 16px rgba(99, 102, 241, 0.16)',
+                            y: -0.5
                           }}
+                          whileTap={{ scale: 0.985 }}
+                          transition={{ type: "spring", stiffness: 380, damping: 22 }}
+                          className={`w-full flex items-center gap-2.5 p-1.5 pr-8 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left border border-transparent ${
+                            activeWorkspaceId === w.id 
+                              ? 'bg-slate-150/80 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-200/30 dark:border-slate-600/30 shadow-md' 
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
+                          }`}
                         >
-                          {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
-                          <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
-                        </div>
-                        <span className="truncate">{w.name}</span>
-                        {activeWorkspaceId === w.id && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500 shrink-0" />}
-                      </motion.button>
+                          <div 
+                            className="w-9 h-6 rounded-md shrink-0 select-none overflow-hidden relative font-sans font-extrabold text-white text-[9px] flex items-center justify-center shadow-xs"
+                            style={w.coverUrl ? {
+                              backgroundImage: `url(${w.coverUrl})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center'
+                            } : {
+                              background: activeWorkspaceId === w.id 
+                                ? 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))'
+                                : 'var(--avaxa-primary)'
+                            }}
+                          >
+                            {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
+                            <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
+                          </div>
+                          <span className="truncate">{w.name}</span>
+                          {activeWorkspaceId === w.id && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500 shrink-0" />}
+                        </motion.button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openWorkspaceSettings(w); }}
+                          className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md cursor-pointer transition-all ${
+                            showWorkspaceSettingsId === w.id 
+                              ? 'opacity-100 text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' 
+                              : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          <Settings className="w-3 h-3" />
+                        </button>
+                        
+                        {showWorkspaceSettingsId === w.id && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="px-2 py-2 space-y-2 border-t border-slate-200 dark:border-slate-700/50 mt-0.5"
+                          >
+                            <input
+                              type="text"
+                              value={editWSName}
+                              onChange={(e) => setEditWSName(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 placeholder-slate-400"
+                              placeholder="Tên workspace"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              {(['indigo', 'ocean', 'forest', 'sunset'] as const).map(theme => (
+                                <button
+                                  key={theme}
+                                  onClick={() => setEditWSTheme(theme)}
+                                  className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
+                                    editWSTheme === theme 
+                                      ? 'border-slate-900 dark:border-white scale-110' 
+                                      : 'border-transparent hover:scale-105'
+                                  }`}
+                                  style={{
+                                    background: theme === 'indigo' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' :
+                                                theme === 'ocean' ? 'linear-gradient(135deg, #0ea5e9, #06b6d4)' :
+                                                theme === 'forest' ? 'linear-gradient(135deg, #22c55e, #16a34a)' :
+                                                theme === 'sunset' ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : '#6366f1'
+                                  }}
+                                  title={theme}
+                                />
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={cancelWorkspaceSettings}
+                                className="flex-1 px-2 py-1 text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                onClick={saveWorkspaceSettings}
+                                className="flex-1 px-2 py-1 text-[10px] font-bold rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors cursor-pointer"
+                              >
+                                Lưu
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
                     ))}
                     <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
                     <button 

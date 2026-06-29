@@ -71,6 +71,7 @@ export interface Task {
   subtasks: SubTask[];
   progress: number; // 0 to 100
   createdAt: string;
+  completedAt?: string;
   hoursEstimate?: number;
   hoursLogged?: number;
   commentsCount: number;

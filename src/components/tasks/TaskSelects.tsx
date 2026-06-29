@@ -7,10 +7,37 @@ import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X } from '
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 
+// ── Custom Hook for Portal Positioning ──
+function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200) {
+  const [coords, setCoords] = useState<{ top: number; bottom: number; left: number; right: number; width: number } | null>(null);
+  const [openUpward, setOpenUpward] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+    const updateCoords = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < dropdownHeight && rect.top > dropdownHeight + 5);
+      setCoords({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width });
+    };
+    updateCoords();
+    window.addEventListener('scroll', updateCoords, true);
+    window.addEventListener('resize', updateCoords);
+    return () => {
+      window.removeEventListener('scroll', updateCoords, true);
+      window.removeEventListener('resize', updateCoords);
+    };
+  }, [isOpen, containerRef, dropdownHeight]);
+
+  return { coords, openUpward };
+}
+
 // ── Priority Pill Select ──
 export function PriorityPillSelect({ value, onChange }: { value: Priority; onChange: (v: Priority) => void }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 150);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -26,8 +53,32 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority; onCha
   };
   const cur = meta[value];
 
+  const dropdownContent = (
+    <motion.div 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-36"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+      }}
+    >
+      {(['urgent', 'high', 'medium', 'low'] as Priority[]).map(p => (
+        <button key={p} type="button" onClick={() => { onChange(p); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span>{meta[p].icon}</span>
+          <span>{meta[p].label}</span>
+          {value === p && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+        </button>
+      ))}
+    </motion.div>
+  );
+
   return (
-    <div ref={ref} className={`relative inline-block ${open ? 'z-50' : 'z-10'}`}>
+    <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${cur.bg} ${cur.color}`}>
         <span>{cur.icon}</span>
@@ -35,19 +86,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority; onCha
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.12 }}
-            className="absolute z-50 left-0 mt-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-36">
-            {(['urgent', 'high', 'medium', 'low'] as Priority[]).map(p => (
-              <button key={p} type="button" onClick={() => { onChange(p); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                <span>{meta[p].icon}</span>
-                <span>{meta[p].label}</span>
-                {value === p && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
-              </button>
-            ))}
-          </motion.div>
-        )}
+        {open && createPortal(dropdownContent, document.body)}
       </AnimatePresence>
     </div>
   );
@@ -57,6 +96,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority; onCha
 export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onChange: (v: TaskStatus) => void }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 150);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -72,8 +112,32 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   };
   const cur = meta[value];
 
+  const dropdownContent = (
+    <motion.div 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+      }}
+    >
+      {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(s => (
+        <button key={s} type="button" onClick={() => { onChange(s); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span className={`w-2 h-2 rounded-full ${meta[s].dot}`} />
+          <span>{meta[s].label}</span>
+          {value === s && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+        </button>
+      ))}
+    </motion.div>
+  );
+
   return (
-    <div ref={ref} className={`relative inline-block ${open ? 'z-50' : 'z-10'}`}>
+    <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${cur.bg}`}>
         <span className={`w-2 h-2 rounded-full ${cur.dot}`} />
@@ -81,19 +145,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.12 }}
-            className="absolute z-50 left-0 mt-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40">
-            {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(s => (
-              <button key={s} type="button" onClick={() => { onChange(s); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                <span className={`w-2 h-2 rounded-full ${meta[s].dot}`} />
-                <span>{meta[s].label}</span>
-                {value === s && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
-              </button>
-            ))}
-          </motion.div>
-        )}
+        {open && createPortal(dropdownContent, document.body)}
       </AnimatePresence>
     </div>
   );
@@ -103,6 +155,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 export function AssigneePillSelect({ value, members, onChange }: { value: string | null; members: User[]; onChange: (v: string | null) => void }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -112,8 +165,37 @@ export function AssigneePillSelect({ value, members, onChange }: { value: string
 
   const assignee = members.find(m => m.id === value);
 
+  const dropdownContent = (
+    <motion.div 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-56 overflow-y-auto custom-scrollbar"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+      }}
+    >
+      <button type="button" onClick={() => { onChange(null); setOpen(false); }}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
+        <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
+        <span>Unassign</span>
+      </button>
+      {members.map(m => (
+        <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === m.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+          <span className="truncate">{m.name}</span>
+          {value === m.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
+        </button>
+      ))}
+    </motion.div>
+  );
+
   return (
-    <div ref={ref} className={`relative inline-block w-full ${open ? 'z-50' : 'z-10'}`}>
+    <div ref={ref} className="relative inline-block w-full">
       <button type="button" onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -129,24 +211,7 @@ export function AssigneePillSelect({ value, members, onChange }: { value: string
         <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.12 }}
-            className="absolute z-50 left-0 mt-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-56 overflow-y-auto custom-scrollbar">
-            <button type="button" onClick={() => { onChange(null); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
-              <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
-              <span>Unassign</span>
-            </button>
-            {members.map(m => (
-              <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === m.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
-                <span className="truncate">{m.name}</span>
-                {value === m.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
-              </button>
-            ))}
-          </motion.div>
-        )}
+        {open && createPortal(dropdownContent, document.body)}
       </AnimatePresence>
     </div>
   );
@@ -280,6 +345,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
 export function SpacePillSelect({ value, workspaces, onChange }: { value: string | null | undefined; workspaces: Workspace[]; onChange: (v: string | null) => void }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -289,8 +355,34 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
 
   const curWorkspace = workspaces.find(w => w.id === value);
 
+  const dropdownContent = (
+    <motion.div 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-56 overflow-y-auto custom-scrollbar"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+      }}
+    >
+      {workspaces.map(w => (
+        <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === w.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span className="w-4 h-4 rounded bg-indigo-500 text-white text-[9px] font-black flex items-center justify-center shrink-0">
+            {w.initial}
+          </span>
+          <span className="truncate">{w.name}</span>
+          {value === w.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
+        </button>
+      ))}
+    </motion.div>
+  );
+
   return (
-    <div ref={ref} className={`relative inline-block w-full ${open ? 'z-50' : 'z-10'}`}>
+    <div ref={ref} className="relative inline-block w-full">
       <button type="button" onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -308,23 +400,8 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
         <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: 0.12 }}
-            className="absolute z-50 left-0 mt-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-56 overflow-y-auto custom-scrollbar">
-            {workspaces.map(w => (
-              <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === w.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                <span className="w-4 h-4 rounded bg-indigo-500 text-white text-[9px] font-black flex items-center justify-center shrink-0">
-                  {w.initial}
-                </span>
-                <span className="truncate">{w.name}</span>
-                {value === w.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
-              </button>
-            ))}
-          </motion.div>
-        )}
+        {open && createPortal(dropdownContent, document.body)}
       </AnimatePresence>
     </div>
   );
 }
-

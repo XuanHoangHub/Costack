@@ -1,9 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment } from '../types';
 import { supabase } from '../lib/supabaseClient';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
 import {
   List, Kanban, Plus, Bot, Calendar, Trash2, Search, Filter, ArrowUpDown,
   SlidersHorizontal, Table, X, CheckSquare, Clock, Play, Pause, RotateCcw,
@@ -169,9 +179,22 @@ export default function SpacePage({
   const [staticTabs, setStaticTabs] = useState<any[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-overview');
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
-  const [activeSpaceMenuId, setActiveSpaceMenuId] = useState<string | null>(null);
-  const [activeSpaceSettingsId, setActiveSpaceSettingsId] = useState<string | null>(null);
-  const [activeListMenuId, setActiveListMenuId] = useState<string | null>(null);
+  const [activeSpaceMenu, setActiveSpaceMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [activeSpaceSettings, setActiveSpaceSettings] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [activeListMenu, setActiveListMenu] = useState<{ id: string; spaceId: string; folderId: string | null; x: number; y: number } | null>(null);
+  const [activeListSettings, setActiveListSettings] = useState<{ id: string; spaceId: string; folderId: string | null; x: number; y: number } | null>(null);
+  const [activeFolderSettings, setActiveFolderSettings] = useState<{ id: string; spaceId: string; x: number; y: number } | null>(null);
+
+  // Custom Fields and visibility states
+  const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
+  const [visibleFields, setVisibleFields] = useState<string[]>([
+    'title', 'status', 'priority', 'assignee', 'space', 'dueDate', 'progress', 'tags'
+  ]);
+  const [customFields, setCustomFields] = useState<any[]>([
+    { id: 'cf-objective', name: 'Objective', type: 'text' },
+    { id: 'cf-owner', name: 'Owner', type: 'text' },
+    { id: 'cf-cost', name: 'Cost', type: 'number' }
+  ]);
   const [showBreadcrumbNav, setShowBreadcrumbNav] = useState(false);
   const [breadcrumbSearch, setBreadcrumbSearch] = useState('');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -773,425 +796,52 @@ export default function SpacePage({
                             </div>
                           )}
                           <span className="truncate">{space.name}</span>
-                          </div>
-                                          {/* Space Hover actions */}
-                        <div className="opacity-0 group-hover/space:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0 relative">
-                          <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveSpaceMenuId(activeSpaceMenuId === space.id ? null : space.id);
-                              }}
-                              className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
-                              title="Create menu"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
+                        </div>
+                        {/* Space Hover actions */}
+                        <div className="opacity-0 group-hover/space:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              if (activeSpaceMenu?.id === space.id) {
+                                setActiveSpaceMenu(null);
+                              } else {
+                                setActiveSpaceMenu({
+                                  id: space.id,
+                                  x: rect.left,
+                                  y: rect.bottom + 4
+                                });
+                              }
+                              setActiveSpaceSettings(null);
+                              setActiveListMenu(null);
+                            }}
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                            title="Create menu"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
 
-                            {activeSpaceMenuId === space.id && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveSpaceMenuId(null); }} />
-                                <div className="absolute left-0 top-full mt-1 w-[280px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 text-left font-sans select-none animate-fadeIn max-h-[80vh] overflow-y-auto scrollbar-none">
-                                  {/* Section: CREATE */}
-                                  <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Create</div>
-                                  <div className="space-y-0.5">
-                                    {/* List */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        onAddListSpace?.(space.id);
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <List className="w-4 h-4 text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">List</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track tasks, projects, people & more</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Folder */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        const name = prompt("Enter Folder Name:");
-                                        if (name?.trim() && onAddFolderToSpace) {
-                                          onAddFolderToSpace(space.id, name.trim());
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <Folder className="w-4 h-4 text-indigo-500 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Folder</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Group Lists, Docs & more</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Sprint Folder */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        const name = prompt("Enter Sprint Name:");
-                                        if (name?.trim() && onAddFolderToSpace) {
-                                          onAddFolderToSpace(space.id, `Sprint: ${name.trim()}`);
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <RefreshCw className="w-4 h-4 text-cyan-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-455 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sprint Folder</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Manage iterations and sprints</p>
-                                      </div>
-                                    </button>
-                                  </div>
-
-                                  <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
-
-                                  {/* Section: DOCS & VIEWS */}
-                                  <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Docs & Views</div>
-                                  <div className="space-y-0.5">
-                                    {/* Doc */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        const title = prompt("Enter Doc Title:");
-                                        if (title?.trim() && onAddDocToSpace) {
-                                          onAddDocToSpace(space.id, title.trim());
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <FileText className="w-4 h-4 text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Doc</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collaborate & document anything</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Dashboard */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        if (triggerToast) {
-                                          triggerToast('success', 'Dashboard View Mocked', 'A new dashboard view has been added to this Space.');
-                                        } else {
-                                          alert("Dashboard view simulated!");
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <Activity className="w-4 h-4 text-pink-500 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Dashboard</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track metrics & insights</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Whiteboard */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        const name = prompt("Enter Whiteboard Name:");
-                                        if (name?.trim() && onAddWhiteboardToSpace) {
-                                          onAddWhiteboardToSpace(space.id, name.trim());
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <Sparkles className="w-4 h-4 text-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Whiteboard</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Visualize & brainstorm ideas</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Form */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        if (triggerToast) {
-                                          triggerToast('info', 'Feature Under Development', 'Form builder integration is coming soon.');
-                                        } else {
-                                          alert("Form builder integration is coming soon.");
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <CheckSquare className="w-4 h-4 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Form</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collect, track, & report data</p>
-                                      </div>
-                                    </button>
-                                  </div>
-
-                                  <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
-
-                                  {/* Section: MORE */}
-                                  <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">More</div>
-                                  <div className="space-y-0.5">
-                                    {/* Imports */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        if (triggerToast) {
-                                          triggerToast('success', 'Imports Triggered', 'Select a CSV or Excel file to import your tasks.');
-                                        } else {
-                                          alert("Imports triggered!");
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <LinkIcon className="w-4 h-4 text-teal-500 group-hover:text-teal-655 dark:group-hover:text-teal-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Imports</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Bring work in from other apps</p>
-                                      </div>
-                                    </button>
-
-                                    {/* Templates */}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveSpaceMenuId(null);
-                                        if (triggerToast) {
-                                          triggerToast('success', 'Template Library Opened', 'Choose a ClickUp template from our curated workspace library.');
-                                        } else {
-                                          alert("Templates gallery opened!");
-                                        }
-                                      }}
-                                      className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                    >
-                                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                                        <Star className="w-4 h-4 text-amber-500 fill-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Templates</p>
-                                        <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Create from ready-made templates</p>
-                                      </div>
-                                    </button>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                           <div className="relative">
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 setActiveSpaceSettingsId(activeSpaceSettingsId === space.id ? null : space.id);
-                               }}
-                               className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
-                               title="Space Settings"
-                             >
-                               <MoreHorizontal className="w-3.5 h-3.5" />
-                             </button>
-
-                             {activeSpaceSettingsId === space.id && (
-                               <>
-                                 <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); }} />
-                                 <div className="absolute left-0 top-full mt-1 w-[215px] bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden text-xs py-1.5 animate-fadeIn">
-                                   {/* Favorite */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       setIsFavorite(!isFavorite);
-                                     }}
-                                     className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <div className="flex items-center gap-2">
-                                       <Star className="w-3.5 h-3.5 text-slate-450" />
-                                       <span className="font-bold">Favorite</span>
-                                     </div>
-                                     <ChevronRight className="w-3 h-3 text-slate-400" />
-                                   </button>
-
-                                   {/* Rename */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       const newName = prompt("Rename Space:", space.name);
-                                       if (newName?.trim()) {
-                                         const updated = spaces.map(s => s.id === space.id ? { ...s, name: newName.trim() } : s);
-                                         onSaveSpaces?.(updated);
-                                         onAddSyncLog(`Renamed Space "${space.name}" to "${newName.trim()}"`);
-                                       }
-                                     }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <Pencil className="w-3.5 h-3.5 text-slate-450" />
-                                     <span className="font-bold">Rename</span>
-                                   </button>
-
-                                   {/* Copy Link */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}`);
-                                       onAddSyncLog(`Copied space link for space ${space.name}`);
-                                       alert("Copied Space link to clipboard!");
-                                     }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <LinkIcon className="w-3.5 h-3.5 text-slate-450" />
-                                     <span className="font-bold">Copy link</span>
-                                   </button>
-
-                                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-                                   {/* Create new */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       setActiveSpaceMenuId(space.id);
-                                     }}
-                                     className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <div className="flex items-center gap-2">
-                                       <Plus className="w-3.5 h-3.5 text-slate-450" />
-                                       <span className="font-bold">Create new</span>
-                                     </div>
-                                     <ChevronRight className="w-3 h-3 text-slate-450" />
-                                   </button>
-
-                                   {/* Color & Icon */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); alert("Color & Icon options can be set inside Workspace settings."); }}
-                                     className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <div className="flex items-center gap-2">
-                                       <Droplet className="w-3.5 h-3.5 text-slate-455" />
-                                       <span className="font-bold">Color & Icon</span>
-                                     </div>
-                                     <ChevronRight className="w-3.5 h-3.5 text-slate-450" />
-                                   </button>
-
-                                   {/* Automations */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); alert("ClickUp Automations dashboard loaded."); }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <Zap className="w-3.5 h-3.5 text-slate-450" />
-                                     <span className="font-bold">Automations</span>
-                                   </button>
-
-                                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-                                   {/* Hide Space */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); alert("Space hidden from sidebar."); }}
-                                     className="w-full px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-                                   >
-                                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                       <EyeOff className="w-3.5 h-3.5 text-slate-450" />
-                                       <span className="font-bold">Hide Space</span>
-                                     </div>
-                                     <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium leading-tight">
-                                       You'll retain access to this Space, but it won't show in your sidebar
-                                     </span>
-                                   </button>
-
-                                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-                                   {/* Duplicate */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       const newSpace = { ...space, id: `s-${Date.now()}`, name: `${space.name} (Copy)` };
-                                       onSaveSpaces?.([...spaces, newSpace]);
-                                       onAddSyncLog(`Duplicated Space "${space.name}"`);
-                                     }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <Copy className="w-3.5 h-3.5 text-slate-450" />
-                                     <span className="font-bold">Duplicate</span>
-                                   </button>
-
-                                   {/* Archive */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); alert("Space archived successfully."); }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                   >
-                                     <Archive className="w-3.5 h-3.5 text-slate-450" />
-                                     <span className="font-bold">Archive</span>
-                                   </button>
-
-                                   {/* Delete */}
-                                   <button
-                                     type="button"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setActiveSpaceSettingsId(null);
-                                       if (confirm(`Are you sure you want to delete Space "${space.name}"?`)) {
-                                         const updated = spaces.filter(s => s.id !== space.id);
-                                         onSaveSpaces?.(updated);
-                                         if (activeSpaceId === space.id) {
-                                           if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
-                                           if (setActiveListId) setActiveListId(null);
-                                         }
-                                         onAddSyncLog(`Deleted Space "${space.name}"`);
-                                       }
-                                     }}
-                                     className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 text-left cursor-pointer"
-                                   >
-                                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                     <span className="font-bold">Delete</span>
-                                   </button>
-
-                                   {/* Sharing & Permissions bottom button */}
-                                   <div className="p-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
-                                     <button
-                                       type="button"
-                                       onClick={(e) => { e.stopPropagation(); setActiveSpaceSettingsId(null); alert("Sharing and permissions menu loaded."); }}
-                                       className="w-full py-2 bg-[#007fff] hover:bg-blue-600 text-white font-extrabold text-center rounded-lg transition-colors cursor-pointer block text-xs"
-                                     >
-                                       Sharing & Permissions
-                                     </button>
-                                   </div>
-                                 </div>
-                               </>
-                             )}
-                           </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              if (activeSpaceSettings?.id === space.id) {
+                                setActiveSpaceSettings(null);
+                              } else {
+                                setActiveSpaceSettings({
+                                  id: space.id,
+                                  x: rect.left,
+                                  y: rect.bottom + 4
+                                });
+                              }
+                              setActiveSpaceMenu(null);
+                              setActiveListMenu(null);
+                            }}
+                            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                            title="Space Settings"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
@@ -1231,12 +881,36 @@ export default function SpacePage({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        if (activeFolderSettings?.id === folder.id) {
+                                          setActiveFolderSettings(null);
+                                        } else {
+                                          setActiveFolderSettings({
+                                            id: folder.id,
+                                            spaceId: space.id,
+                                            x: rect.left,
+                                            y: rect.bottom + 4
+                                          });
+                                        }
+                                        setActiveSpaceMenu(null);
+                                        setActiveSpaceSettings(null);
+                                        setActiveListMenu(null);
+                                        setActiveListSettings(null);
+                                      }}
+                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
+                                      title="Folder Settings"
+                                    >
+                                      <MoreHorizontal className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         const name = prompt("Enter List Name:");
                                         if (name?.trim() && onAddListToFolder) {
                                           onAddListToFolder(space.id, folder.id, name.trim());
                                         }
                                       }}
-                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all"
+                                      className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
                                       title="Add List to Folder"
                                     >
                                       <Plus className="w-3 h-3" />
@@ -1282,24 +956,21 @@ export default function SpacePage({
                                                 type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  const act = prompt("List Options: Type 'rename' to rename list or 'delete' to delete list:");
-                                                  if (act?.toLowerCase() === 'rename') {
-                                                    const newN = prompt("New name for list:", list.name);
-                                                    if (newN?.trim()) {
-                                                      const updatedLists = space.lists.map(l => l.id === list.id ? { ...l, name: newN.trim() } : l);
-                                                      const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                                                      onSaveSpaces?.(updated);
-                                                    }
-                                                  } else if (act?.toLowerCase() === 'delete') {
-                                                    if (confirm(`Are you sure you want to delete list "${list.name}"?`)) {
-                                                      const updatedLists = space.lists.filter(l => l.id !== list.id);
-                                                      const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                                                      onSaveSpaces?.(updated);
-                                                      if (activeListId === list.id) {
-                                                        if (setActiveListId) setActiveListId(null);
-                                                      }
-                                                    }
+                                                  const rect = e.currentTarget.getBoundingClientRect();
+                                                  if (activeListSettings?.id === list.id) {
+                                                    setActiveListSettings(null);
+                                                  } else {
+                                                    setActiveListSettings({
+                                                      id: list.id,
+                                                      spaceId: space.id,
+                                                      folderId: folder.id,
+                                                      x: rect.left,
+                                                      y: rect.bottom + 4
+                                                    });
                                                   }
+                                                  setActiveSpaceMenu(null);
+                                                  setActiveSpaceSettings(null);
+                                                  setActiveListMenu(null);
                                                 }}
                                                 className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                                                 title="Settings"
@@ -1311,7 +982,20 @@ export default function SpacePage({
                                                 type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  setActiveListMenuId(activeListMenuId === list.id ? null : list.id);
+                                                  const rect = e.currentTarget.getBoundingClientRect();
+                                                  if (activeListMenu?.id === list.id) {
+                                                    setActiveListMenu(null);
+                                                  } else {
+                                                    setActiveListMenu({
+                                                      id: list.id,
+                                                      spaceId: space.id,
+                                                      folderId: folder.id,
+                                                      x: rect.left,
+                                                      y: rect.bottom + 4
+                                                    });
+                                                  }
+                                                  setActiveSpaceMenu(null);
+                                                  setActiveSpaceSettings(null);
                                                 }}
                                                 className="p-0.5 hover:bg-slate-205 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                                                 title="Quick Create"
@@ -1322,150 +1006,6 @@ export default function SpacePage({
                                             
                                             {/* Count (shown when not hovering) */}
                                             <span className="text-[10px] text-slate-455 font-semibold pl-1 shrink-0 group-hover/list:hidden">{taskCount}</span>
-                                            
-                                            {/* List quick menu popover */}
-                                            {activeListMenuId === list.id && (
-                                              <>
-                                                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveListMenuId(null); }} />
-                                                <div className="absolute left-0 top-full mt-1 w-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs animate-fadeIn">
-                                                  <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">Create</div>
-                                                  
-                                                  {/* Task */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setActiveListMenuId(null);
-                                                      const tTitle = prompt("Enter Task Title:");
-                                                      if (tTitle?.trim()) {
-                                                        onAddTask({
-                                                          title: tTitle.trim(),
-                                                          status: 'todo',
-                                                          priority: 'medium',
-                                                          listId: list.id,
-                                                          spaceId: space.id,
-                                                          workspaceId: activeWorkspaceId,
-                                                          dueDate: new Date().toISOString(),
-                                                          description: '',
-                                                          subtasks: []
-                                                        });
-                                                      }
-                                                    }}
-                                                    className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                                  >
-                                                    <span className="text-sm shrink-0">➕</span>
-                                                    <div>
-                                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Task</p>
-                                                      <p className="text-[9px] text-slate-455 leading-none mt-0.5">Create individual tasks to manage your work</p>
-                                                    </div>
-                                                  </button>
-                                                  
-                                                  {/* List */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setActiveListMenuId(null);
-                                                      const newListName = prompt("Enter List Name:");
-                                                      if (newListName?.trim()) {
-                                                        const updated = spaces.map(s => {
-                                                          if (s.id === space.id) {
-                                                            return {
-                                                              ...s,
-                                                              lists: [...s.lists, { id: `l-${Date.now()}`, name: newListName.trim(), folderId: folder.id }]
-                                                            };
-                                                          }
-                                                          return s;
-                                                        });
-                                                        onSaveSpaces?.(updated);
-                                                      }
-                                                    }}
-                                                    className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                                  >
-                                                    <List className="w-4 h-4 text-slate-450 shrink-0 mt-0.5" />
-                                                    <div>
-                                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">List</p>
-                                                      <p className="text-[9px] text-slate-455 leading-none mt-0.5">Track tasks, projects, people & more</p>
-                                                    </div>
-                                                  </button>
-                                                  
-                                                  {/* Sprint */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setActiveListMenuId(null);
-                                                      const sprintName = prompt("Enter Sprint Name:");
-                                                      if (sprintName?.trim()) {
-                                                        const updated = spaces.map(s => {
-                                                          if (s.id === space.id) {
-                                                            return {
-                                                              ...s,
-                                                              lists: [...s.lists, { id: `l-${Date.now()}`, name: `Sprint ${sprintName.trim()}`, folderId: folder.id }]
-                                                            };
-                                                          }
-                                                          return s;
-                                                        });
-                                                        onSaveSpaces?.(updated);
-                                                      }
-                                                    }}
-                                                    className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                                  >
-                                                    <RefreshCw className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                                                    <div>
-                                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sprint</p>
-                                                      <p className="text-[9px] text-slate-455 leading-none mt-0.5">Plan a new Sprint</p>
-                                                    </div>
-                                                  </button>
-
-                                                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-                                                  
-                                                  {/* Doc */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setActiveListMenuId(null);
-                                                      const docT = prompt("Enter Doc Title:");
-                                                      if (docT?.trim() && onAddDocToSpace) {
-                                                        onAddDocToSpace(space.id, docT.trim());
-                                                      }
-                                                    }}
-                                                    className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                                  >
-                                                    <span className="text-sm shrink-0">📄</span>
-                                                    <span>Doc</span>
-                                                  </button>
-
-                                                  {/* Dashboard */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); setActiveListMenuId(null); alert("Dashboard creation triggered."); }}
-                                                    className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                                  >
-                                                    <Activity className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                                                    <span>Dashboard</span>
-                                                  </button>
-                                                  
-                                                  {/* Whiteboard */}
-                                                  <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setActiveListMenuId(null);
-                                                      const boardName = prompt("Enter Whiteboard Name:");
-                                                      if (boardName?.trim() && onAddWhiteboardToSpace) {
-                                                        onAddWhiteboardToSpace(space.id, boardName.trim());
-                                                      }
-                                                    }}
-                                                    className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                                  >
-                                                    <Brain className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                                    <span>Whiteboard</span>
-                                                  </button>
-                                                </div>
-                                              </>
-                                            )}
                                           </div>
                                         </div>
                                       );
@@ -1533,24 +1073,21 @@ export default function SpacePage({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const act = prompt("List Options: Type 'rename' to rename list or 'delete' to delete list:");
-                                        if (act?.toLowerCase() === 'rename') {
-                                          const newN = prompt("New name for list:", list.name);
-                                          if (newN?.trim()) {
-                                            const updatedLists = space.lists.map(l => l.id === list.id ? { ...l, name: newN.trim() } : l);
-                                            const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                                            onSaveSpaces?.(updated);
-                                          }
-                                        } else if (act?.toLowerCase() === 'delete') {
-                                          if (confirm(`Are you sure you want to delete list "${list.name}"?`)) {
-                                            const updatedLists = space.lists.filter(l => l.id !== list.id);
-                                            const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                                            onSaveSpaces?.(updated);
-                                            if (activeListId === list.id) {
-                                              if (setActiveListId) setActiveListId(null);
-                                            }
-                                          }
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        if (activeListSettings?.id === list.id) {
+                                          setActiveListSettings(null);
+                                        } else {
+                                          setActiveListSettings({
+                                            id: list.id,
+                                            spaceId: space.id,
+                                            folderId: null,
+                                            x: rect.left,
+                                            y: rect.bottom + 4
+                                          });
                                         }
+                                        setActiveSpaceMenu(null);
+                                        setActiveSpaceSettings(null);
+                                        setActiveListMenu(null);
                                       }}
                                       className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                                       title="Settings"
@@ -1562,7 +1099,20 @@ export default function SpacePage({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setActiveListMenuId(activeListMenuId === list.id ? null : list.id);
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        if (activeListMenu?.id === list.id) {
+                                          setActiveListMenu(null);
+                                        } else {
+                                          setActiveListMenu({
+                                            id: list.id,
+                                            spaceId: space.id,
+                                            folderId: null,
+                                            x: rect.left,
+                                            y: rect.bottom + 4
+                                          });
+                                        }
+                                        setActiveSpaceMenu(null);
+                                        setActiveSpaceSettings(null);
                                       }}
                                       className="p-0.5 hover:bg-slate-205 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                                       title="Quick Create"
@@ -1573,150 +1123,6 @@ export default function SpacePage({
                                   
                                   {/* Count (shown when not hovering) */}
                                   <span className="text-[10px] text-slate-455 font-semibold pl-1 shrink-0 group-hover/list:hidden">{taskCount}</span>
-                                  
-                                  {/* List quick menu popover */}
-                                  {activeListMenuId === list.id && (
-                                    <>
-                                      <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveListMenuId(null); }} />
-                                      <div className="absolute left-0 top-full mt-1 w-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs animate-fadeIn">
-                                        <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">Create</div>
-                                        
-                                        {/* Task */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveListMenuId(null);
-                                            const tTitle = prompt("Enter Task Title:");
-                                            if (tTitle?.trim()) {
-                                              onAddTask({
-                                                title: tTitle.trim(),
-                                                status: 'todo',
-                                                priority: 'medium',
-                                                listId: list.id,
-                                                spaceId: space.id,
-                                                workspaceId: activeWorkspaceId,
-                                                dueDate: new Date().toISOString(),
-                                                description: '',
-                                                subtasks: []
-                                              });
-                                            }
-                                          }}
-                                          className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                        >
-                                          <span className="text-sm shrink-0">➕</span>
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Task</p>
-                                            <p className="text-[9px] text-slate-455 leading-none mt-0.5">Create individual tasks to manage your work</p>
-                                          </div>
-                                        </button>
-                                        
-                                        {/* List */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveListMenuId(null);
-                                            const newListName = prompt("Enter List Name:");
-                                            if (newListName?.trim()) {
-                                              const updated = spaces.map(s => {
-                                                if (s.id === space.id) {
-                                                  return {
-                                                    ...s,
-                                                    lists: [...s.lists, { id: `l-${Date.now()}`, name: newListName.trim() }]
-                                                  };
-                                                }
-                                                return s;
-                                              });
-                                              onSaveSpaces?.(updated);
-                                            }
-                                          }}
-                                          className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                        >
-                                          <List className="w-4 h-4 text-slate-450 shrink-0 mt-0.5" />
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">List</p>
-                                            <p className="text-[9px] text-slate-455 leading-none mt-0.5">Track tasks, projects, people & more</p>
-                                          </div>
-                                        </button>
-                                        
-                                        {/* Sprint */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveListMenuId(null);
-                                            const sprintName = prompt("Enter Sprint Name:");
-                                            if (sprintName?.trim()) {
-                                              const updated = spaces.map(s => {
-                                                if (s.id === space.id) {
-                                                  return {
-                                                    ...s,
-                                                    lists: [...s.lists, { id: `l-${Date.now()}`, name: `Sprint ${sprintName.trim()}` }]
-                                                  };
-                                                }
-                                                return s;
-                                              });
-                                              onSaveSpaces?.(updated);
-                                            }
-                                          }}
-                                          className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-                                        >
-                                          <RefreshCw className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sprint</p>
-                                            <p className="text-[9px] text-slate-455 leading-none mt-0.5">Plan a new Sprint</p>
-                                          </div>
-                                        </button>
-
-                                        <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-                                        
-                                        {/* Doc */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveListMenuId(null);
-                                            const docT = prompt("Enter Doc Title:");
-                                            if (docT?.trim() && onAddDocToSpace) {
-                                              onAddDocToSpace(space.id, docT.trim());
-                                            }
-                                          }}
-                                          className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                        >
-                                          <span className="text-sm shrink-0">📄</span>
-                                          <span>Doc</span>
-                                        </button>
-
-                                        {/* Dashboard */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => { e.stopPropagation(); setActiveListMenuId(null); alert("Dashboard creation triggered."); }}
-                                          className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                        >
-                                          <Activity className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                                          <span>Dashboard</span>
-                                        </button>
-                                        
-                                        {/* Whiteboard */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveListMenuId(null);
-                                            const boardName = prompt("Enter Whiteboard Name:");
-                                            if (boardName?.trim() && onAddWhiteboardToSpace) {
-                                              onAddWhiteboardToSpace(space.id, boardName.trim());
-                                            }
-                                          }}
-                                          className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
-                                        >
-                                          <Brain className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                          <span>Whiteboard</span>
-                                        </button>
-                                      </div>
-                                    </>
-                                  )}
                                 </div>
                               </div>
                             );
@@ -2187,8 +1593,20 @@ export default function SpacePage({
 
               {/* Space settings cog */}
               <button 
-                onClick={() => {
-                  setActiveSpaceSettingsId(activeSpaceSettingsId === activeSpace.id ? null : activeSpace.id);
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  if (activeSpaceSettings?.id === activeSpace.id) {
+                    setActiveSpaceSettings(null);
+                  } else {
+                    setActiveSpaceSettings({
+                      id: activeSpace.id,
+                      x: rect.left - 200,
+                      y: rect.bottom + 4
+                    });
+                  }
+                  setActiveSpaceMenu(null);
+                  setActiveListMenu(null);
                 }}
                 className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer relative"
                 title="Space Settings"
@@ -2478,6 +1896,9 @@ export default function SpacePage({
             onUpdateTask={onUpdateTask}
             onAddSyncLog={onAddSyncLog}
             triggerToast={triggerToast}
+            visibleFields={visibleFields}
+            customFields={customFields}
+            onOpenFieldsPanel={() => setShowFieldsPanel(true)}
           />
         )}
 
@@ -2752,6 +2173,7 @@ export default function SpacePage({
             aiSummary={aiSummary}
             allTasks={tasks}
             allDocs={allDocs}
+            onOpenFieldsPanel={() => setShowFieldsPanel(true)}
           />
         )}
       </AnimatePresence>
@@ -3072,7 +2494,1235 @@ export default function SpacePage({
         </>
       )}
 
+      {/* ── Portals for Space and List Context Menus ── */}
+      {activeSpaceMenu && (
+        <Portal>
+          <div className="fixed inset-0 z-40" onClick={() => setActiveSpaceMenu(null)} />
+          <div 
+            style={{ 
+              position: 'fixed', 
+              top: activeSpaceMenu.y, 
+              left: Math.min(activeSpaceMenu.x, typeof window !== 'undefined' ? window.innerWidth - 290 : activeSpaceMenu.x)
+            }}
+            className="w-[280px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 text-left font-sans select-none animate-fadeIn max-h-[80vh] overflow-y-auto scrollbar-none"
+          >
+            {/* Section: CREATE */}
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Create</div>
+            <div className="space-y-0.5">
+              {/* List */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddListSpace?.(activeSpaceMenu.id);
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <List className="w-4 h-4 text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">List</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track tasks, projects, people & more</p>
+                </div>
+              </button>
+
+              {/* Folder */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const name = prompt("Enter Folder Name:");
+                  if (name?.trim() && onAddFolderToSpace) {
+                    onAddFolderToSpace(activeSpaceMenu.id, name.trim());
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <Folder className="w-4 h-4 text-indigo-500 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Folder</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Group Lists, Docs & more</p>
+                </div>
+              </button>
+
+              {/* Sprint Folder */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const name = prompt("Enter Sprint Name:");
+                  if (name?.trim() && onAddFolderToSpace) {
+                    onAddFolderToSpace(activeSpaceMenu.id, `Sprint: ${name.trim()}`);
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <RefreshCw className="w-4 h-4 text-cyan-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-455 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Sprint Folder</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Manage iterations and sprints</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
+
+            {/* Section: DOCS & VIEWS */}
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Docs & Views</div>
+            <div className="space-y-0.5">
+              {/* Doc */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const title = prompt("Enter Doc Title:");
+                  if (title?.trim() && onAddDocToSpace) {
+                    onAddDocToSpace(activeSpaceMenu.id, title.trim());
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <FileText className="w-4 h-4 text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Doc</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collaborate & document anything</p>
+                </div>
+              </button>
+
+              {/* Dashboard */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (triggerToast) {
+                    triggerToast('success', 'Dashboard View Mocked', 'A new dashboard view has been added to this Space.');
+                  } else {
+                    alert("Dashboard view simulated!");
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <Activity className="w-4 h-4 text-pink-500 group-hover:text-pink-650 dark:group-hover:text-pink-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Dashboard</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track metrics & insights</p>
+                </div>
+              </button>
+
+              {/* Whiteboard */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const name = prompt("Enter Whiteboard Name:");
+                  if (name?.trim() && onAddWhiteboardToSpace) {
+                    onAddWhiteboardToSpace(activeSpaceMenu.id, name.trim());
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <Sparkles className="w-4 h-4 text-amber-500 group-hover:text-amber-650 dark:group-hover:text-amber-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Whiteboard</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Visualize & brainstorm ideas</p>
+                </div>
+              </button>
+
+              {/* Form */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (triggerToast) {
+                    triggerToast('info', 'Feature Under Development', 'Form builder integration is coming soon.');
+                  } else {
+                    alert("Form builder integration is coming soon.");
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <CheckSquare className="w-4 h-4 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Form</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collect, track, & report data</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
+
+            {/* Section: MORE */}
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">More</div>
+            <div className="space-y-0.5">
+              {/* Imports */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (triggerToast) {
+                    triggerToast('success', 'Imports Triggered', 'Select a CSV or Excel file to import your tasks.');
+                  } else {
+                    alert("Imports triggered!");
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <LinkIcon className="w-4 h-4 text-teal-500 group-hover:text-teal-655 dark:group-hover:text-teal-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Imports</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Bring work in from other apps</p>
+                </div>
+              </button>
+
+              {/* Templates */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (triggerToast) {
+                    triggerToast('success', 'Template Library Opened', 'Choose a ClickUp template from our curated workspace library.');
+                  } else {
+                    alert("Templates gallery opened!");
+                  }
+                  setActiveSpaceMenu(null);
+                }}
+                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Templates</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Create from ready-made templates</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {activeSpaceSettings && (() => {
+        const space = spaces.find(s => s.id === activeSpaceSettings.id);
+        if (!space) return null;
+        return (
+          <Portal>
+            <div className="fixed inset-0 z-40" onClick={() => setActiveSpaceSettings(null)} />
+            <div 
+              style={{ 
+                position: 'fixed', 
+                top: activeSpaceSettings.y, 
+                left: Math.min(activeSpaceSettings.x, typeof window !== 'undefined' ? window.innerWidth - 225 : activeSpaceSettings.x)
+              }}
+              className="w-[215px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden text-xs py-1.5 animate-fadeIn"
+            >
+              {/* Favorite */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  alert("Added Space to favorites!");
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Favorite</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Rename */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  const newName = prompt("Rename Space:", space.name);
+                  if (newName?.trim()) {
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, name: newName.trim() } : s);
+                    onSaveSpaces?.(updated);
+                    onAddSyncLog(`Renamed Space "${space.name}" to "${newName.trim()}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Rename</span>
+              </button>
+
+              {/* Copy Link */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  if (typeof window !== 'undefined') {
+                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}`);
+                  }
+                  onAddSyncLog(`Copied space link for space ${space.name}`);
+                  alert("Copied Space link to clipboard!");
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <LinkIcon className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Copy link</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Create new */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  setActiveSpaceMenu({
+                    id: space.id,
+                    x: activeSpaceSettings.x - 20,
+                    y: activeSpaceSettings.y
+                  });
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Plus className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Create new</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-450" />
+              </button>
+
+              {/* Color & Icon */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Color & Icon options can be set inside Workspace settings."); }}
+                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-3.5 h-3.5 text-slate-455" />
+                  <span className="font-bold">Color & Icon</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-455" />
+              </button>
+
+              {/* Automations */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("ClickUp Automations dashboard loaded."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Automations</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Hide Space */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space hidden from sidebar."); }}
+                className="w-full px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
+              >
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-202">
+                  <EyeOff className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Hide Space</span>
+                </div>
+                <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium leading-tight">
+                  You'll retain access to this Space, but it won't show in your sidebar
+                </span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Duplicate */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  const newSpace = { ...space, id: `s-${Date.now()}`, name: `${space.name} (Copy)` };
+                  onSaveSpaces?.([...spaces, newSpace]);
+                  onAddSyncLog(`Duplicated Space "${space.name}"`);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-455" />
+                <span className="font-bold">Duplicate</span>
+              </button>
+
+              {/* Archive */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space archived successfully."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
+              >
+                <Archive className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Archive</span>
+              </button>
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveSpaceSettings(null);
+                  if (confirm(`Are you sure you want to delete Space "${space.name}"?`)) {
+                    const updated = spaces.filter(s => s.id !== space.id);
+                    onSaveSpaces?.(updated);
+                    if (activeSpaceId === space.id) {
+                      if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
+                      if (setActiveListId) setActiveListId(null);
+                    }
+                    onAddSyncLog(`Deleted Space "${space.name}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                <span className="font-bold">Delete</span>
+              </button>
+
+              {/* Sharing & Permissions bottom button */}
+              <div className="p-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Sharing and permissions menu loaded."); }}
+                  className="w-full py-2 bg-[#007fff] hover:bg-blue-650 text-white font-extrabold text-center rounded-lg transition-colors cursor-pointer block text-xs"
+                >
+                  Sharing & Permissions
+                </button>
+              </div>
+            </div>
+          </Portal>
+        );
+      })()}
+
+      {activeListMenu && (() => {
+        const space = spaces.find(s => s.id === activeListMenu.spaceId);
+        const list = space?.lists.find(l => l.id === activeListMenu.id);
+        if (!space || !list) return null;
+        return (
+          <Portal>
+            <div className="fixed inset-0 z-40" onClick={() => setActiveListMenu(null)} />
+            <div 
+              style={{ 
+                position: 'fixed', 
+                top: activeListMenu.y, 
+                left: Math.min(activeListMenu.x, typeof window !== 'undefined' ? window.innerWidth - 250 : activeListMenu.x)
+              }}
+              className="w-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs animate-fadeIn text-slate-700 dark:text-slate-200"
+            >
+              <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">Create</div>
+              
+              {/* Task */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListMenu(null);
+                  const tTitle = prompt("Enter Task Title:");
+                  if (tTitle?.trim()) {
+                    onAddTask({
+                      title: tTitle.trim(),
+                      status: 'todo',
+                      priority: 'medium',
+                      listId: list.id,
+                      spaceId: space.id,
+                      workspaceId: activeWorkspaceId,
+                      dueDate: new Date().toISOString(),
+                      description: '',
+                      subtasks: []
+                    });
+                  }
+                }}
+                className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <span className="text-sm shrink-0">➕</span>
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Task</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Create individual tasks to manage your work</p>
+                </div>
+              </button>
+              
+              {/* List */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListMenu(null);
+                  const newListName = prompt("Enter List Name:");
+                  if (newListName?.trim()) {
+                    const updated = spaces.map(s => {
+                      if (s.id === space.id) {
+                        return {
+                          ...s,
+                          lists: [...s.lists, { id: `l-${Date.now()}`, name: newListName.trim(), folderId: activeListMenu.folderId || undefined }]
+                        };
+                      }
+                      return s;
+                    });
+                    onSaveSpaces?.(updated);
+                  }
+                }}
+                className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <List className="w-4 h-4 text-slate-455 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">List</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Track tasks, projects, people & more</p>
+                </div>
+              </button>
+              
+              {/* Sprint */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListMenu(null);
+                  const sprintName = prompt("Enter Sprint Name:");
+                  if (sprintName?.trim()) {
+                    const updated = spaces.map(s => {
+                      if (s.id === space.id) {
+                        return {
+                          ...s,
+                          lists: [...s.lists, { id: `l-${Date.now()}`, name: `Sprint ${sprintName.trim()}`, folderId: activeListMenu.folderId || undefined }]
+                        };
+                      }
+                      return s;
+                    });
+                    onSaveSpaces?.(updated);
+                  }
+                }}
+                className="w-full flex items-start gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <RefreshCw className="w-4 h-4 text-indigo-550 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Sprint</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Plan a new Sprint</p>
+                </div>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+              
+              {/* Doc */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListMenu(null);
+                  const docT = prompt("Enter Doc Title:");
+                  if (docT?.trim() && onAddDocToSpace) {
+                    onAddDocToSpace(space.id, docT.trim());
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <span className="text-sm shrink-0">📄</span>
+                <span>Doc</span>
+              </button>
+
+              {/* Dashboard */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveListMenu(null); alert("Dashboard creation triggered."); }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <Activity className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                <span>Dashboard</span>
+              </button>
+              
+              {/* Whiteboard */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListMenu(null);
+                  const boardName = prompt("Enter Whiteboard Name:");
+                  if (boardName?.trim() && onAddWhiteboardToSpace) {
+                    onAddWhiteboardToSpace(space.id, boardName.trim());
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
+              >
+                <Brain className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>Whiteboard</span>
+              </button>
+            </div>
+          </Portal>
+        );
+      })()}
+
+      {/* ── Portal for List Settings Dropdown Menu ── */}
+      {activeListSettings && (() => {
+        const space = spaces.find(s => s.id === activeListSettings.spaceId);
+        const list = space?.lists.find(l => l.id === activeListSettings.id);
+        if (!space || !list) return null;
+        return (
+          <Portal>
+            <div className="fixed inset-0 z-40" onClick={() => setActiveListSettings(null)} />
+            <div 
+              style={{ 
+                position: 'fixed', 
+                top: activeListSettings.y, 
+                left: Math.min(activeListSettings.x, typeof window !== 'undefined' ? window.innerWidth - 225 : activeListSettings.x)
+              }}
+              className="w-[215px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden text-xs py-1.5 animate-fadeIn"
+            >
+              {/* Favorite */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  alert("Added List to favorites!");
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Favorite</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Rename */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  const newName = prompt("Rename List:", list.name);
+                  if (newName?.trim()) {
+                    const updatedLists = space.lists.map(l => l.id === list.id ? { ...l, name: newName.trim() } : l);
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
+                    onSaveSpaces?.(updated);
+                    onAddSyncLog(`Renamed List "${list.name}" to "${newName.trim()}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Rename</span>
+              </button>
+
+              {/* Copy Link */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  if (typeof window !== 'undefined') {
+                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}/list/${list.id}`);
+                  }
+                  onAddSyncLog(`Copied list link for list ${list.name}`);
+                  alert("Copied List link to clipboard!");
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
+              >
+                <LinkIcon className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Copy link</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Custom Fields */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  setShowFieldsPanel(true);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Custom Fields</span>
+              </button>
+
+              {/* Automations */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List Automations settings loaded."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Automations</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Duplicate */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  const newListName = `${list.name} (Copy)`;
+                  const updatedLists = [...space.lists, { id: `l-${Date.now()}`, name: newListName, folderId: list.folderId }];
+                  const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
+                  onSaveSpaces?.(updated);
+                  onAddSyncLog(`Duplicated List "${list.name}"`);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Duplicate</span>
+              </button>
+
+              {/* Archive */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List archived successfully."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+              >
+                <Archive className="w-3.5 h-3.5 text-slate-450" />
+                <span className="font-bold">Archive</span>
+              </button>
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  if (confirm(`Are you sure you want to delete List "${list.name}"?`)) {
+                    const updatedLists = space.lists.filter(l => l.id !== list.id);
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
+                    onSaveSpaces?.(updated);
+                    if (activeListId === list.id) {
+                      if (setActiveListId) setActiveListId(null);
+                    }
+                    onAddSyncLog(`Deleted List "${list.name}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                <span className="font-bold">Delete</span>
+              </button>
+            </div>
+          </Portal>
+        );
+      })()}
+
+      {/* ── Portal for Folder Settings Dropdown Menu ── */}
+      {activeFolderSettings && (() => {
+        const space = spaces.find(s => s.id === activeFolderSettings.spaceId);
+        const folder = space?.folders?.find(f => f.id === activeFolderSettings.id);
+        if (!space || !folder) return null;
+        return (
+          <Portal>
+            <div className="fixed inset-0 z-40" onClick={() => setActiveFolderSettings(null)} />
+            <div 
+              style={{ 
+                position: 'fixed', 
+                top: activeFolderSettings.y, 
+                left: Math.min(activeFolderSettings.x, typeof window !== 'undefined' ? window.innerWidth - 250 : activeFolderSettings.x)
+              }}
+              className="w-[235px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 text-left font-sans select-none overflow-hidden text-xs py-2 animate-fadeIn"
+            >
+              {/* Favorite */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  alert("Added Folder to favorites!");
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Favorite</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Rename */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  const newName = prompt("Rename Folder:", folder.name);
+                  if (newName?.trim()) {
+                    const updatedFolders = space.folders?.map(f => f.id === folder.id ? { ...f, name: newName.trim() } : f) || [];
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders } : s);
+                    onSaveSpaces?.(updated);
+                    onAddSyncLog(`Renamed Folder "${folder.name}" to "${newName.trim()}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Rename</span>
+              </button>
+
+              {/* Copy Link */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  if (typeof window !== 'undefined') {
+                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}/folder/${folder.id}`);
+                  }
+                  onAddSyncLog(`Copied folder link for folder ${folder.name}`);
+                  alert("Copied Folder link to clipboard!");
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Copy link</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Create new */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  const name = prompt("Enter List Name:");
+                  if (name?.trim() && onAddListToFolder) {
+                    onAddListToFolder(space.id, folder.id, name.trim());
+                  }
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Plus className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Create new</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Folder color */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  alert("Select Folder Color feature coming soon!");
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Folder color</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Automations */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Folder Automations settings loaded."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <Zap className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Automations</span>
+              </button>
+
+              {/* Custom Fields */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  setShowFieldsPanel(true);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Custom Fields</span>
+              </button>
+
+              {/* Task statuses */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Manage Task Statuses for this Folder."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Task statuses</span>
+              </button>
+
+              {/* More */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">More</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Imports */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Imports</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Templates */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Templates</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Move */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); }}
+                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Move</span>
+                </div>
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {/* Duplicate */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  const newFolderName = `${folder.name} (Copy)`;
+                  const updatedFolders = [...(space.folders || []), { id: `f-${Date.now()}`, name: newFolderName }];
+                  const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders } : s);
+                  onSaveSpaces?.(updated);
+                  onAddSyncLog(`Duplicated Folder "${folder.name}"`);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Duplicate</span>
+              </button>
+
+              {/* Archive */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Folder archived successfully."); }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+              >
+                <Archive className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Archive</span>
+              </button>
+
+              {/* Delete */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  if (confirm(`Are you sure you want to delete Folder "${folder.name}" and all its lists?`)) {
+                    const updatedFolders = space.folders?.filter(f => f.id !== folder.id) || [];
+                    const updatedLists = space.lists?.filter(l => l.folderId !== folder.id) || [];
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists } : s);
+                    onSaveSpaces?.(updated);
+                    if (activeFolderId === folder.id) {
+                      setActiveFolderId(null);
+                    }
+                    onAddSyncLog(`Deleted Folder "${folder.name}"`);
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-1.5 text-red-655 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                <span className="font-bold">Delete</span>
+              </button>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
+
+              {/* Sharing & Permissions */}
+              <div className="px-3 py-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveFolderSettings(null);
+                    alert("Sharing & Permissions settings loaded.");
+                  }}
+                  className="w-full py-1.5 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
+                >
+                  Sharing & Permissions
+                </button>
+              </div>
+            </div>
+          </Portal>
+        );
+      })()}
+
+      {/* ── Portal for Custom Fields Drawer ── */}
+      {showFieldsPanel && (
+        <Portal>
+          <div className="fixed inset-0 z-[80]" onClick={() => setShowFieldsPanel(false)} />
+          <div 
+            className="fixed top-0 right-0 h-full w-[330px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-[90] shadow-2xl flex flex-col p-4 font-sans select-none animate-slideInRight"
+            style={{ boxShadow: '-10px 0 30px rgba(0,0,0,0.1)' }}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-205 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+                <span className="font-black text-[13px] text-slate-800 dark:text-slate-100 uppercase tracking-wider">Fields</span>
+              </div>
+              <button 
+                onClick={() => setShowFieldsPanel(false)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <CustomFieldsTabs 
+              visibleFields={visibleFields}
+              setVisibleFields={setVisibleFields}
+              customFields={customFields}
+              setCustomFields={setCustomFields}
+              tasks={tasks}
+              onUpdateTask={onUpdateTask}
+            />
+          </div>
+        </Portal>
+      )}
+
       </div> {/* Closing tag for Main Page Workspace Content Container */}
     </div>
   );
 }
+
+function CustomFieldsTabs({ 
+  visibleFields, setVisibleFields, customFields, setCustomFields, tasks, onUpdateTask 
+}: { 
+  visibleFields: string[]; 
+  setVisibleFields: (f: string[]) => void; 
+  customFields: any[]; 
+  setCustomFields: (cf: any[]) => void; 
+  tasks: Task[]; 
+  onUpdateTask: (task: Task) => void;
+}) {
+  const [tab, setTab] = useState<'create' | 'add'>('create');
+  const [search, setSearch] = useState('');
+
+  const fieldTypesCatalog = [
+    { type: 'text', label: 'Text', icon: '📝' },
+    { type: 'number', label: 'Number', icon: '🔢' },
+    { type: 'date', label: 'Date', icon: '📅' },
+    { type: 'textarea', label: 'Text area (Long Text)', icon: '📖' },
+    { type: 'dropdown', label: 'Dropdown', icon: '🔽' },
+    { type: 'labels', label: 'Labels (Multi-select)', icon: '🏷️' },
+    { type: 'checkbox', label: 'Checkbox', icon: '☑️' },
+    { type: 'email', label: 'Email', icon: '✉️' },
+    { type: 'phone', label: 'Phone', icon: '📞' },
+    { type: 'money', label: 'Money', icon: '💵' },
+    { type: 'rating', label: 'Rating', icon: '⭐' },
+    { type: 'progress', label: 'Progress (Manual)', icon: '📈' }
+  ];
+
+  const handleCreateField = (type: string, label: string) => {
+    const name = prompt(`Enter name for the new ${label} field:`);
+    if (!name?.trim()) return;
+    const cleanName = name.trim();
+    if (customFields.some(f => f.name.toLowerCase() === cleanName.toLowerCase())) {
+      alert(`A field named "${cleanName}" already exists!`);
+      return;
+    }
+    const newField = {
+      id: `cf-${Date.now()}`,
+      name: cleanName,
+      type
+    };
+    setCustomFields([...customFields, newField]);
+    setVisibleFields([...visibleFields, cleanName]);
+
+    // Add empty field to all tasks
+    tasks.forEach(t => {
+      onUpdateTask({
+        ...t,
+        custom_fields: {
+          ...(t.custom_fields || {}),
+          [cleanName]: ''
+        }
+      });
+    });
+  };
+
+  const toggleFieldVisibility = (fieldKey: string) => {
+    if (visibleFields.includes(fieldKey)) {
+      if (fieldKey === 'title') return;
+      setVisibleFields(visibleFields.filter(f => f !== fieldKey));
+    } else {
+      setVisibleFields([...visibleFields, fieldKey]);
+    }
+  };
+
+  const filteredCatalog = fieldTypesCatalog.filter(f => f.label.toLowerCase().includes(search.toLowerCase()));
+
+  const propertiesList = [
+    { key: 'title', label: 'Task Name', isStandard: true },
+    { key: 'status', label: 'Status', isStandard: true },
+    { key: 'priority', label: 'Priority', isStandard: true },
+    { key: 'assignee', label: 'Assignee', isStandard: true },
+    { key: 'space', label: 'Space', isStandard: true },
+    { key: 'dueDate', label: 'Due date', isStandard: true },
+    { key: 'progress', label: 'Progress', isStandard: true },
+    { key: 'tags', label: 'Tags', isStandard: true },
+    ...customFields.map(cf => ({ key: cf.name, label: cf.name, isStandard: false }))
+  ];
+
+  const filteredProperties = propertiesList.filter(p => p.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 mt-3 font-sans">
+      <div className="relative mb-3 shrink-0">
+        <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-405" />
+        <input 
+          type="text" 
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search Task Fields" 
+          className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 transition-colors text-slate-700 dark:text-slate-250 font-bold" 
+        />
+      </div>
+
+      <div className="flex border-b border-slate-100 dark:border-slate-800 shrink-0 text-xs font-bold mb-3">
+        <button 
+          onClick={() => setTab('create')}
+          className={`flex-1 pb-2 border-b-2 text-center cursor-pointer transition-all ${tab === 'create' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-605'}`}
+        >
+          Create new
+        </button>
+        <button 
+          onClick={() => setTab('add')}
+          className={`flex-1 pb-2 border-b-2 text-center cursor-pointer transition-all ${tab === 'add' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-605'}`}
+        >
+          Add existing
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-4">
+        {tab === 'create' && (
+          <div className="space-y-3">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Popular</div>
+            <div className="grid grid-cols-1 gap-1">
+              {filteredCatalog.slice(0, 7).map(fc => (
+                <button
+                  key={fc.type}
+                  onClick={() => handleCreateField(fc.type, fc.label)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left text-xs font-bold text-slate-700 dark:text-slate-205 cursor-pointer group"
+                >
+                  <span className="text-sm shrink-0">{fc.icon}</span>
+                  <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{fc.label}</span>
+                </button>
+              ))}
+            </div>
+            
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2">All</div>
+            <div className="grid grid-cols-1 gap-1">
+              {filteredCatalog.map(fc => (
+                <button
+                  key={fc.type}
+                  onClick={() => handleCreateField(fc.type, fc.label)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left text-xs font-bold text-slate-700 dark:text-slate-205 cursor-pointer group"
+                >
+                  <span className="text-sm shrink-0">{fc.icon}</span>
+                  <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{fc.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'add' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1">
+              <span>Shown</span>
+              <span>{visibleFields.length}</span>
+            </div>
+            <div className="space-y-1">
+              {filteredProperties
+                .filter(p => visibleFields.includes(p.key))
+                .map(p => (
+                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{p.label}</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={true}
+                        disabled={p.key === 'title'}
+                        onChange={() => toggleFieldVisibility(p.key)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-650 disabled:opacity-50"></div>
+                    </label>
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1 pt-2">
+              <span>Properties</span>
+              <span>{filteredProperties.length - visibleFields.length}</span>
+            </div>
+            <div className="space-y-1">
+              {filteredProperties
+                .filter(p => !visibleFields.includes(p.key))
+                .map(p => (
+                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{p.label}</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={false}
+                        onChange={() => toggleFieldVisibility(p.key)}
+                        className="sr-only peer" 
+                      />
+                      <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-650"></div>
+                    </label>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
