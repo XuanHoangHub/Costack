@@ -1653,6 +1653,8 @@ export default function App() {
             }
 
             const finalSpaces = dbSpaces || [];
+            const hasSeededSpaces = localStorage.getItem(`avaxa_seeded_spaces_${userId}`);
+
             if (finalSpaces.length > 0) {
               const formattedSpaces = finalSpaces.map(s => ({
                 id: s.id,
@@ -1672,8 +1674,17 @@ export default function App() {
                 clickApps: s.click_apps || {}
               }));
               setSpaces(formattedSpaces);
+              if (!hasSeededSpaces) {
+                try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
+              }
               return true;
             }
+
+            if (hasSeededSpaces) {
+              setSpaces([]);
+              return true;
+            }
+
             return false;
           } catch (e) {
             console.error('Exception loading spaces/lists:', e);
@@ -1761,6 +1772,7 @@ export default function App() {
                 await supabase.from('lists').insert(listsToInsert);
               }
             }
+            try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
           } catch (e) {
             console.error('Error during seeding spaces migration:', e);
           }
@@ -2849,6 +2861,7 @@ export default function App() {
                 {[
                   { id: 'dashboard', label: 'Home Overview', icon: LayoutDashboard },
                   { id: 'inbox', label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
+                  { id: 'chat', label: 'Chat', icon: MessageSquare },
                 ].map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -3612,7 +3625,7 @@ export default function App() {
         {(() => {
           const currentWorkspaceTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
           const currentWorkspaceDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard';
           
           return (
             <main className={`flex-1 relative ${

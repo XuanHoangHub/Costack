@@ -1160,7 +1160,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 py-2 px-2.5 mt-1 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all cursor-pointer text-left"
               >
                 <Plus className="w-4 h-4 shrink-0" />
-                <span>+ New Space</span>
+                <span>New Space</span>
               </button>
 
             </div>
