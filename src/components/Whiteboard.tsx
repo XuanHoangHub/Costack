@@ -7,20 +7,24 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor } from '../types';
+import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task } from '../types';
 import { supabase } from '../supabaseClient';
 import { 
   Square, Circle, Edit2, Move, StickyNote, Grid,
   Trash2, Users, Sparkles, Database, Code, 
   Copy, Sliders, Type, Plus, Info, MousePointer, 
-  Hand, ZoomIn, ZoomOut, Maximize2, Download, ArrowUpRight
+  Hand, ZoomIn, ZoomOut, Maximize2, Download, ArrowUpRight,
+  Brain, Loader2, Bot, Globe, Check
 } from 'lucide-react';
+import { callAiApi } from '@/lib/aiClient';
 
 interface WhiteboardProps {
   members: User[];
   isOffline: boolean;
   onAddSyncLog: (action: string) => void;
   whiteboardId?: string;
+  onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
+  tasks?: Task[];
 }
 
 // Helper function to safely derive transparent/light fill styles from hex color codes
@@ -103,7 +107,14 @@ const getElementSockets = (el: WhiteboardElement) => {
   };
 };
 
-export default function Whiteboard({ members, isOffline, onAddSyncLog, whiteboardId }: WhiteboardProps) {
+export default function Whiteboard({ 
+  members, 
+  isOffline, 
+  onAddSyncLog, 
+  whiteboardId,
+  onAddTask,
+  tasks = []
+}: WhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Custom tools state (extend with Hand tool support)
@@ -134,6 +145,326 @@ export default function Whiteboard({ members, isOffline, onAddSyncLog, whiteboar
 
   // Elements state
   const [elements, setElements] = useState<WhiteboardElement[]>([]);
+
+  // AI Analyst Sidepanel states
+  const [showAiAnalyst, setShowAiAnalyst] = useState(false);
+  const [aiMode, setAiMode] = useState<'explain' | 'optimize' | 'tasks'>('explain');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState('');
+  const [aiGeneratedTasks, setAiGeneratedTasks] = useState<any[]>([]);
+  const [tasksAdded, setTasksAdded] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const getWhiteboardBase64 = (): string | null => {
+    if (elements.length === 0) return null;
+    
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    
+    elements.forEach(el => {
+      if (el.type === 'pencil' && el.points) {
+        el.points.forEach((p: any) => {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+        });
+      } else {
+        const w = el.width || 120;
+        const h = el.height || 80;
+        const finalH = el.type === 'sticky' && h === 80 ? w : h;
+        minX = Math.min(minX, el.x);
+        minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + w);
+        maxY = Math.max(maxY, el.y + finalH);
+      }
+    });
+
+    const padding = 40;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    const exportWidth = maxX - minX;
+    const exportHeight = maxY - minY;
+    
+    if (exportWidth <= 0 || exportHeight <= 0) return null;
+    
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = exportWidth;
+    tempCanvas.height = exportHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return null;
+    
+    // Fill white png canvas background
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.fillRect(0, 0, exportWidth, exportHeight);
+    
+    // Draw background grid lines
+    tempCtx.strokeStyle = '#f1f5f9';
+    tempCtx.lineWidth = 1;
+    const gSize = 25;
+    for (let x = Math.floor(minX / gSize) * gSize; x < maxX; x += gSize) {
+      tempCtx.beginPath();
+      tempCtx.moveTo(x - minX, 0);
+      tempCtx.lineTo(x - minX, exportHeight);
+      tempCtx.stroke();
+    }
+    for (let y = Math.floor(minY / gSize) * gSize; y < maxY; y += gSize) {
+      tempCtx.beginPath();
+      tempCtx.moveTo(0, y - minY);
+      tempCtx.lineTo(exportWidth, y - minY);
+      tempCtx.stroke();
+    }
+    
+    // Draw all components onto temp canvas
+    elements.forEach(el => {
+      tempCtx.strokeStyle = el.color;
+      tempCtx.fillStyle = el.color;
+      tempCtx.lineWidth = el.lineWidth || 2;
+      tempCtx.lineCap = 'round';
+      tempCtx.lineJoin = 'round';
+      
+      const drawX = el.x - minX;
+      const drawY = el.y - minY;
+      const sw = el.width || 120;
+      const sh = el.height || 80;
+      
+      tempCtx.shadowColor = 'rgba(15, 23, 42, 0.04)';
+      tempCtx.shadowBlur = 4;
+      tempCtx.shadowOffsetX = 1;
+      tempCtx.shadowOffsetY = 2;
+      
+      if (el.type === 'pencil' && el.points && el.points.length > 0) {
+        tempCtx.shadowBlur = 0;
+        tempCtx.shadowOffsetX = 0;
+        tempCtx.shadowOffsetY = 0;
+        tempCtx.beginPath();
+        tempCtx.moveTo(el.points[0].x - minX, el.points[0].y - minY);
+        for (let i = 1; i < el.points.length; i++) {
+          tempCtx.lineTo(el.points[i].x - minX, el.points[i].y - minY);
+        }
+        tempCtx.stroke();
+      } else if (el.type === 'rectangle') {
+        tempCtx.beginPath();
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        tempCtx.rect(drawX, drawY, sw, sh);
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + sh/2, sw - 16, 14);
+      } else if (el.type === 'circle') {
+        tempCtx.beginPath();
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        const radius = Math.sqrt(Math.pow(sw, 2) + Math.pow(sh, 2)) / 2;
+        tempCtx.arc(drawX + sw/2, drawY + sh/2, radius, 0, 2 * Math.PI);
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + sh/2, sw - 16, 14);
+      } else if (el.type === 'line') {
+        tempCtx.shadowBlur = 0;
+        tempCtx.shadowOffsetX = 0;
+        tempCtx.shadowOffsetY = 0;
+        if (el.points && el.points.fromId && el.points.toId) {
+          const fromEl = elements.find(item => item.id === el.points.fromId);
+          const toEl = elements.find(item => item.id === el.points.toId);
+          if (fromEl && toEl) {
+            const socketsFrom = getElementSockets(fromEl);
+            const socketsTo = getElementSockets(toEl);
+            const sFrom = socketsFrom[el.points.fromSocket as keyof typeof socketsFrom] || socketsFrom.top;
+            const sTo = socketsTo[el.points.toSocket as keyof typeof socketsTo] || socketsTo.top;
+            
+            tempCtx.beginPath();
+            tempCtx.moveTo(sFrom.x - minX, sFrom.y - minY);
+            tempCtx.lineTo(sTo.x - minX, sTo.y - minY);
+            tempCtx.stroke();
+            
+            drawArrowhead(tempCtx, sFrom.x - minX, sFrom.y - minY, sTo.x - minX, sTo.y - minY);
+          }
+        } else {
+          tempCtx.beginPath();
+          tempCtx.moveTo(drawX, drawY);
+          tempCtx.lineTo(drawX + sw, drawY + sh);
+          tempCtx.stroke();
+        }
+      } else if (el.type === 'sticky') {
+        tempCtx.fillStyle = el.color;
+        tempCtx.strokeStyle = 'rgba(15, 23, 42, 0.08)';
+        tempCtx.lineWidth = 1;
+        tempCtx.beginPath();
+        const finalSh = sh === 80 ? sw : sh;
+        tempCtx.roundRect(drawX, drawY, sw, finalSh, 10);
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 12px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + finalSh/2, sw - 16, 16);
+      } else if (el.type === 'diamond') {
+        tempCtx.beginPath();
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        tempCtx.moveTo(drawX + sw / 2, drawY);
+        tempCtx.lineTo(drawX + sw, drawY + sh / 2);
+        tempCtx.lineTo(drawX + sw / 2, drawY + sh);
+        tempCtx.lineTo(drawX, drawY + sh / 2);
+        tempCtx.closePath();
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + sh/2, sw - 24, 14);
+      } else if (el.type === 'parallelogram') {
+        tempCtx.beginPath();
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        const skew = sw * 0.15;
+        tempCtx.moveTo(drawX + skew, drawY);
+        tempCtx.lineTo(drawX + sw, drawY);
+        tempCtx.lineTo(drawX + sw - skew, drawY + sh);
+        tempCtx.lineTo(drawX, drawY + sh);
+        tempCtx.closePath();
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + sh/2, sw - 32, 14);
+      } else if (el.type === 'pill') {
+        tempCtx.beginPath();
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        const r = sh / 2;
+        tempCtx.roundRect(drawX, drawY, sw, sh, r);
+        tempCtx.fill();
+        tempCtx.stroke();
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + sw/2, drawY + sh/2, sw - 24, 14);
+      } else if (el.type === 'cylinder') {
+        const rx = sw / 2;
+        const ry = sh * 0.14;
+        tempCtx.beginPath();
+        tempCtx.ellipse(drawX + rx, drawY + ry, rx, ry, 0, 0, 2 * Math.PI);
+        tempCtx.rect(drawX, drawY + ry, sw, sh - 2 * ry);
+        tempCtx.ellipse(drawX + rx, drawY + sh - ry, rx, ry, 0, 0, 2 * Math.PI);
+        tempCtx.fillStyle = getFillStyle(el.color, 0.05);
+        tempCtx.fill();
+        
+        tempCtx.beginPath();
+        tempCtx.ellipse(drawX + rx, drawY + sh - ry, rx, ry, 0, 0, Math.PI);
+        tempCtx.stroke();
+        
+        tempCtx.beginPath();
+        tempCtx.moveTo(drawX, drawY + ry);
+        tempCtx.lineTo(drawX, drawY + sh - ry);
+        tempCtx.moveTo(drawX + sw, drawY + ry);
+        tempCtx.lineTo(drawX + sw, drawY + sh - ry);
+        tempCtx.stroke();
+        
+        tempCtx.beginPath();
+        tempCtx.ellipse(drawX + rx, drawY + ry, rx, ry, 0, 0, 2 * Math.PI);
+        tempCtx.stroke();
+        
+        tempCtx.fillStyle = '#1e293b';
+        tempCtx.font = 'bold 11px Inter, sans-serif';
+        tempCtx.textAlign = 'center';
+        tempCtx.textBaseline = 'middle';
+        wrapText(tempCtx, el.text || '', drawX + rx, drawY + sh/2 + (ry/2), sw - 16, 14);
+      }
+      
+      tempCtx.shadowBlur = 0;
+      tempCtx.shadowOffsetX = 0;
+      tempCtx.shadowOffsetY = 0;
+    });
+
+    return tempCanvas.toDataURL('image/png');
+  };
+
+  const handleOpenAiAnalyst = () => {
+    if (elements.length === 0) {
+      alert("Hãy vẽ nội dung gì đó trên bảng trước khi phân tích!");
+      return;
+    }
+    setShowAiAnalyst(true);
+    setAiResult('');
+    setAiGeneratedTasks([]);
+    setTasksAdded(false);
+    setAiError(null);
+  };
+
+  const handleRunAiAnalysis = async () => {
+    const base64Image = getWhiteboardBase64();
+    if (!base64Image) {
+      setAiError("Không thể chụp hình ảnh bảng vẽ.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiResult('');
+    setAiGeneratedTasks([]);
+    setTasksAdded(false);
+    setAiError(null);
+
+    try {
+      const response = await callAiApi('/api/ai/whiteboard-analyze', {
+        image: base64Image,
+        mode: aiMode,
+        prompt: aiPrompt
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || "Gặp lỗi khi phân tích.");
+      }
+
+      if (aiMode === 'tasks') {
+        setAiGeneratedTasks(data.tasks || []);
+      } else {
+        setAiResult(data.text || '');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || "Failed to communicate with AI server.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAddAiTasks = () => {
+    if (aiGeneratedTasks.length === 0 || !onAddTask) return;
+
+    aiGeneratedTasks.forEach(t => {
+      onAddTask({
+        title: t.title,
+        description: t.description,
+        priority: t.priority || 'medium',
+        hoursEstimate: t.hoursEstimate || 4,
+        tags: t.tags || [],
+        dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        status: 'todo',
+        assigneeId: members[0]?.id || '',
+        subtasks: t.subtasks || []
+      });
+    });
+
+    setTasksAdded(true);
+    onAddSyncLog(`Imported ${aiGeneratedTasks.length} tasks from Whiteboard AI Analyst`);
+  };
 
   // Load elements based on whiteboardId
   useEffect(() => {
@@ -1681,7 +2012,7 @@ export default function Whiteboard({ members, isOffline, onAddSyncLog, whiteboar
       </div>
 
       {/* 2. MAIN COMPONENT: INTERACTIVE WHITEBOARD CANVA ARENA */}
-      <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl overflow-hidden shadow-sm space-y-4 p-5 flex flex-col justify-between relative">
+      <div className={`${showAiAnalyst ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl overflow-hidden shadow-sm space-y-4 p-5 flex flex-col justify-between relative transition-all duration-300`}>
         
         {/* Title & Multiplayer actions header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
@@ -1713,9 +2044,18 @@ export default function Whiteboard({ members, isOffline, onAddSyncLog, whiteboar
             </button>
 
             <button
+              id="btn_ai_analyst"
+              onClick={handleOpenAiAnalyst}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-650 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer flex items-center justify-center animate-pulse"
+              title="Analyze whiteboard with AI"
+            >
+              <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
+            </button>
+
+            <button
               id="btn_export_png"
               onClick={handleExportPNG}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-colors cursor-pointer"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer"
               title="Export whiteboard as PNG"
             >
               <Download className="w-4.5 h-4.5" />
@@ -1930,6 +2270,161 @@ export default function Whiteboard({ members, isOffline, onAddSyncLog, whiteboar
         </div>
 
       </div>
+
+      {/* 3. AI ANALYST SIDEPANEL */}
+      <AnimatePresence>
+        {showAiAnalyst && (
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-5 flex flex-col justify-between relative shadow-sm space-y-4 text-left"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-55 flex items-center gap-1.5">
+                <Brain className="w-4 h-4 text-indigo-500 animate-pulse" />
+                AI Whiteboard Analyst
+              </h3>
+              <button 
+                onClick={() => setShowAiAnalyst(false)} 
+                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-350 cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 max-h-[460px] scrollbar-thin">
+              {/* Task Mode Selector */}
+              <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                {(['explain', 'optimize', 'tasks'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setAiMode(mode);
+                      setAiResult('');
+                      setAiGeneratedTasks([]);
+                      setTasksAdded(false);
+                      setAiError(null);
+                    }}
+                    className={`flex-1 py-1 text-[9px] font-extrabold rounded-lg capitalize transition-all cursor-pointer ${
+                      aiMode === mode 
+                        ? 'bg-white dark:bg-slate-700 text-indigo-650 dark:text-indigo-400 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    {mode === 'explain' ? 'Giải thích' : mode === 'optimize' ? 'Tối ưu' : 'Trích Task'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Prompt */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Yêu cầu thêm (Tùy chọn)</label>
+                <input
+                  type="text"
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  placeholder={aiMode === 'tasks' ? "Ví dụ: Chỉ lấy các task dev..." : "Ví dụ: Tóm tắt ngắn gọn..."}
+                  className="w-full px-3.5 py-2 text-[10.5px] font-semibold rounded-xl border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-850 text-slate-850 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                />
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={handleRunAiAnalysis}
+                disabled={aiLoading}
+                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-indigo-500/10 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang phân tích...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Bắt đầu phân tích AI</span>
+                  </>
+                )}
+              </button>
+
+              {/* Error */}
+              {aiError && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-455 rounded-xl text-[10px] font-semibold leading-relaxed">
+                  ⚠️ Lỗi: {aiError}
+                </div>
+              )}
+
+              {/* Results */}
+              {aiLoading ? (
+                <div className="py-12 flex flex-col items-center gap-2 text-center select-none">
+                  <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold animate-pulse">Gemini đang nhìn nhận sơ đồ của bạn...</span>
+                </div>
+              ) : aiResult ? (
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-150/60 dark:border-slate-800 rounded-2xl text-[11px] leading-relaxed text-slate-650 dark:text-slate-350 max-h-[260px] overflow-y-auto font-sans space-y-2 whitespace-pre-wrap scrollbar-thin">
+                  {aiResult}
+                </div>
+              ) : aiGeneratedTasks.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center select-none">
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">Trích xuất được ({aiGeneratedTasks.length})</span>
+                    <button
+                      onClick={handleAddAiTasks}
+                      disabled={tasksAdded}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all flex items-center gap-1 cursor-pointer ${
+                        tasksAdded 
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                          : 'bg-indigo-50 text-indigo-650 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400'
+                      }`}
+                    >
+                      {tasksAdded ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Đã lưu vào Board</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Lưu vào Board</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                    {aiGeneratedTasks.map((t, idx) => (
+                      <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-150/60 dark:border-slate-850 rounded-2xl space-y-1.5 text-left">
+                        <div className="flex justify-between items-start gap-2">
+                          <h4 className="text-[11px] font-black text-slate-850 dark:text-slate-150 leading-tight">{t.title}</h4>
+                          <span className={`text-[7.5px] uppercase px-1.5 py-0.5 rounded font-black leading-none ${
+                            t.priority === 'urgent' ? 'bg-rose-500 text-white' :
+                            t.priority === 'high' ? 'bg-orange-500 text-white' :
+                            t.priority === 'medium' ? 'bg-indigo-500 text-white' : 'bg-slate-400 text-white'
+                          }`}>{t.priority}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-450 font-semibold leading-normal">{t.description}</p>
+                        {t.tags && t.tags.length > 0 && (
+                          <div className="flex gap-1 pt-1 flex-wrap">
+                            {t.tags.map((tag: string, tagIdx: number) => (
+                              <span key={tagIdx} className="text-[7.5px] bg-slate-205 dark:bg-slate-800 text-slate-500 dark:text-slate-405 px-1.5 py-0.5 rounded font-black">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                !aiLoading && (
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-550 italic text-[10.5px] leading-relaxed select-none">
+                    Nhấn nút phân tích để bắt đầu! AI có thể đọc hiểu hình vẽ, sơ đồ flowchart hoặc Sticky Notes trên bảng của bạn.
+                  </div>
+                )
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -3,8 +3,9 @@ import { getGeminiClient } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
-    const { query, tasks, documents, members } = await request.json();
-    const client = getGeminiClient();
+    const { query, tasks, documents, members, model, temperature, googleSearch } = await request.json();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     let contextString = "";
     if (tasks && tasks.length > 0) {
@@ -43,13 +44,19 @@ Sử dụng các bảng biểu, gạch đầu dòng, in đậm để định d�
 
     const contents = `YÊU CẦU CỦA USER: "${query}"\n\nBỐI CẢNH DỰ ÁN HIỆN TẠI ĐỂ PHÂN TÍCH:\n${contextString}`;
 
+    const config: any = {
+      systemInstruction: systemPrompt,
+      temperature: temperature !== undefined ? temperature : 0.4,
+    };
+
+    if (googleSearch) {
+      config.tools = [{ googleSearch: {} }];
+    }
+
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: contents,
-      config: {
-        systemInstruction: systemPrompt,
-        temperature: 0.4,
-      }
+      config: config
     });
 
     return NextResponse.json({ success: true, text: response.text });

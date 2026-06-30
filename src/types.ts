@@ -128,6 +128,7 @@ export interface Workspace {
   user_id?: string;
   created_at?: string;
   coverUrl?: string;
+  logoUrl?: string;
   settings?: {
     logoUrl?: string;
     defaultClickApps?: {

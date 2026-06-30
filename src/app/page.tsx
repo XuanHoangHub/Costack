@@ -19,6 +19,7 @@ import SettingsPanel, { WORKSPACE_COVERS } from '../components/SettingsPanel';
 import ProfilePage from '../components/ProfilePage';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import ProductivityHub from '../components/ProductivityHub';
+import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -335,6 +336,8 @@ export default function App() {
   const [showWorkspaceSettingsId, setShowWorkspaceSettingsId] = useState<string | null>(null);
   const [editWSName, setEditWSName] = useState<string>('');
   const [editWSTheme, setEditWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
+  const [showWorkspaceSettingsModal, setShowWorkspaceSettingsModal] = useState(false);
+  const [editingWorkspaceForModal, setEditingWorkspaceForModal] = useState<any | null>(null);
 
   // ClickUp Space & Lists Feature
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -653,13 +656,9 @@ export default function App() {
   };
 
   const openWorkspaceSettings = (w: any) => {
-    if (showWorkspaceSettingsId === w.id) {
-      setShowWorkspaceSettingsId(null);
-      return;
-    }
-    setShowWorkspaceSettingsId(w.id);
-    setEditWSName(w.name);
-    setEditWSTheme(w.theme || 'indigo');
+    setEditingWorkspaceForModal(w);
+    setShowWorkspaceSettingsModal(true);
+    setShowWorkspaceMenu(false);
   };
 
   const saveWorkspaceSettings = () => {
@@ -1424,7 +1423,10 @@ export default function App() {
                 name: w.name,
                 theme: w.theme || 'indigo',
                 initial: w.initial || w.name.charAt(0).toUpperCase(),
-                user_id: w.user_id
+                user_id: w.user_id,
+                coverUrl: w.coverUrl || '',
+                logoUrl: w.logoUrl || '',
+                settings: w.settings || {}
               })));
             }
           }
@@ -1925,7 +1927,10 @@ export default function App() {
                     name: w.name,
                     theme: w.theme || 'indigo',
                     initial: w.initial || w.name.charAt(0).toUpperCase(),
-                    user_id: w.user_id
+                    user_id: w.user_id,
+                    coverUrl: w.coverUrl || '',
+                    logoUrl: w.logoUrl || '',
+                    settings: w.settings || {}
                   };
                   setWorkspaces(prev => {
                     const exists = prev.some(item => item.id === mappedWS.id);
@@ -2661,18 +2666,24 @@ export default function App() {
                   whileHover={{ scale: 1.05, rotate: 2 }}
                   whileTap={{ scale: 0.95 }}
                   className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-extrabold text-[15px] shadow-sm transition-transform duration-300 shrink-0 overflow-hidden relative"
-                  style={workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl ? {
+                  style={!workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl && workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl ? {
                     backgroundImage: `url(${workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                  } : {
+                  } : !workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl ? {
                     background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))',
-                  }}
+                  } : undefined}
                 >
-                  {workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl && <div className="absolute inset-0 bg-slate-950/20" />}
-                  <span className="relative z-10 drop-shadow-xs uppercase">
-                    {workspaces.find(w => w.id === activeWorkspaceId)?.initial || 'A'}
-                  </span>
+                  {workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl ? (
+                    <img src={workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl} className="w-full h-full object-cover relative z-10" alt="Workspace logo" />
+                  ) : (
+                    <>
+                      {workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl && <div className="absolute inset-0 bg-slate-950/20" />}
+                      <span className="relative z-10 drop-shadow-xs uppercase">
+                        {workspaces.find(w => w.id === activeWorkspaceId)?.initial || 'A'}
+                      </span>
+                    </>
+                  )}
                 </motion.div>
                 
                 <div className="leading-tight text-left min-w-0">
@@ -2723,18 +2734,24 @@ export default function App() {
                         >
                           <div 
                             className="w-9 h-6 rounded-md shrink-0 select-none overflow-hidden relative font-sans font-extrabold text-white text-[9px] flex items-center justify-center shadow-xs"
-                            style={w.coverUrl ? {
+                            style={!w.logoUrl && w.coverUrl ? {
                               backgroundImage: `url(${w.coverUrl})`,
                               backgroundSize: 'cover',
                               backgroundPosition: 'center'
-                            } : {
+                            } : !w.logoUrl ? {
                               background: activeWorkspaceId === w.id 
                                 ? 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))'
                                 : 'var(--avaxa-primary)'
-                            }}
+                            } : undefined}
                           >
-                            {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
-                            <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
+                            {w.logoUrl ? (
+                              <img src={w.logoUrl} className="w-full h-full object-cover relative z-10" alt="Workspace avatar" />
+                            ) : (
+                              <>
+                                {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
+                                <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
+                              </>
+                            )}
                           </div>
                           <span className="truncate">{w.name}</span>
                           {activeWorkspaceId === w.id && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500 shrink-0" />}
@@ -3967,6 +3984,18 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Professional Workspace Settings Modal */}
+      <WorkspaceSettingsModal
+        isOpen={showWorkspaceSettingsModal}
+        onClose={() => setShowWorkspaceSettingsModal(false)}
+        workspace={editingWorkspaceForModal}
+        currentUser={currentUser}
+        onUpdateWorkspace={handleUpdateWorkspace}
+        onDeleteWorkspace={handleDeleteWorkspace}
+        members={members}
+        workspacesCount={workspaces.length}
+      />
 
       {/* Real-time Toast Notification container in top-right corner */}
       <ToastNotification toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />

@@ -3,8 +3,9 @@ import { getGeminiClient } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
-    const { tasks, members } = await request.json();
-    const client = getGeminiClient();
+    const { tasks, members, model, temperature } = await request.json();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     const totalT = (tasks || []).length;
     const completedT = (tasks || []).filter((t: any) => t.status === "completed").length;
@@ -63,11 +64,11 @@ Yêu cầu báo cáo bao gồm 4 phần chính bằng Tiếng Việt:
 - Đề xuất 3 hành động cụ thể và khả thi để tinh giản quy trình quản trị, cân bằng lại khối lượng tải của teammates và tăng tốc độ phân giao.`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: prompt,
       config: {
         systemInstruction,
-        temperature: 0.5,
+        temperature: temperature !== undefined ? temperature : 0.5,
       }
     });
 

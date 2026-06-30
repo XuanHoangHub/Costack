@@ -3,12 +3,13 @@ import { getGeminiClient } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
-    const { task, assigneeName } = await request.json();
+    const { task, assigneeName, model, temperature } = await request.json();
     if (!task) {
       return NextResponse.json({ success: false, error: "Thiếu thông tin công việc." }, { status: 400 });
     }
 
-    const client = getGeminiClient();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     const subtasksText = task.subtasks && task.subtasks.length > 0
       ? task.subtasks.map((s: any, idx: number) => `  ${idx + 1}. [${s.completed ? "x" : " "}] ${s.title}`).join("\n")
@@ -42,11 +43,11 @@ Yêu cầu báo cáo bao gồm các mục tiêu chính sau (định dạng ngắ
 3. 🎯 **Hành động Tiếp theo Đề xuất**: Đưa ra 2 hành động cụ thể để đẩy nhanh/hoàn tất công việc này.`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: contents,
       config: {
         systemInstruction,
-        temperature: 0.5,
+        temperature: temperature !== undefined ? temperature : 0.5,
       }
     });
 

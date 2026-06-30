@@ -4,20 +4,22 @@ import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, model, temperature } = await request.json();
     if (!prompt || !prompt.trim()) {
       return NextResponse.json({ success: false, error: "Prompt không được để trống" }, { status: 400 });
     }
-    const client = getGeminiClient();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     const aiPrompt = `Dựa trên yêu cầu của người dùng: "${prompt}". Hãy phân tích và đề xuất một danh sách các công việc cụ thể cần thực hiện để hoàn thành yêu cầu đó.`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: aiPrompt,
       config: {
         systemInstruction: "Bạn là một Trưởng dự án (Product Owner/Project Manager) chuyên nghiệp. Hãy phân tách yêu cầu của người dùng thành các công việc nhỏ (tasks), gán cho chúng mức độ ưu tiên, số giờ ước lượng phù hợp, nhãn dán, và danh sách công việc con (subtasks). Trả về kết quả dưới dạng JSON theo đúng schema được định nghĩa.",
         responseMimeType: "application/json",
+        temperature: temperature !== undefined ? temperature : undefined,
         responseSchema: {
           type: Type.OBJECT,
           properties: {

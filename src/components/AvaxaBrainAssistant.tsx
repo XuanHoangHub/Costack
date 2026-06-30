@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, Brain, Bot, Send, X, FileText, CheckSquare, 
   TrendingUp, AlertTriangle, Users, ArrowRight, Check, Play, HelpCircle, Loader2,
-  Mic, MicOff
+  Mic, MicOff, Globe, Volume2, VolumeX
 } from 'lucide-react';
 import { Task, Document, User } from '../types';
+import { callAiApi } from '@/lib/aiClient';
 
 interface AvaxaBrainAssistantProps {
   tasks: Task[];
@@ -41,6 +42,54 @@ export default function AvaxaBrainAssistant({
   const [isListening, setIsListening] = useState(false);
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+
+  // Speech & Web Search configurations
+  const [searchWeb, setSearchWeb] = useState(false);
+  const [playingSpeech, setPlayingSpeech] = useState(false);
+  const utteranceRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchDefault = localStorage.getItem('avaxa_ai_search_grounding') === 'true';
+      setSearchWeb(searchDefault);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleToggleSpeech = (text: string) => {
+    if (typeof window === 'undefined') return;
+
+    if (playingSpeech) {
+      window.speechSynthesis.cancel();
+      setPlayingSpeech(false);
+    } else {
+      window.speechSynthesis.cancel();
+      
+      const cleanText = text
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/###/g, '')
+        .replace(/##/g, '')
+        .replace(/#/g, '');
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'vi-VN';
+      utterance.onend = () => setPlayingSpeech(false);
+      utterance.onerror = () => setPlayingSpeech(false);
+
+      utteranceRef.current = utterance;
+      setPlayingSpeech(true);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   useEffect(() => {
     // Initializing speech recognition safely
@@ -142,17 +191,12 @@ export default function AvaxaBrainAssistant({
     }
 
     try {
-      const res = await fetch('/api/ai/query', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          query: finalQuery,
-          tasks,
-          documents,
-          members
-        })
+      const res = await callAiApi('/api/ai/query', {
+        query: finalQuery,
+        tasks,
+        documents,
+        members,
+        googleSearch: searchWeb
       });
 
       const data = await res.json();
@@ -201,14 +245,10 @@ Based on current information, here is a quick summary:
     if (type === 'actions') actionPrompt = "expand";
 
     try {
-      const res = await fetch('/api/ai/document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: doc.title,
-          content: doc.content,
-          action: actionPrompt
-        })
+      const res = await callAiApi('/api/ai/document', {
+        title: doc.title,
+        content: doc.content,
+        action: actionPrompt
       });
 
       const data = await res.json();
@@ -256,13 +296,9 @@ Based on current information, here is a quick summary:
     }
 
     try {
-      const res = await fetch('/api/ai/subtasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: task.title,
-          description: task.description
-        })
+      const res = await callAiApi('/api/ai/subtasks', {
+        title: task.title,
+        description: task.description
       });
 
       const data = await res.json();
@@ -356,11 +392,7 @@ Based on current information, here is a quick summary:
     }
 
     try {
-      const res = await fetch('/api/ai/generate-tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: finalPrompt })
-      });
+      const res = await callAiApi('/api/ai/generate-tasks', { prompt: finalPrompt });
 
       const data = await res.json();
       if (data.tasks) {
@@ -643,7 +675,14 @@ Based on current information, here is a quick summary:
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Avaxa Brain is analyzing your project workload...</span>
                           </div>
                         ) : responseText ? (
-                          <div className="space-y-1">
+                          <div className="space-y-1 relative pr-8">
+                            <button
+                              onClick={() => handleToggleSpeech(responseText)}
+                              className="absolute top-0 right-0 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
+                              title={playingSpeech ? "Mute speech" : "Read message out loud"}
+                            >
+                              {playingSpeech ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            </button>
                             {renderMarkdown(responseText)}
                           </div>
                         ) : (
@@ -702,10 +741,23 @@ Based on current information, here is a quick summary:
                         disabled={isListening}
                       />
                       <button
+                        type="button"
+                        onClick={() => setSearchWeb(!searchWeb)}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                          searchWeb 
+                            ? 'bg-indigo-50 border border-indigo-400 text-indigo-605 dark:bg-indigo-950/30 dark:text-indigo-400' 
+                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400'
+                        }`}
+                        title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
                         onClick={() => handleQuery()}
                         disabled={loading || !queryInput.trim() || isListening}
                         className={`w-8 h-8 rounded-lg flex items-center justify-center text-white cursor-pointer select-none transition-colors shrink-0 ${
-                          (queryInput.trim() && !isListening) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                          (queryInput.trim() && !isListening) ? 'bg-indigo-605 hover:bg-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                         }`}
                       >
                         <Send className="w-3.5 h-3.5" />

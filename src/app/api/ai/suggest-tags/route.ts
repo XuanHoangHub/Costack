@@ -4,18 +4,20 @@ import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { title, description } = await request.json();
-    const client = getGeminiClient();
+    const { title, description, model, temperature } = await request.json();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     const prompt = `Hãy phân tích tiêu đề công việc: "${title}" và mô tả chi tiết: "${description || 'Không có mô tả chi tiết'}".
 Dựa trên ý nghĩa ngữ cảnh và các từ khoá, hãy gợi ý các nhãn phù hợp từ danh sách sau: ['Design', 'Frontend', 'Backend', 'Bugs', 'API', 'Marketing', 'Research', 'DevOps'].`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "Bạn là một PM thông thái. Hãy rà soát nội dung công việc và trả về danh sách các nhãn phù hợp dưới dạng mảng JSON chứa các chuỗi nhãn dán. Không giải thích gì thêm, chỉ trả về chuỗi JSON đại diện cho mảng các chuỗi, ví dụ: [\"Design\", \"Frontend\"].",
         responseMimeType: "application/json",
+        temperature: temperature !== undefined ? temperature : undefined,
         responseSchema: {
           type: Type.ARRAY,
           items: {

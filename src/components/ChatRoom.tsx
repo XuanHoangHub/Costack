@@ -8,8 +8,10 @@ import SignedImage from './SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
 import { 
   Hash, Send, Bot, Smile, Users, MessageSquare, Sparkles, Plus, X,
-  Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight
+  Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
+  Volume2, VolumeX, Globe
 } from 'lucide-react';
+import { callAiApi } from '@/lib/aiClient';
 
 interface ChatRoomProps {
   members: User[];
@@ -70,6 +72,54 @@ export default function ChatRoom({
 
   // Search channels
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Speech Synthesis & Search Web states
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const utteranceRef = useRef<any>(null);
+  const [searchWeb, setSearchWeb] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchDefault = localStorage.getItem('avaxa_ai_search_grounding') === 'true';
+      setSearchWeb(searchDefault);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleToggleSpeech = (msgId: string, text: string) => {
+    if (typeof window === 'undefined') return;
+
+    if (playingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setPlayingMsgId(null);
+    } else {
+      window.speechSynthesis.cancel();
+      
+      const cleanText = text
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/###/g, '')
+        .replace(/##/g, '')
+        .replace(/#/g, '');
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'vi-VN';
+      utterance.onend = () => setPlayingMsgId(null);
+      utterance.onerror = () => setPlayingMsgId(null);
+
+      utteranceRef.current = utterance;
+      setPlayingMsgId(msgId);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   // Refs
   const messageEndRef = useRef<HTMLDivElement>(null);
@@ -277,7 +327,9 @@ export default function ChatRoom({
     scrollToBottom();
 
     let userId: string | null = null;
-    if (!isOffline) {
+
+
+  if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         userId = session?.user?.id || null;
@@ -302,11 +354,17 @@ export default function ChatRoom({
     if (activeChannelId.endsWith('avaxa-brain-ai')) {
       setIsAiTyping(true);
       try {
-        // Trigger AI chat API call
-        const response = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMsgText })
+        // Gather recent 10 messages for chat history
+        const historyToSend = messages.slice(-10).map(m => ({
+          senderId: m.senderId === 'avaxa-ai' ? 'model' : 'user',
+          content: m.content
+        }));
+
+        // Trigger AI chat API call with history & search configuration
+        const response = await callAiApi('/api/ai/chat', { 
+          message: userMsgText,
+          history: historyToSend,
+          googleSearch: searchWeb
         });
         const data = await response.json();
         
@@ -541,7 +599,18 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                   <div className="flex items-center gap-2">
                     <span className={`text-[11px] font-black ${msg.isAi ? 'text-amber-700' : 'text-slate-800'}`}>{msg.senderName}</span>
                     <span className="text-[9px] text-slate-400 font-mono">{msg.timestamp}</span>
-                    {msg.isAi && <span className="text-[7.5px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>}
+                    {msg.isAi && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[7.5px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>
+                        <button
+                          onClick={() => handleToggleSpeech(msg.id, msg.content)}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-450 hover:text-indigo-650 transition-colors cursor-pointer"
+                          title={playingMsgId === msg.id ? "Mute speech" : "Read message out loud"}
+                        >
+                          {playingMsgId === msg.id ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {isEditing ? (
@@ -664,8 +733,23 @@ className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 
             value={inputVal}
             onChange={e => setInputVal(e.target.value)}
             placeholder={activeChannel?.name.includes('ai') ? "Ask Avaxa Brain AI..." : "Type a message..."}
-className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
-            />
+            className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
+          />
+
+          {activeChannel?.name.includes('ai') && (
+            <button
+              type="button"
+              onClick={() => setSearchWeb(!searchWeb)}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
+                searchWeb 
+                  ? 'border-indigo-550 bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400' 
+                  : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
+              }`}
+              title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
+            >
+              <Globe className="w-4.5 h-4.5" />
+            </button>
+          )}
 
           <button 
             type="submit"

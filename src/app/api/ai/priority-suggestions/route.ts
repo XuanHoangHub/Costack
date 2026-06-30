@@ -4,8 +4,9 @@ import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { tasks } = await request.json();
-    const client = getGeminiClient();
+    const { tasks, model, temperature } = await request.json();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     const inputTasks = (tasks || []).map((t: any) => ({
       id: t.id,
@@ -41,7 +42,7 @@ Chỉ trả về JSON hợp lệ theo đúng cấu trúc trên. Không giải th
     const promptMessage = `Hãy phân tích bối cảnh danh sách công việc thời gian thực này để đề xuất thứ tự ưu tiên tối ưu:\n\n${JSON.stringify(inputTasks, null, 2)}`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: promptMessage,
       config: {
         systemInstruction,
@@ -68,7 +69,7 @@ Chỉ trả về JSON hợp lệ theo đúng cấu trúc trên. Không giải th
             generalSummary: { type: Type.STRING }
           }
         },
-        temperature: 0.3,
+        temperature: temperature !== undefined ? temperature : 0.3,
       }
     });
 

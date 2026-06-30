@@ -3,8 +3,9 @@ import { getGeminiClient } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
-    const { title, content, action } = await request.json();
-    const client = getGeminiClient();
+    const { title, content, action, model, temperature } = await request.json();
+    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
+    const client = getGeminiClient(customApiKey);
 
     let instruction = "";
     if (action === "summarize") {
@@ -16,11 +17,11 @@ export async function POST(request: Request) {
     }
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: model || "gemini-3.5-flash",
       contents: `Tên tài liệu: "${title}"\nNội dung:\n${content}`,
       config: {
         systemInstruction: instruction,
-        temperature: 0.6,
+        temperature: temperature !== undefined ? temperature : 0.6,
       }
     });
 

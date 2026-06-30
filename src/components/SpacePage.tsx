@@ -1936,6 +1936,8 @@ export default function SpacePage({
             isOffline={isOffline}
             onAddSyncLog={onAddSyncLog}
             whiteboardId={activeSpaceId || ''}
+            onAddTask={onAddTask}
+            tasks={filteredTasks}
           />
         )}
 
