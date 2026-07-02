@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useCallback } from 'react';
 
-type Translations = Record<string, string | ((...args: any[]) => string)>;
+type Translations = Record<string, string | ((...args: (string | number)[]) => string)>;
 
 const en: Translations = {
   tasks: 'Tasks',
@@ -13,6 +13,8 @@ const en: Translations = {
   team: 'Team',
   chat: 'Chat',
   productivity: 'Productivity',
+  base: 'Avaxa Base',
+  baseDescription: 'No-code database for CRM, projects & more',
   settings: 'Settings',
   profile: 'Profile',
   workspace: 'Workspace',
@@ -79,7 +81,7 @@ const en: Translations = {
   teamVelocity: 'Team Velocity',
   aiProductivityReport: 'Smart Productivity Report',
   generatedReport: 'Generated Report',
-  errorMessage: err => err instanceof Error ? err.message : String(err),
+  errorMessage: (err: any) => err instanceof Error ? err.message : String(err),
   goodMorning: 'Good morning',
   lastUpdated: 'Last updated',
   dueSoon: 'Due soon',
@@ -217,7 +219,7 @@ const en: Translations = {
   enterCredentials: 'Please enter email and password',
   enterFullName: 'Please enter your full name',
   passwordStrength: 'Password must meet recommended security level (at least Strong - 3/4 criteria).',
-  authError: err => err instanceof Error ? err.message : String(err),
+  authError: (err: any) => err instanceof Error ? err.message : String(err),
   invalidCredentials: 'Invalid email or password. Please try again.',
   emailAlreadyRegistered: 'This email is already registered.',
   confirmEmail: 'Please confirm your email before continuing.',
@@ -350,7 +352,7 @@ const en: Translations = {
   day: 'Day',
   syncInProgress: 'Syncing...',
   eventCreatedSuccess: 'Event created',
-  taskAddedSuccess: (title: string) => `Task "${title}" added.`,
+  taskAddedSuccess: (...args: any[]) => `Task "${String(args[0])}" added.`,
   overdueHoliday: 'Holiday',
   quotaExceeded: 'Quota exceeded',
   quotaExceededMsg: 'API quota exceeded. Please try again later.',

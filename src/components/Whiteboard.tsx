@@ -165,7 +165,7 @@ export default function Whiteboard({
     let maxY = -Infinity;
     
     elements.forEach(el => {
-      if (el.type === 'pencil' && el.points) {
+      if (el.type === 'pencil' && Array.isArray(el.points)) {
         el.points.forEach((p: any) => {
           minX = Math.min(minX, p.x);
           minY = Math.min(minY, p.y);
@@ -239,14 +239,14 @@ export default function Whiteboard({
       tempCtx.shadowOffsetX = 1;
       tempCtx.shadowOffsetY = 2;
       
-      if (el.type === 'pencil' && el.points && el.points.length > 0) {
+      if (el.type === 'pencil' && Array.isArray(el.points) && el.points.length > 0) {
         tempCtx.shadowBlur = 0;
         tempCtx.shadowOffsetX = 0;
         tempCtx.shadowOffsetY = 0;
         tempCtx.beginPath();
-        tempCtx.moveTo(el.points[0].x - minX, el.points[0].y - minY);
-        for (let i = 1; i < el.points.length; i++) {
-          tempCtx.lineTo(el.points[i].x - minX, el.points[i].y - minY);
+        tempCtx.moveTo((el.points as any[])[0].x - minX, (el.points as any[])[0].y - minY);
+        for (let i = 1; i < (el.points as any[]).length; i++) {
+          tempCtx.lineTo((el.points as any[])[i].x - minX, (el.points as any[])[i].y - minY);
         }
         tempCtx.stroke();
       } else if (el.type === 'rectangle') {
@@ -276,14 +276,15 @@ export default function Whiteboard({
         tempCtx.shadowBlur = 0;
         tempCtx.shadowOffsetX = 0;
         tempCtx.shadowOffsetY = 0;
-        if (el.points && el.points.fromId && el.points.toId) {
-          const fromEl = elements.find(item => item.id === el.points.fromId);
-          const toEl = elements.find(item => item.id === el.points.toId);
+        if (el.points && !Array.isArray(el.points) && 'fromId' in el.points && 'toId' in el.points) {
+          const pts: any = el.points;
+          const fromEl = elements.find(item => item.id === pts.fromId);
+          const toEl = elements.find(item => item.id === pts.toId);
           if (fromEl && toEl) {
             const socketsFrom = getElementSockets(fromEl);
             const socketsTo = getElementSockets(toEl);
-            const sFrom = socketsFrom[el.points.fromSocket as keyof typeof socketsFrom] || socketsFrom.top;
-            const sTo = socketsTo[el.points.toSocket as keyof typeof socketsTo] || socketsTo.top;
+            const sFrom = socketsFrom[pts.fromSocket as keyof typeof socketsFrom] || socketsFrom.top;
+            const sTo = socketsTo[pts.toSocket as keyof typeof socketsTo] || socketsTo.top;
             
             tempCtx.beginPath();
             tempCtx.moveTo(sFrom.x - minX, sFrom.y - minY);
@@ -437,9 +438,10 @@ export default function Whiteboard({
       } else {
         setAiResult(data.text || '');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to communicate with AI server.';
       console.error(err);
-      setAiError(err.message || "Failed to communicate with AI server.");
+      setAiError(errorMessage);
     } finally {
       setAiLoading(false);
     }
@@ -574,7 +576,7 @@ export default function Whiteboard({
   // Load elements from Supabase
   useEffect(() => {
     let active = true;
-    let boardChannel: any = null;
+    let boardChannel: any = null; // TODO: Replace with proper RealtimeChannel type
 
     const loadElements = async () => {
       try {
@@ -760,14 +762,15 @@ export default function Whiteboard({
       ctx.shadowOffsetX = 1;
       ctx.shadowOffsetY = 2;
 
-      if (el.type === 'pencil' && el.points && el.points.length > 0) {
+      if (el.type === 'pencil' && Array.isArray(el.points) && el.points.length > 0) {
         ctx.shadowBlur = 0;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
         ctx.beginPath();
-        ctx.moveTo(el.points[0].x, el.points[0].y);
-        for (let i = 1; i < el.points.length; i++) {
-          ctx.lineTo(el.points[i].x, el.points[i].y);
+        const pts: any[] = el.points as any[];
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
         }
         ctx.stroke();
       } else if (el.type === 'rectangle') {
@@ -801,14 +804,15 @@ export default function Whiteboard({
         ctx.shadowOffsetY = 0;
 
         // If it's a connected arrow
-        if (el.points && el.points.fromId && el.points.toId) {
-          const fromEl = elements.find(item => item.id === el.points.fromId);
-          const toEl = elements.find(item => item.id === el.points.toId);
+        if (el.points && !Array.isArray(el.points) && 'fromId' in el.points && 'toId' in el.points) {
+          const pts: any = el.points;
+          const fromEl = elements.find(item => item.id === pts.fromId);
+          const toEl = elements.find(item => item.id === pts.toId);
           if (fromEl && toEl) {
             const socketsFrom = getElementSockets(fromEl);
             const socketsTo = getElementSockets(toEl);
-            const sFrom = socketsFrom[el.points.fromSocket as keyof typeof socketsFrom] || socketsFrom.top;
-            const sTo = socketsTo[el.points.toSocket as keyof typeof socketsTo] || socketsTo.top;
+            const sFrom = socketsFrom[pts.fromSocket as keyof typeof socketsFrom] || socketsFrom.top;
+            const sTo = socketsTo[pts.toSocket as keyof typeof socketsTo] || socketsTo.top;
             
             ctx.beginPath();
             ctx.moveTo(sFrom.x, sFrom.y);
@@ -1065,7 +1069,7 @@ export default function Whiteboard({
           const h = el.height || 80;
           const finalH = el.type === 'sticky' && h === 80 ? w : h;
           // Ignore connection lines click-checking in simple select bounds
-          if (el.type === 'line' && el.points && el.points.fromId) return false;
+          if (el.type === 'line' && el.points && !Array.isArray(el.points) && 'fromId' in el.points) return false;
           return modelX >= el.x && modelX <= el.x + w && modelY >= el.y && modelY <= el.y + finalH;
         }
         return false;
@@ -1289,7 +1293,7 @@ export default function Whiteboard({
         height: modelY - startPoint.y,
         color: brushColor,
         lineWidth: brushWidth,
-        points: null
+        points: undefined
       };
     } else if (['rectangle', 'circle', 'diamond', 'parallelogram', 'pill', 'cylinder'].includes(activeTool)) {
       newElement = {
@@ -1493,8 +1497,8 @@ export default function Whiteboard({
     let maxY = -Infinity;
     
     elements.forEach(el => {
-      if (el.type === 'pencil' && el.points) {
-        el.points.forEach((p: any) => {
+      if (el.type === 'pencil' && Array.isArray(el.points)) {
+        (el.points as any[]).forEach((p: { x: number; y: number }) => {
           minX = Math.min(minX, p.x);
           minY = Math.min(minY, p.y);
           maxX = Math.max(maxX, p.x);
@@ -1567,14 +1571,15 @@ export default function Whiteboard({
       tempCtx.shadowOffsetX = 1;
       tempCtx.shadowOffsetY = 2;
       
-      if (el.type === 'pencil' && el.points && el.points.length > 0) {
+      if (el.type === 'pencil' && Array.isArray(el.points) && el.points.length > 0) {
+        const pts: any[] = el.points as any[];
         tempCtx.shadowBlur = 0;
         tempCtx.shadowOffsetX = 0;
         tempCtx.shadowOffsetY = 0;
         tempCtx.beginPath();
-        tempCtx.moveTo(el.points[0].x - minX, el.points[0].y - minY);
-        for (let i = 1; i < el.points.length; i++) {
-          tempCtx.lineTo(el.points[i].x - minX, el.points[i].y - minY);
+        tempCtx.moveTo(pts[0].x - minX, pts[0].y - minY);
+        for (let i = 1; i < pts.length; i++) {
+          tempCtx.lineTo(pts[i].x - minX, pts[i].y - minY);
         }
         tempCtx.stroke();
       } else if (el.type === 'rectangle') {
@@ -1604,9 +1609,10 @@ export default function Whiteboard({
         tempCtx.shadowBlur = 0;
         tempCtx.shadowOffsetX = 0;
         tempCtx.shadowOffsetY = 0;
-        if (el.points && el.points.fromId && el.points.toId) {
-          const fromEl = elements.find(item => item.id === el.points.fromId);
-          const toEl = elements.find(item => item.id === el.points.toId);
+            if (el.points && !Array.isArray(el.points) && 'fromId' in el.points && 'toId' in el.points) {
+              const pts: any = el.points;
+              const fromEl = elements.find(item => item.id === pts.fromId);
+              const toEl = elements.find(item => item.id === pts.toId);
           if (fromEl && toEl) {
             const socketsFrom = getElementSockets(fromEl);
             const socketsTo = getElementSockets(toEl);
@@ -1731,7 +1737,7 @@ export default function Whiteboard({
 
   // Multiplayer simulations triggers
   useEffect(() => {
-    let timer: any = null;
+    let timer: ReturnType<typeof setInterval> | null = null;
     if (enableSim) {
       setSimCursors([
         { id: 'sim-1', name: 'Lan Anh (Engineering)', avatar: '', x: 200, y: 150 },

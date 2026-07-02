@@ -184,6 +184,7 @@ export default function SpacePage({
   const [activeListMenu, setActiveListMenu] = useState<{ id: string; spaceId: string; folderId: string | null; x: number; y: number } | null>(null);
   const [activeListSettings, setActiveListSettings] = useState<{ id: string; spaceId: string; folderId: string | null; x: number; y: number } | null>(null);
   const [activeFolderSettings, setActiveFolderSettings] = useState<{ id: string; spaceId: string; x: number; y: number } | null>(null);
+  const [folderColorMenuOpen, setFolderColorMenuOpen] = useState<string | null>(null);
 
   // Custom Fields and visibility states
   const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
@@ -853,6 +854,7 @@ export default function SpacePage({
                             const isFolderOpen = expandedFolders[folder.id];
                             const folderLists = space.lists?.filter(l => l.folderId === folder.id) || [];
                             const folderDocs = allDocs?.filter(d => d.folderId === folder.id) || [];
+                            const folderWhiteboards = space.whiteboards?.filter(w => w.folderId === folder.id) || [];
                             return (
                               <div key={folder.id} className="space-y-0.5 text-left">
                                 <div 
@@ -871,9 +873,9 @@ export default function SpacePage({
                                 >
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     {isFolderOpen ? (
-                                      <FolderOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <FolderOpen className="w-3.5 h-3.5 shrink-0" style={{ color: folder.color || '#6366f1' }} />
                                     ) : (
-                                      <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: folder.color || '#6366f1' }} />
                                     )}
                                     <span className="truncate">{folder.name}</span>
                                   </div>
@@ -884,6 +886,7 @@ export default function SpacePage({
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         if (activeFolderSettings?.id === folder.id) {
                                           setActiveFolderSettings(null);
+                                          setFolderColorMenuOpen(null);
                                         } else {
                                           setActiveFolderSettings({
                                             id: folder.id,
@@ -891,6 +894,7 @@ export default function SpacePage({
                                             x: rect.left,
                                             y: rect.bottom + 4
                                           });
+                                          setFolderColorMenuOpen(null);
                                         }
                                         setActiveSpaceMenu(null);
                                         setActiveSpaceSettings(null);
@@ -1020,7 +1024,7 @@ export default function SpacePage({
                                             if (setActiveListId) setActiveListId(null);
                                             setActiveView('doc');
                                           }}
-                                          className="w-full flex items-center gap-1.5 py-1 px-1.5 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                                          className="w-full flex items-center gap-1.5 py-1 px-1.5 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
                                         >
                                           <span className="text-sm shrink-0">📄</span>
                                           <span className="truncate">{doc.title}</span>
@@ -1028,7 +1032,23 @@ export default function SpacePage({
                                       );
                                     })}
 
-                                    {folderLists.length === 0 && folderDocs.length === 0 && (
+                                    {folderWhiteboards.map(wb => (
+                                      <button
+                                        key={wb.id}
+                                        onClick={() => {
+                                          if (setActiveSpaceId) setActiveSpaceId(space.id);
+                                          if (setActiveListId) setActiveListId(null);
+                                          setActiveFolderId(folder.id);
+                                          setActiveView('whiteboard');
+                                        }}
+                                        className="w-full flex items-center gap-1.5 py-1 px-1.5 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                                      >
+                                        <span className="text-sm shrink-0">🎨</span>
+                                        <span className="truncate">{wb.name}</span>
+                                      </button>
+                                    ))}
+
+                                    {folderLists.length === 0 && folderDocs.length === 0 && folderWhiteboards.length === 0 && (
                                       <div className="text-[10px] text-slate-400 italic pl-5 py-0.5">Empty folder.</div>
                                     )}
                                   </div>
@@ -1144,8 +1164,25 @@ export default function SpacePage({
                             </button>
                           ))}
 
-                          {(!space.lists || space.lists.length === 0) && (!space.folders || space.folders.length === 0) && (
-                            <div className="text-[10px] text-slate-450 italic pl-5 py-1 select-none font-medium text-left">No lists yet.</div>
+                          {/* Render direct Whiteboards */}
+                          {space.whiteboards?.filter(w => !w.folderId).map(wb => (
+                            <button
+                              key={wb.id}
+                              onClick={() => {
+                                if (setActiveSpaceId) setActiveSpaceId(space.id);
+                                if (setActiveListId) setActiveListId(null);
+                                setActiveFolderId(null);
+                                setActiveView('whiteboard');
+                              }}
+                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                            >
+                              <span className="text-sm shrink-0">🎨</span>
+                              <span className="truncate">{wb.name}</span>
+                            </button>
+                          ))}
+
+                          {(!space.lists || space.lists.length === 0) && (!space.folders || space.folders.length === 0) && (!space.whiteboards || space.whiteboards.length === 0) && (
+                            <div className="text-[10px] text-slate-455 italic pl-5 py-1 select-none font-medium text-left">No lists yet.</div>
                           )}
                         </div>
                       )}
@@ -3228,7 +3265,7 @@ export default function SpacePage({
         if (!space || !folder) return null;
         return (
           <Portal>
-            <div className="fixed inset-0 z-40" onClick={() => setActiveFolderSettings(null)} />
+            <div className="fixed inset-0 z-40" onClick={() => { setActiveFolderSettings(null); setFolderColorMenuOpen(null); }} />
             <div 
               style={{ 
                 position: 'fixed', 
@@ -3292,9 +3329,7 @@ export default function SpacePage({
                 <span className="font-semibold text-slate-650 dark:text-slate-350">Copy link</span>
               </button>
 
-              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-              {/* Create new */}
+                   {/* Create new */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -3309,27 +3344,63 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <Plus className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Create new</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-355">Create new</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
 
               {/* Folder color */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveFolderSettings(null);
-                  alert("Select Folder Color feature coming soon!");
-                }}
-                className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Droplet className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Folder color</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-              </button>
+              <div className="border-b border-slate-100 dark:border-slate-800/80 my-1 pb-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFolderColorMenuOpen(folderColorMenuOpen === folder.id ? null : folder.id);
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Droplet className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="font-semibold text-slate-650 dark:text-slate-355">Folder color</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full border border-slate-200/50" style={{ backgroundColor: folder.color || '#6366f1' }} />
+                    <ChevronRight className={`w-3 h-3 text-slate-400 transition-transform ${folderColorMenuOpen === folder.id ? 'rotate-90' : ''}`} />
+                  </div>
+                </button>
+
+                {folderColorMenuOpen === folder.id && (
+                  <div className="px-3.5 py-2 grid grid-cols-6 gap-2 bg-slate-50 dark:bg-slate-950 rounded-xl mx-2 my-1 animate-fadeIn">
+                    {[
+                      { hex: '#6366f1', name: 'indigo' },
+                      { hex: '#ec4899', name: 'rose' },
+                      { hex: '#0ea5e9', name: 'sky' },
+                      { hex: '#10b981', name: 'emerald' },
+                      { hex: '#f59e0b', name: 'amber' },
+                      { hex: '#f97316', name: 'sunset' }
+                    ].map(colorOpt => (
+                      <button
+                        key={colorOpt.hex}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updatedFolders = space.folders?.map(f => f.id === folder.id ? { ...f, color: colorOpt.hex } : f) || [];
+                          const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders } : s);
+                          onSaveSpaces?.(updated);
+                          onAddSyncLog(`Changed Folder "${folder.name}" color to ${colorOpt.name}`);
+                          setFolderColorMenuOpen(null);
+                          setActiveFolderSettings(null);
+                        }}
+                        className={`w-5 h-5 rounded-full cursor-pointer hover:scale-110 transition-transform border ${
+                          folder.color === colorOpt.hex ? 'border-slate-800 dark:border-white ring-1 ring-slate-400' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: colorOpt.hex }}
+                        title={colorOpt.name}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Automations */}
               <button

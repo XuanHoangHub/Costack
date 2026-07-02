@@ -15,7 +15,7 @@ import {
 import { supabase } from '../supabaseClient';
 
 interface LoginScreenProps {
-  onLoginSuccess: (user: { name: string; email: string; avatar: string; role: 'admin' | 'member' }, rememberMe: boolean) => void;
+  onLoginSuccess: (user: { name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
 }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
@@ -203,7 +203,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           name: displayName,
           email: sessionUser?.email || email,
           avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
-          role: 'member'
+          role: 'member',
+          status: 'online'
         }, rememberMe);
 
       } else {
@@ -230,7 +231,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           name: displayName,
           email: sessionUser?.email || email,
           avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
-          role: userRole
+          role: userRole,
+          status: 'online'
         }, rememberMe);
       }
     } catch (err: any) {
@@ -291,7 +293,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         name: selected.name,
         email: selected.email,
         avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selected.name)}`,
-        role: selected.role as 'admin' | 'member'
+        role: selected.role as 'admin' | 'member',
+        status: 'online'
       }, rememberMe);
     } finally {
       setLoading(false);
@@ -624,12 +627,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide uppercase">WEEKLY PERFORMANCE OS</p>
                 </div>
               </div>
-              
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 dark:text-slate-550 font-mono font-bold block bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 px-2.5 py-0.5 rounded-md select-none">
-                  2026 INSTANT-SYNC
-                </span>
-              </div>
+
             </div>
 
             {/* Premium Dynamic Switch tabs with sliding indicator */}
@@ -860,10 +858,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   </div>
                   <span className="group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">Remember me (30 days)</span>
                 </button>
-                <div className="text-[9px] text-indigo-600 dark:text-indigo-400 font-extrabold flex items-center gap-1 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100/60 dark:border-indigo-900/30 px-2 py-0.5 rounded-md select-none">
-                  <Fingerprint className="w-3 h-3 text-indigo-550" />
-                  <span>Security Key</span>
-                </div>
               </div>
 
               {error && (
@@ -904,7 +898,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   </>
                 ) : (
                   <>
-                    <span>{isSignUp ? 'START AVAXA OS EXPERIENCE' : 'LOG IN TO SYSTEM'}</span>
+                    <span>{isSignUp ? 'START AVAXA OS EXPERIENCE' : 'Login'}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-indigo-200" />
                   </>
                 )}
@@ -915,9 +909,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">QUICK DEMO / SSO LOGIN</span>
-                <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-450 font-extrabold px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1 select-none">
-                  SECURE SSO
-                </span>
               </div>
               
               {/* Premium SSO grid with hover translation and custom border lights */}

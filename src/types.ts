@@ -44,7 +44,7 @@ export interface Space {
   themeColor?: string;
   workspaceId: string;
   lists: { id: string; name: string; folderId?: string }[];
-  folders?: { id: string; name: string }[];
+  folders?: { id: string; name: string; color?: string }[];
   whiteboards?: { id: string; name: string; folderId?: string }[];
   channels?: { id: string; name: string }[];
   statuses?: { id: string; label: string; color: string; type: TaskStatus }[];
@@ -142,6 +142,21 @@ export interface Workspace {
   };
 }
 
+export interface NotificationSettings {
+  enableAll: boolean;
+  enableSound: boolean;
+  onlyImportant: boolean;
+  enableAssignments: boolean;
+  enableDeadlines: boolean;
+  enableComments: boolean;
+  enableStatusChanges: boolean;
+  enableFilteringTags: boolean;
+  enableSystemNotify: boolean;
+  toastDuration: number;
+  dndActive: boolean;
+  frequencyLimit: 'throttled' | 'minimal' | 'all';
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -185,7 +200,7 @@ export interface WhiteboardElement {
   color: string;
   lineWidth?: number;
   text?: string;
-  points?: any; // Supports {x, y}[] for pencil, or connection metadata for lines
+  points?: Array<{ x: number; y: number }> | Record<string, unknown>; // Supports {x, y}[] for pencil, or connection metadata for lines
 }
 
 export interface SyncLog {
@@ -201,4 +216,86 @@ export interface TeamMemberCursor {
   avatar: string;
   x: number;
   y: number;
+}
+
+// ─── Avaxa Base (Lark Base / Bitable-style no-code database) ───
+
+export type BaseFieldType =
+  | 'text' | 'long_text' | 'number' | 'single_select' | 'multi_select'
+  | 'date' | 'checkbox' | 'person' | 'url' | 'email' | 'phone'
+  | 'currency' | 'rating' | 'percent';
+
+export interface BaseFieldOption {
+  id: string;
+  label: string;
+  color?: string;
+}
+
+export interface BaseField {
+  id: string;
+  name: string;
+  type: BaseFieldType;
+  options?: BaseFieldOption[];
+  width?: number;
+}
+
+export interface BaseRecord {
+  id: string;
+  values: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BaseViewType = 'grid' | 'kanban' | 'gallery' | 'form' | 'calendar' | 'gantt' | 'dashboard';
+
+export interface BaseViewFilter {
+  fieldId: string;
+  operator: 'equals' | 'contains' | 'not_empty' | 'empty' | 'gt' | 'lt';
+  value?: unknown;
+}
+
+export interface BaseViewSort {
+  fieldId: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface BaseViewConfig {
+  visibleFields?: string[];
+  filters?: BaseViewFilter[];
+  sorts?: BaseViewSort[];
+  groupByFieldId?: string;
+  kanbanFieldId?: string;
+  calendarFieldId?: string;
+  galleryCoverFieldId?: string;
+  formTitleFieldId?: string;
+  ganttStartFieldId?: string;
+  ganttDurationFieldId?: string;
+}
+
+export interface BaseView {
+  id: string;
+  name: string;
+  type: BaseViewType;
+  config: BaseViewConfig;
+}
+
+export interface BaseTable {
+  id: string;
+  name: string;
+  fields: BaseField[];
+  records: BaseRecord[];
+  views: BaseView[];
+  primaryFieldId: string;
+}
+
+export interface BaseApp {
+  id: string;
+  name: string;
+  emoji?: string;
+  description?: string;
+  tables: BaseTable[];
+  activeTableId?: string;
+  workspaceId?: string;
+  createdAt: string;
+  updatedAt: string;
 }

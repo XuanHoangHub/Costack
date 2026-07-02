@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 
-const DraggableCast = Draggable as any;
+const DraggableCast = Draggable as typeof Draggable;
 
-function StrictModeDroppable({ children, ...props }: any) {
+function StrictModeDroppable({ children, ...props }: { children: (provided: DroppableProvided, snapshot?: any) => React.ReactNode; droppableId: string; type: string }) {
   const [enabled, setEnabled] = useState(false);
   React.useEffect(() => {
     const animation = requestAnimationFrame(() => setEnabled(true));
@@ -73,7 +73,7 @@ interface TaskBoardViewProps {
   setSelectedTask: (task: Task) => void;
   onUpdateTask: (task: Task) => void;
   onAddSyncLog: (log: string) => void;
-  triggerToast?: (type: any, title: string, message: string) => void;
+  triggerToast?: (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => void;
   boardGroupBy: 'status' | 'priority';
   setBoardGroupBy: React.Dispatch<React.SetStateAction<'status' | 'priority'>>;
   boardSwimlaneBy: 'none' | 'priority' | 'assignee';
@@ -112,7 +112,7 @@ export default function TaskBoardView({
     }
   }, [localActiveDragId]);
 
-  const handleDragStart = (start: any) => {
+  const handleDragStart = (start: DragStart) => {
     setLocalActiveDragId(start.draggableId);
   };
 
@@ -153,7 +153,7 @@ export default function TaskBoardView({
     return { text: `${diff}d`, cls: 'text-slate-500 bg-slate-55 dark:bg-slate-800' };
   };
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     setLocalActiveDragId(null);
     if (!result.destination) return;
     const { draggableId, destination } = result;
@@ -208,7 +208,7 @@ export default function TaskBoardView({
 
             {/* Column Body */}
             <StrictModeDroppable droppableId={status} type="task">
-              {(provided: any) => (
+              {(provided: DroppableProvided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps}
                   className="flex-1 space-y-2 min-h-[150px]">
                   {columnTasks.map((task, index) => {
@@ -224,7 +224,7 @@ export default function TaskBoardView({
 
                     return (
                       <DraggableCast key={task.id} draggableId={`kanban_card_${task.id}`} index={index}>
-                        {(dragProvided: any, dragSnapshot: any) => (
+                        {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
                           <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}
                             style={{ ...dragProvided.draggableProps.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps.style?.transition }}>
                             <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}

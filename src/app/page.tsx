@@ -2,8 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, User, Document, SyncLog, Space, TaskStatus } from '../types';
+import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { useAppActions } from '@/hooks/useAppActions';
+import { useUiStore } from '@/store/uiStore';
+import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useSpaceStore } from '@/store/spaceStore';
+import { useTaskStore } from '@/store/taskStore';
+import { useDocStore } from '@/store/docStore';
+import { useMemberStore } from '@/store/memberStore';
+import { useBaseStore } from '@/store/baseStore';
+import { useSyncStore } from '@/store/syncStore';
+  import { useNotificationStore } from '@/store/notificationStore';
+import { usePomodoroStore } from '@/store/pomodoroStore';
 
 // Import modular layouts
 import LoginScreen from '../components/LoginScreen';
@@ -20,23 +31,45 @@ import ProfilePage from '../components/ProfilePage';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import ProductivityHub from '../components/ProductivityHub';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
+import BaseHub from '../components/BaseHub';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
-  Grid, LogOut, Wifi, WifiOff, Cloud, RefreshCw, Sparkles, LayoutDashboard,
+  Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
   Search, X, FileText, Hash, ArrowRight, CornerDownLeft, Check, ChevronDown,
-  Play, Pause, RotateCcw, Timer, Bell, BellOff, Calendar, Moon, Sun, Settings, Plus,
-  Trash2, CheckCheck, Zap, User as UserIcon, ChevronRight, ChevronLeft, Layers, Folder, FolderClosed, MoreHorizontal,
-  Star, List
+  Timer, Bell, Calendar, Settings, Plus,
+  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database
 } from 'lucide-react';
 
 export default function App() {
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
-  const [currentUser, setCurrentUser] = useState<{ id?: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; isPremium?: boolean } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Track and listen to live auth changes from Supabase (standard security practice)
+  // Navigation active tab controller
+  const activeTab = useUiStore((s) => s.activeTab);
+  const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const isMainSidebarCollapsed = useUiStore((s) => s.isMainSidebarCollapsed);
+  const setIsMainSidebarCollapsed = useUiStore((s) => s.setIsMainSidebarCollapsed);
+  const accentPreset = useUiStore((s) => s.accentPreset);
+  const setAccentPreset = useUiStore((s) => s.setAccentPreset);
+  const userStatus = useUiStore((s) => s.userStatus);
+  const setUserStatus = useUiStore((s) => s.setUserStatus);
+  const showStatusMenu = useUiStore((s) => s.showStatusMenu);
+  const setShowStatusMenu = useUiStore((s) => s.setShowStatusMenu);
+  const showPremiumModal = useUiStore((s) => s.showPremiumModal);
+  const setShowPremiumModal = useUiStore((s) => s.setShowPremiumModal);
+  const soundEnabled = useUiStore((s) => s.soundEnabled);
+  const setSoundEnabled = useUiStore((s) => s.setSoundEnabled);
+  const blurIntensity = useUiStore((s) => s.blurIntensity);
+  const setBlurIntensity = useUiStore((s) => s.setBlurIntensity);
+  const notificationSettings = useUiStore((s) => s.notificationSettings);
+  const setNotificationSettings = useUiStore((s) => s.setNotificationSettings);
+
+  // Custom Dark Mode State - DEACTIVATED (Forced pure light white space theme)
+  const isDarkMode = false;
+  const setIsDarkMode = (val: boolean) => {};
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -49,6 +82,7 @@ export default function App() {
           email: u.email || '',
           avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          status: 'online' as const,
           isPremium
         };
         setCurrentUser(userObj);
@@ -68,6 +102,7 @@ export default function App() {
           email: u.email || '',
           avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          status: 'online' as const,
           isPremium
         };
         setCurrentUser(userObj);
@@ -79,143 +114,10 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-  
-  // Accent color presets for Glassmorphic UI (Classic Indigo, Ocean, Forest, Sunset)
-  const [accentPreset, setAccentPreset] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
-  
-  // Custom Dark Mode State - DEACTIVATED (Forced pure light white space theme)
-  const isDarkMode = false;
-  const setIsDarkMode = (val: boolean) => {};
+}, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('avaxa_dark_mode', 'false');
-    } catch (e) {}
-    document.documentElement.classList.remove('dark');
-  }, []);
 
-  useEffect(() => {
-    const presets = {
-      indigo: {
-        primary: 'rgb(123, 97, 255)',    // original brand violet (#7B61FF)
-        primaryHover: 'rgb(96, 69, 235)',
-        primaryLight: '#f5f3ff',
-        primaryRgb: '123, 97, 255',
-        gradientStart: '#7B61FF',
-        gradientEnd: '#FF3366',          // pink-500
-        glow: 'rgba(123, 97, 255, 0.15)',
-        text: '#7B61FF',
-        badgeBg: 'rgba(123, 97, 255, 0.08)',
-        badgeText: '#7B61FF',
-        subtasksBar: '#7B61FF',
-        liquidColor: 'rgba(51, 209, 255, 0.12)', // cyan-205 aspect
-      },
-      ocean: {
-        primary: 'rgb(2, 132, 199)',    // sky-600
-        primaryHover: 'rgb(3, 105, 161)',
-        primaryLight: '#f0f9ff',
-        primaryRgb: '2, 132, 199',
-        gradientStart: '#0284c7',
-        gradientEnd: '#06b6d4',          // cyan-500
-        glow: 'rgba(14, 165, 233, 0.15)',
-        text: '#0284c7',
-        badgeBg: 'rgba(2, 132, 199, 0.08)',
-        badgeText: '#0284c7',
-        subtasksBar: '#0284c7',
-        liquidColor: 'rgba(14, 165, 233, 0.12)',
-      },
-      forest: {
-        primary: 'rgb(5, 150, 105)',    // emerald-600
-        primaryHover: 'rgb(4, 120, 87)',
-        primaryLight: '#ecfdf5',
-        primaryRgb: '5, 150, 105',
-        gradientStart: '#10b981',
-        gradientEnd: '#06b6d4',          // cyan-500 or teal-500
-        glow: 'rgba(16, 185, 129, 0.15)',
-        text: '#059669',
-        badgeBg: 'rgba(5, 150, 105, 0.08)',
-        badgeText: '#059669',
-        subtasksBar: '#059669',
-        liquidColor: 'rgba(16, 185, 129, 0.12)',
-      },
-      sunset: {
-        primary: 'rgb(225, 29, 72)',   // rose-600
-        primaryHover: 'rgb(190, 24, 74)',
-        primaryLight: '#fff1f2',
-        primaryRgb: '225, 29, 72',
-        gradientStart: '#ea580c',        // orange-600
-        gradientEnd: '#db2777',          // pink-600
-        glow: 'rgba(244, 63, 94, 0.15)',
-        text: '#e11d48',
-        badgeBg: 'rgba(225, 29, 72, 0.08)',
-        badgeText: '#e11d48',
-        subtasksBar: '#e11d48',
-        liquidColor: 'rgba(244, 63, 94, 0.12)',
-      }
-    };
-
-    const active = presets[accentPreset] || presets.indigo;
-    
-    // Set custom CSS properties on the root document
-    const root = document.documentElement;
-    root.style.setProperty('--avaxa-primary', active.primary);
-    root.style.setProperty('--avaxa-primary-hover', active.primaryHover);
-    root.style.setProperty('--avaxa-primary-light', active.primaryLight);
-    root.style.setProperty('--avaxa-primary-rgb', active.primaryRgb);
-    root.style.setProperty('--avaxa-gradient-start', active.gradientStart);
-    root.style.setProperty('--avaxa-gradient-end', active.gradientEnd);
-    root.style.setProperty('--avaxa-glow', active.glow);
-    root.style.setProperty('--avaxa-text', active.text);
-    root.style.setProperty('--avaxa-badge-bg', active.badgeBg);
-    root.style.setProperty('--avaxa-badge-text', active.badgeText);
-    root.style.setProperty('--avaxa-subtasks-bar', active.subtasksBar);
-    root.style.setProperty('--avaxa-liquid-color', active.liquidColor);
-    
-  }, [accentPreset]);
-
-  // Custom Sound and Blur Intensity Settings for Immersive UI/UX
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-
-  const [blurIntensity, setBlurIntensity] = useState<'soft' | 'default' | 'immersive'>('default');
-
-  useEffect(() => {
-    let glassBlur = '12px';
-    let glassBlurDark = '16px';
-    let liquidBlur = '28px';
-
-    if (blurIntensity === 'soft') {
-      glassBlur = '6px';
-      glassBlurDark = '8px';
-      liquidBlur = '10px';
-    } else if (blurIntensity === 'immersive') {
-      glassBlur = '24px';
-      glassBlurDark = '30px';
-      liquidBlur = '45px';
-    }
-
-    const root = document.documentElement;
-    root.style.setProperty('--avaxa-glass-blur', glassBlur);
-    root.style.setProperty('--avaxa-glass-blur-dark', glassBlurDark);
-    root.style.setProperty('--avaxa-liquid-blur', liquidBlur);
-  }, [blurIntensity]);
-  
-  const [notificationSettings, setNotificationSettings] = useState<any>({
-    enableAll: true,
-    enableSound: true,
-    onlyImportant: false,
-    enableAssignments: true,
-    enableDeadlines: true,
-    enableComments: true,
-    enableStatusChanges: true,
-    enableFilteringTags: false,
-    enableSystemNotify: true,
-    toastDuration: 4000,
-    dndActive: false,
-    frequencyLimit: 'throttled'
-  });
-
-  // Dynamic Browser Web Audio Sound Synthesizer (No media file weight!)
+  // Dynamic effects below read from useUiStore values
   useEffect(() => {
     (window as any).showPremiumModal = () => setShowPremiumModal(true);
     (window as any).playSystemSound = (type: 'click' | 'success' | 'toggle' | 'delete' | 'notification') => {
@@ -249,10 +151,9 @@ export default function App() {
           osc.start(now);
           osc.stop(now + 0.12);
         } else if (type === 'success') {
-          // Double pitch melodic chime chord sound
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, now); // C5
-          osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
           gain.gain.setValueAtTime(0.06, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
           osc.start(now);
@@ -274,20 +175,9 @@ export default function App() {
           osc.start(now);
           osc.stop(now + 0.35);
         }
-      } catch (err) {}
+      } catch { /* empty */ }
     };
   }, [soundEnabled]);
-
-  // Navigation active tab controller
-  const [activeTab, setActiveTab2] = useState<string>('dashboard');
-  const [isMainSidebarCollapsed, setIsMainSidebarCollapsed] = useState(false);
-  const setActiveTab = (tab: string) => {
-    setActiveTab2(tab);
-    // Sidemenu change muted strictly as requested by user
-  };
-  const [userStatus, setUserStatus] = useState<'online' | 'focused' | 'away'>('online');
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const handleTogglePremium = (status: boolean) => {
     localStorage.setItem('avaxa_premium', String(status));
@@ -324,48 +214,72 @@ export default function App() {
   };
 
   // Workspaces Feature
-  const [workspaces, setWorkspaces] = useState<any[]>([
-    { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&auto=format&fit=crop&q=80' },
-    { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', coverUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=400&auto=format&fit=crop&q=80' },
-    { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', coverUrl: 'https://images.unsplash.com/photo-1483168527879-c66136b56105?w=400&auto=format&fit=crop&q=80' },
-  ]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState('w2');
-  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
-  const [showAddWorkspaceModal, setShowAddWorkspaceModal] = useState(false);
-  const [modalSelectedCover, setModalSelectedCover] = useState<string>('');
-  const [showWorkspaceSettingsId, setShowWorkspaceSettingsId] = useState<string | null>(null);
-  const [editWSName, setEditWSName] = useState<string>('');
-  const [editWSTheme, setEditWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
-  const [showWorkspaceSettingsModal, setShowWorkspaceSettingsModal] = useState(false);
-  const [editingWorkspaceForModal, setEditingWorkspaceForModal] = useState<any | null>(null);
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const setWorkspaces = useWorkspaceStore((s) => s.setWorkspaces);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const setActiveWorkspaceId = useWorkspaceStore((s) => s.setActiveWorkspaceId);
+  const showWorkspaceMenu = useUiStore((s) => s.showWorkspaceMenu);
+  const setShowWorkspaceMenu = useUiStore((s) => s.setShowWorkspaceMenu);
+  const showAddWorkspaceModal = useUiStore((s) => s.showAddWorkspaceModal);
+  const setShowAddWorkspaceModal = useUiStore((s) => s.setShowAddWorkspaceModal);
+  const modalSelectedCover = useUiStore((s) => s.modalSelectedCover);
+  const setModalSelectedCover = useUiStore((s) => s.setModalSelectedCover);
+  const showWorkspaceSettingsId = useUiStore((s) => s.showWorkspaceSettingsId);
+  const setShowWorkspaceSettingsId = useUiStore((s) => s.setShowWorkspaceSettingsId);
+  const editWSName = useUiStore((s) => s.editWSName);
+  const setEditWSName = useUiStore((s) => s.setEditWSName);
+  const editWSTheme = useUiStore((s) => s.editWSTheme);
+  const setEditWSTheme = useUiStore((s) => s.setEditWSTheme);
+  const showWorkspaceSettingsModal = useUiStore((s) => s.showWorkspaceSettingsModal);
+  const setShowWorkspaceSettingsModal = useUiStore((s) => s.setShowWorkspaceSettingsModal);
+  const editingWorkspaceForModal = useUiStore((s) => s.editingWorkspaceForModal);
+  const setEditingWorkspaceForModal = useUiStore((s) => s.setEditingWorkspaceForModal);
 
   // ClickUp Space & Lists Feature
-  const [spaces, setSpaces] = useState<Space[]>([]);
-  const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
-  const [activeListId, setActiveListId] = useState<string | null>(null);
+  const spaces = useSpaceStore((s) => s.spaces);
+  const setSpaces = useSpaceStore((s) => s.setSpaces);
+  const activeSpaceId = useSpaceStore((s) => s.activeSpaceId);
+  const setActiveSpaceId = useSpaceStore((s) => s.setActiveSpaceId);
+  const activeListId = useSpaceStore((s) => s.activeListId);
+  const setActiveListId = useSpaceStore((s) => s.setActiveListId);
   const [isSpacesExpanded, setIsSpacesExpanded] = useState<boolean>(true);
   const [isChannelsExpanded, setIsChannelsExpanded] = useState<boolean>(true);
   const [isDmsExpanded, setIsDmsExpanded] = useState<boolean>(true);
   const [isOtherAppsExpanded, setIsOtherAppsExpanded] = useState<boolean>(true);
   
-  // Modals for Spaces & Lists
-  const [showAddSpaceModal, setShowAddSpaceModal] = useState<boolean>(false);
-  const [newSpaceName, setNewSpaceName] = useState<string>('');
-  const [newSpaceEmoji, setNewSpaceEmoji] = useState<string>('📦');
-  const [newSpaceColor, setNewSpaceColor] = useState<string>('indigo');
-  const [showAddListSpaceId, setShowAddListSpaceId] = useState<string | null>(null);
-  const [newListName, setNewListName] = useState<string>('');
-  const [showSpaceSettingsId, setShowSpaceSettingsId] = useState<string | null>(null);
-  const [newSpaceDescription, setNewSpaceDescription] = useState<string>('');
-  const [newSpaceIsPrivate, setNewSpaceIsPrivate] = useState<boolean>(false);
-  const [newSpacePermission, setNewSpacePermission] = useState<string>('Full edit');
-  
-  // Localized Space Settings Modal States
-  const [editSpaceName, setEditSpaceName] = useState<string>('');
-  const [editSpaceEmoji, setEditSpaceEmoji] = useState<string>('📦');
-  const [editSpaceColor, setEditSpaceColor] = useState<string>('indigo');
-  const [editSpaceClickApps, setEditSpaceClickApps] = useState<any>({});
-  const [editSpaceStatuses, setEditSpaceStatuses] = useState<any[]>([]);
+  // Modals for Spaces & Lists - consumed from useUiStore
+  const showAddSpaceModal = useUiStore((s) => s.showAddSpaceModal);
+  const setShowAddSpaceModal = useUiStore((s) => s.setShowAddSpaceModal);
+  const newSpaceName = useUiStore((s) => s.newSpaceName);
+  const setNewSpaceName = useUiStore((s) => s.setNewSpaceName);
+  const newSpaceEmoji = useUiStore((s) => s.newSpaceEmoji);
+  const setNewSpaceEmoji = useUiStore((s) => s.setNewSpaceEmoji);
+  const newSpaceColor = useUiStore((s) => s.newSpaceColor);
+  const setNewSpaceColor = useUiStore((s) => s.setNewSpaceColor);
+  const showAddListSpaceId = useUiStore((s) => s.showAddListSpaceId);
+  const setShowAddListSpaceId = useUiStore((s) => s.setShowAddListSpaceId);
+  const newListName = useUiStore((s) => s.newListName);
+  const setNewListName = useUiStore((s) => s.setNewListName);
+  const showSpaceSettingsId = useUiStore((s) => s.showSpaceSettingsId);
+  const setShowSpaceSettingsId = useUiStore((s) => s.setShowSpaceSettingsId);
+  const newSpaceDescription = useUiStore((s) => s.newSpaceDescription);
+  const setNewSpaceDescription = useUiStore((s) => s.setNewSpaceDescription);
+  const newSpaceIsPrivate = useUiStore((s) => s.newSpaceIsPrivate);
+  const setNewSpaceIsPrivate = useUiStore((s) => s.setNewSpaceIsPrivate);
+  const newSpacePermission = useUiStore((s) => s.newSpacePermission);
+  const setNewSpacePermission = useUiStore((s) => s.setNewSpacePermission);
+
+  // Localized Space Settings Modal States - consumed from useUiStore
+  const editSpaceName = useUiStore((s) => s.editSpaceName);
+  const setEditSpaceName = useUiStore((s) => s.setEditSpaceName);
+  const editSpaceEmoji = useUiStore((s) => s.editSpaceEmoji);
+  const setEditSpaceEmoji = useUiStore((s) => s.setEditSpaceEmoji);
+  const editSpaceColor = useUiStore((s) => s.editSpaceColor);
+  const setEditSpaceColor = useUiStore((s) => s.setEditSpaceColor);
+  const editSpaceClickApps = useUiStore((s) => s.editSpaceClickApps);
+  const setEditSpaceClickApps = useUiStore((s) => s.setEditSpaceClickApps);
+  const editSpaceStatuses = useUiStore((s) => s.editSpaceStatuses);
+  const setEditSpaceStatuses = useUiStore((s) => s.setEditSpaceStatuses);
 
   // Load / Seed Spaces (Offline/Fallback)
   useEffect(() => {
@@ -453,10 +367,19 @@ export default function App() {
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
       name: newSpaceName.trim(),
-      emoji: newSpaceEmoji,
-      themeColor: newSpaceColor,
+      emoji: newSpaceEmoji || '📦',
+      themeColor: newSpaceColor || 'indigo',
       workspaceId: activeWorkspaceId,
-      lists: [{ id: `l-${Date.now()}-default`, name: 'General Tasks' }],
+      lists: [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
+      folders: [],
+      whiteboards: [],
+      channels: [],
+      statuses: [
+        { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
+        { id: 'inprogress', label: 'In Progress', color: '#6366f1', type: 'inprogress' },
+        { id: 'review', label: 'Review', color: '#f59e0b', type: 'review' },
+        { id: 'completed', label: 'Completed', color: '#10b981', type: 'completed' }
+      ],
       clickApps: { subtasks: true, priorities: true, customFields: true },
       description: newSpaceDescription,
       isPrivate: newSpaceIsPrivate,
@@ -465,6 +388,8 @@ export default function App() {
     const updated = [...spaces, newSpace];
     handleSaveSpaces(updated);
     setNewSpaceName('');
+    setNewSpaceEmoji('📦');
+    setNewSpaceColor('indigo');
     setNewSpaceDescription('');
     setNewSpaceIsPrivate(false);
     setNewSpacePermission('Full edit');
@@ -647,11 +572,14 @@ export default function App() {
 
 
 
-  const handleWorkspaceChange = (w: typeof workspaces[0]) => {
-    setActiveWorkspaceId(w.id);
+  const handleWorkspaceChange = (id: string) => {
+    const w = workspaces.find(ws => ws.id === id);
+    if (!w) return;
+    setActiveWorkspaceId(id);
     setAccentPreset(w.theme as any);
     setShowWorkspaceMenu(false);
-    // Mimic a loading/refresh effect by dispatching a custom event or reloading data
+    setActiveSpaceId(null);
+    setActiveListId(null);
     addSyncLog(`Switched to workspace: ${w.name}`);
   };
 
@@ -670,17 +598,6 @@ export default function App() {
   const cancelWorkspaceSettings = () => {
     setShowWorkspaceSettingsId(null);
   };
-
-  // Pomodoro Focus Timer enhanced states
-  const [workDuration, setWorkDuration] = useState(25);
-  const [shortBreakDuration, setShortBreakDuration] = useState(5);
-  const [longBreakDuration, setLongBreakDuration] = useState(15);
-  const [pomodoroMode, setPomodoroMode] = useState<'work' | 'short' | 'long'>('work');
-  const [showPomoSettings, setShowPomoSettings] = useState(false);
-
-  const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
-  const [pomodoroActive, setPomodoroActive] = useState(false);
-  const [previousStatus, setPreviousStatus] = useState<'online' | 'focused' | 'away'>('online');
 
   // Mount-only effect to load all persisted settings from localStorage safely in Next.js SSR
   useEffect(() => {
@@ -801,14 +718,20 @@ export default function App() {
     triggerToast('success', 'Updated Successfully', 'New Pomodoro durations configuration applied.');
   };
 
-  // Global search navigation & selection triggers
-  const [initialSelectedTaskId, setInitialSelectedTaskId] = useState<string | null>(null);
-  const [initialSelectedDocId, setInitialSelectedDocId] = useState<string | null>(null);
-  const [initialSelectedChannelId, setInitialSelectedChannelId] = useState<string | null>(null);
+  // Global search navigation & selection triggers - consumed from useUiStore
+  const initialSelectedTaskId = useUiStore((s) => s.initialSelectedTaskId);
+  const setInitialSelectedTaskId = useUiStore((s) => s.setInitialSelectedTaskId);
+  const initialSelectedDocId = useUiStore((s) => s.initialSelectedDocId);
+  const setInitialSelectedDocId = useUiStore((s) => s.setInitialSelectedDocId);
+  const initialSelectedChannelId = useUiStore((s) => s.initialSelectedChannelId);
+  const setInitialSelectedChannelId = useUiStore((s) => s.setInitialSelectedChannelId);
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchCategory, setSearchCategory] = useState<'all' | 'tasks' | 'docs' | 'channels'>('all');
+  const isSearchOpen = useUiStore((s) => s.isSearchOpen);
+  const setIsSearchOpen = useUiStore((s) => s.setIsSearchOpen);
+  const searchQuery = useUiStore((s) => s.searchQuery);
+  const setSearchQuery = useUiStore((s) => s.setSearchQuery);
+  const searchCategory = useUiStore((s) => s.searchCategory);
+  const setSearchCategory = useUiStore((s) => s.setSearchCategory);
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Reset category filter when search modal is opened/closed
@@ -835,102 +758,69 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Pomodoro Focus Timer countdown loop and status trigger
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (pomodoroActive) {
-      interval = setInterval(() => {
-        setPomodoroTime(prev => {
-          if (prev <= 1) {
-            setPomodoroActive(false);
-            setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
-            
-            const modeLabel = pomodoroMode === 'work' ? 'Focus' : (pomodoroMode === 'short' ? 'Short Break' : 'Long Break');
-            const minutes = pomodoroMode === 'work' ? workDuration : (pomodoroMode === 'short' ? shortBreakDuration : longBreakDuration);
-            
-            // Auto switch modes: work completed -> short break; break completed -> work duration
-            let nextMode: 'work' | 'short' | 'long' = 'work';
-            let nextTime = workDuration * 60;
-            if (pomodoroMode === 'work') {
-              nextMode = 'short';
-              nextTime = shortBreakDuration * 60;
-            } else {
-              nextMode = 'work';
-              nextTime = workDuration * 60;
-            }
-            
-            setPomodoroMode(nextMode);
-            
-            setTimeout(() => {
-              triggerToast('success', 'Focus Completed!', `Pomodoro focus session ${modeLabel} of ${minutes} minutes completed successfully.`);
-              addSyncLog(`Completed Pomodoro focus session ${modeLabel} of ${minutes} minutes`);
-            }, 0);
-            return nextTime;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [pomodoroActive, previousStatus, pomodoroMode, workDuration, shortBreakDuration, longBreakDuration]);
+  // Pomodoro Focus Timer state - consumed from usePomodoroStore
+  const workDuration = usePomodoroStore((s) => s.workDuration);
+  const setWorkDuration = usePomodoroStore((s) => s.setWorkDuration);
+  const shortBreakDuration = usePomodoroStore((s) => s.shortBreakDuration);
+  const setShortBreakDuration = usePomodoroStore((s) => s.setShortBreakDuration);
+  const longBreakDuration = usePomodoroStore((s) => s.longBreakDuration);
+  const setLongBreakDuration = usePomodoroStore((s) => s.setLongBreakDuration);
+  const pomodoroMode = usePomodoroStore((s) => s.pomodoroMode);
+  const setPomodoroMode = usePomodoroStore((s) => s.setPomodoroMode);
+  const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
+  const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
+  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
+  const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
+  const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
+  const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
+  const previousStatus = usePomodoroStore((s) => s.previousStatus);
+  const setPreviousStatus = usePomodoroStore((s) => s.setPreviousStatus);
 
-  // Sync Activity log state
-  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([
-    { id: 'l1', action: 'Initialized Avaxa OS Engine', time: '09:00 AM', status: 'synced' },
-    { id: 'l2', action: 'Synchronized real-time collaboration channels', time: '09:05 AM', status: 'synced' }
-  ]);
+  // Offline/Sync state - consumed from useSyncStore
+  const isOffline = useSyncStore((s) => s.isOffline);
+  const setIsOffline = useSyncStore((s) => s.setIsOffline);
+  const syncing = useSyncStore((s) => s.syncing);
+  const setSyncing = useSyncStore((s) => s.setSyncing);
+  const syncProgress = useSyncStore((s) => s.syncProgress);
+  const setSyncProgress = useSyncStore((s) => s.setSyncProgress);
+  const offlineTasksQueue = useSyncStore((s) => s.offlineTasksQueue);
+  const setOfflineTasksQueue = useSyncStore((s) => s.setOfflineTasksQueue);
+  const offlineDocsQueue = useSyncStore((s) => s.offlineDocsQueue);
+  const setOfflineDocsQueue = useSyncStore((s) => s.setOfflineDocsQueue);
+  const offlineMembersQueue = useSyncStore((s) => s.offlineMembersQueue);
+  const setOfflineMembersQueue = useSyncStore((s) => s.setOfflineMembersQueue);
+  const offlineDeletedTasks = useSyncStore((s) => s.offlineDeletedTasks);
+  const setOfflineDeletedTasks = useSyncStore((s) => s.setOfflineDeletedTasks);
+  const offlineDeletedDocs = useSyncStore((s) => s.offlineDeletedDocs);
+  const setOfflineDeletedDocs = useSyncStore((s) => s.setOfflineDeletedDocs);
+  const offlineDeletedMembers = useSyncStore((s) => s.offlineDeletedMembers);
+  const setOfflineDeletedMembers = useSyncStore((s) => s.setOfflineDeletedMembers);
 
-  // Tasks ClickUp dataset (synchronized and persisted via Supabase cloud storage)
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // Sync Activity log state - consumed from useSyncStore
+  const syncLogs = useSyncStore((s) => s.syncLogs);
 
-  // Documents Wiki dataset (synchronized and persisted via Supabase cloud storage)
-  const [docs, setDocs] = useState<Document[]>([]);
+  // Tasks ClickUp dataset
+  const tasks = useTaskStore((s) => s.tasks);
+  const setTasks = useTaskStore((s) => s.setTasks);
 
-  // Search indexing and query data filtering
-  const channelsList = [
-    { id: 'general', name: 'general', description: 'General company discussions, announcements of new updates' },
-    { id: 'project-planning', name: 'project-planning', description: 'Weekly planning maps & KPI schedules' },
-    { id: 'avaxa-brain-ai', name: 'avaxa-brain-ai', description: 'Gemini-powered AI Avaxa Brain smart assistant chat room' },
-    { id: 'design-review', name: 'design-review', description: 'Evaluate sketches, whiteboard drawings, design previews' }
-  ];
+  // Documents Wiki dataset
+  const docs = useDocStore((s) => s.docs);
+  const setDocs = useDocStore((s) => s.setDocs);
 
-  const filteredTasks = searchQuery.trim() === '' ? [] : tasks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    t.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Avaxa Base (no-code database) dataset
+  const bases = useBaseStore((s) => s.bases);
+  const setBases = useBaseStore((s) => s.setBases);
 
-  const filteredDocs = searchQuery.trim() === '' ? [] : docs.filter(d => 
-    d.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    d.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredChannels = searchQuery.trim() === '' ? [] : channelsList.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalResultsCount = filteredTasks.length + filteredDocs.length + filteredChannels.length;
-
-  // Toast notification state
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  // Toast notification state - consumed from useNotificationStore
+  const toasts = useNotificationStore((s) => s.toasts);
+  const removeToast = useNotificationStore((s) => s.removeToast);
   const lastToastsRef = useRef<Record<string, number>>({});
 
-  // Persistent notifications history list (for visual management tray)
-  const [notificationsList, setNotificationsList] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem('avaxa_notifications_list');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {}
-    return [
-      { id: 'notif-1', type: 'assignment', title: 'New Task Assigned', message: 'You have been assigned to "Complete Dashboard UI"', timestamp: '10:30 15/06', read: false },
-      { id: 'notif-2', type: 'deadline', title: 'Upcoming Task Deadline', message: 'Task "Integrate AI API" is due tomorrow!', timestamp: '08:15 15/06', read: true }
-    ];
-  });
-  const [showNotificationsMenu, setShowNotificationsMenu] = useState(false);
+  // Persistent notifications history list
+  const notificationsList = useNotificationStore((s) => s.notificationsList);
+  const setNotificationsList = useNotificationStore((s) => s.setNotificationsList);
+  const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
+  const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
 
   useEffect(() => {
     try {
@@ -1051,15 +941,12 @@ export default function App() {
       }
     }
 
-    setToasts(prev => {
-      const current = prev.slice(-3); // Limit active concurrent toasts and prevent screen spill
-      return [...current, {
-        id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        type,
-        title,
-        message,
-        duration: notificationSettings.toastDuration
-      }];
+    addToast({
+      id: `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      type,
+      title,
+      message,
+      duration: notificationSettings.toastDuration
     });
   };
 
@@ -1139,28 +1026,17 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // Network offline simulation
-  const [isOffline, setIsOffline] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-
-  // Optimized offline mutation queues to reduce sync network overhead
-  const [offlineTasksQueue, setOfflineTasksQueue] = useState<Record<string, Task>>({});
-  const [offlineDocsQueue, setOfflineDocsQueue] = useState<Record<string, Document>>({});
-  const [offlineMembersQueue, setOfflineMembersQueue] = useState<Record<string, User>>({});
-  const [offlineDeletedTasks, setOfflineDeletedTasks] = useState<string[]>([]);
-  const [offlineDeletedDocs, setOfflineDeletedDocs] = useState<string[]>([]);
-  const [offlineDeletedMembers, setOfflineDeletedMembers] = useState<string[]>([]);
-
-  // Members corporate list dataset (synchronized and persisted via Supabase cloud storage)
-  const [members, setMembers] = useState<User[]>([]);
+  // Members corporate list dataset
+  const members = useMemberStore((s) => s.members);
+  const setMembers = useMemberStore((s) => s.setMembers);
 
   // Auto-save member workspace mappings to localStorage
   useEffect(() => {
-    if (!currentUser?.email || members.length === 0) return;
+    const currentMembers = useMemberStore.getState().members;
+    if (!currentUser?.email || currentMembers.length === 0) return;
     const mappings: Record<string, string[]> = {};
     let hasWorkspaceIds = false;
-    members.forEach(m => {
+    currentMembers.forEach(m => {
       if (m.workspaceIds && m.workspaceIds.length > 0) {
         mappings[m.id] = m.workspaceIds;
         hasWorkspaceIds = true;
@@ -1169,7 +1045,7 @@ export default function App() {
     if (hasWorkspaceIds) {
       localStorage.setItem(`avaxa_member_workspaces_${currentUser.email}`, JSON.stringify(mappings));
     }
-  }, [members, currentUser]);
+  }, [currentUser?.email]);
 
   // Global SyncLog adder
   const addSyncLog = (action: string) => {
@@ -1632,6 +1508,35 @@ export default function App() {
           setDocs([]);
         }
 
+        // C2. Load Base apps from Supabase
+        try {
+          const { data: dbBases } = await supabase
+            .from('base_apps')
+            .select('*')
+            .eq('user_id', userId);
+
+          if (active && dbBases && dbBases.length > 0) {
+            setBases(dbBases.map(b => ({
+              id: b.id,
+              name: b.name,
+              emoji: b.emoji || '📋',
+              description: b.description || '',
+              tables: b.tables || [],
+              activeTableId: b.active_table_id || undefined,
+              workspaceId: b.workspace_id || undefined,
+              createdAt: b.created_at || new Date().toISOString(),
+              updatedAt: b.updated_at || new Date().toISOString(),
+            })));
+            try { localStorage.setItem('avaxa_bases', JSON.stringify(dbBases.map(b => ({
+              id: b.id, name: b.name, emoji: b.emoji, description: b.description,
+              tables: b.tables, activeTableId: b.active_table_id, workspaceId: b.workspace_id,
+              createdAt: b.created_at, updatedAt: b.updated_at,
+            })))); } catch (e) {}
+          }
+        } catch (e) {
+          console.warn('Base apps load warning (table may not exist yet):', e);
+        }
+
         // D. Load Spaces and Lists from Supabase
         const fetchSpacesAndLists = async () => {
           try {
@@ -1692,7 +1597,7 @@ export default function App() {
           }
         };
 
-        let spacesSuccess = await fetchSpacesAndLists();
+        const spacesSuccess = await fetchSpacesAndLists();
         
         if (!spacesSuccess && active) {
           // Seed from localStorage or defaults
@@ -2516,6 +2421,70 @@ export default function App() {
     }
   };
 
+  // Persist bases to localStorage
+  useEffect(() => {
+    if (!isLoaded.current) return;
+    try { localStorage.setItem('avaxa_bases', JSON.stringify(bases)); } catch (e) {}
+  }, [bases]);
+
+  const syncBaseToSupabase = async (base: BaseApp, session: { user: { id: string } }) => {
+    const payload = {
+      id: base.id,
+      name: base.name,
+      emoji: base.emoji || '📋',
+      description: base.description || '',
+      tables: base.tables,
+      active_table_id: base.activeTableId || null,
+      workspace_id: base.workspaceId || activeWorkspaceId,
+      updated_at: base.updatedAt,
+      user_id: session.user.id,
+    };
+    const { error } = await supabase.from('base_apps').upsert([payload]);
+    if (error) console.warn('Base sync warning:', error.message);
+  };
+
+  const handleAddBase = async (base: BaseApp) => {
+    const baseWithWs = { ...base, workspaceId: activeWorkspaceId };
+    setBases(prev => [...prev, baseWithWs]);
+    addSyncLog(`Created Base: "${baseWithWs.name}"`);
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) await syncBaseToSupabase(baseWithWs, session);
+      } catch (err) {
+        console.error('Base insert sync failure:', err);
+      }
+    }
+  };
+
+  const handleUpdateBase = async (updated: BaseApp) => {
+    const withTimestamp = { ...updated, updatedAt: new Date().toISOString() };
+    setBases(prev => prev.map(b => b.id === withTimestamp.id ? withTimestamp : b));
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) await syncBaseToSupabase(withTimestamp, session);
+      } catch (err) {
+        console.error('Base update sync failure:', err);
+      }
+    }
+  };
+
+  const handleDeleteBase = async (id: string) => {
+    setBases(prev => prev.filter(b => b.id !== id));
+    addSyncLog('Deleted a Base app');
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase.from('base_apps').delete().eq('id', id).eq('user_id', session.user.id);
+        }
+      } catch (err) {
+        console.error('Base delete sync failure:', err);
+      }
+    }
+  };
+
   const handleAddMember = async (m: Omit<User, 'id'>) => {
     const newMemberId = `member-${Date.now()}`;
     const newMemberObj: User = {
@@ -2620,6 +2589,7 @@ export default function App() {
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
     { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
+    { id: 'base', label: 'Avaxa Base', icon: Database, category: 'workspace' },
     { id: 'whiteboard', label: 'Mind Whiteboard', icon: Grid, category: 'collaboration' },
     { id: 'chat', label: 'Chat Room', icon: MessageSquare, category: 'collaboration' },
     { id: 'docs', label: 'Wiki Docs', icon: Edit3, category: 'collaboration' },
@@ -2630,20 +2600,21 @@ export default function App() {
 
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={(user, rememberMe) => {
-      setCurrentUser(user);
+      const userWithId = { ...user, id: user.email ? `user-${user.email}` : `user-${Date.now()}` };
+      setCurrentUser(userWithId);
       if (rememberMe) {
         const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
         localStorage.setItem('avaxa_session', JSON.stringify({
-          user,
+          user: userWithId,
           expiresAt: Date.now() + oneMonthInMs
         }));
-        addSyncLog(`Saved automatic login session for 1 month for ${user.name}`);
+        addSyncLog(`Saved automatic login session for 1 month for ${userWithId.name}`);
       } else {
         localStorage.removeItem('avaxa_session');
       }
       
       // Update in members directory
-      setMembers(prev => prev.map(m => m.id === 'user' ? {
+      setMembers(prev => prev.map(m => m.id === 'user' ? { 
         ...m,
         name: user.name,
         email: user.email,
@@ -2730,7 +2701,7 @@ export default function App() {
                     {workspaces.map(w => (
                       <div key={w.id} className="relative group">
                         <motion.button
-                          onClick={() => handleWorkspaceChange(w)}
+                           onClick={() => handleWorkspaceChange(w.id)}
                           whileHover={{ 
                             scale: 1.025, 
                             boxShadow: '0 6px 16px rgba(99, 102, 241, 0.16)',
@@ -2858,10 +2829,11 @@ export default function App() {
               
               {/* Home, Inbox, Space (with nested spaces list) */}
               <div className="space-y-0.5">
-                {[
+                 {[
                   { id: 'dashboard', label: 'Home Overview', icon: LayoutDashboard },
                   { id: 'inbox', label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
                   { id: 'chat', label: 'Chat', icon: MessageSquare },
+                  { id: 'base', label: 'Avaxa Base', icon: Database },
                 ].map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -3625,6 +3597,7 @@ export default function App() {
         {(() => {
           const currentWorkspaceTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
           const currentWorkspaceDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
+          const currentWorkspaceBases = bases.filter(b => b.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !b.workspaceId));
           const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard';
           
           return (
@@ -3846,6 +3819,40 @@ export default function App() {
                     />
                   )}
 
+                  {activeTab === 'base' && (
+                    <BaseHub
+                      bases={currentWorkspaceBases}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      isOffline={isOffline}
+                      spaces={spaces}
+                      tasks={tasks}
+                      onAddBase={handleAddBase}
+                      onUpdateBase={handleUpdateBase}
+                      onDeleteBase={handleDeleteBase}
+                      onAddSpace={(space) => {
+                        const newSpace: Space = {
+                          ...space,
+                          id: space.id || `s-${Date.now()}`,
+                          lists: space.lists?.length ? space.lists : [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
+                          statuses: space.statuses?.length ? space.statuses : [
+                            { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
+                            { id: 'inprogress', label: 'In Progress', color: '#6366f1', type: 'inprogress' },
+                            { id: 'review', label: 'Review', color: '#f59e0b', type: 'review' },
+                            { id: 'completed', label: 'Done', color: '#10b981', type: 'completed' },
+                          ],
+                          clickApps: space.clickApps || { subtasks: true, priorities: true },
+                        };
+                        handleSaveSpaces([...spaces, newSpace]);
+                        triggerToast('success', 'New Space Created', `Created space "${newSpace.name}"`);
+                        addSyncLog(`Created new Space: "${newSpace.name}" from BaseHub`);
+                      }}
+                      onUpdateSpace={(space) => handleSaveSpaces([...spaces.map(s => s.id === space.id ? space : s)])}
+                      onDeleteSpace={handleDeleteSpace}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+
                   {activeTab === 'team' && (
                     <TeamDirectory
                       members={members}
@@ -3913,10 +3920,11 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Bar replacing sidebar on mobile */}
       <nav className="md:hidden shrink-0 liquid-glass flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom)] border-t border-slate-200/50 dark:border-slate-800">
-        {[
+         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'tasks', label: 'Tasks', icon: Briefcase },
           { id: 'chat', label: 'Chat', icon: MessageSquare },
+          { id: 'base', label: 'Base', icon: Database },
           { id: 'whiteboard', label: 'Whiteboard', icon: Grid },
           { id: 'settings', label: 'Settings', icon: Settings },
         ].map((item) => {
@@ -4011,7 +4019,7 @@ export default function App() {
       />
 
       {/* Real-time Toast Notification container in top-right corner */}
-      <ToastNotification toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+      <ToastNotification toasts={toasts} onClose={(id) => removeToast(id)} />
 
       {/* Immersive Global Search Modal overlay */}
       <AnimatePresence>
@@ -4639,22 +4647,52 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Icon & Name Row */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Icon & name</label>
-                  <div className="flex items-center gap-3">
-                    {/* Icon Preview Box */}
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold text-sm shadow-3xs shrink-0 select-none uppercase">
-                      {newSpaceEmoji ? newSpaceEmoji : (newSpaceName.trim() ? newSpaceName.trim().charAt(0) : 'S')}
+                {/* Icon, Color & Name Row */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Icon (Emoji)</label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold text-sm shadow-3xs shrink-0 select-none uppercase">
+                          {newSpaceEmoji || '📦'}
+                        </div>
+                        <input 
+                          type="text" 
+                          maxLength={2}
+                          value={newSpaceEmoji} 
+                          onChange={e => setNewSpaceEmoji(e.target.value)} 
+                          placeholder="📦" 
+                          className="w-16 text-center px-2 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                        />
+                      </div>
                     </div>
-                    {/* Name Input */}
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Theme Color</label>
+                      <select 
+                        value={newSpaceColor} 
+                        onChange={e => setNewSpaceColor(e.target.value)} 
+                        className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-700 dark:text-slate-300 font-bold cursor-pointer h-10"
+                      >
+                        <option value="indigo">Purple</option>
+                        <option value="rose">Pink</option>
+                        <option value="sky">Sky Blue</option>
+                        <option value="emerald">Emerald</option>
+                        <option value="amber">Amber</option>
+                        <option value="sunset">Sunset</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Space Name</label>
                     <input 
                       type="text" 
                       required 
                       value={newSpaceName} 
                       onChange={e => setNewSpaceName(e.target.value)} 
                       placeholder="e.g. Marketing, Engineering, HR" 
-                      className="flex-1 px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
                     />
                   </div>
                 </div>

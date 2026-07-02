@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, User, Space } from '../types';
+import { Task, User, Space, Priority } from '../types';
 import { 
   Folder, FolderOpen, Bookmark, Plus, Trash2, ExternalLink, Calendar, 
   Flag, User as UserIcon, List, Clock, CheckCircle2, ChevronDown, ChevronRight
@@ -336,7 +336,7 @@ export default function SpaceOverviewTab({
                   }}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Folder className="w-5 h-5 text-indigo-500 shrink-0" />
+                    <Folder className="w-5 h-5 shrink-0" style={{ color: folder.color || '#6366f1' }} />
                     <span className="text-xs font-bold text-slate-850 dark:text-slate-255 truncate">{folder.name}</span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-semibold">{folderLists.length} Lists</p>
@@ -394,20 +394,67 @@ export default function SpaceOverviewTab({
                 const listTasks = tasks.filter(t => t.listId === list.id);
                 const totalCount = listTasks.length;
                 const completedCount = listTasks.filter(t => t.status === 'completed').length;
-                const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 105) : 0;
+                const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
                 // Find owners (unique assignees)
                 const listAssigneeIds = Array.from(new Set(listTasks.map(t => t.assigneeId).filter(Boolean)));
                 const listOwners = members.filter(m => listAssigneeIds.includes(m.id === 'user' ? 'user' : m.id));
 
+                // Calculate date range of tasks in this list
+                let earliest: Date | null = null;
+                let latest: Date | null = null;
+                listTasks.forEach(t => {
+                  if (t.startDate) {
+                    const d = new Date(t.startDate);
+                    if (!isNaN(d.getTime())) {
+                      if (!earliest || d < earliest) earliest = d;
+                    }
+                  }
+                  if (t.dueDate) {
+                    const d = new Date(t.dueDate);
+                    if (!isNaN(d.getTime())) {
+                      if (!latest || d > latest) latest = d;
+                      if (!earliest || d < earliest) earliest = d;
+                    }
+                  }
+                });
+
+                // Calculate highest priority of tasks in this list
+                const weight = { urgent: 4, high: 3, medium: 2, low: 1 };
+                let highestPrio: Priority | null = null;
+                let maxWeight = 0;
+                listTasks.forEach(t => {
+                  const w = weight[t.priority] || 0;
+                  if (w > maxWeight) {
+                    maxWeight = w;
+                    highestPrio = t.priority;
+                  }
+                });
+
+                const formatDate = (date: Date | null) => {
+                  if (!date) return '-';
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                };
+
+                // Dynamic dot color map based on space theme
+                const themeColors: Record<string, string> = {
+                  indigo: 'bg-[#7B61FF]',
+                  rose: 'bg-[#FF3366]',
+                  sky: 'bg-[#33D1FF]',
+                  emerald: 'bg-[#10b981]',
+                  amber: 'bg-[#f59e0b]',
+                  sunset: 'bg-[#f97316]'
+                };
+                const dotColorClass = themeColors[space.themeColor || 'indigo'] || 'bg-[#7B61FF]';
+
                 return (
                   <tr 
                     key={list.id} 
-                    className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/20 dark:hover:bg-slate-900/30 transition-colors text-slate-700 dark:text-slate-350 align-middle"
+                    className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/20 dark:hover:bg-slate-900/30 transition-colors text-slate-700 dark:text-slate-355 align-middle"
                   >
                     <td className="py-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="p-1.5 bg-slate-50 dark:bg-slate-950 text-slate-500 border border-slate-200/40 dark:border-slate-800 rounded-lg">
+                        <div className="p-1.5 bg-slate-50 dark:bg-slate-955 text-slate-500 border border-slate-200/40 dark:border-slate-800 rounded-lg">
                           <List className="w-3.5 h-3.5 text-slate-400" />
                         </div>
                         <button 
@@ -420,7 +467,7 @@ export default function SpaceOverviewTab({
                     </td>
                     
                     <td className="py-4 text-center">
-                      <div className="inline-block w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-655" />
+                      <div className={`inline-block w-2.5 h-2.5 rounded-full ${dotColorClass} shadow-3xs`} />
                     </td>
 
                     <td className="py-4">
@@ -431,26 +478,48 @@ export default function SpaceOverviewTab({
                             style={{ width: `${Math.min(100, progressPct)}%` }}
                           />
                         </div>
-                        <span className="text-[10px] font-extrabold text-slate-450">{completedCount}/{totalCount}</span>
+                        <span className="text-[10px] font-extrabold text-slate-455">{completedCount}/{totalCount}</span>
                       </div>
                     </td>
 
                     <td className="py-4 text-center">
-                      <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-slate-350 hover:text-slate-600 transition-colors mx-auto flex">
-                        <Calendar className="w-3.5 h-3.5" />
-                      </button>
+                      {earliest ? (
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 px-2 py-1 rounded-md border border-slate-200/40 dark:border-slate-800/80">
+                          {formatDate(earliest)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-700 text-xs font-semibold">-</span>
+                      )}
                     </td>
 
                     <td className="py-4 text-center">
-                      <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-slate-350 hover:text-slate-600 transition-colors mx-auto flex">
-                        <Calendar className="w-3.5 h-3.5" />
-                      </button>
+                      {latest ? (
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 px-2 py-1 rounded-md border border-slate-200/40 dark:border-slate-800/80">
+                          {formatDate(latest)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-slate-700 text-xs font-semibold">-</span>
+                      )}
                     </td>
 
                     <td className="py-4 text-center">
-                      <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-slate-350 hover:text-slate-600 transition-colors mx-auto flex">
-                        <Flag className="w-3.5 h-3.5" />
-                      </button>
+                      {highestPrio ? (() => {
+                        const prioColors: Record<Priority, string> = {
+                          urgent: 'text-rose-500 bg-rose-50 dark:bg-rose-955/20 border-rose-100 dark:border-rose-900/30',
+                          high: 'text-amber-500 bg-amber-50 dark:bg-amber-955/20 border-amber-100 dark:border-amber-900/30',
+                          medium: 'text-blue-500 bg-blue-50 dark:bg-blue-955/20 border-blue-100 dark:border-blue-900/30',
+                          low: 'text-slate-400 bg-slate-50 dark:bg-slate-855 border-slate-200/50 dark:border-slate-800'
+                        };
+                        const flagColorClass = prioColors[highestPrio] || prioColors.low;
+                        return (
+                          <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${flagColorClass}`}>
+                            <Flag className="w-2.5 h-2.5 fill-currentColor" />
+                            <span>{highestPrio}</span>
+                          </div>
+                        );
+                      })() : (
+                        <span className="text-slate-300 dark:text-slate-700 text-xs font-semibold">-</span>
+                      )}
                     </td>
 
                     <td className="py-4 text-center">

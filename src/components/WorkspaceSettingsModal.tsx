@@ -3,28 +3,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, Upload, Trash2, Check, Loader2, Sparkles, AlertTriangle, 
-  Briefcase, Sliders, ShieldCheck, Image, Save, HelpCircle, UserPlus
+  Upload, Trash2, Loader2, AlertTriangle, 
+  Briefcase, Sliders, ShieldCheck, Image, Save
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { Workspace } from '../types';
+import { Workspace, User } from '../types';
 import { WORKSPACE_COVERS } from './SettingsPanel';
 
 interface WorkspaceSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   workspace: Workspace | null;
-  currentUser: any;
+  currentUser: User;
   onUpdateWorkspace: (
     id: string, 
     name: string, 
     theme: string, 
     coverUrl?: string, 
     logoUrl?: string, 
-    settings?: any
+    settings?: Record<string, unknown>
   ) => void;
   onDeleteWorkspace?: (id: string) => void;
-  members: any[];
+  members: User[];
   workspacesCount: number;
 }
 
@@ -45,7 +45,7 @@ export default function WorkspaceSettingsModal({
   const [theme, setTheme] = useState('indigo');
   const [coverUrl, setCoverUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [clickApps, setClickApps] = useState<any>({});
+  const [clickApps, setClickApps] = useState<Record<string, boolean>>({});;
   
   // Loading & uploading states
   const [isUploading, setIsUploading] = useState(false);
@@ -123,9 +123,10 @@ export default function WorkspaceSettingsModal({
       if ((window as any).playSystemSound) {
         (window as any).playSystemSound('success');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error("Error uploading workspace avatar:", error);
-      alert(`Upload failed: ${error.message || 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Upload failed: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
@@ -194,7 +195,7 @@ export default function WorkspaceSettingsModal({
   };
 
   const toggleClickApp = (key: string) => {
-    setClickApps((prev: any) => ({
+    setClickApps((prev: Record<string, boolean>) => ({
       ...prev,
       [key]: !prev[key]
     }));
@@ -548,7 +549,7 @@ export default function WorkspaceSettingsModal({
                         No additional staff enrolled. You can add them in the Team directory.
                       </div>
                     ) : (
-                      activeWSMembers.map((member: any) => (
+                      activeWSMembers.map((member: User) => (
                         <div 
                           key={member.id} 
                           className="flex items-center justify-between gap-4 p-3 bg-slate-50/65 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/80 rounded-2xl"

@@ -1,7 +1,7 @@
 /**
  * Helper to call Avaxa AI APIs with dynamic client-side settings (model, temperature, search grounding).
  */
-export async function callAiApi(endpoint: string, body: any = {}) {
+export async function callAiApi(endpoint: string, body: Record<string, unknown> = {}) {
   let savedApiKey = "";
   let savedModel = "";
   let savedTemp = "";

@@ -33,7 +33,7 @@ interface TaskTableViewProps {
 
 export default function TaskTableView({
   filteredTasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
-  onUpdateTask, onAddSyncLog, triggerToast,
+  onUpdateTask, onAddSyncLog,
   visibleFields, customFields = [], onOpenFieldsPanel
 }: TaskTableViewProps) {
   const [sortCol, setSortCol] = useState<string>('');

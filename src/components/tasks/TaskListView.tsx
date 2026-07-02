@@ -3,17 +3,16 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { ChevronDown, Plus, GripVertical, Paperclip, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
-import { PriorityPillSelect, StatusPillSelect } from './TaskSelects';
+import { PriorityPillSelect } from './TaskSelects';
 import SignedImage from '../SignedImage';
 
-const DraggableCast = Draggable as any;
+const DraggableCast = Draggable as typeof Draggable;
 
-function StrictModeDroppable({ children, ...props }: any) {
+function StrictModeDroppable({ children, ...props }: { children: (provided: DroppableProvided, snapshot?: any) => React.ReactNode; droppableId: string; type: string }) {
   const [enabled, setEnabled] = useState(false);
-  const ref = useRef(false);
   React.useEffect(() => {
     const animation = requestAnimationFrame(() => setEnabled(true));
     return () => { cancelAnimationFrame(animation); setEnabled(false); };
@@ -84,7 +83,7 @@ export default function TaskListView({
     }
   }, [activeDragId]);
 
-  const handleDragStart = (start: any) => {
+  const handleDragStart = (start: DragStart) => {
     setActiveDragId(start.draggableId);
   };
 
@@ -133,7 +132,7 @@ export default function TaskListView({
     { id: 'completed', label: 'DONE', color: '#10b981', type: 'completed' as TaskStatus }
   ];
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     setActiveDragId(null);
     if (!result.destination) return;
     const { draggableId, destination } = result;
@@ -189,7 +188,7 @@ export default function TaskListView({
               {isExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                   <StrictModeDroppable droppableId={statusItem.id} type="task">
-{(provided: any) => (
+{(provided: DroppableProvided) => (
                         <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[4px]">
                           {groupTasks.map((task, index) => {
                             const assignee = members.find(m => m.id === task.assigneeId);
@@ -198,7 +197,7 @@ export default function TaskListView({
 
                             return (
                               <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
-                                {(dragProvided: any, dragSnapshot: any) => (
+                                {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
                                   <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
                                     style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
                                     <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}

@@ -12,7 +12,7 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface ProfilePageProps {
-  currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member'; isPremium?: boolean };
+  currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member' | 'guest'; isPremium?: boolean };
   setCurrentUser: (user: any) => void;
   members: User[];
   setMembers: React.Dispatch<React.SetStateAction<User[]>>;

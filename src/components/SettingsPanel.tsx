@@ -310,6 +310,30 @@ CREATE POLICY "Cho phép cập nhật focus_sessions của chính mình" ON publ
 CREATE POLICY "Cho phép xóa focus_sessions của chính mình" ON public.focus_sessions
     FOR DELETE USING (auth.uid() = user_id);
 
+-- 5b. Tạo bảng base_apps lưu trữ Avaxa Base (no-code database)
+CREATE TABLE IF NOT EXISTS public.base_apps (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    emoji TEXT DEFAULT '📋',
+    description TEXT DEFAULT '',
+    tables JSONB DEFAULT '[]'::jsonb,
+    active_table_id TEXT,
+    workspace_id TEXT,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.base_apps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Cho phép đọc base_apps của chính mình" ON public.base_apps
+    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Cho phép tạo base_apps của họ" ON public.base_apps
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Cho phép cập nhật base_apps của chính mình" ON public.base_apps
+    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Cho phép xóa base_apps của chính mình" ON public.base_apps
+    FOR DELETE USING (auth.uid() = user_id);
+
 -- 6. Cấu hình Storage Bucket và chính sách cho Avatars
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('avatars', 'avatars', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])

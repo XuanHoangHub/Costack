@@ -1,16 +1,15 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useTranslation } from '../../contexts/TranslationContext';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space } from '../../types';
-import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
+import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
+import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
 import SignedImage from '../SignedImage';
 import {
   X, Trash2, Bot, CheckSquare, Plus, Edit2, Send, Paperclip, Upload,
   MessageSquare, History, Clock, Pin, Tag, Sparkles, FileText, Check,
-  Calendar, User as UserIcon, Flag, CircleDot, ArrowRight, Folder, ChevronDown, RefreshCw, SlidersHorizontal, Phone, Search, Filter, Activity
+  Calendar, User as UserIcon, Flag, CircleDot, ChevronDown, RefreshCw, SlidersHorizontal, Phone, Search, Filter, Activity
 } from 'lucide-react';
 
 // ── Priority theme mapping ──
@@ -57,16 +56,16 @@ interface TaskDetailsPanelProps {
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onAddSyncLog: (log: string) => void;
-  triggerToast?: (type: any, title: string, message: string) => void;
+  triggerToast?: (type: 'success' | 'error' | 'info' | 'warning' | 'comment', title: string, message: string) => void;
   onAttachmentUpload: (task: Task, e: React.ChangeEvent<HTMLInputElement> | File) => void;
-  onAttachmentDelete: (task: Task, att: any) => void;
+  onAttachmentDelete: (task: Task, att: TaskAttachment) => void;
   onAiSubtasks: (task: Task) => void;
   aiGenerating: boolean;
   onAiSummary: (task: Task) => void;
   isSummarizing: boolean;
   aiSummary: string;
   allTasks?: Task[];
-  allDocs?: any[];
+  allDocs?: Document[];
   onOpenFieldsPanel?: () => void;
 }
 
@@ -75,7 +74,6 @@ export default function TaskDetailsPanel({
    onAttachmentUpload, onAttachmentDelete, onAiSubtasks, aiGenerating,
    onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel
  }: TaskDetailsPanelProps) {
-  const { t } = useTranslation();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [descValue, setDescValue] = useState(task.description);
@@ -92,7 +90,7 @@ export default function TaskDetailsPanel({
   const [fieldsExpanded, setFieldsExpanded] = useState(true);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef = React.useRef<any>(null);
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   React.useEffect(() => {
     if (isTimerActive) {
@@ -130,6 +128,8 @@ export default function TaskDetailsPanel({
   };
 
   React.useEffect(() => {
+    // Sync form state with task prop changes - this is intentional as we need to reset form when task changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitleValue(task.title);
     setDescValue(task.description);
   }, [task.id, task.title, task.description]);
@@ -191,9 +191,7 @@ export default function TaskDetailsPanel({
     onAddSyncLog(`Commented on "${task.title}"`);
   };
 
-  const assignee = members.find(m => m.id === task.assigneeId);
   const theme = PRIORITY_THEMES[task.priority];
-  const statusMeta = STATUS_META[task.status];
 
   let spaceName = 'Marketing';
   let listName = 'Email Launch';
@@ -202,7 +200,7 @@ export default function TaskDetailsPanel({
       if (space.id === task.spaceId) {
         spaceName = space.name;
       }
-      const list = space.lists?.find((l: any) => l.id === task.listId);
+      const list = space.lists?.find((l: { id: string; name: string; folderId?: string }) => l.id === task.listId);
       if (list) {
         listName = list.name;
         spaceName = space.name;
@@ -229,7 +227,15 @@ export default function TaskDetailsPanel({
 
   // Combine Activities and Comments chronologically
   const timelineItems = useMemo(() => {
-    const items: any[] = [];
+    const items: Array<{
+      id: string;
+      type: 'activity' | 'comment';
+      userName: string;
+      avatar?: string;
+      content: string;
+      timestamp: string;
+      dateObj: Date;
+    }> = [];
     
     // Add activities
     (task.activities || []).forEach((a, index) => {
@@ -516,7 +522,7 @@ export default function TaskDetailsPanel({
                           <select 
                             value={task.recurrence?.frequency || 'none'}
                             onChange={e => {
-                              const freq = e.target.value as any;
+                              const freq = e.target.value as 'none' | 'daily' | 'weekly' | 'monthly';
                               onUpdateTask({ ...task, recurrence: { frequency: freq, interval: task.recurrence?.interval || 1 } });
                             }}
                             className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 outline-none text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
