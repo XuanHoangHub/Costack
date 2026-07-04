@@ -2873,6 +2873,7 @@ export default function App() {
                  {[
                   { id: 'dashboard', label: 'Home Overview', icon: LayoutDashboard },
                   { id: 'inbox', label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
+                  { id: 'calendar', label: 'Calendar', icon: Calendar },
                   { id: 'chat', label: 'Chat', icon: MessageSquare },
                   { id: 'base', label: 'Avaxa Base', icon: Database },
                 ].map((item) => {
