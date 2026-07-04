@@ -1864,8 +1864,9 @@ export default function SpacePage({
             onAddSyncLog={onAddSyncLog}
             triggerToast={triggerToast}
             workspaceId={activeWorkspaceId || ''}
-            forcedChannelId={activeListId ? `list:${activeListId}` : activeFolderId ? `folder:${activeFolderId}` : `space:${activeSpaceId}`}
-            forcedChannelName={activeListId ? (activeSpace.lists?.find(l => l.id === activeListId)?.name || 'List') : activeFolderId ? (activeSpace.folders?.find(f => f.id === activeFolderId)?.name || 'Folder') : activeSpace.name}
+            spaces={spaces}
+            forcedChannelId={activeListId ? `${activeWorkspaceId}:list-${activeSpaceId}-${activeListId}` : activeFolderId ? `${activeWorkspaceId}:folder-${activeSpaceId}-${activeFolderId}` : `${activeWorkspaceId}:space-${activeSpaceId}-general`}
+            forcedChannelName={activeListId ? (activeSpace.lists?.find(l => l.id === activeListId)?.name || 'List') : activeFolderId ? (activeSpace.folders?.find(f => f.id === activeFolderId)?.name || 'Folder') : 'general'}
           />
         )}
 

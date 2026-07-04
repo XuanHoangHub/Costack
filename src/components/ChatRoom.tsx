@@ -2,16 +2,133 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChatMessage, ChatChannel, User } from '../types';
+import { ChatMessage, ChatChannel, User, Space } from '../types';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
 import { 
   Hash, Send, Bot, Smile, Users, MessageSquare, Sparkles, Plus, X,
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
-  Volume2, VolumeX, Globe
+  Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
+  Bold, Italic, Code, Quote, Pin, PinOff,
+  Forward, AtSign, Check
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
+import { useSpaceStore } from '../store/spaceStore';
+
+const VoiceMessagePlayer = ({ filePath, duration }: { filePath: string; duration?: number }) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(duration || 0);
+
+  useEffect(() => {
+    const audio = new Audio(filePath);
+    audioRef.current = audio;
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration) && audio.duration !== Infinity) {
+        setTotalDuration(audio.duration);
+      }
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [filePath]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().catch(err => console.error("Playback error:", err));
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    const seekTime = parseFloat(e.target.value);
+    audioRef.current.currentTime = seekTime;
+    setCurrentTime(seekTime);
+  };
+
+  const formatTime = (time: number) => {
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const barCount = 28;
+  const bars = [4, 6, 8, 5, 3, 7, 9, 12, 10, 6, 8, 4, 3, 5, 8, 11, 7, 5, 9, 6, 4, 3, 5, 7, 8, 10, 6, 4];
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-50/50 border border-indigo-100 max-w-xs hover:bg-indigo-50 transition-colors">
+      <button 
+        type="button"
+        onClick={togglePlay}
+        className="w-8.5 h-8.5 rounded-full bg-indigo-650 hover:bg-indigo-750 text-white flex items-center justify-center transition-all shadow-md shrink-0 cursor-pointer active:scale-95"
+      >
+        {isPlaying ? (
+          <Pause className="w-3.5 h-3.5 fill-white" />
+        ) : (
+          <Play className="w-3.5 h-3.5 fill-white translate-x-0.5" />
+        )}
+      </button>
+
+      <div className="flex-1 min-w-0 flex flex-col gap-1 text-left">
+        <div className="flex items-end gap-0.5 h-6 select-none relative pt-1">
+          {bars.map((height, idx) => {
+            const barProgress = (idx / barCount) * totalDuration;
+            const isPlayed = currentTime >= barProgress;
+            return (
+              <div 
+                key={idx}
+                className="w-1 rounded-t-xs transition-colors duration-150"
+                style={{ 
+                  height: `${(height / 12) * 100}%`, 
+                  backgroundColor: isPlayed ? 'rgb(79, 70, 229)' : 'rgb(224, 231, 255)' 
+                }}
+              />
+            );
+          })}
+          <input 
+            type="range"
+            min={0}
+            max={totalDuration || 100}
+            step={0.1}
+            value={currentTime}
+            onChange={handleSeek}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+        </div>
+
+        <div className="flex justify-between text-[8px] font-bold text-slate-450 font-mono select-none mt-0.5 uppercase tracking-wider">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(totalDuration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface ChatRoomProps {
   members: User[];
@@ -25,22 +142,44 @@ interface ChatRoomProps {
   workspaceId: string;
   forcedChannelId?: string;
   forcedChannelName?: string;
+  spaces?: Space[];
 }
 
 // Minimal markdown formatter
-const formatMessageContent = (text: string) => {
-  if (!text) return '';
-  // Simple bold and code formatter
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+const formatLineMarkdown = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|@\w[\w\s]*?\b)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-extrabold text-slate-900">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+      return <em key={i} className="italic text-slate-700 font-semibold">{part.slice(1, -1)}</em>;
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200/50 text-amber-800 font-mono text-[10px] font-bold mx-0.5">{part.slice(1, -1)}</code>;
+      return <code key={i} className="px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-250/20 text-indigo-700 font-mono text-[10px] font-bold mx-0.5">{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith('@') && part.length > 1) {
+      return <span key={i} className="px-1 py-0.5 rounded-md bg-blue-50 text-blue-600 font-bold text-[11px] cursor-pointer hover:bg-blue-100 transition-colors">{part}</span>;
     }
     return part;
   });
+};
+
+const formatMessageContent = (text: string) => {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const processedLines = lines.map((line, idx) => {
+    if (line.trim().startsWith('>')) {
+      const content = line.substring(line.indexOf('>') + 1).trim();
+      return (
+        <div key={idx} className="pl-3 py-1 border-l-3 border-indigo-400 bg-slate-50/50 rounded-r-lg text-slate-500 italic my-1">
+          {formatLineMarkdown(content)}
+        </div>
+      );
+    }
+    return <div key={idx} className="min-h-[16px]">{formatLineMarkdown(line)}</div>;
+  });
+  return <div className="space-y-0.5">{processedLines}</div>;
 };
 
 export default function ChatRoom({
@@ -54,7 +193,8 @@ export default function ChatRoom({
   onClearInitialSelectedChannelId,
   workspaceId,
   forcedChannelId,
-  forcedChannelName
+  forcedChannelName,
+  spaces = []
 }: ChatRoomProps) {
   const { t } = useTranslation();
   // Navigation & Channels
@@ -62,6 +202,58 @@ export default function ChatRoom({
   const [activeChannelId, setActiveChannelId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
+
+  // Custom Channel Management states
+  const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDesc, setNewChannelDesc] = useState('');
+  
+  // Custom Channel Actions & Rename states
+  const [activeChannelMenuId, setActiveChannelMenuId] = useState<string | null>(null);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamingChannelId, setRenamingChannelId] = useState<string | null>(null);
+  const [renameChannelName, setRenameChannelName] = useState('');
+  const [renameChannelDesc, setRenameChannelDesc] = useState('');
+
+  // Emoji Picker Popover state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // File Attachment states
+  const [selectedFile, setSelectedFile] = useState<{ name: string; size: number; type: string; url?: string; isVoice?: boolean; duration?: number } | null>(null);
+
+  // Voice Recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
+  // Multi-tab Right Sidebar states
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'members' | 'search' | 'files'>('members');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+
+  // Lark Thread states
+  const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
+  const [threadInputVal, setThreadInputVal] = useState('');
+
+  // @Mention states
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionCursorPos, setMentionCursorPos] = useState(0);
+
+  // Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const typingTimeoutRef = useRef<any>(null);
+
+  // Unread badge tracking
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [lastReadTimestamps, setLastReadTimestamps] = useState<Record<string, string>>({});
+
+  // Message forward modal
+  const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null);
+
+  // Drag-and-drop state
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Form input states
   const [inputVal, setInputVal] = useState('');
@@ -124,8 +316,9 @@ export default function ChatRoom({
   // Refs
   const messageEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize channels
+  // Initialize channels and load custom channels
   useEffect(() => {
     if (forcedChannelId) {
       const channel: ChatChannel = {
@@ -140,48 +333,264 @@ export default function ChatRoom({
     }
 
     const defaultChannels: ChatChannel[] = [
-      { id: `${workspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
-      { id: `${workspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-      { id: `${workspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Avaxa Brain AI support assistant online', type: 'public' },
-      { id: `${workspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
+      { id: `${workspaceId}:general`, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
+      { id: `${workspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Hỏi đáp với AI thông minh.', type: 'public' }
     ];
-    setChannels(defaultChannels);
+
+    let customChannels: ChatChannel[] = [];
+    try {
+      const saved = localStorage.getItem(`avaxa_custom_channels_${workspaceId}`);
+      if (saved) {
+        customChannels = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error loading custom channels:', e);
+    }
+
+    setChannels([...defaultChannels, ...customChannels]);
 
     // Auto select first channel
     const defaultActive = initialSelectedChannelId || `${workspaceId}:general`;
     setActiveChannelId(defaultActive);
   }, [workspaceId, initialSelectedChannelId, forcedChannelId, forcedChannelName]);
 
+  // Channel Actions
+  const handleCreateChannel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) return;
+
+    const cleanedName = newChannelName.trim().toLowerCase().replace(/\s+/g, '-');
+    const newChanId = `${workspaceId}:custom-${Date.now()}`;
+    const newChan: ChatChannel = {
+      id: newChanId,
+      name: cleanedName,
+      description: newChannelDesc.trim() || 'Custom chat channel',
+      type: 'public'
+    };
+
+    setChannels(prev => {
+      const updated = [...prev, newChan];
+      const customOnes = updated.filter(c => 
+        c.id !== `${workspaceId}:general` && 
+        c.id !== `${workspaceId}:avaxa-brain-ai`
+      );
+      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
+      return updated;
+    });
+
+    setActiveChannelId(newChanId);
+    setNewChannelName('');
+    setNewChannelDesc('');
+    setShowCreateChannelModal(false);
+    onAddSyncLog(`Created chat channel: #${cleanedName}`);
+    triggerToast?.('success', 'Channel Created 📣', `Channel #${cleanedName} has been successfully created.`);
+  };
+
+  const handleDeleteChannel = (chanId: string, name: string) => {
+    setChannels(prev => {
+      const updated = prev.filter(c => c.id !== chanId);
+      const customOnes = updated.filter(c => 
+        c.id !== `${workspaceId}:general` && 
+        c.id !== `${workspaceId}:avaxa-brain-ai`
+      );
+      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
+      return updated;
+    });
+
+    if (activeChannelId === chanId) {
+      setActiveChannelId(`${workspaceId}:general`);
+    }
+
+    onAddSyncLog(`Deleted chat channel: #${name}`);
+    triggerToast?.('info', 'Channel Deleted 🗑️', `Channel #${name} has been removed.`);
+  };
+
+  const handleRenameChannel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renamingChannelId || !renameChannelName.trim()) return;
+
+    const cleanedName = renameChannelName.trim().toLowerCase().replace(/\s+/g, '-');
+    setChannels(prev => {
+      const updated = prev.map(c => c.id === renamingChannelId ? { 
+        ...c, 
+        name: cleanedName, 
+        description: renameChannelDesc.trim() || c.description 
+      } : c);
+      
+      const customOnes = updated.filter(c => 
+        c.id !== `${workspaceId}:general` && 
+        c.id !== `${workspaceId}:avaxa-brain-ai`
+      );
+      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
+      return updated;
+    });
+
+    onAddSyncLog(`Renamed chat channel to: #${cleanedName}`);
+    triggerToast?.('success', 'Channel Renamed 📣', `Channel has been successfully renamed to #${cleanedName}.`);
+    
+    setRenamingChannelId(null);
+    setRenameChannelName('');
+    setRenameChannelDesc('');
+    setShowRenameModal(false);
+  };
+
+  const handleTogglePinMessage = async (msgId: string, currentPinned: boolean) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isPinned: !currentPinned } : m));
+
+    if (!isOffline) {
+      try {
+        await supabase
+          .from('chat_messages')
+          .update({ is_pinned: !currentPinned })
+          .eq('id', msgId);
+      } catch (err) {
+        console.error('Error toggling pin state:', err);
+      }
+    }
+
+    if (currentPinned) {
+      triggerToast?.('info', 'Message Unpinned 📌', 'This message has been unpinned.');
+    } else {
+      triggerToast?.('success', 'Message Pinned 📌', 'This message is pinned to the header board.');
+    }
+  };
+
+  const handleScrollToMessage = (msgId: string) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bg-amber-50');
+      setTimeout(() => {
+        el.classList.remove('bg-amber-50');
+      }, 1500);
+    } else {
+      triggerToast?.('info', 'Scroll to Message 🧭', 'Message could not be located in current scroll bounds.');
+    }
+  };
+
+  const handleOpenThread = (msg: ChatMessage) => {
+    setShowMemberDrawer(false);
+    setActiveThreadMessage(msg);
+  };
+
+  const handleSendThreadReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!threadInputVal.trim() || !activeThreadMessage) return;
+
+    const userReplyText = threadInputVal.trim();
+    setThreadInputVal('');
+
+    const msgId = `reply-${Date.now()}`;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    const newReply: ChatMessage = {
+      id: msgId,
+      senderId: 'user',
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      content: userReplyText,
+      timestamp: timeStr,
+      parentId: activeThreadMessage.id
+    };
+
+    setMessages(prev => [...prev, newReply]);
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        await supabase.from('chat_messages').insert({
+          id: msgId,
+          sender_id: 'user',
+          sender_name: currentUser.name,
+          sender_avatar: currentUser.avatar,
+          content: userReplyText,
+          timestamp: timeStr,
+          channel_id: activeChannelId,
+          is_ai_response: false,
+          workspace_id: workspaceId,
+          user_id: userId || null,
+          parent_id: activeThreadMessage.id
+        });
+      } catch (err) {
+        console.error('Error sending thread reply:', err);
+      }
+    }
+  };
+
   // Load default simulated/mock messages when channel changes
   useEffect(() => {
     if (!activeChannelId) return;
 
     const seedMessages: Record<string, ChatMessage[]> = {
-      'general': [
-        { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: 'Welcome to the general discussion channel! Share your ideas here.', timestamp: '09:12' },
-        { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: 'Completed initial design whiteboard UI draft, will demo tonight.', timestamp: '09:15', reactions: [{ emoji: '👍', count: 3, userIds: ['sim-1', 'sim-3'] }] }
-      ],
-      'project-planning': [
-        { id: 'mp1', senderId: 'sim-3', senderName: 'Minh Tuan (PM)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=MinhTuan', content: 'Sprint 1 Roadmap updated, please complete before Friday.', timestamp: '10:00' }
-      ],
       'avaxa-brain-ai': [
-        { id: 'mai1', senderId: 'avaxa-ai', senderName: 'Avaxa Brain AI', senderAvatar: '', content: 'Hello! I am **Avaxa Brain AI**. Ask me anything about productivity optimization or project planning.', timestamp: '08:00', isAi: true }
-      ],
-      'design-review': [
-        { id: 'md1', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: 'Design drafts have been pushed to the shared whiteboard, please review.', timestamp: '11:00' }
+        { id: 'mai1', senderId: 'ai-brain', senderName: 'Avaxa Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AvaxaBrain', content: 'Xin chào! Tôi là trợ lý Avaxa Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
       ]
     };
 
     const loadMessages = async () => {
+      const isSpace = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
+      const isDm = activeChannelId.includes(':dm-');
+
+      let spaceId = '';
+      let entityId = '';
+      let entityName = 'general';
+      let entityType: 'space' | 'folder' | 'list' = 'space';
+
+      if (isSpace) {
+        if (activeChannelId.includes(':folder-')) {
+          entityType = 'folder';
+          const prefixIndex = activeChannelId.indexOf(':folder-');
+          const infoStr = activeChannelId.substring(prefixIndex + 8);
+          const space = spaces.find(s => infoStr.startsWith(s.id));
+          if (space) {
+            spaceId = space.id;
+            entityId = infoStr.substring(space.id.length + 1);
+            entityName = space.folders?.find(f => f.id === entityId)?.name || 'Folder';
+          }
+        } else if (activeChannelId.includes(':list-')) {
+          entityType = 'list';
+          const prefixIndex = activeChannelId.indexOf(':list-');
+          const infoStr = activeChannelId.substring(prefixIndex + 6);
+          const space = spaces.find(s => infoStr.startsWith(s.id));
+          if (space) {
+            spaceId = space.id;
+            entityId = infoStr.substring(space.id.length + 1);
+            entityName = space.lists?.find(l => l.id === entityId)?.name || 'List';
+          }
+        } else if (activeChannelId.includes(':space-')) {
+          entityType = 'space';
+          const prefixIndex = activeChannelId.indexOf(':space-');
+          const infoStr = activeChannelId.substring(prefixIndex + 7);
+          const space = spaces.find(s => infoStr.startsWith(s.id));
+          if (space) {
+            spaceId = space.id;
+            entityId = infoStr.substring(space.id.length + 1);
+            entityName = space.channels?.find(c => c.id === entityId)?.name || 'general';
+          }
+        }
+      }
+
       if (isOffline) {
         if (forcedChannelId && activeChannelId === forcedChannelId) {
           setMessages([
-            { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: `Welcome to the #${forcedChannelName || 'Channel'} discussion! Send messages here to collaborate.`, timestamp: '09:12' },
-            { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: `Hi team, let's keep all communication related to this workspace view inside this chat.`, timestamp: '09:15' }
+            { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${forcedChannelName || 'channel'}.`, timestamp: 'Vừa xong' }
+          ]);
+        } else if (isDm) {
+          const memberId = activeChannelId.split('-').pop();
+          const member = members.find(m => m.id === memberId);
+          setMessages([
+            { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${member ? member.name : 'thành viên này'}.`, timestamp: 'Vừa xong' }
+          ]);
+        } else if (isSpace) {
+          setMessages([
+            { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${entityName}.`, timestamp: 'Vừa xong' }
           ]);
         } else {
           const channelKey = activeChannelId.split(':').pop() || 'general';
-          setMessages(seedMessages[channelKey] || []);
+          setMessages(seedMessages[channelKey] || [
+            { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${channelKey}.`, timestamp: 'Vừa xong' }
+          ]);
         }
         scrollToBottom();
         return;
@@ -197,15 +606,26 @@ export default function ChatRoom({
         if (!error && data) {
           if (data.length === 0) {
             // Seed default messages
-            const channelKey = activeChannelId.split(':').pop() || 'general';
             let defaultMsgs: ChatMessage[] = [];
             if (forcedChannelId && activeChannelId === forcedChannelId) {
               defaultMsgs = [
-                { id: 'm1', senderId: 'sim-1', senderName: 'Lan Anh (Dev)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh', content: `Welcome to the #${forcedChannelName || 'Channel'} discussion! Send messages here to collaborate.`, timestamp: '09:12' },
-                { id: 'm2', senderId: 'sim-2', senderName: 'Hoang Long (Design)', senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=HoangLong', content: `Hi team, let's keep all communication related to this workspace view inside this chat.`, timestamp: '09:15' }
+                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${forcedChannelName || 'channel'}.`, timestamp: 'Vừa xong' }
+              ];
+            } else if (isDm) {
+              const memberId = activeChannelId.split('-').pop();
+              const member = members.find(m => m.id === memberId);
+              defaultMsgs = [
+                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${member ? member.name : 'thành viên này'}.`, timestamp: 'Vừa xong' }
+              ];
+            } else if (isSpace) {
+              defaultMsgs = [
+                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${entityName}.`, timestamp: 'Vừa xong' }
               ];
             } else {
-              defaultMsgs = seedMessages[channelKey] || [];
+              const channelKey = activeChannelId.split(':').pop() || 'general';
+              defaultMsgs = seedMessages[channelKey] || [
+                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${channelKey}.`, timestamp: 'Vừa xong' }
+              ];
             }
 
             if (defaultMsgs.length > 0) {
@@ -221,7 +641,8 @@ export default function ChatRoom({
                 channel_id: activeChannelId,
                 is_ai_response: m.isAi || false,
                 workspace_id: workspaceId,
-                user_id: userId || null
+                user_id: userId || null,
+                attachment: null
               }));
               await supabase.from('chat_messages').insert(toInsert);
               setMessages(defaultMsgs);
@@ -233,10 +654,13 @@ export default function ChatRoom({
               id: m.id,
               senderId: m.sender_id,
               senderName: m.sender_name,
-              senderAvatar: m.sender_avatar || '',
+              senderAvatar: m.sender_avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=S',
               content: m.content,
               timestamp: m.timestamp,
-              isAi: m.is_ai_response
+              isAi: m.is_ai_response,
+              attachment: m.attachment || undefined,
+              parentId: m.parent_id || undefined,
+              isPinned: m.is_pinned || false
             })));
           }
         }
@@ -268,10 +692,13 @@ export default function ChatRoom({
                 id: m.id,
                 senderId: m.sender_id,
                 senderName: m.sender_name,
-                senderAvatar: m.sender_avatar || '',
+                senderAvatar: m.sender_avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=S',
                 content: m.content,
                 timestamp: m.timestamp,
-                isAi: m.is_ai_response
+                isAi: m.is_ai_response,
+                attachment: m.attachment || undefined,
+                parentId: m.parent_id || undefined,
+                isPinned: m.is_pinned || false
               };
               setMessages(prev => {
                 if (prev.some(x => x.id === newMsg.id)) return prev;
@@ -280,7 +707,12 @@ export default function ChatRoom({
               scrollToBottom();
             } else if (eventType === 'UPDATE') {
               const m = payload.new;
-              setMessages(prev => prev.map(x => x.id === m.id ? { ...x, content: m.content } : x));
+              setMessages(prev => prev.map(x => x.id === m.id ? { 
+                ...x, 
+                content: m.content, 
+                attachment: m.attachment || undefined,
+                isPinned: m.is_pinned || false
+              } : x));
             } else if (eventType === 'DELETE') {
               const m = payload.old;
               setMessages(prev => prev.filter(x => x.id !== m.id));
@@ -303,10 +735,252 @@ export default function ChatRoom({
     }, 100);
   };
 
+  const insertFormatting = (type: 'bold' | 'italic' | 'code' | 'quote') => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart || 0;
+    const end = input.selectionEnd || 0;
+    const val = inputVal;
+    const selectedText = val.substring(start, end);
+
+    let replacement = '';
+    if (type === 'bold') {
+      replacement = `**${selectedText || 'chữ_đậm'}**`;
+    } else if (type === 'italic') {
+      replacement = `*${selectedText || 'chữ_nghiêng'}*`;
+    } else if (type === 'code') {
+      replacement = `\`${selectedText || 'mã_code'}\``;
+    } else if (type === 'quote') {
+      replacement = `\n> ${selectedText || 'trích_dẫn'}\n`;
+    }
+
+    const newVal = val.substring(0, start) + replacement + val.substring(end);
+    setInputVal(newVal);
+
+    // Refocus input
+    setTimeout(() => {
+      input.focus();
+      const newPos = start + replacement.length;
+      input.setSelectionRange(newPos, newPos);
+    }, 50);
+  };
+
+  // @Mention handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputVal(val);
+
+    const cursorPos = e.target.selectionStart || val.length;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (atMatch) {
+      setShowMentionDropdown(true);
+      setMentionQuery(atMatch[1]);
+      setMentionCursorPos(cursorPos);
+    } else {
+      setShowMentionDropdown(false);
+      setMentionQuery('');
+    }
+
+    // Broadcast typing indicator
+    broadcastTyping();
+  };
+
+  const handleSelectMention = (member: User) => {
+    const textBefore = inputVal.substring(0, mentionCursorPos);
+    const atIdx = textBefore.lastIndexOf('@');
+    const before = inputVal.substring(0, atIdx);
+    const after = inputVal.substring(mentionCursorPos);
+    const newVal = `${before}@${member.name} ${after}`;
+    setInputVal(newVal);
+    setShowMentionDropdown(false);
+    setMentionQuery('');
+    inputRef.current?.focus();
+  };
+
+  const filteredMentionMembers = members.filter(m => 
+    m.name.toLowerCase().includes(mentionQuery.toLowerCase())
+  ).slice(0, 5);
+
+  // Typing indicator broadcast
+  const broadcastTyping = () => {
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    // Simulate other users seeing us type
+    typingTimeoutRef.current = setTimeout(() => {
+      // Clear after 3 seconds of no typing
+    }, 3000);
+  };
+
+  // Unread count helpers
+  const markChannelAsRead = (channelId: string) => {
+    setUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
+    setLastReadTimestamps(prev => ({ ...prev, [channelId]: new Date().toISOString() }));
+  };
+
+  // Track unread when messages arrive on non-active channels
+  const incrementUnread = (channelId: string) => {
+    if (channelId !== activeChannelId) {
+      setUnreadCounts(prev => ({ ...prev, [channelId]: (prev[channelId] || 0) + 1 }));
+    }
+  };
+
+  // Mark current channel as read when switching
+  useEffect(() => {
+    if (activeChannelId) {
+      markChannelAsRead(activeChannelId);
+    }
+  }, [activeChannelId]);
+
+  // Forward message handler
+  const handleForwardMessage = async (targetChannelId: string) => {
+    if (!forwardingMessage) return;
+    
+    const msgId = `fwd-${Date.now()}`;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    const fwdContent = `↪️ *Forwarded from ${forwardingMessage.senderName}:*\n${forwardingMessage.content}`;
+
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        await supabase.from('chat_messages').insert({
+          id: msgId,
+          sender_id: 'user',
+          sender_name: currentUser.name,
+          sender_avatar: currentUser.avatar,
+          content: fwdContent,
+          timestamp: timeStr,
+          channel_id: targetChannelId,
+          is_ai_response: false,
+          workspace_id: workspaceId,
+          user_id: userId || null,
+        });
+      } catch (err) {
+        console.error('Error forwarding message:', err);
+      }
+    }
+
+    triggerToast?.('success', 'Message Forwarded ↪️', 'Message has been forwarded successfully.');
+    setForwardingMessage(null);
+  };
+
+  // Drag-and-drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      const isImg = file.type.startsWith('image/');
+      const fileUrl = isImg ? URL.createObjectURL(file) : '#';
+      setSelectedFile({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: fileUrl
+      });
+      triggerToast?.('success', 'File Dropped 📎', `Ready to send: ${file.name}`);
+    }
+  };
+
+  // Date separator utility
+  const getDateLabel = (dateStr: string): string => {
+    const today = new Date();
+    const msgDate = new Date(dateStr);
+    
+    if (isNaN(msgDate.getTime())) return '';
+
+    const todayStr = today.toDateString();
+    const msgDateStr = msgDate.toDateString();
+    
+    if (todayStr === msgDateStr) return 'Hôm nay';
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.toDateString() === msgDateStr) return 'Hôm qua';
+    
+    return msgDate.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      const startTime = Date.now();
+
+      mediaRecorder.onstop = () => {
+        const durationSec = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        setSelectedFile({
+          name: `Voice Message (${durationSec}s)`,
+          size: audioBlob.size,
+          type: 'audio/webm',
+          url: audioUrl,
+          isVoice: true,
+          duration: durationSec
+        });
+        
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setIsRecording(true);
+      setRecordingDuration(0);
+      mediaRecorder.start();
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+      
+      triggerToast?.('info', 'Recording Voice 🎙️', 'Speak now...');
+    } catch (err) {
+      console.error('Error starting recording:', err);
+      triggerToast?.('error', 'Microphone Error ⚠️', 'Failed to access mic. Please check permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      triggerToast?.('success', 'Voice recorded 🎙️', 'Ready to send.');
+    }
+  };
+
   // Send new message handler
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim() || isSending) return;
+    if ((!inputVal.trim() && !selectedFile) || isSending) return;
 
     const userMsgText = inputVal.trim();
     setInputVal('');
@@ -314,22 +988,32 @@ export default function ChatRoom({
     const msgId = `msg-${Date.now()}`;
     const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
+    const attachmentObj = selectedFile ? {
+      name: selectedFile.name,
+      filePath: selectedFile.url || '#',
+      size: selectedFile.size,
+      isImage: selectedFile.type.startsWith('image/'),
+      isVoice: selectedFile.isVoice,
+      duration: selectedFile.duration
+    } : undefined;
+
     const newMsg: ChatMessage = {
       id: msgId,
       senderId: 'user',
       senderName: currentUser.name,
       senderAvatar: currentUser.avatar,
       content: userMsgText,
-      timestamp: timeStr
+      timestamp: timeStr,
+      attachment: attachmentObj
     };
 
     setMessages(prev => [...prev, newMsg]);
+    setSelectedFile(null);
     scrollToBottom();
 
     let userId: string | null = null;
 
-
-  if (!isOffline) {
+    if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         userId = session?.user?.id || null;
@@ -343,7 +1027,8 @@ export default function ChatRoom({
           channel_id: activeChannelId,
           is_ai_response: false,
           workspace_id: workspaceId,
-          user_id: userId
+          user_id: userId,
+          attachment: attachmentObj || null
         });
       } catch (err) {
         console.error('Error saving user message to Supabase:', err);
@@ -375,7 +1060,7 @@ export default function ChatRoom({
             id: aiMsgId,
             senderId: 'avaxa-ai',
             senderName: 'Avaxa Brain AI',
-            senderAvatar: '',
+            senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
             content: data.text,
             timestamp: aiMsgTime,
             isAi: true
@@ -394,7 +1079,8 @@ export default function ChatRoom({
               channel_id: activeChannelId,
               is_ai_response: true,
               workspace_id: workspaceId,
-              user_id: userId
+              user_id: userId,
+              attachment: null
             });
           }
         }
@@ -456,18 +1142,70 @@ export default function ChatRoom({
 
   // Filter channels based on search
   const filteredChannels = channels.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
   const activeChannel = channels.find(c => c.id === activeChannelId);
 
+  // Resolve DM member if activeChannelId is a DM
+  const isDm = activeChannelId.includes(':dm-');
+  let dmMember: User | undefined;
+  if (isDm) {
+    const memberId = activeChannelId.split('-').pop();
+    dmMember = members.find(m => m.id === memberId);
+  }
+
+  // Resolve Space channel if activeChannelId is a Space Channel
+  const isSpaceChan = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
+  let spaceChanName = '';
+  let spaceChanDesc = '';
+  if (isSpaceChan) {
+    let spaceId = '';
+    let entityId = '';
+    let entityType: 'space' | 'folder' | 'list' = 'space';
+
+    if (activeChannelId.includes(':folder-')) {
+      entityType = 'folder';
+      const prefixIndex = activeChannelId.indexOf(':folder-');
+      const infoStr = activeChannelId.substring(prefixIndex + 8);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        spaceId = space.id;
+        entityId = infoStr.substring(space.id.length + 1);
+        spaceChanName = space.folders?.find(f => f.id === entityId)?.name || 'Folder';
+        spaceChanDesc = `📂 Thư mục trong Space: ${space.name}`;
+      }
+    } else if (activeChannelId.includes(':list-')) {
+      entityType = 'list';
+      const prefixIndex = activeChannelId.indexOf(':list-');
+      const infoStr = activeChannelId.substring(prefixIndex + 6);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        spaceId = space.id;
+        entityId = infoStr.substring(space.id.length + 1);
+        spaceChanName = space.lists?.find(l => l.id === entityId)?.name || 'List';
+        spaceChanDesc = `📋 Danh sách trong Space: ${space.name}`;
+      }
+    } else if (activeChannelId.includes(':space-')) {
+      entityType = 'space';
+      const prefixIndex = activeChannelId.indexOf(':space-');
+      const infoStr = activeChannelId.substring(prefixIndex + 7);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        spaceId = space.id;
+        entityId = infoStr.substring(space.id.length + 1);
+        spaceChanName = space.channels?.find(c => c.id === entityId)?.name || 'general';
+        spaceChanDesc = `${space.emoji || '📁'} Kênh chat chung của Space: ${space.name}`;
+      }
+    }
+  }
+
   return (
-    <div className="flex min-h-[500px] h-[calc(100vh-170px)] md:h-[calc(100vh-150px)] w-full rounded-3xl bg-white border border-slate-200/60 shadow-[0_4px_25px_rgba(0,0,0,0.012)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800">
+    <div className="flex min-h-[500px] h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full rounded-3xl bg-white border border-slate-200/60 shadow-[0_4px_25px_rgba(0,0,0,0.012)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800">
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
       {!forcedChannelId && (
         <div className="w-64 border-r border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left">
-        <div className="p-4 space-y-4 flex-1 flex flex-col">
+        <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
           {/* Header search bar */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <input 
               type="text" 
               value={searchQuery}
@@ -479,35 +1217,188 @@ export default function ChatRoom({
           </div>
 
           {/* Channels list scrollable */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1.5 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1.5 scrollbar-thin min-h-0">
             <div>
               <div className="flex items-center justify-between px-2 mb-1.5">
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Channels</span>
-                <button className="p-0.5 rounded hover:bg-slate-150 text-slate-450 hover:text-indigo-650 transition-colors cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
+                <button 
+                  onClick={() => setShowCreateChannelModal(true)}
+                  className="p-0.5 rounded hover:bg-slate-150 text-slate-455 hover:text-indigo-650 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.id !== `${workspaceId}:avaxa-brain-ai`).map(c => {
+                {filteredChannels.filter(c => c.id !== `${workspaceId}:avaxa-brain-ai` && !c.id.includes(':space-') && !c.id.includes(':dm-')).map(c => {
                   const isActive = c.id === activeChannelId;
+                  const isDefault = c.id === `${workspaceId}:general` || c.id === `${workspaceId}:project-planning` || c.id === `${workspaceId}:design-review`;
+                  
                   return (
-                    <button
+                    <div 
                       key={c.id}
-                      onClick={() => setActiveChannelId(c.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                      className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent ${
                         isActive 
                           ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
                           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                       }`}
                     >
-                      <Hash className="w-4 h-4 shrink-0 text-slate-400" />
-                      <span className="truncate">{c.name}</span>
+                      <button
+                        onClick={() => setActiveChannelId(c.id)}
+                        className="flex-1 flex items-center gap-2 px-3 py-2 text-xs font-semibold cursor-pointer text-left truncate"
+                      >
+                        <Hash className="w-4 h-4 shrink-0 text-slate-400" />
+                        <span className="truncate">{c.name}</span>
+                        {(unreadCounts[c.id] || 0) > 0 && (
+                          <span className="ml-auto px-1.5 py-0.5 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-sm animate-bounce">
+                            {unreadCounts[c.id] > 99 ? '99+' : unreadCounts[c.id]}
+                          </span>
+                        )}
+                      </button>
+                      
+                      {!isDefault && (
+                        <div className="relative shrink-0 flex items-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveChannelMenuId(activeChannelMenuId === c.id ? null : c.id);
+                            }}
+                            className="p-1 mr-1.5 rounded-lg text-slate-450 hover:text-indigo-650 hover:bg-slate-100 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
+                            title="Channel options"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                          {activeChannelMenuId === c.id && (
+                            <div className="absolute right-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveChannelMenuId(null);
+                                  setRenamingChannelId(c.id);
+                                  setRenameChannelName(c.name);
+                                  setRenameChannelDesc(c.description || '');
+                                  setShowRenameModal(true);
+                                }}
+                                className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Edit2 className="w-3 h-3 text-slate-450" />
+                                Rename
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveChannelMenuId(null);
+                                  handleDeleteChannel(c.id, c.name);
+                                }}
+                                className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-450" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Space Channels Section */}
+            {spaces.length > 0 && (
+              <div>
+                <div className="px-2 mb-1.5 mt-3">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Space Channels</span>
+                </div>
+                <div className="space-y-2">
+                  {spaces.map(space => {
+                    const spaceChannels = [
+                      { id: `${workspaceId}:space-${space.id}-general`, name: 'general' },
+                      ...(space.folders || []).map(f => ({
+                        id: `${workspaceId}:folder-${space.id}-${f.id}`,
+                        name: f.name
+                      })),
+                      ...(space.lists || []).map(l => ({
+                        id: `${workspaceId}:list-${space.id}-${l.id}`,
+                        name: l.name
+                      }))
+                    ];
+                        
+                    return (
+                      <div key={space.id} className="space-y-0.5">
+                        <div className="flex items-center justify-between px-2 py-1 text-[9.5px] font-bold text-slate-500 bg-slate-100/50 rounded-lg">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <span>{space.emoji || '📁'}</span>
+                            <span className="truncate">{space.name}</span>
+                          </span>
+                        </div>
+                        
+                        <div className="pl-2.5 space-y-0.5">
+                          {spaceChannels.map(chan => {
+                            const chanId = chan.id;
+                            const isActive = activeChannelId === chanId;
+                            
+                            return (
+                              <button
+                                key={chan.id}
+                                onClick={() => setActiveChannelId(chanId)}
+                                className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                                  isActive 
+                                    ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
+                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                                }`}
+                              >
+                                <Hash className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="truncate">{chan.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Direct Messages Section */}
+            <div>
+              <div className="px-2 mb-1.5 mt-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Direct Messages</span>
+              </div>
+              <div className="space-y-0.5">
+                {members.filter(m => m.id !== currentUser.id && m.id !== 'user').map(member => {
+                  const sortedIds = ['user', member.id].sort();
+                  const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+                  const isActive = activeChannelId === dmChannelId;
+                  
+                  return (
+                    <button
+                      key={member.id}
+                      onClick={() => setActiveChannelId(dmChannelId)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                        isActive 
+                          ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                      }`}
+                    >
+                      <div className="relative shrink-0 flex">
+                        <img src={member.avatar} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 bg-white animate-fadeIn" alt="" />
+                        <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
+                          member.status === 'online' ? 'bg-emerald-500 animate-pulse' :
+                          member.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
+                        }`}></span>
+                      </div>
+                      <span className="truncate">{member.name}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {/* AI Assistant Section */}
             <div>
-              <div className="px-2 mb-1.5">
+              <div className="px-2 mb-1.5 mt-3">
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">AI Assistant</span>
               </div>
               <div className="space-y-0.5">
@@ -536,7 +1427,7 @@ export default function ChatRoom({
         </div>
 
         {/* User Card at footer sidebar */}
-        <div className="p-3 bg-slate-100/50 border-t border-slate-200/60 flex items-center gap-2.5">
+        <div className="p-3 bg-slate-100/50 border-t border-slate-200/60 flex items-center gap-2.5 shrink-0">
           <img src={currentUser.avatar} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" alt="" />
           <div className="min-w-0">
             <span className="block text-[11px] font-black text-slate-800 leading-none truncate">{currentUser.name}</span>
@@ -548,39 +1439,135 @@ export default function ChatRoom({
       )}
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
-      <div className="flex-1 flex flex-col justify-between relative bg-white">
+      <div 
+        className={`flex-1 flex flex-col justify-between relative bg-white ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag-drop overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 bg-indigo-50/80 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-3 animate-pulse">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-100 border-2 border-dashed border-indigo-400 flex items-center justify-center">
+                <Paperclip className="w-7 h-7 text-indigo-500" />
+              </div>
+              <span className="text-sm font-black text-indigo-600">Drop file here to send</span>
+              <span className="text-[10px] font-bold text-indigo-400">Images, documents, audio files…</span>
+            </div>
+          </div>
+        )}
         
         {/* Chat header */}
-        <header className="px-5 py-3 border-b border-slate-150 flex items-center justify-between">
-          <div className="text-left">
-            <h3 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1">
-              {activeChannel?.name.includes('ai') ? (
-                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-              ) : (
-                <Hash className="w-4 h-4 text-slate-400 shrink-0" />
-              )}
-              {activeChannel?.name}
-            </h3>
-            <p className="text-[10px] text-slate-400 font-medium truncate max-w-[320px]">{activeChannel?.description}</p>
+        <header className="px-5 py-3 border-b border-slate-150 flex items-center justify-between shrink-0">
+          <div className="text-left flex items-center gap-3 min-w-0">
+            {isDm && dmMember ? (
+              <>
+                <div className="relative shrink-0 flex">
+                  <img src={dmMember.avatar} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" alt="" />
+                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                    dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' :
+                    dmMember.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
+                  }`}></span>
+                </div>
+                <div className="text-left min-w-0">
+                  <h2 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 leading-none truncate">
+                    {dmMember.name}
+                  </h2>
+                  <p className="text-[10px] text-slate-450 font-bold mt-1 uppercase tracking-wide">
+                    {dmMember.role === 'admin' ? 'PM' : 'Developer'} • {dmMember.status}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-left min-w-0">
+                <h3 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1 leading-none truncate">
+                  {isSpaceChan ? (
+                    <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+                  ) : activeChannel?.name.includes('ai') ? (
+                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
+                  ) : (
+                    <Hash className="w-4 h-4 text-slate-400 shrink-0" />
+                  )}
+                  {isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium truncate max-w-[320px] mt-1">
+                  {isSpaceChan ? spaceChanDesc : (activeChannel?.description || 'Collaborate with your team')}
+                </p>
+              </div>
+            )}
           </div>
           <button 
             onClick={() => setShowMemberDrawer(!showMemberDrawer)}
-className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200/60 bg-slate-50 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200/60 bg-slate-50 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
            >
             <Users className="w-3.5 h-3.5" />
             <span>Members ({members.length})</span>
           </button>
         </header>
 
+        {/* Pinned Messages Bar */}
+        {messages.filter(m => m.isPinned).length > 0 && (
+          <div className="px-5 py-2 bg-amber-50/40 border-b border-amber-100/60 flex items-center gap-3 overflow-x-auto shrink-0 select-none scrollbar-none">
+            <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider flex items-center gap-1 shrink-0">
+              <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              Pinned:
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto min-w-0">
+              {messages.filter(m => m.isPinned).map(msg => (
+                <div 
+                  key={msg.id}
+                  onClick={() => handleScrollToMessage(msg.id)}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white border border-amber-200/50 rounded-full text-xs font-bold text-slate-700 cursor-pointer shadow-xs hover:border-amber-300 transition-colors shrink-0 max-w-[200px]"
+                >
+                  <span className="truncate flex-1 text-[11px] font-semibold">{msg.content || (msg.attachment ? '[Attachment]' : 'Tin nhắn')}</span>
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTogglePinMessage(msg.id, true);
+                    }}
+                    className="text-slate-400 hover:text-rose-500 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Messages List Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
-          {messages.map((msg) => {
+          {messages.filter(m => !m.parentId).map((msg, idx, filtered) => {
             const isMe = msg.senderId === 'user';
             const isEditing = editingMsgId === msg.id;
 
+            // Date separator logic
+            let showDateSep = false;
+            const msgDateLabel = getDateLabel(msg.timestamp);
+            if (idx === 0 && msgDateLabel) {
+              showDateSep = true;
+            } else if (idx > 0 && msgDateLabel) {
+              const prevLabel = getDateLabel(filtered[idx - 1].timestamp);
+              if (prevLabel !== msgDateLabel) showDateSep = true;
+            }
+
             return (
+              <div key={msg.id}>
+                {/* Date Separator Pill */}
+                {showDateSep && msgDateLabel && (
+                  <div className="flex items-center gap-3 py-3 mb-2">
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                    <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 border border-slate-200/60 rounded-full shadow-sm whitespace-nowrap">
+                      {msgDateLabel}
+                    </span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                  </div>
+                )}
+
               <div 
-                key={msg.id}
+                id={`msg-${msg.id}`}
                 className={`flex gap-3 items-start group relative rounded-xl p-2 transition-all ${
                   isMe ? 'hover:bg-slate-50/50' : 'hover:bg-slate-50/50'
                 }`}
@@ -591,7 +1578,7 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                     <Bot className="w-4.5 h-4.5 animate-pulse" />
                   </div>
                 ) : (
-                  <img src={msg.senderAvatar} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" alt="" />
+                  <img src={msg.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" alt="" />
                 )}
 
                 {/* Message Body */}
@@ -599,6 +1586,20 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                   <div className="flex items-center gap-2">
                     <span className={`text-[11px] font-black ${msg.isAi ? 'text-amber-700' : 'text-slate-800'}`}>{msg.senderName}</span>
                     <span className="text-[9px] text-slate-400 font-mono">{msg.timestamp}</span>
+                    {isMe && (
+                      <span className="flex items-center gap-0.5 ml-1 select-none group/ticks relative" title={isOffline ? "Sent (Offline)" : "Read by team"}>
+                        {isOffline ? (
+                          <span className="text-slate-400 font-mono text-[9px] font-bold">✓</span>
+                        ) : (
+                          <>
+                            <span className="text-emerald-500 font-mono text-[9.5px] font-black tracking-tighter">✓✓</span>
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-5 bg-slate-900 text-white text-[9.5px] font-bold px-2 py-1 rounded-lg opacity-0 pointer-events-none group-hover/ticks:opacity-100 transition-opacity whitespace-nowrap z-30 shadow-md">
+                              Đã đọc bởi: {members.slice(0, 2).map(m => m.name).join(', ')}
+                            </div>
+                          </>
+                        )}
+                      </span>
+                    )}
                     {msg.isAi && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-[7.5px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>
@@ -634,6 +1635,49 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                   ) : (
                     <div className="text-xs text-slate-700 leading-relaxed font-medium break-words">
                       {formatMessageContent(msg.content)}
+                      
+                      {msg.attachment && (
+                        <div className="mt-2 select-none">
+                          {msg.attachment.isVoice ? (
+                            <VoiceMessagePlayer 
+                              filePath={msg.attachment.filePath} 
+                              duration={msg.attachment.duration} 
+                            />
+                          ) : msg.attachment.isImage ? (
+                            <div className="relative rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-[240px] shadow-xs group/img bg-slate-50">
+                              <img 
+                                src={msg.attachment.filePath} 
+                                alt={msg.attachment.name}
+                                className="max-w-[240px] max-h-[180px] object-cover hover:scale-[1.02] transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-end justify-between p-2">
+                                <span className="text-[9px] text-white font-bold truncate bg-slate-900/60 px-1.5 py-0.5 rounded-lg">{msg.attachment.name}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-150 max-w-sm hover:bg-indigo-50/20 hover:border-indigo-200/50 transition-colors">
+                              <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                                <Globe className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0 flex-1 text-left">
+                                <span className="block text-xs font-bold text-slate-800 truncate">{msg.attachment.name}</span>
+                                <span className="block text-[9.5px] text-slate-400 font-bold mt-0.5 uppercase tracking-wider font-mono">
+                                  {msg.attachment.size ? `${(msg.attachment.size / 1024).toFixed(1)} KB` : 'FILE'}
+                                </span>
+                              </div>
+                              <a 
+                                href={msg.attachment.filePath} 
+                                download={msg.attachment.name}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 transition-colors shrink-0 flex items-center justify-center cursor-pointer"
+                              >
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -652,6 +1696,17 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                       ))}
                     </div>
                   )}
+
+                  {/* Thread replies indicator */}
+                  {messages.filter(m => m.parentId === msg.id).length > 0 && (
+                    <button 
+                      onClick={() => handleOpenThread(msg)}
+                      className="mt-1 flex items-center gap-1 text-[10px] font-black text-indigo-650 hover:text-indigo-755 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-0.5 transition-colors cursor-pointer select-none"
+                    >
+                      <MessageSquare className="w-3 h-3 fill-indigo-100 text-indigo-500" />
+                      <span>{messages.filter(m => m.parentId === msg.id).length} phản hồi</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Actions Popover (Hover menus) */}
@@ -666,12 +1721,43 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                       {emoji}
                     </button>
                   ))}
+
+                  {/* Reply in Thread */}
+                  <button 
+                    onClick={() => handleOpenThread(msg)}
+                    className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-indigo-650 transition-colors"
+                    title="Reply in Thread"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Pin/Unpin Message */}
+                  <button 
+                    onClick={() => handleTogglePinMessage(msg.id, !!msg.isPinned)}
+                    className={`p-1 rounded-md cursor-pointer transition-colors ${
+                      msg.isPinned 
+                        ? 'text-amber-500 hover:bg-amber-55' 
+                        : 'text-slate-400 hover:text-amber-500 hover:bg-amber-55'
+                    }`}
+                    title={msg.isPinned ? "Unpin message" : "Pin message"}
+                  >
+                    {msg.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                  </button>
+
+                  {/* Forward Message */}
+                  <button 
+                    onClick={() => setForwardingMessage(msg)}
+                    className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-blue-500 transition-colors"
+                    title="Forward message"
+                  >
+                    <Forward className="w-3.5 h-3.5" />
+                  </button>
                   
                   {isMe && (
                     <>
                       <button 
                         onClick={() => { setEditingMsgId(msg.id); setEditVal(msg.content); }}
-                        className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-indigo-600 transition-colors"
+                        className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-indigo-650 transition-colors"
                         title="Edit message"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -687,6 +1773,7 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
                   )}
                 </div>
 
+              </div>
               </div>
             );
           })}
@@ -711,13 +1798,111 @@ className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slat
           <div ref={messageEndRef} />
         </div>
 
+        {/* Attachment preview box */}
+        {selectedFile && (
+          <div className="px-4 py-2 border-t border-slate-150 bg-slate-50/50 flex items-center justify-between gap-3 animate-slideUp">
+            <div className="flex items-center gap-2 min-w-0">
+              {selectedFile.type.startsWith('image/') ? (
+                <img src={selectedFile.url} className="w-9 h-9 rounded-lg object-cover border border-slate-200 bg-white" alt="" />
+              ) : (
+                <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+                  <Globe className="w-4.5 h-4.5" />
+                </div>
+              )}
+              <div className="min-w-0 text-left">
+                <span className="block text-xs font-bold text-slate-700 truncate">{selectedFile.name}</span>
+                <span className="block text-[9.5px] text-slate-400 font-bold font-mono">{(selectedFile.size / 1024).toFixed(1)} KB</span>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setSelectedFile(null)}
+              className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Emoji picker popover */}
+        {showEmojiPicker && (
+          <div className="absolute bottom-16 right-4 p-2 bg-white border border-slate-200 shadow-xl rounded-2xl z-30 grid grid-cols-6 gap-1 w-52 animate-fadeIn">
+            {['😀', '😂', '😍', '👍', '🔥', '🎉', '🚀', '❤️', '👀', '✨', '👏', '💯'].map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  setInputVal(prev => prev + emoji);
+                  setShowEmojiPicker(false);
+                }}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-lg select-none cursor-pointer transition-all hover:scale-105 active:scale-95"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Formatting Toolbar */}
+        {!isRecording && (
+          <div className="px-4 py-1 border-t border-slate-150 bg-slate-50/50 flex gap-2 text-slate-400 shrink-0 select-none">
+            <button 
+              type="button" 
+              onClick={() => insertFormatting('bold')} 
+              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
+              title="Bold (**)"
+            >
+              <Bold className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              type="button" 
+              onClick={() => insertFormatting('italic')} 
+              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
+              title="Italic (*)"
+            >
+              <Italic className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              type="button" 
+              onClick={() => insertFormatting('code')} 
+              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
+              title="Inline Code (`)"
+            >
+              <Code className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              type="button" 
+              onClick={() => insertFormatting('quote')} 
+              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
+              title="Blockquote (>)"
+            >
+              <Quote className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-px h-4 bg-slate-200 mx-0.5" />
+            <button 
+              type="button" 
+              onClick={() => {
+                setInputVal(prev => prev + '@');
+                setShowMentionDropdown(true);
+                setMentionQuery('');
+                setMentionCursorPos(inputVal.length + 1);
+                inputRef.current?.focus();
+              }} 
+              className="p-1 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors cursor-pointer flex items-center justify-center"
+              title="Mention @"
+            >
+              <AtSign className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Input Text Box Footer */}
         <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-150 flex gap-2.5 items-center">
           <button 
             type="button" 
             onClick={() => fileInputRef.current?.click()}
-className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-           title="Attach file"
+            className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+            title="Attach file"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -725,16 +1910,94 @@ className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 
             type="file" 
             ref={fileInputRef} 
             className="hidden" 
-            onChange={() => triggerToast?.('info', 'Upload Feature 💾', 'Attachment selected, simulating upload...')}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const isImg = file.type.startsWith('image/');
+                const fileUrl = isImg ? URL.createObjectURL(file) : '#';
+                setSelectedFile({
+                  name: file.name,
+                  size: file.size,
+                  type: file.type,
+                  url: fileUrl
+                });
+                triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
+              }
+            }}
           />
           
-          <input 
-            type="text"
-            value={inputVal}
-            onChange={e => setInputVal(e.target.value)}
-            placeholder={activeChannel?.name.includes('ai') ? "Ask Avaxa Brain AI..." : "Type a message..."}
-            className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
-          />
+          {isRecording ? (
+            <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-250 animate-pulse text-xs font-semibold text-rose-600">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                <span>Recording Voice: {recordingDuration}s</span>
+              </div>
+              <button 
+                type="button" 
+                onClick={stopRecording}
+                className="p-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center"
+                title="Stop and save recording"
+              >
+                <Square className="w-3.5 h-3.5 fill-white" />
+              </button>
+            </div>
+          ) : (
+            <>
+            <input 
+              type="text"
+              ref={inputRef}
+              value={inputVal}
+              onChange={handleInputChange}
+              placeholder={activeChannel?.name.includes('ai') ? "Ask Avaxa Brain AI..." : "Type a message..."}
+              className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
+            />
+
+            {/* @Mention Autocomplete Dropdown */}
+            {showMentionDropdown && filteredMentionMembers.length > 0 && (
+              <div className="absolute bottom-full left-14 mb-2 bg-white border border-slate-200/80 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
+                <div className="px-2 py-1 mb-1">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mention a member</span>
+                </div>
+                {filteredMentionMembers.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleSelectMention(m)}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
+                  >
+                    <img src={m.avatar} className="w-5 h-5 rounded-full" alt="" />
+                    <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
+                    <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {!isRecording && (
+            <button 
+              type="button" 
+              onClick={startRecording}
+              className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 hover:text-rose-650 hover:bg-rose-50 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
+              title="Record voice message"
+            >
+              <Mic className="w-4 h-4" />
+            </button>
+          )}
+
+          <button 
+            type="button" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2 rounded-xl border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
+              showEmojiPicker 
+                ? 'border-indigo-550 bg-indigo-50 text-indigo-600' 
+                : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
+            }`}
+            title="Insert emoji"
+          >
+            <Smile className="w-4 h-4" />
+          </button>
 
           {activeChannel?.name.includes('ai') && (
             <button
@@ -762,42 +2025,384 @@ className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 
 
       </div>
 
-      {/* ── COLUMN 3: Channel Members Drawer (w-56) ── */}
+      {/* ── COLUMN 3: Chat Details Panel (w-[240px]) ── */}
       <AnimatePresence>
         {showMemberDrawer && (
           <motion.div 
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 220, opacity: 1 }}
+            animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             className="border-l border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left overflow-hidden relative"
           >
-            <div className="p-4 space-y-4">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Teammates ({members.length})</span>
+            <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chat Details</span>
                 <button onClick={() => setShowMemberDrawer(false)} className="p-0.5 rounded-md hover:bg-slate-150 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </div>
 
-              <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
-                {members.map(m => (
-                  <div key={m.id} className="flex items-center gap-2 p-1 rounded-lg">
-                    <div className="relative shrink-0 flex">
-                      <img src={m.avatar} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white" alt="" />
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
-                        m.status === 'online' ? 'bg-emerald-500 animate-pulse' :
-                        m.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
-                      }`} />
+              {/* Tab selectors */}
+              <div className="flex bg-slate-100 p-0.5 rounded-xl text-[10px] font-black tracking-wide uppercase shrink-0">
+                {(['members', 'search', 'files'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveSidebarTab(tab)}
+                    className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
+                      activeSidebarTab === tab 
+                        ? 'bg-white text-slate-800 shadow-sm' 
+                        : 'text-slate-405 hover:text-slate-650'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
+                {activeSidebarTab === 'members' && (
+                  <div className="space-y-2">
+                    {members.map(m => (
+                      <div key={m.id} className="flex items-center gap-2.5 p-1 rounded-lg">
+                        <div className="relative shrink-0 flex">
+                          <img src={m.avatar} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn" alt="" />
+                          <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
+                            m.status === 'online' ? 'bg-emerald-500 animate-pulse' :
+                            m.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
+                          }`} />
+                        </div>
+                        <div className="min-w-0 leading-none">
+                          <span className="text-[11px] font-bold text-slate-700 block truncate">{m.name}</span>
+                          <span className="text-[8px] text-slate-400 font-medium block mt-0.5">{m.role === 'admin' ? 'PM' : 'Developer'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeSidebarTab === 'search' && (
+                  <div className="space-y-3">
+                    <div className="relative shrink-0">
+                      <input 
+                        type="text" 
+                        value={localSearchQuery}
+                        onChange={e => setLocalSearchQuery(e.target.value)}
+                        placeholder="Tìm tin nhắn..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200/60 outline-none text-[11px] font-medium placeholder-slate-400 focus:border-indigo-500 transition-colors"
+                      />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     </div>
-                    <div className="min-w-0 leading-none">
-                      <span className="text-[11px] font-bold text-slate-700 block truncate">{m.name}</span>
-                      <span className="text-[8px] text-slate-400 font-medium block mt-0.5">{m.role === 'admin' ? 'PM' : 'Developer'}</span>
+
+                    <div className="space-y-2.5">
+                      {localSearchQuery.trim() ? (
+                        messages.filter(m => m.content.toLowerCase().includes(localSearchQuery.toLowerCase())).map(m => (
+                          <div key={m.id} className="p-2 rounded-xl bg-white border border-slate-150 text-[10.5px] text-left hover:border-indigo-250 transition-colors">
+                            <div className="flex justify-between font-bold text-slate-550 text-[9px] mb-1">
+                              <span>{m.senderName}</span>
+                              <span>{m.timestamp}</span>
+                            </div>
+                            <p className="text-slate-700 font-semibold break-words leading-normal">{m.content}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[10px] text-slate-400 font-bold text-center py-4">Nhập từ khóa để tìm kiếm tin nhắn</p>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {activeSidebarTab === 'files' && (
+                  <div className="space-y-2">
+                    {messages.filter(m => m.attachment).map(m => {
+                      const file = m.attachment!;
+                      return (
+                        <div key={m.id} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-150 text-left hover:border-indigo-255 transition-colors">
+                          {file.isVoice ? (
+                            <div className="p-2 rounded-lg bg-rose-50 text-rose-600 shrink-0">
+                              <Mic className="w-4 h-4" />
+                            </div>
+                          ) : file.isImage ? (
+                            <img src={file.filePath} className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-slate-50 shrink-0" alt="" />
+                          ) : (
+                            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+                              <Globe className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[10px] font-bold text-slate-700 truncate">{file.name}</span>
+                            <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono mt-0.5">
+                              {file.isVoice ? 'Audio Voice' : file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
+                            </span>
+                          </div>
+                          <a 
+                            href={file.filePath} 
+                            download={file.name}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer shrink-0"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      );
+                    })}
+                    {messages.filter(m => m.attachment).length === 0 && (
+                      <p className="text-[10px] text-slate-400 font-bold text-center py-4">Chưa có tài liệu hay tệp tin nào</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Lark Thread Panel ── */}
+      <AnimatePresence>
+        {activeThreadMessage && (
+          <motion.div 
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 320, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            className="border-l border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left overflow-hidden relative h-full"
+          >
+            <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Thread Discussion</span>
+                <button onClick={() => setActiveThreadMessage(null)} className="p-0.5 rounded-md hover:bg-slate-150 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+              </div>
+
+              {/* Parent Message Bubble */}
+              <div className="p-3 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl shrink-0 text-left">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <img src={activeThreadMessage.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-5.5 h-5.5 rounded-full object-cover" alt="" />
+                  <span className="text-[11px] font-bold text-slate-700">{activeThreadMessage.senderName}</span>
+                  <span className="text-[9px] text-slate-400 ml-auto font-medium">{activeThreadMessage.timestamp}</span>
+                </div>
+                <div className="text-xs text-slate-700 leading-normal font-medium break-words">
+                  {formatMessageContent(activeThreadMessage.content)}
+                </div>
+              </div>
+
+              {/* Sub-Thread Replies Stream */}
+              <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin">
+                {messages.filter(m => m.parentId === activeThreadMessage.id).map(reply => (
+                  <div key={reply.id} className="flex gap-2.5 items-start text-left p-1 rounded-lg">
+                    <img src={reply.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white" alt="" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[11px] font-bold text-slate-800">{reply.senderName}</span>
+                        <span className="text-[8.5px] text-slate-400 font-medium">{reply.timestamp}</span>
+                      </div>
+                      <div className="text-xs text-slate-700 mt-1 font-medium leading-relaxed break-words bg-white p-2 rounded-2xl border border-slate-150 inline-block">
+                        {formatMessageContent(reply.content)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {messages.filter(m => m.parentId === activeThreadMessage.id).length === 0 && (
+                  <p className="text-[10px] text-slate-400 font-bold text-center py-8">No replies yet. Start the thread conversation!</p>
+                )}
+              </div>
+
+              {/* Thread Input box */}
+              <form onSubmit={handleSendThreadReply} className="pt-2 border-t border-slate-150 flex gap-2 items-center shrink-0">
+                <input 
+                  type="text"
+                  value={threadInputVal}
+                  onChange={e => setThreadInputVal(e.target.value)}
+                  placeholder="Reply in thread..."
+                  className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
+                />
+                <button 
+                  type="submit"
+                  className="p-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer shrink-0 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Channel Modal Overlay */}
+      {showCreateChannelModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <Hash className="w-4.5 h-4.5 text-indigo-500" />
+                Create New Channel
+              </h3>
+              <button 
+                onClick={() => setShowCreateChannelModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateChannel} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newChannelName}
+                  onChange={e => setNewChannelName(e.target.value)}
+                  placeholder="e.g. marketing, customer-support" 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description</label>
+                <textarea 
+                  value={newChannelDesc}
+                  onChange={e => setNewChannelDesc(e.target.value)}
+                  placeholder="Briefly describe what this channel is for..." 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold h-20 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
+                <button 
+                  type="button"
+                  onClick={() => setShowCreateChannelModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Rename Channel Modal Overlay */}
+      {showRenameModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <Edit2 className="w-4.5 h-4.5 text-indigo-500" />
+                Rename Channel
+              </h3>
+              <button 
+                onClick={() => setShowRenameModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRenameChannel} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={renameChannelName}
+                  onChange={e => setRenameChannelName(e.target.value)}
+                  placeholder="e.g. marketing-updates" 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description</label>
+                <textarea 
+                  value={renameChannelDesc}
+                  onChange={e => setRenameChannelDesc(e.target.value)}
+                  placeholder="Briefly describe what this channel is for..." 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold h-20 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
+                <button 
+                  type="button"
+                  onClick={() => setShowRenameModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Forward Message Modal */}
+      {forwardingMessage && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <Forward className="w-4.5 h-4.5 text-blue-500" />
+                Forward Message
+              </h3>
+              <button 
+                onClick={() => setForwardingMessage(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Preview of forwarded message */}
+            <div className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl text-left">
+              <div className="flex items-center gap-1.5 mb-1">
+                <img src={forwardingMessage.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-4 h-4 rounded-full" alt="" />
+                <span className="text-[10px] font-black text-slate-700">{forwardingMessage.senderName}</span>
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold line-clamp-3">{forwardingMessage.content}</p>
+            </div>
+
+            {/* Channel select list */}
+            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Select channel</span>
+              {channels.filter(c => c.id !== activeChannelId).map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => handleForwardMessage(c.id)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
+                >
+                  <Hash className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[11px] font-bold text-slate-700">{c.name}</span>
+                  <ArrowRight className="w-3 h-3 ml-auto text-slate-300" />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );

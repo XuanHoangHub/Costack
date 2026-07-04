@@ -177,7 +177,11 @@ export interface ChatMessage {
     filePath: string;
     size: number;
     isImage: boolean;
+    isVoice?: boolean;
+    duration?: number;
   };
+  parentId?: string;
+  isPinned?: boolean;
 }
 
 export interface ChatChannel {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -798,6 +798,8 @@ export default function App() {
 
   // Sync Activity log state - consumed from useSyncStore
   const syncLogs = useSyncStore((s) => s.syncLogs);
+  const setSyncLogs = useSyncStore((s) => s.addSyncLog);
+  const clearSyncLogs = useSyncStore((s) => s.clearSyncLogs);
 
   // Tasks ClickUp dataset
   const tasks = useTaskStore((s) => s.tasks);
@@ -814,6 +816,7 @@ export default function App() {
   // Toast notification state - consumed from useNotificationStore
   const toasts = useNotificationStore((s) => s.toasts);
   const removeToast = useNotificationStore((s) => s.removeToast);
+  const addToast = useNotificationStore((s) => s.addToast);
   const lastToastsRef = useRef<Record<string, number>>({});
 
   // Persistent notifications history list
@@ -821,6 +824,44 @@ export default function App() {
   const setNotificationsList = useNotificationStore((s) => s.setNotificationsList);
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
+
+  // Filtered lists for the Global Search modal
+  const filteredTasks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    const activeTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
+    return activeTasks.filter(t => 
+      t.title.toLowerCase().includes(query) || 
+      t.description.toLowerCase().includes(query)
+    );
+  }, [tasks, activeWorkspaceId, searchQuery]);
+
+  const filteredDocs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    const activeDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
+    return activeDocs.filter(d => 
+      d.title.toLowerCase().includes(query) || 
+      d.content.toLowerCase().includes(query)
+    );
+  }, [docs, activeWorkspaceId, searchQuery]);
+
+  const filteredChannels = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    const workspaceChannels = [
+      { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
+      { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
+      { id: `${activeWorkspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Avaxa Brain AI support assistant online', type: 'public' },
+      { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
+    ];
+    return workspaceChannels.filter(c => 
+      c.name.toLowerCase().includes(query) || 
+      c.description.toLowerCase().includes(query)
+    );
+  }, [activeWorkspaceId, searchQuery]);
+
+  const totalResultsCount = filteredTasks.length + filteredDocs.length + filteredChannels.length;
 
   useEffect(() => {
     try {
@@ -3629,7 +3670,7 @@ export default function App() {
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                       onClearSyncLogs={() => {
-                        setSyncLogs([]);
+                        clearSyncLogs();
                       }}
                     />
                   )}
@@ -3802,6 +3843,7 @@ export default function App() {
                       initialSelectedChannelId={initialSelectedChannelId}
                       onClearInitialSelectedChannelId={() => setInitialSelectedChannelId(null)}
                       workspaceId={activeWorkspaceId}
+                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
                     />
                   )}
 

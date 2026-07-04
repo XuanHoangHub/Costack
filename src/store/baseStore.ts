@@ -4,7 +4,7 @@ import { BaseApp } from '@/types';
 
 interface BaseState {
   bases: BaseApp[];
-  setBases: (bases: BaseApp[]) => void;
+  setBases: (bases: BaseApp[] | ((prev: BaseApp[]) => BaseApp[])) => void;
   addBase: (base: BaseApp) => void;
   updateBase: (base: BaseApp) => void;
   deleteBase: (id: string) => void;
@@ -14,7 +14,7 @@ export const useBaseStore = create<BaseState>()(
   persist(
     (set) => ({
       bases: [],
-      setBases: (bases) => set({ bases }),
+      setBases: (bases) => set((state) => ({ bases: typeof bases === 'function' ? bases(state.bases) : bases })),
       addBase: (base) => set((state) => ({ bases: [...state.bases, base] })),
       updateBase: (updated) =>
         set((state) => ({

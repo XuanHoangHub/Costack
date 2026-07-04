@@ -11,7 +11,7 @@ interface NotificationState {
   addToast: (toast: Toast) => void;
   addNotification: (notification: any) => void;
   removeToast: (id: string) => void;
-  setNotificationsList: (list: any[]) => void;
+  setNotificationsList: (list: any[] | ((prev: any[]) => any[])) => void;
   setNotificationSettings: (settings: NotificationSettings | ((prev: NotificationSettings) => NotificationSettings)) => void;
   setSoundEnabled: (enabled: boolean) => void;
 }
