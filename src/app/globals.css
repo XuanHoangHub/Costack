@@ -253,9 +253,48 @@ html, body, #root {
 
 .login-spotlight-bg {
   background: radial-gradient(
-    circle 650px at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(99, 102, 241, 0.08) 0%,
-    rgba(244, 114, 182, 0.04) 40%,
-    transparent 70%
+    circle 700px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(123, 97, 255, 0.1) 0%,
+    rgba(255, 51, 102, 0.05) 35%,
+    rgba(51, 209, 255, 0.03) 55%,
+    transparent 75%
   );
+  transition: background 0.15s ease-out;
+}
+
+/* ── Animated Gradient Text ── */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* ── Rotating Rainbow Border ── */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-border {
+  0% { --border-angle: 0deg; }
+  100% { --border-angle: 360deg; }
+}
+
+.animate-gradient-border {
+  animation: rotate-border 4s linear infinite;
+}
+
+/* ── Magnetic Glow Pulse ── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.02); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
 }
