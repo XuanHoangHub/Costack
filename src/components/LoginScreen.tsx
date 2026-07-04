@@ -275,6 +275,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   // Active stats counter animation
   const [activeUsers, setActiveUsers] = useState(0);
   const [tasksCompleted, setTasksCompleted] = useState(0);
+  const progressRef = useRef(85);
   const activityIdCounter = useRef(100);
 
   useEffect(() => {
@@ -284,28 +285,32 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       setSimulatedPomoTime(prev => (prev <= 0 ? 25 * 60 : prev - 1));
     }, 1000);
 
-    // Kanban progress simulation
+    // Kanban progress simulation — side effects are at the top level of the
+    // callback (not inside a state updater) so StrictMode won't double-fire them.
     const progressInterval = setInterval(() => {
-      setSimulatedProgress(prev => {
-        if (prev >= 100) {
-          setSimulatedTaskDone(true);
-          const activities: Array<{ text: string; type: 'member' | 'ai' }> = [
-            { text: 'Lan Anh đã giải quyết xong lỗi đồng bộ Supabase', type: 'member' },
-            { text: 'Avaxa Brain phát hiện 1 điểm thắt nút năng suất', type: 'ai' },
-            { text: 'Hoàng Benjamin đã gán thẻ công việc thiết kế mới', type: 'member' }
-          ];
-          const randomAct = activities[Math.floor(Math.random() * activities.length)];
-          activityIdCounter.current += 1;
-          setSimulatedActivity(prevAct => [
-            { id: activityIdCounter.current, text: randomAct.text, time: 'Vừa xong', type: randomAct.type },
-            ...prevAct.slice(0, 2)
-          ]);
-          
-          setTimeout(() => setSimulatedTaskDone(false), 2000);
-          return 75;
-        }
-        return prev + 1;
-      });
+      progressRef.current += 1;
+
+      if (progressRef.current > 100) {
+        progressRef.current = 75;
+
+        setSimulatedTaskDone(true);
+        const activities: Array<{ text: string; type: 'member' | 'ai' }> = [
+          { text: 'Lan Anh đã giải quyết xong lỗi đồng bộ Supabase', type: 'member' },
+          { text: 'Avaxa Brain phát hiện 1 điểm thắt nút năng suất', type: 'ai' },
+          { text: 'Hoàng Benjamin đã gán thẻ công việc thiết kế mới', type: 'member' }
+        ];
+        const randomAct = activities[Math.floor(Math.random() * activities.length)];
+        activityIdCounter.current += 1;
+        const newId = activityIdCounter.current;
+        setSimulatedActivity(prevAct => [
+          { id: newId, text: randomAct.text, time: 'Vừa xong', type: randomAct.type },
+          ...prevAct.slice(0, 2)
+        ]);
+
+        setTimeout(() => setSimulatedTaskDone(false), 2000);
+      }
+
+      setSimulatedProgress(progressRef.current);
     }, 4500);
 
     // Count-up animation for stats
