@@ -34,6 +34,7 @@ import ProductivityHub from '../components/ProductivityHub';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 import BaseHub from '../components/BaseHub';
 import InboxView from '../components/InboxView';
+import AnalyticsHub from '../components/AnalyticsHub';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -41,7 +42,7 @@ import {
   Search, X, FileText, Hash, ArrowRight, CornerDownLeft, Check, ChevronDown,
   Timer, Bell, Calendar, Settings, Plus,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database,
-  GripVertical
+  GripVertical, BarChart3
 } from 'lucide-react';
 
 export default function App() {
@@ -890,12 +891,13 @@ export default function App() {
       chat: { label: 'Chat', icon: MessageSquare },
       docs: { label: 'Docs', icon: FileText },
       base: { label: 'Avaxa Base', icon: Database },
-      tasks: { label: 'Space', icon: Briefcase }
+      tasks: { label: 'Space', icon: Briefcase },
+      analytics: { label: 'Analytics', icon: BarChart3 }
     };
   }, [notificationsList]);
 
   const orderedItems = useMemo(() => {
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics'];
     const currentOrder = [...sidebarOrder];
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
@@ -2920,6 +2922,7 @@ export default function App() {
   // Navigation menu items definition
   const sidebarItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, category: 'workspace' },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
     { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
     { id: 'base', label: 'Avaxa Base', icon: Database, category: 'workspace' },
@@ -4062,6 +4065,15 @@ export default function App() {
                       onClearSyncLogs={() => {
                         clearSyncLogs();
                       }}
+                    />
+                  )}
+
+                  {activeTab === 'analytics' && (
+                    <AnalyticsHub
+                      tasks={currentWorkspaceTasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      activeWorkspaceId={activeWorkspaceId}
                     />
                   )}
 
