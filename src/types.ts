@@ -118,6 +118,9 @@ export interface Document {
   workspaceId?: string;
   spaceId?: string;
   folderId?: string;
+  parentId?: string;
+  isProtected?: boolean;
+  isFavorite?: boolean;
 }
 
 export interface Workspace {

@@ -260,8 +260,8 @@ export default function SpacePage({
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSmartSort, setIsSmartSort] = useState(false);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [boardGroupBy, setBoardGroupBy] = useState<'status' | 'priority'>('status');
-  const [boardSwimlaneBy, setBoardSwimlaneBy] = useState<'none' | 'priority' | 'assignee'>('none');
+  const [boardGroupBy, setBoardGroupBy] = useState<'status' | 'priority' | 'assignee'>('status');
+  const [boardSwimlaneBy, setBoardSwimlaneBy] = useState<'none' | 'status' | 'priority' | 'assignee'>('none');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeOverDropId, setActiveOverDropId] = useState<string | null>(null);
 
@@ -1917,7 +1917,9 @@ export default function SpacePage({
             activeDragId={activeDragId}
             activeOverDropId={activeOverDropId}
             cardSize={cardSize}
+            setCardSize={setCardSize}
             cardCover={cardCover}
+            setCardCover={setCardCover}
             onAddTask={onAddTask}
           />
         )}
@@ -2225,16 +2227,19 @@ export default function SpacePage({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4"
+            className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-7 shadow-[0_20px_50px_rgba(109,85,254,0.15)] space-y-5 overflow-hidden"
           >
-            <div className="flex items-center justify-between">
+            {/* Top decorative gradient border */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+            
+            <div className="flex items-center justify-between pt-1">
               <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-indigo-500" />
                 <span>Create New Task</span>
               </h3>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 flex items-center justify-center cursor-pointer transition-colors"
               >
                 ✕
               </button>
@@ -2242,34 +2247,34 @@ export default function SpacePage({
 
             <form onSubmit={handleCreateTaskSubmit} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Task Title</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Task Title</label>
                 <input 
                   type="text" 
                   required
                   placeholder="What needs to be done?" 
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-805 outline-none focus:border-indigo-500 font-bold"
+                  className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Description</label>
                 <textarea 
                   placeholder="Task details & notes..." 
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full h-24 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-805 outline-none focus:border-indigo-500 font-semibold"
+                  className="w-full h-24 px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-955/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-semibold transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Priority</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Priority</label>
                   <PriorityPillSelect value={newPrio} onChange={setNewPrio} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assignee</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Assignee</label>
                   <AssigneePillSelect 
                     members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))} 
                     value={newAssignee || null} 
@@ -2280,26 +2285,26 @@ export default function SpacePage({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Date</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Start Date</label>
                   <PremiumDatePicker dateValue={newStartDate} onChange={(val) => setNewStartDate(val || '')} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Due Date</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Due Date</label>
                   <PremiumDatePicker dateValue={newDueDate} onChange={(val) => setNewDueDate(val || '')} />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-end gap-3">
                 <button 
                   type="button" 
                   onClick={() => setShowAddModal(false)}
-                  className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 font-bold cursor-pointer"
+                  className="py-2.5 px-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 font-bold cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 text-white font-black rounded-xl shadow-md cursor-pointer transition-colors"
+                  className="py-2.5 px-6 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Create Task
                 </button>

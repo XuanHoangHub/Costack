@@ -22,6 +22,7 @@ import DashboardOverview from '../components/DashboardOverview';
 import SpacePage from '../components/SpacePage';
 import CalendarView from '../components/CalendarView';
 import Whiteboard from '../components/Whiteboard';
+import WhiteboardHub from '../components/WhiteboardHub';
 import ChatRoom from '../components/ChatRoom';
 import DocumentHub from '../components/DocumentHub';
 import TeamDirectory from '../components/TeamDirectory';
@@ -32,13 +33,15 @@ import ToastNotification, { Toast } from '../components/ToastNotification';
 import ProductivityHub from '../components/ProductivityHub';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 import BaseHub from '../components/BaseHub';
+import InboxView from '../components/InboxView';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
   Search, X, FileText, Hash, ArrowRight, CornerDownLeft, Check, ChevronDown,
   Timer, Bell, Calendar, Settings, Plus,
-  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database
+  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database,
+  GripVertical
 } from 'lucide-react';
 
 export default function App() {
@@ -824,6 +827,93 @@ export default function App() {
   const setNotificationsList = useNotificationStore((s) => s.setNotificationsList);
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
+
+  const sidebarOrder = useUiStore((s) => s.sidebarOrder) || ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+  const setSidebarOrder = useUiStore((s) => s.setSidebarOrder);
+
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedItemId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (draggedItemId && draggedItemId !== id) {
+      setDragOverItemId(id);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+    setDragOverItemId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedItemId || draggedItemId === targetId) return;
+
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+    const currentOrder = [...sidebarOrder];
+    
+    // Ensure all default items are present
+    defaultOrder.forEach((id) => {
+      if (!currentOrder.includes(id)) {
+        currentOrder.push(id);
+      }
+    });
+
+    const draggedIndex = currentOrder.indexOf(draggedItemId);
+    const targetIndex = currentOrder.indexOf(targetId);
+
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+      currentOrder.splice(draggedIndex, 1);
+      currentOrder.splice(targetIndex, 0, draggedItemId);
+      setSidebarOrder(currentOrder);
+      if (typeof window !== 'undefined') {
+        (window as any).playSystemSound?.('toggle');
+      }
+    }
+
+    setDraggedItemId(null);
+    setDragOverItemId(null);
+  };
+
+  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number }>>(() => {
+    return {
+      dashboard: { label: 'Home Overview', icon: LayoutDashboard },
+      inbox: { label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
+      calendar: { label: 'Calendar', icon: Calendar },
+      chat: { label: 'Chat', icon: MessageSquare },
+      docs: { label: 'Docs', icon: FileText },
+      base: { label: 'Avaxa Base', icon: Database },
+      tasks: { label: 'Space', icon: Briefcase }
+    };
+  }, [notificationsList]);
+
+  const orderedItems = useMemo(() => {
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+    const currentOrder = [...sidebarOrder];
+    defaultOrder.forEach((id) => {
+      if (!currentOrder.includes(id)) {
+        currentOrder.push(id);
+      }
+    });
+    return currentOrder
+      .filter((id) => id in sidebarItemsMeta)
+      .map((id) => {
+        const meta = sidebarItemsMeta[id as keyof typeof sidebarItemsMeta];
+        return {
+          id,
+          label: meta.label,
+          icon: meta.icon,
+          count: meta.count
+        };
+      });
+  }, [sidebarOrder, sidebarItemsMeta]);
 
   // Filtered lists for the Global Search modal
   const filteredTasks = useMemo(() => {
@@ -2675,14 +2765,14 @@ export default function App() {
 
       {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
       <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 transition-all duration-350 ease-in-out ${
-        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-slate-50 dark:bg-slate-900 px-4 py-5 space-y-6'
+        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-white dark:bg-slate-900 px-4 py-5 space-y-6'
       }`}>
         
         <div className="space-y-6">
           {/* Main Launcher App Branding Header */}
           <div className="flex items-center justify-between px-1 relative">
             <div 
-              className="flex-1 flex items-center justify-between p-2 rounded-2xl bg-slate-50/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 cursor-pointer group select-none shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]"
+              className="flex-1 flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 cursor-pointer group select-none shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]"
               onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -2753,7 +2843,7 @@ export default function App() {
                           className={`w-full flex items-center gap-2.5 p-1.5 pr-8 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left border border-transparent ${
                             activeWorkspaceId === w.id 
                               ? 'bg-slate-150/80 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-200/30 dark:border-slate-600/30 shadow-md' 
-                              : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
                           }`}
                         >
                           <div 
@@ -2868,58 +2958,54 @@ export default function App() {
             {/* ClickUp Sidebar Hierarchy */}
             <div className="space-y-3 relative px-1 flex flex-col pt-1">
               
-              {/* Home, Inbox, Space (with nested spaces list) */}
               <div className="space-y-0.5">
-                 {[
-                  { id: 'dashboard', label: 'Home Overview', icon: LayoutDashboard },
-                  { id: 'inbox', label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
-                  { id: 'calendar', label: 'Calendar', icon: Calendar },
-                  { id: 'chat', label: 'Chat', icon: MessageSquare },
-                  { id: 'base', label: 'Avaxa Base', icon: Database },
-                ].map((item) => {
+                 {orderedItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = activeTab === item.id;
+                  const isActive = item.id === 'tasks'
+                    ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
+                    : (activeTab === item.id);
                   return (
                     <button
                       key={item.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragOver={(e) => handleDragOver(e, item.id)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, item.id)}
                       onClick={() => {
-                        setActiveTab(item.id);
-                        setActiveSpaceId(null);
-                        setActiveListId(null);
+                        if (item.id === 'tasks') {
+                          setActiveTab('tasks');
+                          setActiveSpaceId(null);
+                          setActiveListId(null);
+                        } else {
+                          setActiveTab(item.id);
+                          setActiveSpaceId(null);
+                          setActiveListId(null);
+                        }
                         addSyncLog(`Switched to: ${item.label}`);
                       }}
-                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
+                      className={`group w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer relative ${
                         isActive 
                           ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
+                      } ${
+                        dragOverItemId === item.id 
+                          ? 'border border-dashed border-indigo-500 dark:border-indigo-400 bg-indigo-50/30' 
+                          : 'border border-transparent'
                       }`}
+                      style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
                     >
-                      <Icon className="w-4 h-4 shrink-0 text-slate-400" />
-                      <span className="truncate">{item.label}</span>
+                      <div className="absolute left-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
+                        <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                      </div>
+                      <Icon className="w-4 h-4 shrink-0 text-slate-400 group-hover:translate-x-1.5 transition-transform" />
+                      <span className="truncate group-hover:translate-x-1.5 transition-transform">{item.label}</span>
                       {item.count !== undefined && item.count > 0 && (
                         <span className="ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce">{item.count}</span>
                       )}
                     </button>
                   );
                 })}
-
-                {/* Flat Space menu item (replaces My Tasks) */}
-                <button
-                  onClick={() => {
-                    setActiveTab('tasks');
-                    setActiveSpaceId(null);
-                    setActiveListId(null);
-                    addSyncLog(`Switched to: Space`);
-                  }}
-                  className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer ${
-                    activeTab === 'tasks' && activeSpaceId === null && activeListId === null
-                      ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
-                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Briefcase className="w-4 h-4 shrink-0 text-slate-400" />
-                  <span className="truncate">Space</span>
-                </button>
               </div>
 
               {/* Removed Sidebar App Links as requested */}
@@ -2929,7 +3015,7 @@ export default function App() {
 
             {/* Widget Area: Pomodoro & Sprint Compact */}
             <div className="space-y-3 px-1 pt-2 border-t border-slate-200/20 dark:border-slate-800/20">
-              <div className="group rounded-2xl border border-slate-200/50 bg-white/90 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+              <div className="group rounded-2xl border border-slate-200/50 bg-slate-50 dark:bg-slate-950/20 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
                 {/* Visual Accent */}
                 {pomodoroActive && (
                   <motion.div 
@@ -3108,7 +3194,7 @@ export default function App() {
               </div>
 
               {/* Sprint Compact */}
-              <div className="px-2.5 py-3 rounded-2xl bg-slate-50/50 border border-slate-105 space-y-2">
+              <div className="px-2.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold text-slate-455">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Sprint Progress
@@ -3140,7 +3226,7 @@ export default function App() {
               </div>
 
               {/* Compact Themes & Accent Selectors */}
-              <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50/50 border border-slate-105 rounded-xl">
+              <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Theme Color</span>
                 <div className="flex gap-2">
                   {[
@@ -3640,7 +3726,7 @@ export default function App() {
           const currentWorkspaceTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
           const currentWorkspaceDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
           const currentWorkspaceBases = bases.filter(b => b.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !b.workspaceId));
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs';
           
           return (
             <main className={`flex-1 relative ${
@@ -3677,66 +3763,20 @@ export default function App() {
                   )}
 
                   {activeTab === 'inbox' && (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 p-6 space-y-6 max-w-4xl mx-auto shadow-sm">
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                        <div>
-                          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-550 flex items-center gap-2">
-                            <Bell className="w-5 h-5 text-pink-500" />
-                            Notification Center (Inbox)
-                          </h2>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Your notifications, updates, reminders, and assignments.</p>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
-                            triggerToast('success', 'Marked all as read', 'All notifications marked as read.');
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-700 dark:text-slate-350 text-[11px] font-bold cursor-pointer transition-colors"
-                        >
-                          Mark all as read
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        {notificationsList.map(notif => (
-                          <div 
-                            key={notif.id}
-                            className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
-                              notif.read 
-                                ? 'bg-slate-50/50 dark:bg-slate-950/20 border-slate-100 dark:border-slate-800/40 opacity-75' 
-                                : 'bg-pink-50/30 dark:bg-pink-955/10 border-pink-100 dark:border-pink-900/25 shadow-xs'
-                            }`}
-                          >
-                            <div className={`p-2 rounded-xl shrink-0 ${
-                              notif.type === 'assignment' ? 'bg-indigo-55/65 text-indigo-600' : 'bg-rose-50 text-rose-600'
-                            }`}>
-                              <Briefcase className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-4">
-                                <span className={`text-xs font-bold ${notif.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{notif.title}</span>
-                                <span className="text-[10px] text-slate-400">{notif.timestamp}</span>
-                              </div>
-                              <p className="text-xs text-slate-500 dark:text-slate-450 mt-1">{notif.message}</p>
-                              
-                              {!notif.read && (
-                                <button 
-                                  onClick={() => {
-                                    setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                                  }}
-                                  className="text-[10px] text-pink-500 font-extrabold hover:underline mt-2 cursor-pointer block"
-                                >
-                                  Mark as read
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {notificationsList.length === 0 && (
-                          <div className="text-center py-10 text-slate-405 italic">Inbox empty. No notifications.</div>
-                        )}
-                      </div>
-                    </div>
+                    <InboxView
+                      notificationsList={notificationsList}
+                      setNotificationsList={setNotificationsList}
+                      tasks={tasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      workspaces={workspaces}
+                      activeWorkspaceId={activeWorkspaceId}
+                      onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                      currentUser={currentUser}
+                      onUpgradePremium={() => setShowPremiumModal(true)}
+                    />
                   )}
 
                   {(activeTab === 'tasks' || activeTab === 'my-tasks') && (
@@ -3826,10 +3866,16 @@ export default function App() {
                   )}
 
                   {activeTab === 'whiteboard' && (
-                    <Whiteboard
+                    <WhiteboardHub
+                      spaces={spaces}
+                      onSaveSpaces={handleSaveSpaces}
+                      activeWorkspaceId={activeWorkspaceId}
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      tasks={tasks}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
+                      onAddTask={handleAddTask}
+                      triggerToast={triggerToast}
                     />
                   )}
 
@@ -3849,17 +3895,19 @@ export default function App() {
                   )}
 
                   {activeTab === 'docs' && (
-                    <DocumentHub
-                      docs={currentWorkspaceDocs}
-                      currentUser={currentUser}
-                      onAddDoc={handleAddDoc}
-                      onUpdateDoc={handleUpdateDoc}
-                      onDeleteDoc={handleDeleteDoc}
-                      isOffline={isOffline}
-                      onAddSyncLog={addSyncLog}
-                      initialSelectedDocId={initialSelectedDocId}
-                      onClearInitialSelectedDocId={() => setInitialSelectedDocId(null)}
-                    />
+                    <div className="w-full h-full p-4 md:p-5">
+                      <DocumentHub
+                        docs={currentWorkspaceDocs}
+                        currentUser={currentUser}
+                        onAddDoc={handleAddDoc}
+                        onUpdateDoc={handleUpdateDoc}
+                        onDeleteDoc={handleDeleteDoc}
+                        isOffline={isOffline}
+                        onAddSyncLog={addSyncLog}
+                        initialSelectedDocId={initialSelectedDocId}
+                        onClearInitialSelectedDocId={() => setInitialSelectedDocId(null)}
+                      />
+                    </div>
                   )}
 
                   {activeTab === 'base' && (

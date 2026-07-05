@@ -55,6 +55,8 @@ interface UiState {
   // Pomodoro settings
   showPomoSettings: boolean;
 
+  sidebarOrder: string[];
+
   setActiveTab: (tab: string) => void;
   setIsMainSidebarCollapsed: (collapsed: boolean) => void;
   setIsSearchOpen: (open: boolean) => void;
@@ -102,6 +104,7 @@ interface UiState {
   setEditWSTheme: (theme: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
 
   setShowPomoSettings: (show: boolean) => void;
+  setSidebarOrder: (order: string[]) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -164,6 +167,7 @@ export const useUiStore = create<UiState>()(
       editWSName: '',
       editWSTheme: 'indigo',
       showPomoSettings: false,
+      sidebarOrder: ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMainSidebarCollapsed: (isMainSidebarCollapsed) => set({ isMainSidebarCollapsed }),
@@ -212,6 +216,7 @@ export const useUiStore = create<UiState>()(
       setEditWSTheme: (editWSTheme) => set({ editWSTheme }),
 
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
+      setSidebarOrder: (sidebarOrder) => set({ sidebarOrder }),
     }),
     {
       name: 'avaxa_ui',
