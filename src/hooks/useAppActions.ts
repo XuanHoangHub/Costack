@@ -536,36 +536,68 @@ export function useAppActions() {
   }, [isOffline, addSyncLog]);
 
   const handleAddMember = useCallback(async (m: Omit<User, 'id'>) => {
-    const newMemberId = `member-${Date.now()}`;
-    const newMemberObj: User = {
-      ...m,
-      id: newMemberId
-    };
-
-    useMemberStore.getState().addMember(newMemberObj);
-
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { error } = await supabase.from('members').insert([{
-            id: newMemberObj.id,
-            name: newMemberObj.name,
-            email: newMemberObj.email,
-            avatar: newMemberObj.avatar,
-            role: newMemberObj.role,
-            status: newMemberObj.status,
-            user_id: session.user.id,
-            phone: newMemberObj.phone || null,
-            department: newMemberObj.department || null,
-            bio: newMemberObj.bio || null,
-            joined_date: newMemberObj.joinedDate || null,
-            workspace_ids: newMemberObj.workspaceIds || null
-          }]);
-          if (error) console.error('Supabase Member Insert Error:', error);
+        if (!session?.user) return;
+        const activeWorkspaceId = useWorkspaceStore.getState().activeWorkspaceId;
+
+        // Search for existing user in members table by email
+        const { data: existing, error: findError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('email', m.email)
+          .maybeSingle();
+
+        if (existing) {
+          const currentWSIds = existing.workspace_ids || [];
+          if (currentWSIds.includes(activeWorkspaceId)) {
+            return;
+          }
+          
+          const updatedWSIds = [...currentWSIds, activeWorkspaceId];
+          const { error } = await supabase
+            .from('members')
+            .update({ workspace_ids: updatedWSIds })
+            .eq('id', existing.id);
+
+          if (!error) {
+            useMemberStore.getState().updateMember({
+              ...existing,
+              id: existing.id === `user-${session.user.id}` ? 'user' : existing.id,
+              workspaceIds: updatedWSIds
+            } as any);
+          }
+          return;
+        }
+
+        // If not found, create a placeholder profile with the email and the workspaceId!
+        const newMemberId = `member-${Date.now()}`;
+        const newMemberObj: User = {
+          ...m,
+          id: newMemberId,
+          workspaceIds: [activeWorkspaceId]
+        };
+
+        const { error } = await supabase.from('members').insert([{
+          id: newMemberObj.id,
+          name: newMemberObj.name,
+          email: newMemberObj.email,
+          avatar: newMemberObj.avatar,
+          role: newMemberObj.role,
+          status: 'offline', // invited and offline
+          phone: newMemberObj.phone || null,
+          department: newMemberObj.department || null,
+          bio: newMemberObj.bio || null,
+          joined_date: newMemberObj.joinedDate || null,
+          workspace_ids: [activeWorkspaceId]
+        }]);
+
+        if (!error) {
+          useMemberStore.getState().addMember(newMemberObj);
         }
       } catch (err) {
-        console.error('Member insert sync failure:', err);
+        console.error('Member invite failure in useAppActions:', err);
       }
     }
   }, [isOffline]);

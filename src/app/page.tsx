@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp } from '../types';
+import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp, Workspace } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { useAppActions } from '@/hooks/useAppActions';
 import { useUiStore } from '@/store/uiStore';
@@ -1379,6 +1379,111 @@ export default function App() {
   // --- Real-time Supabase Data Synchronization Engine ---
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Onboarding states
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingName, setOnboardingName] = useState('');
+  const [onboardingWSName, setOnboardingWSName] = useState('');
+  const [onboardingTheme, setOnboardingTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
+  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
+
+  const handleOnboardingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onboardingName.trim() || !onboardingWSName.trim() || onboardingSubmitting) return;
+
+    setOnboardingSubmitting(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const userId = session.user.id;
+      const myMemberId = `user-${userId}`;
+
+      const newWsId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const newWorkspace: Workspace = {
+        id: newWsId,
+        name: onboardingWSName.trim(),
+        theme: onboardingTheme,
+        initial: onboardingWSName.trim().charAt(0).toUpperCase(),
+        user_id: userId
+      };
+
+      // 1. Insert Workspace
+      await supabase.from('workspaces').insert([newWorkspace]);
+
+      // 2. Insert Default Space
+      const generalSpaceId = `s-${newWsId}-general`;
+      await supabase.from('spaces').insert([
+        {
+          id: generalSpaceId,
+          name: 'General',
+          emoji: '🧘',
+          theme_color: onboardingTheme,
+          workspace_id: newWsId,
+          folders: [],
+          whiteboards: [],
+          channels: [{ id: 'general', name: 'general' }],
+          statuses: [
+            { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' },
+            { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
+            { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
+          ],
+          click_apps: { subtasks: true, priorities: true }
+        }
+      ]);
+
+      // 3. Insert Default Lists
+      await supabase.from('lists').insert([
+        { id: `l-${newWsId}-inbox`, name: 'Inbox', space_id: generalSpaceId, user_id: userId },
+        { id: `l-${newWsId}-tasks`, name: 'Tasks', space_id: generalSpaceId, user_id: userId }
+      ]);
+
+      // 4. Create/Update Profile
+      const myAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(onboardingName.trim())}`;
+      const newProfile = {
+        id: myMemberId,
+        name: onboardingName.trim(),
+        email: session.user.email || '',
+        avatar: myAvatar,
+        role: 'admin',
+        status: 'online',
+        user_id: userId,
+        workspace_ids: [newWsId]
+      };
+
+      await supabase.from('members').upsert([newProfile], { onConflict: 'id' });
+
+      // 5. Update Zustand stores
+      setWorkspaces([newWorkspace]);
+      setActiveWorkspaceId(newWsId);
+      setMembers([{
+        id: 'user',
+        name: onboardingName.trim(),
+        email: session.user.email || '',
+        avatar: myAvatar,
+        role: 'admin',
+        status: 'online',
+        workspaceIds: [newWsId],
+        phone: '',
+        department: '',
+        bio: '',
+        joinedDate: '2026'
+      }]);
+
+      triggerToast('success', 'Workspace Launched! 🎉', `Welcome ${onboardingName.trim()}, your workspace "${onboardingWSName.trim()}" is ready.`);
+      (window as any).playSystemSound?.('success');
+      
+      setShowOnboarding(false);
+      
+      // Reload page to re-trigger loadAndSubscribe hooks with new workspace ID
+      window.location.reload();
+    } catch (err) {
+      console.error('Onboarding failed:', err);
+      triggerToast('info', 'Error launching workspace', 'Please try again.');
+    } finally {
+      setOnboardingSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     let active = true;
     if (!currentUser || isOffline) return;
@@ -1396,34 +1501,82 @@ export default function App() {
         if (!session?.user) return;
         const userId = session.user.id;
 
-        // A0. Load Workspaces from Supabase with safe fallback
+        // A. Load Team Members first to find user profile (or handle placeholder)
+        const myMemberId = `user-${userId}`;
+        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const myEmail = currentUser?.email || session.user.email || '';
+        const myAvatar = currentUser?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
+        const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
+        
+        let dbMembers: any[] = [];
+        try {
+          const { data } = await supabase.from('members').select('*');
+          if (data) dbMembers = data;
+        } catch (e) {
+          console.warn('Could not load members table:', e);
+        }
+
+        if (!active) return;
+
+        let finalMembers = dbMembers || [];
+        let myDbProfile = finalMembers.find(m => m.id === myMemberId || m.email === myEmail);
+
+        // If the user has an invited placeholder profile by email but not logged-in ID, update it
+        if (myDbProfile && myDbProfile.id !== myMemberId) {
+          const oldId = myDbProfile.id;
+          const updatedProfile = {
+            ...myDbProfile,
+            id: myMemberId,
+            user_id: userId,
+            name: myName,
+            avatar: myAvatar,
+            status: 'online',
+            role: myRole
+          };
+          
+          await supabase.from('members').delete().eq('id', oldId);
+          await supabase.from('members').insert([updatedProfile]);
+          
+          myDbProfile = updatedProfile;
+          finalMembers = finalMembers.filter(m => m.id !== oldId);
+          finalMembers.push(updatedProfile);
+        }
+
+        // If they still don't have a profile, they need onboarding
+        if (!myDbProfile) {
+          setShowOnboarding(true);
+          setWorkspaces([]);
+          setMembers([]);
+          setDataLoaded(true);
+          return;
+        }
+
+        const allowedIds: string[] = myDbProfile.workspace_ids || [];
+
+        if (allowedIds.length === 0) {
+          setShowOnboarding(true);
+          setWorkspaces([]);
+          setMembers([]);
+          setDataLoaded(true);
+          return;
+        }
+
+        // A0. Load Workspaces that are in allowedIds
         let wsSuccess = false;
         try {
           const { data: dbWorkspaces, error: wsError } = await supabase
             .from('workspaces')
             .select('*')
-            .eq('user_id', userId);
+            .in('id', allowedIds);
 
           if (!active) return;
 
           if (wsError) {
-            console.warn('workspaces table check or fetch failed, falling back to offline workspaces caching:', wsError.message);
+            console.warn('workspaces table check or fetch failed:', wsError.message);
           } else {
             wsSuccess = true;
-            let finalWorkspaces = dbWorkspaces || [];
-            const hasSeededWS = localStorage.getItem(`avaxa_seeded_workspaces_${userId}`);
+            const finalWorkspaces = dbWorkspaces || [];
             
-            if (finalWorkspaces.length === 0 && !hasSeededWS) {
-              const initialWorkspaces = [
-                { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
-                { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
-                { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
-              ];
-              const { data: seededWorkspaces } = await supabase.from('workspaces').insert(initialWorkspaces).select();
-              if (seededWorkspaces) finalWorkspaces = seededWorkspaces;
-              try { localStorage.setItem(`avaxa_seeded_workspaces_${userId}`, 'true'); } catch (e) {}
-            }
-
             if (finalWorkspaces.length > 0) {
               setWorkspaces(finalWorkspaces.map(w => ({
                 id: w.id,
@@ -1435,10 +1588,21 @@ export default function App() {
                 logoUrl: w.logoUrl || '',
                 settings: w.settings || {}
               })));
+
+              if (!allowedIds.includes(activeWorkspaceId)) {
+                setActiveWorkspaceId(allowedIds[0]);
+              }
+            } else {
+              // Workspaces deleted or missing
+              setShowOnboarding(true);
+              setWorkspaces([]);
+              setMembers([]);
+              setDataLoaded(true);
+              return;
             }
           }
         } catch (e) {
-          console.warn('Exception querying workspaces (custom table might not exist in database yet). Using localStorage fallback.', e);
+          console.warn('Exception querying workspaces:', e);
         }
 
         if (!wsSuccess && active) {
@@ -1446,97 +1610,14 @@ export default function App() {
           const cachedWS = localStorage.getItem(`avaxa_fallback_workspaces_${userId}`);
           if (cachedWS) {
             try { setWorkspaces(JSON.parse(cachedWS)); } catch (e) {}
-          } else {
-            const initialWorkspaces = [
-              { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
-              { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
-              { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
-            ];
-            setWorkspaces(initialWorkspaces);
-            try { localStorage.setItem(`avaxa_fallback_workspaces_${userId}`, JSON.stringify(initialWorkspaces)); } catch (e) {}
           }
         }
 
-        // A. Load Team Members (Auto-upsert current real logged-in user, then fetch all real global users)
-        const myMemberId = `user-${userId}`;
-        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
-        const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
-        const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
-        
-        const { data: dbMembers, error: membersErr } = await supabase
-          .from('members')
-          .select('*');
+        // Make sure status is set to online in DB
+        await supabase.from('members').update({ status: 'online' }).eq('id', myMemberId);
+        myDbProfile.status = 'online';
 
-        if (!active) return;
-
-        const finalMembers = dbMembers || [];
-        const myDbProfile = finalMembers.find(m => m.id === myMemberId);
-
-        if (!myDbProfile) {
-          const myPhone = session.user.user_metadata?.phone || '';
-          const myDepartment = session.user.user_metadata?.department || '';
-          const myBio = session.user.user_metadata?.bio || '';
-          const myJoinedDate = session.user.user_metadata?.joinedDate || '2026';
-          const myWorkspaceIds = ['w1', 'w2', 'w3'];
-
-          const newProfile = {
-            id: myMemberId,
-            name: myName,
-            email: myEmail,
-            avatar: myAvatar,
-            role: myRole,
-            status: 'online',
-            user_id: userId,
-            phone: myPhone,
-            department: myDepartment,
-            bio: myBio,
-            joined_date: myJoinedDate,
-            workspace_ids: myWorkspaceIds
-          };
-
-          await supabase.from('members').upsert([newProfile], { onConflict: 'id' });
-          finalMembers.push(newProfile);
-        } else {
-          // If profile exists, make sure status is online.
-          // Also sync any missing details from session user metadata to database.
-          const updatedFields: any = { status: 'online' };
-          let needsUpdate = false;
-
-          if (!myDbProfile.phone && session.user.user_metadata?.phone) {
-            updatedFields.phone = session.user.user_metadata.phone;
-            myDbProfile.phone = session.user.user_metadata.phone;
-            needsUpdate = true;
-          }
-          if (!myDbProfile.department && session.user.user_metadata?.department) {
-            updatedFields.department = session.user.user_metadata.department;
-            myDbProfile.department = session.user.user_metadata.department;
-            needsUpdate = true;
-          }
-          if (!myDbProfile.bio && session.user.user_metadata?.bio) {
-            updatedFields.bio = session.user.user_metadata.bio;
-            myDbProfile.bio = session.user.user_metadata.bio;
-            needsUpdate = true;
-          }
-          if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) {
-            updatedFields.joined_date = session.user.user_metadata.joinedDate;
-            myDbProfile.joined_date = session.user.user_metadata.joinedDate;
-            needsUpdate = true;
-          }
-          if (!myDbProfile.avatar && session.user.user_metadata?.avatar) {
-            updatedFields.avatar = session.user.user_metadata.avatar;
-            myDbProfile.avatar = session.user.user_metadata.avatar;
-            needsUpdate = true;
-          }
-
-          if (needsUpdate) {
-            await supabase.from('members').update(updatedFields).eq('id', myMemberId);
-          } else {
-            await supabase.from('members').update({ status: 'online' }).eq('id', myMemberId);
-          }
-          myDbProfile.status = 'online';
-        }
-
+        // Load members list
         if (finalMembers.length > 0) {
           const userEmail = session.user.email || 'default';
           const storedWorkspaceMapRaw = localStorage.getItem(`avaxa_member_workspaces_${userEmail}`);
@@ -1545,7 +1626,7 @@ export default function App() {
           setMembers(finalMembers.map(m => {
             const isMe = m.id === myMemberId;
             const memberId = isMe ? 'user' : m.id;
-            const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || ['w1', 'w2', 'w3'];
+            const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || [];
             return {
               id: memberId,
               name: m.name,
@@ -1562,11 +1643,11 @@ export default function App() {
           }));
         }
 
-        // B. Load Tasks (No mock data seeding, fetch user tasks)
+        // B. Load Tasks belonging to the allowed workspaces
         const { data: dbTasks, error: tasksErr } = await supabase
           .from('tasks')
           .select('*')
-          .eq('user_id', userId);
+          .in('workspace_id', allowedIds);
 
         if (!active) return;
 
@@ -1606,7 +1687,7 @@ export default function App() {
         const { data: dbDocs, error: docsErr } = await supabase
           .from('docs')
           .select('*')
-          .eq('user_id', userId);
+          .in('workspace_id', allowedIds);
 
         if (!active) return;
 
@@ -1644,7 +1725,7 @@ export default function App() {
           const { data: dbBases } = await supabase
             .from('base_apps')
             .select('*')
-            .eq('user_id', userId);
+            .in('workspace_id', allowedIds);
 
           if (active && dbBases && dbBases.length > 0) {
             setBases(dbBases.map(b => ({
@@ -1674,12 +1755,13 @@ export default function App() {
             const { data: dbSpaces, error: spacesErr } = await supabase
               .from('spaces')
               .select('*')
-              .eq('user_id', userId);
+              .in('workspace_id', allowedIds);
             
+            const spaceIds = dbSpaces?.map(s => s.id) || [];
             const { data: dbLists, error: listsErr } = await supabase
               .from('lists')
               .select('*')
-              .eq('user_id', userId);
+              .in('space_id', spaceIds);
 
             if (!active) return false;
 
@@ -2617,40 +2699,73 @@ export default function App() {
   };
 
   const handleAddMember = async (m: Omit<User, 'id'>) => {
-    const newMemberId = `member-${Date.now()}`;
-    const newMemberObj: User = {
-      ...m,
-      id: newMemberId
-    };
-
-    setMembers(prev => [...prev, newMemberObj]);
-
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { error } = await supabase.from('members').insert([{
-            id: newMemberObj.id,
-            name: newMemberObj.name,
-            email: newMemberObj.email,
-            avatar: newMemberObj.avatar,
-            role: newMemberObj.role,
-            status: newMemberObj.status,
-            user_id: session.user.id,
-            phone: newMemberObj.phone || null,
-            department: newMemberObj.department || null,
-            bio: newMemberObj.bio || null,
-            joined_date: newMemberObj.joinedDate || null,
-            workspace_ids: newMemberObj.workspaceIds || null
-          }]);
-          if (error) console.error('Supabase Member Insert Error:', error);
+        if (!session?.user) return;
+
+        // Search for existing user in members table by email
+        const { data: existing, error: findError } = await supabase
+          .from('members')
+          .select('*')
+          .eq('email', m.email)
+          .maybeSingle();
+
+        if (existing) {
+          const currentWSIds = existing.workspace_ids || [];
+          if (currentWSIds.includes(activeWorkspaceId)) {
+            triggerToast('info', 'Already Member', `User ${m.email} is already in this workspace.`);
+            return;
+          }
+          
+          const updatedWSIds = [...currentWSIds, activeWorkspaceId];
+          const { error } = await supabase
+            .from('members')
+            .update({ workspace_ids: updatedWSIds })
+            .eq('id', existing.id);
+
+          if (error) {
+            triggerToast('info', 'Invite Error', 'Could not add user to workspace.');
+          } else {
+            triggerToast('success', 'Invited Successfully', `Added ${existing.name} to workspace.`);
+            // Update local member list
+            setMembers(prev => prev.map(member => member.email === m.email ? { ...member, workspaceIds: updatedWSIds } : member));
+          }
+          return;
+        }
+
+        // If not found, create a placeholder profile with the email and the workspaceId!
+        const newMemberId = `member-${Date.now()}`;
+        const newMemberObj: User = {
+          ...m,
+          id: newMemberId,
+          workspaceIds: [activeWorkspaceId]
+        };
+
+        const { error } = await supabase.from('members').insert([{
+          id: newMemberObj.id,
+          name: newMemberObj.name,
+          email: newMemberObj.email,
+          avatar: newMemberObj.avatar,
+          role: newMemberObj.role,
+          status: 'offline', // invited and offline
+          phone: newMemberObj.phone || null,
+          department: newMemberObj.department || null,
+          bio: newMemberObj.bio || null,
+          joined_date: newMemberObj.joinedDate || null,
+          workspace_ids: [activeWorkspaceId]
+        }]);
+
+        if (error) {
+          console.error('Supabase Member Insert Error:', error);
+          triggerToast('info', 'Invite Error', 'Could not create invitation.');
+        } else {
+          setMembers(prev => [...prev, newMemberObj]);
+          triggerToast('success', 'Invited Successfully', `Sent workspace invitation to ${m.email}.`);
         }
       } catch (err) {
-        console.error('Member insert sync failure:', err);
+        console.error('Member invite failure:', err);
       }
-    } else {
-      setOfflineMembersQueue(prev => ({ ...prev, [newMemberObj.id]: newMemberObj }));
-      setOfflineDeletedMembers(prev => prev.filter(id => id !== newMemberObj.id));
     }
   };
 
@@ -2753,6 +2868,107 @@ export default function App() {
         role: user.role
       } : m));
     }} />;
+  }
+
+  if (showOnboarding) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-slate-950 flex items-center justify-center p-4">
+        {/* Background blobs */}
+        <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none opacity-40" />
+        <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none opacity-40" />
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-[0_20px_50px_rgba(109,85,254,0.2)] space-y-6 overflow-hidden"
+        >
+          {/* Top gradient border */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+          
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
+              <Sparkles className="w-6 h-6 text-indigo-500" />
+              <span>Welcome to Avaxa OS!</span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Let's set up your personal workspace to get started.
+            </p>
+          </div>
+
+          <form onSubmit={handleOnboardingSubmit} className="space-y-4 text-xs font-sans">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Your Full Name</label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. John Doe" 
+                value={onboardingName}
+                onChange={(e) => setOnboardingName(e.target.value)}
+                className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Workspace Name</label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. My Workspace" 
+                value={onboardingWSName}
+                onChange={(e) => setOnboardingWSName(e.target.value)}
+                className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Choose Theme Color</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(['indigo', 'ocean', 'forest', 'sunset'] as const).map((t) => {
+                  const themeColors = {
+                    indigo: 'bg-indigo-500',
+                    ocean: 'bg-sky-500',
+                    forest: 'bg-emerald-500',
+                    sunset: 'bg-amber-500'
+                  };
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setOnboardingTheme(t)}
+                      className={`h-12 rounded-xl flex flex-col items-center justify-center gap-1 border transition-all cursor-pointer font-bold ${
+                        onboardingTheme === t
+                          ? 'border-indigo-500 bg-indigo-50/10 dark:bg-indigo-950/10 text-indigo-650 dark:text-indigo-400'
+                          : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      <span className={`w-3 h-3 rounded-full ${themeColors[t]}`} />
+                      <span className="text-[8px] uppercase tracking-wider">{t}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <button 
+                type="submit"
+                disabled={onboardingSubmitting}
+                className="w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                {onboardingSubmitting ? (
+                  <span>Creating your space...</span>
+                ) : (
+                  <>
+                    <span>Launch Workspace</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
