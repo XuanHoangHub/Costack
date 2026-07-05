@@ -4206,6 +4206,7 @@ export default function App() {
                       onClearInitialSelectedChannelId={() => setInitialSelectedChannelId(null)}
                       workspaceId={activeWorkspaceId}
                       spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      onSaveSpaces={handleSaveSpaces}
                     />
                   )}
 

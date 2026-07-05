@@ -46,7 +46,7 @@ export interface Space {
   lists: { id: string; name: string; folderId?: string }[];
   folders?: { id: string; name: string; color?: string }[];
   whiteboards?: { id: string; name: string; folderId?: string }[];
-  channels?: { id: string; name: string }[];
+  channels?: { id: string; name: string; description?: string; type?: string }[];
   statuses?: { id: string; label: string; color: string; type: TaskStatus }[];
   clickApps?: {
     timeTracking?: boolean;

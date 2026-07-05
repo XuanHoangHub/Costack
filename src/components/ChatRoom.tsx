@@ -143,6 +143,7 @@ interface ChatRoomProps {
   forcedChannelId?: string;
   forcedChannelName?: string;
   spaces?: Space[];
+  onSaveSpaces?: (spaces: Space[]) => void;
 }
 
 // Minimal markdown formatter
@@ -194,7 +195,8 @@ export default function ChatRoom({
   workspaceId,
   forcedChannelId,
   forcedChannelName,
-  spaces = []
+  spaces = [],
+  onSaveSpaces
 }: ChatRoomProps) {
   const { t } = useTranslation();
   // Navigation & Channels
@@ -207,6 +209,14 @@ export default function ChatRoom({
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [channelScope, setChannelScope] = useState<'workspace' | 'space'>('workspace');
+  const [createChannelSpaceId, setCreateChannelSpaceId] = useState<string>('');
+
+  useEffect(() => {
+    if (spaces && spaces.length > 0 && !createChannelSpaceId) {
+      setCreateChannelSpaceId(spaces[0].id);
+    }
+  }, [spaces, createChannelSpaceId]);
   
   // Custom Channel Actions & Rename states
   const [activeChannelMenuId, setActiveChannelMenuId] = useState<string | null>(null);
@@ -318,6 +328,25 @@ export default function ChatRoom({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const resolveChannelLocation = (chanId: string) => {
+    if (chanId.includes(':space-')) {
+      const prefixIndex = chanId.indexOf(':space-');
+      const infoStr = chanId.substring(prefixIndex + 7);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        const localChanId = infoStr.substring(space.id.length + 1);
+        return { spaceId: space.id, localChanId, isWorkspaceLevel: false };
+      }
+    } else {
+      const localChanId = chanId.split(':').pop() || '';
+      const generalSpace = spaces.find(s => s.id.endsWith('-general')) || spaces[0];
+      if (generalSpace && localChanId.startsWith('workspace-')) {
+        return { spaceId: generalSpace.id, localChanId, isWorkspaceLevel: true };
+      }
+    }
+    return null;
+  };
+
   // Initialize channels and load custom channels
   useEffect(() => {
     if (forcedChannelId) {
@@ -334,25 +363,43 @@ export default function ChatRoom({
 
     const defaultChannels: ChatChannel[] = [
       { id: `${workspaceId}:general`, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
-      { id: `${workspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Hỏi đáp với AI thông minh.', type: 'public' }
+      { id: `${workspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Hỏi đáp với AI thông quang.', type: 'public' }
     ];
 
-    let customChannels: ChatChannel[] = [];
-    try {
-      const saved = localStorage.getItem(`avaxa_custom_channels_${workspaceId}`);
-      if (saved) {
-        customChannels = JSON.parse(saved);
+    const customChannels: ChatChannel[] = [];
+    spaces.forEach(s => {
+      if (s.channels && Array.isArray(s.channels)) {
+        s.channels.forEach((c: any) => {
+          if (c.id !== 'general' && c.id !== 'avaxa-brain-ai') {
+            if (s.id.endsWith('-general') && c.id.startsWith('workspace-')) {
+              customChannels.push({
+                id: `${workspaceId}:${c.id}`,
+                name: c.name,
+                description: c.description || 'Kênh thảo luận chung của workspace',
+                type: c.type || 'public'
+              });
+            } else {
+              customChannels.push({
+                id: `${workspaceId}:space-${s.id}-${c.id}`,
+                name: c.name,
+                description: c.description || `Kênh chat của Space ${s.name}`,
+                type: c.type || 'public'
+              });
+            }
+          }
+        });
       }
-    } catch (e) {
-      console.error('Error loading custom channels:', e);
+    });
+
+    const allChannels = [...defaultChannels, ...customChannels];
+    setChannels(allChannels);
+
+    // Auto select first channel if not set or active channel is deleted
+    if (!activeChannelId || !allChannels.some(c => c.id === activeChannelId)) {
+      const defaultActive = initialSelectedChannelId || `${workspaceId}:general`;
+      setActiveChannelId(defaultActive);
     }
-
-    setChannels([...defaultChannels, ...customChannels]);
-
-    // Auto select first channel
-    const defaultActive = initialSelectedChannelId || `${workspaceId}:general`;
-    setActiveChannelId(defaultActive);
-  }, [workspaceId, initialSelectedChannelId, forcedChannelId, forcedChannelName]);
+  }, [workspaceId, initialSelectedChannelId, forcedChannelId, forcedChannelName, spaces, activeChannelId]);
 
   // Channel Actions
   const handleCreateChannel = (e: React.FormEvent) => {
@@ -360,25 +407,48 @@ export default function ChatRoom({
     if (!newChannelName.trim()) return;
 
     const cleanedName = newChannelName.trim().toLowerCase().replace(/\s+/g, '-');
-    const newChanId = `${workspaceId}:custom-${Date.now()}`;
-    const newChan: ChatChannel = {
-      id: newChanId,
+    
+    let targetSpaceId = '';
+    let localChanId = '';
+    
+    if (channelScope === 'workspace') {
+      const generalSpace = spaces.find(s => s.id.endsWith('-general')) || spaces[0];
+      if (!generalSpace) {
+        triggerToast?.('info', 'Create Error', 'No general space found.');
+        return;
+      }
+      targetSpaceId = generalSpace.id;
+      localChanId = `workspace-custom-${Date.now()}`;
+    } else {
+      if (!createChannelSpaceId) {
+        triggerToast?.('info', 'Create Error', 'Please select a Space.');
+        return;
+      }
+      targetSpaceId = createChannelSpaceId;
+      localChanId = `custom-${Date.now()}`;
+    }
+
+    const newChanObj = {
+      id: localChanId,
       name: cleanedName,
       description: newChannelDesc.trim() || 'Custom chat channel',
       type: 'public'
     };
 
-    setChannels(prev => {
-      const updated = [...prev, newChan];
-      const customOnes = updated.filter(c => 
-        c.id !== `${workspaceId}:general` && 
-        c.id !== `${workspaceId}:avaxa-brain-ai`
-      );
-      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
-      return updated;
-    });
+    if (onSaveSpaces) {
+      const space = spaces.find(s => s.id === targetSpaceId);
+      if (space) {
+        const updatedChannels = [...(space.channels || []), newChanObj];
+        const updatedSpaces = spaces.map(s => s.id === targetSpaceId ? { ...s, channels: updatedChannels } : s);
+        onSaveSpaces(updatedSpaces);
+      }
+    }
 
-    setActiveChannelId(newChanId);
+    const nextActiveId = channelScope === 'workspace' 
+      ? `${workspaceId}:${localChanId}`
+      : `${workspaceId}:space-${targetSpaceId}-${localChanId}`;
+
+    setActiveChannelId(nextActiveId);
     setNewChannelName('');
     setNewChannelDesc('');
     setShowCreateChannelModal(false);
@@ -387,15 +457,15 @@ export default function ChatRoom({
   };
 
   const handleDeleteChannel = (chanId: string, name: string) => {
-    setChannels(prev => {
-      const updated = prev.filter(c => c.id !== chanId);
-      const customOnes = updated.filter(c => 
-        c.id !== `${workspaceId}:general` && 
-        c.id !== `${workspaceId}:avaxa-brain-ai`
-      );
-      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
-      return updated;
-    });
+    const loc = resolveChannelLocation(chanId);
+    if (loc && onSaveSpaces) {
+      const space = spaces.find(s => s.id === loc.spaceId);
+      if (space) {
+        const updatedChannels = (space.channels || []).filter((c: any) => c.id !== loc.localChanId);
+        const updatedSpaces = spaces.map(s => s.id === loc.spaceId ? { ...s, channels: updatedChannels } : s);
+        onSaveSpaces(updatedSpaces);
+      }
+    }
 
     if (activeChannelId === chanId) {
       setActiveChannelId(`${workspaceId}:general`);
@@ -410,20 +480,20 @@ export default function ChatRoom({
     if (!renamingChannelId || !renameChannelName.trim()) return;
 
     const cleanedName = renameChannelName.trim().toLowerCase().replace(/\s+/g, '-');
-    setChannels(prev => {
-      const updated = prev.map(c => c.id === renamingChannelId ? { 
-        ...c, 
-        name: cleanedName, 
-        description: renameChannelDesc.trim() || c.description 
-      } : c);
-      
-      const customOnes = updated.filter(c => 
-        c.id !== `${workspaceId}:general` && 
-        c.id !== `${workspaceId}:avaxa-brain-ai`
-      );
-      localStorage.setItem(`avaxa_custom_channels_${workspaceId}`, JSON.stringify(customOnes));
-      return updated;
-    });
+    const loc = resolveChannelLocation(renamingChannelId);
+    
+    if (loc && onSaveSpaces) {
+      const space = spaces.find(s => s.id === loc.spaceId);
+      if (space) {
+        const updatedChannels = (space.channels || []).map((c: any) => 
+          c.id === loc.localChanId 
+            ? { ...c, name: cleanedName, description: renameChannelDesc.trim() || c.description } 
+            : c
+        );
+        const updatedSpaces = spaces.map(s => s.id === loc.spaceId ? { ...s, channels: updatedChannels } : s);
+        onSaveSpaces(updatedSpaces);
+      }
+    }
 
     onAddSyncLog(`Renamed chat channel to: #${cleanedName}`);
     triggerToast?.('success', 'Channel Renamed 📣', `Channel has been successfully renamed to #${cleanedName}.`);
@@ -1191,8 +1261,9 @@ export default function ChatRoom({
       if (space) {
         spaceId = space.id;
         entityId = infoStr.substring(space.id.length + 1);
-        spaceChanName = space.channels?.find(c => c.id === entityId)?.name || 'general';
-        spaceChanDesc = `${space.emoji || '📁'} Kênh chat chung của Space: ${space.name}`;
+        const foundChan = space.channels?.find(c => c.id === entityId);
+        spaceChanName = foundChan?.name || 'general';
+        spaceChanDesc = foundChan?.description || `${space.emoji || '📁'} Kênh chat của Space: ${space.name}`;
       }
     }
   }
@@ -1314,6 +1385,12 @@ export default function ChatRoom({
                   {spaces.map(space => {
                     const spaceChannels = [
                       { id: `${workspaceId}:space-${space.id}-general`, name: 'general' },
+                      ...(space.channels || [])
+                        .filter((c: any) => c.id !== 'general' && !c.id.startsWith('workspace-'))
+                        .map((c: any) => ({
+                          id: `${workspaceId}:space-${space.id}-${c.id}`,
+                          name: c.name
+                        })),
                       ...(space.folders || []).map(f => ({
                         id: `${workspaceId}:folder-${space.id}-${f.id}`,
                         name: f.name
@@ -2247,6 +2324,49 @@ export default function ChatRoom({
             </div>
 
             <form onSubmit={handleCreateChannel} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Scope</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChannelScope('workspace')}
+                    className={`py-2 text-xs rounded-xl border font-bold cursor-pointer transition-all ${
+                      channelScope === 'workspace'
+                        ? 'border-indigo-500 bg-indigo-50/10 text-indigo-650'
+                        : 'border-slate-200 text-slate-400 hover:bg-slate-50'
+                    }`}
+                  >
+                    Workspace-wide
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChannelScope('space')}
+                    className={`py-2 text-xs rounded-xl border font-bold cursor-pointer transition-all ${
+                      channelScope === 'space'
+                        ? 'border-indigo-500 bg-indigo-50/10 text-indigo-650'
+                        : 'border-slate-200 text-slate-400 hover:bg-slate-50'
+                    }`}
+                  >
+                    Space-specific
+                  </button>
+                </div>
+              </div>
+
+              {channelScope === 'space' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Select Space</label>
+                  <select
+                    value={createChannelSpaceId}
+                    onChange={e => setCreateChannelSpaceId(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold cursor-pointer"
+                  >
+                    {spaces.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
                 <input 
