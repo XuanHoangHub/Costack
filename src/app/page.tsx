@@ -1509,17 +1509,58 @@ export default function App() {
         const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
         
         let dbMembers: any[] = [];
+        let membersFetchError = false;
         try {
-          const { data } = await supabase.from('members').select('*');
-          if (data) dbMembers = data;
+          const { data, error: fetchErr } = await supabase.from('members').select('*');
+          if (fetchErr) {
+            console.warn('Could not load members table:', fetchErr);
+            membersFetchError = true;
+          } else if (data) {
+            dbMembers = data;
+          }
         } catch (e) {
           console.warn('Could not load members table:', e);
+          membersFetchError = true;
         }
 
         if (!active) return;
 
         let finalMembers = dbMembers || [];
+        
+        // Targeted queries to be absolutely sure if user exists or not, preventing false onboarding triggers!
         let myDbProfile = finalMembers.find(m => m.id === myMemberId || m.email === myEmail);
+        let isBrandNewUser = false;
+
+        if (!myDbProfile) {
+          try {
+            const { data: directProfile } = await supabase
+              .from('members')
+              .select('*')
+              .eq('id', myMemberId)
+              .maybeSingle();
+            
+            if (directProfile) {
+              myDbProfile = directProfile;
+              finalMembers.push(directProfile);
+            } else {
+              const { data: emailProfile } = await supabase
+                .from('members')
+                .select('*')
+                .eq('email', myEmail)
+                .maybeSingle();
+
+              if (emailProfile) {
+                myDbProfile = emailProfile;
+                finalMembers.push(emailProfile);
+              } else {
+                // If targeted check is also null, the user is brand new!
+                isBrandNewUser = true;
+              }
+            }
+          } catch (e) {
+            console.error('Failed targeted profile checks:', e);
+          }
+        }
 
         // If the user has an invited placeholder profile by email but not logged-in ID, update it
         if (myDbProfile && myDbProfile.id !== myMemberId) {
@@ -1542,8 +1583,15 @@ export default function App() {
           finalMembers.push(updatedProfile);
         }
 
+        // If the query failed completely (network issue), do not trigger onboarding.
+        if (!myDbProfile && !isBrandNewUser) {
+          console.warn('Profile fetch failed or still loading. Preventing onboarding trigger.');
+          setDataLoaded(true);
+          return;
+        }
+
         // If they still don't have a profile, they need onboarding
-        if (!myDbProfile) {
+        if (isBrandNewUser) {
           setShowOnboarding(true);
           setWorkspaces([]);
           setMembers([]);
@@ -1551,14 +1599,53 @@ export default function App() {
           return;
         }
 
-        const allowedIds: string[] = myDbProfile.workspace_ids || [];
+        let allowedIds: string[] = myDbProfile.workspace_ids || [];
 
         if (allowedIds.length === 0) {
-          setShowOnboarding(true);
-          setWorkspaces([]);
-          setMembers([]);
-          setDataLoaded(true);
-          return;
+          // Auto-create a default workspace for existing user with empty workspaces
+          const fallbackWsId = `ws-fallback-${Date.now()}`;
+          const fallbackWs = {
+            id: fallbackWsId,
+            name: 'Personal Workspace',
+            theme: 'indigo',
+            initial: 'P',
+            user_id: userId
+          };
+          try {
+            await supabase.from('workspaces').insert([fallbackWs]);
+            
+            // Create default space & lists
+            const generalSpaceId = `s-${fallbackWsId}-general`;
+            await supabase.from('spaces').insert([
+              {
+                id: generalSpaceId,
+                name: 'General',
+                emoji: '🧘',
+                theme_color: 'indigo',
+                workspace_id: fallbackWsId,
+                folders: [],
+                whiteboards: [],
+                channels: [{ id: 'general', name: 'general' }],
+                statuses: [
+                  { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' },
+                  { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
+                  { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
+                ],
+                click_apps: { subtasks: true, priorities: true }
+              }
+            ]);
+            await supabase.from('lists').insert([
+              { id: `l-${fallbackWsId}-inbox`, name: 'Inbox', space_id: generalSpaceId, user_id: userId },
+              { id: `l-${fallbackWsId}-tasks`, name: 'Tasks', space_id: generalSpaceId, user_id: userId }
+            ]);
+
+            const updatedWSIds = [fallbackWsId];
+            await supabase.from('members').update({ workspace_ids: updatedWSIds }).eq('id', myMemberId);
+            myDbProfile.workspace_ids = updatedWSIds;
+            allowedIds = updatedWSIds;
+          } catch (e) {
+            console.error('Failed to create fallback workspace:', e);
+          }
         }
 
         // A0. Load Workspaces that are in allowedIds
