@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { ChevronDown, Plus, GripVertical, Paperclip, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
-import { PriorityPillSelect } from './TaskSelects';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
 
 const DraggableCast = Draggable as typeof Draggable;
@@ -215,28 +215,37 @@ export default function TaskListView({
                                        onClick={e => e.stopPropagation()}
                                        className="w-4 h-4 rounded-sm border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0 accent-indigo-600" />
 
-                                     {/* Status dot (clickable to toggle completion) */}
-                                     <button onClick={e => { e.stopPropagation(); const newStatus: TaskStatus = task.status === 'completed' ? 'todo' : 'completed'; onUpdateTask({ ...task, status: newStatus }); }}
-                                       className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all cursor-pointer ${task.status === 'completed' ? 'bg-emerald-500 border-emerald-500' : `border-slate-300 dark:border-slate-600 hover:border-emerald-400`}`}>
-                                       {task.status === 'completed' && <Check className="w-2.5 h-2.5 text-white" />}
-                                     </button>
+                                     {/* Status select dropdown */}
+                                     <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                                       <StatusPillSelect value={task.status} onChange={newS => {
+                                         onUpdateTask({ ...task, status: newS });
+                                         onAddSyncLog(`Status "${task.title}" → ${newS}`);
+                                       }} />
+                                     </div>
 
                                      {/* Title */}
                                      <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
                                        {inlineEditTaskId === task.id ? (
-                                         <input autoFocus value={inlineEditTitle}
-                                           onChange={e => setInlineEditTitle(e.target.value)}
-                                           onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
-                                           onBlur={() => submitInlineEdit(task)}
-                                           className="w-full text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-indigo-500 outline-none py-0.5" />
+                                          <input autoFocus value={inlineEditTitle}
+                                            onChange={e => setInlineEditTitle(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') submitInlineEdit(task); if (e.key === 'Escape') setInlineEditTaskId(null); }}
+                                            onBlur={() => submitInlineEdit(task)}
+                                            className="w-full text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-indigo-500 outline-none py-0.5" />
                                        ) : (
-                                         <div className="flex items-center justify-between min-w-0" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
-                                           <div className="flex items-center gap-1.5 min-w-0">
-                                             <span className={`text-[13px] font-semibold truncate cursor-pointer hover:text-indigo-600 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
-                                               {task.title}
-                                             </span>
-                                             {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-                                           </div>
+                                          <div className="flex items-center justify-between min-w-0" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                              <span 
+                                                onClick={() => {
+                                                  setInlineEditTaskId(task.id);
+                                                  setInlineEditTitle(task.title);
+                                                }}
+                                                className={`text-[13px] font-semibold truncate cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}
+                                                title="Click to rename task"
+                                              >
+                                                {task.title}
+                                              </span>
+                                              {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
+                                            </div>
 
                                            {/* Hover Option Buttons (Image 3, 4) */}
                                            <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-1.5 transition-all ml-3 shrink-0">
@@ -311,23 +320,32 @@ export default function TaskListView({
                                          </span>
                                        ))}
                                      </div>
-
-                                     {/* Assignee */}
+                                     {/* Assignee select dropdown */}
                                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
-                                       {assignee ? (
-                                         <SignedImage filePath={assignee.avatar} className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 object-cover" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
-                                       ) : (
-                                         <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center text-[10px] text-slate-400">+</div>
-                                       )}
+                                       <AssigneePillSelect 
+                                         value={task.assigneeId || null} 
+                                         members={members} 
+                                         onChange={newA => {
+                                           onUpdateTask({ ...task, assigneeId: newA || undefined });
+                                           onAddSyncLog(`Assignee "${task.title}" → ${newA ? (members.find(m => m.id === newA)?.name || newA) : 'Unassigned'}`);
+                                         }} 
+                                         compact={true} 
+                                       />
                                      </div>
-
-                                     {/* Due Date */}
-                                     <div className="shrink-0 w-16 text-right" onClick={e => e.stopPropagation()}>
-                                       {daysInfo ? (
-                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${daysInfo.cls}`}>{daysInfo.text}</span>
-                                       ) : (
-                                         <span className="text-[10px] text-slate-300 dark:text-slate-600">—</span>
-                                       )}
+ 
+                                     {/* Due Date picker */}
+                                     <div className="shrink-0 text-right" onClick={e => e.stopPropagation()}>
+                                       <PremiumDatePicker 
+                                         dateValue={task.dueDate || ''} 
+                                         onChange={newD => {
+                                           onUpdateTask({ ...task, dueDate: newD });
+                                           onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
+                                         }} 
+                                         label="—" 
+                                         align="right" 
+                                         displayLabel={daysInfo?.text} 
+                                         className={daysInfo ? `text-[10px] font-bold px-1.5 py-0.5 rounded border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-300 dark:text-slate-600 cursor-pointer border-0 bg-transparent"} 
+                                       />
                                      </div>
 
                                      {/* Meta icons */}

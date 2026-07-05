@@ -152,7 +152,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 }
 
 // ── Assignee Pill Select ──
-export function AssigneePillSelect({ value, members, onChange }: { value: string | null; members: User[]; onChange: (v: string | null) => void }) {
+export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | null; members: User[]; onChange: (v: string | null) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const { coords, openUpward } = useDropdownPosition(open, ref, 220);
@@ -179,13 +179,13 @@ export function AssigneePillSelect({ value, members, onChange }: { value: string
       }}
     >
       <button type="button" onClick={() => { onChange(null); setOpen(false); }}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-550 cursor-pointer">
         <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
         <span>Unassign</span>
       </button>
       {members.map(m => (
         <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === m.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === m.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
           <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
           <span className="truncate">{m.name}</span>
           {value === m.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
@@ -195,21 +195,34 @@ export function AssigneePillSelect({ value, members, onChange }: { value: string
   );
 
   return (
-    <div ref={ref} className="relative inline-block w-full">
-      <button type="button" onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-        <div className="flex items-center gap-1.5 min-w-0">
+    <div ref={ref} className="relative inline-block">
+      {compact ? (
+        <button type="button" onClick={() => setOpen(!open)}
+          className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer select-none hover:scale-105 transition-all flex items-center justify-center shrink-0"
+          title={assignee ? `Assignee: ${assignee.name}` : 'Unassigned'}
+        >
           {assignee ? (
-            <>
-              <SignedImage filePath={assignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
-              <span className="truncate">{assignee.name}</span>
-            </>
+            <SignedImage filePath={assignee.avatar} className="w-full h-full rounded-full object-cover" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
           ) : (
-            <span className="text-slate-400 truncate">Unassigned</span>
+            <div className="w-full h-full rounded-full bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">+</div>
           )}
-        </div>
-        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+        </button>
+      ) : (
+        <button type="button" onClick={() => setOpen(!open)}
+          className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {assignee ? (
+              <>
+                <SignedImage filePath={assignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
+                <span className="truncate">{assignee.name}</span>
+              </>
+            ) : (
+              <span className="text-slate-400 truncate">Unassigned</span>
+            )}
+          </div>
+          <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
       <AnimatePresence>
         {open && createPortal(dropdownContent, document.body)}
       </AnimatePresence>
@@ -218,8 +231,8 @@ export function AssigneePillSelect({ value, members, onChange }: { value: string
 }
 
 // ── Premium Date Picker ──
-export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clearable = true, align = 'right' }: {
-  label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center';
+export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clearable = true, align = 'right', className = '', displayLabel }: {
+  label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center'; className?: string; displayLabel?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -280,11 +293,11 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const selectedDateStr = dateValue?.split('T')[0] || '';
 
-  const displayText = dateValue ? (() => {
+  const displayText = displayLabel || (dateValue ? (() => {
     const parts = dateValue.split('T')[0].split('-');
     if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
     return dateValue;
-  })() : (label || 'Select Date');
+  })() : (label || 'Select Date'));
 
   const calendarContent = (
     <motion.div ref={dropdownRef} initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.97 }} transition={{ duration: 0.15 }}
@@ -308,7 +321,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
           const isToday = dateStr === todayStr;
           return (
             <button key={day} type="button" onClick={() => selectDate(day)}
-              className={`w-8 h-8 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${isSelected ? 'bg-indigo-600 text-white shadow-sm' : isToday ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-black ring-1 ring-indigo-300 dark:ring-indigo-700' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+              className={`w-8 h-8 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${isSelected ? 'bg-indigo-600 text-white shadow-sm' : isToday ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 font-black ring-1 ring-indigo-300 dark:ring-indigo-700' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
               {day}
             </button>
           );
@@ -330,7 +343,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
   return (
     <div ref={containerRef} className="relative inline-block">
       <button type="button" onClick={() => setIsOpen(!isOpen)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${dateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+        className={className || `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${dateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
         <CalendarDays className="w-3.5 h-3.5 text-slate-400 shrink-0" />
         <span>{displayText}</span>
       </button>

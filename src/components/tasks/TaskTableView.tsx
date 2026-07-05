@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus } from 'lucide-react';
 import { Task, User, Workspace } from '../../types';
-import { PriorityPillSelect, StatusPillSelect } from './TaskSelects';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
 
 const SortHeader = ({ col, label, className = '', sortCol, sortDir, onToggleSort }: { col: string; label: string; className?: string; sortCol: string; sortDir: 'asc' | 'desc'; onToggleSort: (col: string) => void }) => (
@@ -168,15 +168,15 @@ export default function TaskTableView({
                 )}
 
                 {activeFields.includes('assignee') && (
-                  <td className="px-4 py-3">
-                    {assignee ? (
-                      <div className="flex items-center gap-1.5">
-                        <SignedImage filePath={assignee.avatar} className="w-5 h-5 rounded-full border border-slate-200 dark:border-slate-700 object-cover" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
-                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 truncate max-w-[80px]">{assignee.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-slate-350">—</span>
-                    )}
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <AssigneePillSelect
+                      value={task.assigneeId || null}
+                      members={members}
+                      onChange={newA => {
+                        onUpdateTask({ ...task, assigneeId: newA || undefined });
+                        onAddSyncLog(`Assignee "${task.title}" → ${newA ? (members.find(m => m.id === newA)?.name || newA) : 'Unassigned'}`);
+                      }}
+                    />
                   </td>
                 )}
 
@@ -196,12 +196,18 @@ export default function TaskTableView({
                 )}
 
                 {activeFields.includes('dueDate') && (
-                  <td className="px-4 py-3">
-                    {daysInfo ? (
-                      <span className={`text-[11px] font-bold ${daysInfo.cls}`}>{daysInfo.text}</span>
-                    ) : (
-                      <span className="text-[11px] text-slate-350">—</span>
-                    )}
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <PremiumDatePicker
+                      dateValue={task.dueDate || ''}
+                      onChange={newD => {
+                        onUpdateTask({ ...task, dueDate: newD });
+                        onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
+                      }}
+                      label="—"
+                      align="left"
+                      displayLabel={daysInfo?.text}
+                      className={daysInfo ? `text-[11px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"}
+                    />
                   </td>
                 )}
 

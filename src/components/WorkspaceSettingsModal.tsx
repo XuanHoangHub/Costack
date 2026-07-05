@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Upload, Trash2, Loader2, AlertTriangle, 
-  Briefcase, Sliders, ShieldCheck, Image, Save
+  Briefcase, Sliders, ShieldCheck, Image, Save,
+  UserPlus, UserMinus, Plus, Search, X, ShieldAlert, Check,
+  Mail, Phone
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Workspace, User } from '../types';
@@ -26,6 +28,8 @@ interface WorkspaceSettingsModalProps {
   onDeleteWorkspace?: (id: string) => void;
   members: User[];
   workspacesCount: number;
+  onUpdateMember?: (member: User) => void;
+  onAddMember?: (member: Omit<User, 'id'>) => void;
 }
 
 export default function WorkspaceSettingsModal({
@@ -36,7 +40,9 @@ export default function WorkspaceSettingsModal({
   onUpdateWorkspace,
   onDeleteWorkspace,
   members,
-  workspacesCount
+  workspacesCount,
+  onUpdateMember,
+  onAddMember
 }: WorkspaceSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'clickapps' | 'members' | 'danger'>('general');
   
@@ -45,15 +51,24 @@ export default function WorkspaceSettingsModal({
   const [theme, setTheme] = useState('indigo');
   const [coverUrl, setCoverUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [clickApps, setClickApps] = useState<Record<string, boolean>>({});;
+  const [clickApps, setClickApps] = useState<Record<string, boolean>>({});
   
   // Loading & uploading states
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Member invite & add states
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'guest'>('member');
+  const [inviteDept, setInviteDept] = useState('Technical');
+  const [selectedMemberToAdd, setSelectedMemberToAdd] = useState('');
 
   // Sync state with selected workspace
   useEffect(() => {
@@ -73,12 +88,14 @@ export default function WorkspaceSettingsModal({
       };
       setClickApps(defaultClickApps);
       setDeleteConfirmText('');
+      setSelectedMemberToAdd('');
     }
   }, [workspace, isOpen]);
 
   if (!isOpen || !workspace) return null;
 
   const activeWSMembers = members.filter(m => m.workspaceIds?.includes(workspace.id));
+  const nonWSMembers = members.filter(m => !m.workspaceIds?.includes(workspace.id));
 
   // Handle avatar upload to Supabase Storage
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +158,58 @@ export default function WorkspaceSettingsModal({
     });
     if ((window as any).playSystemSound) {
       (window as any).playSystemSound('toggle');
+    }
+  };
+
+  // Handle workspace cover upload to Supabase Storage
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image is too large. Please select an image smaller than 2MB.");
+      return;
+    }
+
+    setIsUploadingCover(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || currentUser?.id || 'anonymous';
+      
+      const fileExt = file.name.split('.').pop() || 'png';
+      // Path must start with userId to satisfy Supabase storage policies
+      const fileName = `${userId}/workspaces/${workspace.id}_cover_${Date.now()}.${fileExt}`;
+
+      // Upload file to avatars bucket
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Fetch public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      setCoverUrl(publicUrl);
+      
+      // Instantly trigger an update or let user click save
+      onUpdateWorkspace(workspace.id, name, theme, publicUrl, logoUrl, {
+        ...workspace.settings,
+        defaultClickApps: clickApps
+      });
+      
+      if ((window as any).playSystemSound) {
+        (window as any).playSystemSound('success');
+      }
+    } catch (error: Error | unknown) {
+      console.error("Error uploading workspace cover:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Upload failed: ${errorMessage}`);
+    } finally {
+      setIsUploadingCover(false);
     }
   };
 
@@ -424,6 +493,13 @@ export default function WorkspaceSettingsModal({
                       <Image className="w-3.5 h-3.5 text-indigo-400" />
                       Workspace cover background
                     </span>
+                    <input
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverUpload}
+                      className="hidden"
+                    />
                     <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 pb-2">
                       <button
                         type="button"
@@ -432,6 +508,20 @@ export default function WorkspaceSettingsModal({
                       >
                         <span className="text-[9px] font-bold text-slate-400">Default</span>
                         {!coverUrl && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={isUploadingCover}
+                        className="relative w-full aspect-[4/3] rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 hover:bg-slate-100 dark:hover:bg-slate-800 flex flex-col items-center justify-center transition-all group cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingCover ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+                        ) : (
+                          <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                        )}
+                        <span className="text-[7.5px] font-black text-slate-450 dark:text-slate-400 group-hover:text-indigo-650 dark:group-hover:text-slate-300 mt-1 uppercase tracking-tighter">Upload Custom</span>
                       </button>
                       {WORKSPACE_COVERS.map(cover => (
                         <button
@@ -530,53 +620,227 @@ export default function WorkspaceSettingsModal({
               )}
 
               {activeTab === 'members' && (
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Header / Member counts */}
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 text-left">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-indigo-500" />
                         Workspace Member Directory
                       </h4>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        View colleagues currently enrolled inside the {name} workspace.
+                      <p className="text-xs text-slate-400 dark:text-slate-500 text-left">
+                        Manage roles, invite new colleagues, or remove access to this workspace.
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar">
-                    {activeWSMembers.length === 0 ? (
-                      <div className="text-center py-10 text-slate-400 text-xs italic">
-                        No additional staff enrolled. You can add them in the Team directory.
-                      </div>
-                    ) : (
-                      activeWSMembers.map((member: User) => (
-                        <div 
-                          key={member.id} 
-                          className="flex items-center justify-between gap-4 p-3 bg-slate-50/65 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/80 rounded-2xl"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <img 
-                                src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'} 
-                                className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
-                                alt={member.name} 
-                              />
-                              <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${member.status === 'online' ? 'bg-emerald-500' : 'bg-slate-350'}`} />
-                            </div>
-                            <div className="text-left">
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">{member.name}</span>
-                              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-medium">Email: {member.email || `${member.name.toLowerCase().replace(/\s+/g, '')}@avaxa.com`}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-1 text-[10px] font-black uppercase rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 border border-indigo-100/25">
-                              {member.role || 'Member'}
-                            </span>
-                          </div>
+                  {/* Add Existing / Invite section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Add Existing */}
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl space-y-3 text-left">
+                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">Add Member from Directory</span>
+                      {nonWSMembers.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 italic py-2">All team directory members are already in this workspace.</p>
+                      ) : (
+                        <div className="flex gap-2">
+                          <select
+                            value={selectedMemberToAdd}
+                            onChange={(e) => setSelectedMemberToAdd(e.target.value)}
+                            className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                          >
+                            <option value="">Choose member...</option>
+                            {nonWSMembers.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.email})
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!selectedMemberToAdd) return;
+                              const targetMember = members.find(m => m.id === selectedMemberToAdd);
+                              if (targetMember && onUpdateMember) {
+                                const updatedWSIds = [...(targetMember.workspaceIds || []), workspace.id];
+                                onUpdateMember({
+                                  ...targetMember,
+                                  workspaceIds: updatedWSIds
+                                });
+                                setSelectedMemberToAdd('');
+                              }
+                            }}
+                            disabled={!selectedMemberToAdd}
+                            className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
                         </div>
-                      ))
-                    )}
+                      )}
+                    </div>
+
+                    {/* Invite New Member Form */}
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl space-y-3 text-left">
+                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">Invite New Colleague</span>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Name"
+                            value={inviteName}
+                            onChange={(e) => setInviteName(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <input
+                            type="email"
+                            placeholder="Email"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={inviteRole}
+                            onChange={(e) => setInviteRole(e.target.value as any)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                          >
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="guest">Guest</option>
+                          </select>
+                          <select
+                            value={inviteDept}
+                            onChange={(e) => setInviteDept(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                          >
+                            <option value="Technical">Engineering</option>
+                            <option value="Design">Design</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Business">Sales</option>
+                            <option value="HR">HR</option>
+                            <option value="Finance">Finance</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!inviteName.trim() || !inviteEmail.trim()) {
+                              alert("Please enter Name and Email.");
+                              return;
+                            }
+                            if (onAddMember) {
+                              const formattedJoinedDate = new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
+                              onAddMember({
+                                name: inviteName.trim(),
+                                email: inviteEmail.trim(),
+                                role: inviteRole,
+                                department: inviteDept,
+                                avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(inviteName.trim())}`,
+                                status: 'online',
+                                workspaceIds: [workspace.id],
+                                phone: '',
+                                bio: 'No biography updated yet.',
+                                joinedDate: formattedJoinedDate
+                              });
+                              setInviteName('');
+                              setInviteEmail('');
+                              setInviteRole('member');
+                              setInviteDept('Technical');
+                            }
+                          }}
+                          className="w-full py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Invite & Add</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active Workspace Members List */}
+                  <div className="space-y-2 text-left">
+                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Enrolled Members ({activeWSMembers.length})</span>
+                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-2xl p-2 bg-slate-50/20">
+                      {activeWSMembers.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs italic">
+                          No workspace members found. Add or invite members above.
+                        </div>
+                      ) : (
+                        activeWSMembers.map((member: User) => {
+                          const isMe = member.id === currentUser?.id || member.id === 'user' || member.id === `user-${currentUser?.id}`;
+                          return (
+                            <div 
+                              key={member.id} 
+                              className="flex items-center justify-between gap-4 p-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 rounded-xl hover:shadow-xs transition-shadow"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="relative shrink-0">
+                                  <img 
+                                    src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'} 
+                                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
+                                    alt={member.name} 
+                                  />
+                                  <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${member.status === 'online' ? 'bg-emerald-500' : 'bg-slate-350'}`} />
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">
+                                    {member.name} {isMe && <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 ml-1">(You)</span>}
+                                  </span>
+                                  <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-medium block truncate">
+                                    {member.email}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isMe ? (
+                                  <span className="px-2 py-1 text-[9px] font-black uppercase rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 border border-indigo-100/25">
+                                    {member.role || 'Member'}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <select
+                                      value={member.role || 'member'}
+                                      onChange={(e) => {
+                                        if (onUpdateMember) {
+                                          onUpdateMember({
+                                            ...member,
+                                            role: e.target.value as any
+                                          });
+                                        }
+                                      }}
+                                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase px-2 py-0.5 text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+                                    >
+                                      <option value="admin">Admin</option>
+                                      <option value="member">Member</option>
+                                      <option value="guest">Guest</option>
+                                    </select>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (onUpdateMember) {
+                                          const updatedWSIds = (member.workspaceIds || []).filter(id => id !== workspace.id);
+                                          onUpdateMember({
+                                            ...member,
+                                            workspaceIds: updatedWSIds
+                                          });
+                                        }
+                                      }}
+                                      className="p-1 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer"
+                                      title="Remove from Workspace"
+                                    >
+                                      <UserMinus className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

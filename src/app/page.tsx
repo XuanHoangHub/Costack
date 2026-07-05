@@ -2102,13 +2102,20 @@ export default function App() {
                 if (eventType === 'INSERT' || eventType === 'UPDATE') {
                   const m = payload.new as any;
                   if (!m || !m.id) return;
+                  const isMe = m.id === `user-${userId}` || m.id === 'user';
+                  const memberId = isMe ? 'user' : m.id;
                   const mappedMember: User = {
-                    id: m.id,
+                    id: memberId,
                     name: m.name,
                     email: m.email,
                     avatar: m.avatar,
                     role: m.role as any,
-                    status: m.status as any
+                    status: m.status as any,
+                    workspaceIds: m.workspace_ids || [],
+                    phone: m.phone || '',
+                    department: m.department || '',
+                    bio: m.bio || '',
+                    joinedDate: m.joined_date || '2026'
                   };
                   setMembers(prev => {
                     const exists = prev.some(item => item.id === mappedMember.id);
@@ -2120,7 +2127,8 @@ export default function App() {
                   });
                 } else if (eventType === 'DELETE') {
                   if (payload.old && payload.old.id) {
-                    setMembers(prev => prev.filter(item => item.id !== payload.old.id));
+                    const targetId = payload.old.id === `user-${userId}` ? 'user' : payload.old.id;
+                    setMembers(prev => prev.filter(item => item.id !== targetId));
                   }
                 }
               }
@@ -4423,6 +4431,8 @@ export default function App() {
         onDeleteWorkspace={handleDeleteWorkspace}
         members={members}
         workspacesCount={workspaces.length}
+        onUpdateMember={handleUpdateMember}
+        onAddMember={handleAddMember}
       />
 
       {/* Real-time Toast Notification container in top-right corner */}
