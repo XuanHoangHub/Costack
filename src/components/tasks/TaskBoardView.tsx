@@ -634,7 +634,7 @@ export default function TaskBoardView({
                   <div className="flex items-center justify-between px-0.5 py-0.5 text-xs">
                     <div className="flex items-center gap-2">
                       {colMeta.avatar && (
-                        <img src={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt="" />
+                        <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
                       )}
                       <span className={`px-2 py-0.5 rounded-[6px] text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1.5 border border-transparent ${colMeta.badgeBg} ${colMeta.badgeText}`}>
                         {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
@@ -742,7 +742,7 @@ export default function TaskBoardView({
                     <div key={col} className="min-w-[280px] w-[280px] flex-shrink-0 px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-655 dark:text-slate-405">
                       <div className="flex items-center gap-2">
                         {colMeta.avatar && (
-                          <img src={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt="" />
+                          <SignedImage filePath={colMeta.avatar} className="w-4.5 h-4.5 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={colMeta.label} />
                         )}
                         <span className={`px-2 py-0.5 rounded-[4px] text-[10px] tracking-wider uppercase flex items-center gap-1.5 ${colMeta.badgeBg} ${colMeta.badgeText}`}>
                           {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
@@ -784,7 +784,7 @@ export default function TaskBoardView({
                       >
                         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
                         {swimlaneMeta.avatar && (
-                          <img src={swimlaneMeta.avatar} className="w-4 h-4 rounded-full object-cover" alt="" />
+                          <SignedImage filePath={swimlaneMeta.avatar} className="w-4 h-4 rounded-full object-cover" alt={swimlaneMeta.label} />
                         )}
                         <span className={`px-2 py-0.5 rounded-[4px] text-[10px] tracking-wider uppercase font-black ${swimlaneMeta.badgeBg} ${swimlaneMeta.badgeText}`}>
                           {swimlaneMeta.label}

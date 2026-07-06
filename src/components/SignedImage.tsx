@@ -14,9 +14,63 @@ interface SignedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   bucket?: string;
 }
 
-export default function SignedImage({ filePath, fallback, id, className, style, alt, bucket = 'avatars', ...props }: SignedImageProps) {
+
+const PRESET_GRADIENTS = [
+  'linear-gradient(135deg, #4F46E5, #7C3AED)', // Indigo to Purple
+  'linear-gradient(135deg, #0EA5E9, #2563EB)', // Sky to Blue
+  'linear-gradient(135deg, #10B981, #059669)', // Emerald to Green
+  'linear-gradient(135deg, #F59E0B, #D97706)', // Amber to Yellow
+  'linear-gradient(135deg, #EF4444, #DC2626)', // Red to Dark Red
+  'linear-gradient(135deg, #EC4899, #D946EF)', // Pink to Fuchsia
+  'linear-gradient(135deg, #8B5CF6, #EC4899)', // Violet to Pink
+  'linear-gradient(135deg, #F97316, #E11D48)', // Orange to Rose
+];
+
+const isDefaultAvatar = (path?: string) => {
+  if (!path) return true;
+  if (path.includes('api.dicebear.com')) return true;
+  return false;
+};
+
+const getInitial = (filePath?: string, fallback?: string, alt?: string): string => {
+  if (alt && alt !== 'Avaxa Storage File' && alt !== 'Workspace avatar' && alt.trim() !== '') {
+    return alt.trim().charAt(0).toUpperCase();
+  }
+  
+  const extractFromUrl = (url?: string): string | null => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      const seed = urlObj.searchParams.get('seed');
+      if (seed) {
+        return decodeURIComponent(seed).trim().charAt(0).toUpperCase();
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
+
+  const seedChar = extractFromUrl(filePath) || extractFromUrl(fallback);
+  if (seedChar) return seedChar;
+
+  return 'U';
+};
+
+const getGradient = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % PRESET_GRADIENTS.length;
+  return PRESET_GRADIENTS[index];
+};
+
+export default function SignedImage({ filePath, fallback, id, className, style, alt, title, bucket = 'avatars', ...props }: SignedImageProps) {
   const [src, setSrc] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+
+  const activePath = filePath || (props as any).src;
 
   useEffect(() => {
     let active = true;
@@ -62,6 +116,25 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
       active = false;
     };
   }, [filePath, fallback, bucket]);
+
+  if (isDefaultAvatar(activePath)) {
+    const initial = getInitial(activePath, fallback, alt);
+    const gradient = getGradient(alt || fallback || activePath || 'User');
+    return (
+      <div 
+        id={id}
+        className={`flex items-center justify-center font-sans font-extrabold text-white uppercase select-none relative ${className || ''}`}
+        style={{
+          background: gradient,
+          containerType: 'size',
+          ...style
+        }}
+        title={title || alt}
+      >
+        <span style={{ fontSize: '45cqmin', lineHeight: '1' }}>{initial}</span>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

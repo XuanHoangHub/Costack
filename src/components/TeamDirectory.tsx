@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
+import InviteModal from './InviteModal';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -83,15 +84,7 @@ export default function TeamDirectory({
   const [editRole, setEditRole] = useState<'admin' | 'member' | 'guest'>('member');
   const [editBio, setEditBio] = useState('');
 
-  // Invite form parameters
-  const [inviteName, setInviteName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [invitePhone, setInvitePhone] = useState('');
-  const [inviteDepartment, setInviteDepartment] = useState('Technical');
-  const [inviteBio, setInviteBio] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'guest'>('member');
-  const [inviteAvatar, setInviteAvatar] = useState<string>('');
-  const [selectedWorkspacesForInvite, setSelectedWorkspacesForInvite] = useState<string[]>([activeWorkspaceId]);
+
 
   const currentWorkspaceName = workspaces.find(w => w.id === activeWorkspaceId)?.name || 'Current Workspace';
 
@@ -182,37 +175,6 @@ export default function TeamDirectory({
     }
   };
 
-  const handleInviteAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      
-      const uuid = crypto.randomUUID();
-      const ext = file.name.split('.').pop() || 'png';
-      const tempId = `temp-${Date.now()}`;
-      const filePath = `${session.user.id}/members/${tempId}/${uuid}.${ext}`;
-
-      onAddSyncLog(`Uploading avatar image template for new member...`);
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Invite avatar upload error:', uploadError);
-        onAddSyncLog(`Failed to upload avatar image for new member`);
-        return;
-      }
-
-      setInviteAvatar(filePath);
-      onAddSyncLog(`Avatar image uploaded successfully.`);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleAvatarUpload = async (member: User, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -260,37 +222,38 @@ export default function TeamDirectory({
     }
   };
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteName.trim() || !inviteEmail.trim()) return;
-
+  const handleSendInvites = (emails: string[], role: string) => {
     const formattedJoinedDate = new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    onAddMember({
-      name: inviteName,
-      email: inviteEmail,
-      phone: invitePhone,
-      department: inviteDepartment,
-      bio: inviteBio || 'No biography updated yet.',
-      joinedDate: formattedJoinedDate,
-      avatar: inviteAvatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(inviteName)}`,
-      role: inviteRole,
-      status: 'online',
-      workspaceIds: selectedWorkspacesForInvite
-    });
+    emails.forEach(email => {
+      const baseName = email.split('@')[0];
+      const name = baseName
+        .split(/[._\-+]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 
-    onAddSyncLog(`Authorized and recruited new colleague: ${inviteName} (${inviteRole.toUpperCase()})`);
-    
-    // Reset fields
-    setInviteName('');
-    setInviteEmail('');
-    setInvitePhone('');
-    setInviteDepartment('Technical');
-    setInviteBio('');
-    setInviteRole('member');
-    setInviteAvatar('');
-    setSelectedWorkspacesForInvite([activeWorkspaceId]);
-    setShowInviteModal(false);
+      // Map role. If the chosen role is custom or limited, cast/map to guest or use directly if valid.
+      let finalRole: 'admin' | 'member' | 'guest' = 'member';
+      if (role === 'admin') {
+        finalRole = 'admin';
+      } else if (role === 'guest' || role === 'limited') {
+        finalRole = 'guest';
+      }
+
+      onAddMember({
+        name,
+        email,
+        phone: '',
+        department: 'Technical',
+        bio: 'No biography updated yet.',
+        joinedDate: formattedJoinedDate,
+        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        role: finalRole,
+        status: 'online',
+        workspaceIds: [activeWorkspaceId]
+      });
+
+    });
   };
 
   const handleToggleStatus = (member: User) => {
@@ -310,14 +273,6 @@ export default function TeamDirectory({
     }
 
     onAddSyncLog(`Quick changed ${member.name}'s status to ${nextStatus.toUpperCase()}`);
-  };
-
-  const handleToggleWorkspaceAssignment = (wsId: string) => {
-    setSelectedWorkspacesForInvite(prev => 
-      prev.includes(wsId) 
-        ? prev.filter(id => id !== wsId)
-        : [...prev, wsId]
-    );
   };
 
   const displayMembers = activeTab === 'workspace' ? workspaceMembers : members;
@@ -1180,214 +1135,11 @@ export default function TeamDirectory({
       </AnimatePresence>
 
       {/* Invite Member Popup Modal */}
-      <AnimatePresence>
-        {showInviteModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowInviteModal(false)}
-            className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 cursor-default"
-              id="invite_member_modal"
-            >
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-                <span className="font-display font-black text-slate-850 dark:text-slate-50 text-base">
-                  Invite Staff Online
-                </span>
-                <button 
-                  onClick={() => setShowInviteModal(false)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleInviteSubmit} className="p-6 space-y-4 font-sans max-h-[75vh] overflow-y-auto custom-scrollbar">
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Staff Full Name</label>
-                    <input 
-                      id="input_invite_name"
-                      type="text" 
-                      required
-                      placeholder="e.g. Jane Doe" 
-                      value={inviteName}
-                      onChange={(e) => setInviteName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 outline-none dark:text-slate-50 transition-all font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email Address</label>
-                    <input 
-                      id="input_invite_email"
-                      type="email" 
-                      required
-                      placeholder="e.g. thaovy.dev@company.com" 
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 outline-none dark:text-slate-50 transition-all font-semibold"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Phone Number</label>
-                    <input 
-                      id="input_invite_phone"
-                      type="text" 
-                      placeholder="e.g. 0901 234 567" 
-                      value={invitePhone}
-                      onChange={(e) => setInvitePhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 outline-none dark:text-slate-50 transition-all font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Assigned Department</label>
-                    <select
-                      id="select_invite_dept"
-                      value={inviteDepartment}
-                      onChange={(e) => setInviteDepartment(e.target.value)}
-                      className="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 outline-none dark:text-slate-50 transition-all font-semibold"
-                    >
-                      {DEPARTMENTS.map(d => (
-                        <option key={d.id} value={d.id}>{d.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Access Role</label>
-                  <select
-                    id="select_invite_role"
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as any)}
-                    className="w-full px-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 outline-none dark:text-slate-50 transition-all font-semibold"
-                  >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                    <option value="guest">Guest / Partner (Guest/Auditor)</option>
-                  </select>
-                </div>
-
-                {/* Multiselect workspaces for new member invitation */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Workspace Assignment</label>
-                  <p className="text-[11px] text-slate-400 font-medium pb-1.5">Automatically enroll this account as a member of:</p>
-                  
-                  <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto custom-scrollbar p-1">
-                    {workspaces.map(ws => {
-                      const isChecked = selectedWorkspacesForInvite.includes(ws.id);
-                      return (
-                        <button
-                          key={ws.id}
-                          type="button"
-                          onClick={() => handleToggleWorkspaceAssignment(ws.id)}
-                          className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                            isChecked
-                              ? 'bg-indigo-50/50 border-indigo-300 dark:bg-indigo-950/30 dark:border-indigo-800'
-                              : 'bg-slate-50/50 border-slate-200 dark:bg-slate-950 dark:border-slate-800'
-                          }`}
-                        >
-                          <div className="min-w-0 flex items-center gap-1.5">
-                            <Star className={`w-3.5 h-3.5 ${isChecked ? 'text-indigo-500' : 'text-slate-300'}`} />
-                            <span className={`text-[11px] font-bold truncate ${isChecked ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                              {ws.name}
-                            </span>
-                          </div>
-                          {isChecked && <Check className="w-3.5 h-3.5 text-indigo-505" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bio / Notes</label>
-                  <textarea
-                    rows={2}
-                    value={inviteBio}
-                    onChange={(e) => setInviteBio(e.target.value)}
-                    placeholder="Brief description, nickname, or notes..."
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all font-medium custom-scrollbar"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <Upload className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Avatar Image</span>
-                  </label>
-                  <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 p-3 rounded-2xl">
-                    <div className="w-11 h-11 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200/80 dark:border-slate-800 shrink-0 overflow-hidden flex items-center justify-center">
-                      <SignedImage 
-                        filePath={inviteAvatar} 
-                        className="w-full h-full object-cover" 
-                        alt="Preview Avatar" 
-                        fallback="https://api.dicebear.com/7.x/adventurer/svg?seed=new_user"
-                      />
-                    </div>
-                    <label className="py-2 px-3 border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold rounded-lg cursor-pointer flex items-center gap-1.5 transition-all shadow-xs">
-                      <span>Upload Avatar</span>
-                      <input 
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleInviteAvatarUpload}
-                      />
-                    </label>
-                    {inviteAvatar && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await supabase.storage.from('avatars').remove([inviteAvatar]);
-                          } catch (err) {
-                            console.error(err);
-                          }
-                          setInviteAvatar('');
-                        }}
-                        className="text-[10px] text-rose-500 hover:underline font-bold cursor-pointer"
-                      >
-                        Delete photo
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-4 flex gap-3 justify-end border-t border-slate-100 dark:border-slate-805">
-                  <button
-                    type="button"
-                    onClick={() => setShowInviteModal(false)}
-                    className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-xl cursor-pointer transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    id="btn_submit_invite"
-                    type="submit"
-                    className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition-all hover:shadow-indigo-500/10"
-                  >
-                    Assign Colleague
-                  </button>
-                </div>
-              </form>
-
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <InviteModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        onSendInvites={handleSendInvites}
+      />
 
     </div>
   );

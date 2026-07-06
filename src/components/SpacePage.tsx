@@ -1934,6 +1934,7 @@ export default function SpacePage({
             setSelectedTaskIds={setSelectedTaskIds}
             setSelectedTask={setSelectedTask}
             onUpdateTask={onUpdateTask}
+            onAddTask={onAddTask}
             onAddSyncLog={onAddSyncLog}
             triggerToast={triggerToast}
             visibleFields={visibleFields}
@@ -2271,7 +2272,7 @@ export default function SpacePage({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Priority</label>
-                  <PriorityPillSelect value={newPrio} onChange={setNewPrio} />
+                  <PriorityPillSelect value={newPrio} onChange={(v) => setNewPrio(v || 'medium')} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Assignee</label>

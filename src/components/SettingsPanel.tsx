@@ -6,8 +6,14 @@ import {
   Moon, Sun, Palette, Settings, Database, Copy, Check, Volume2, VolumeX, 
   Layers, Sparkles, Bell, BellOff, Info, Clock, Sliders, ShieldCheck,
   Briefcase, Trash2, Edit2, Plus, X, ChevronRight, AlertTriangle,
-  Globe, Eye, EyeOff, Brain, Bot
+  Globe, Eye, EyeOff, Brain, Bot, Users, FolderOpen, Zap, Tag, Code, Mail, LogOut,
+  ChevronDown, Calendar, Search, Users as UsersIcon, ShieldAlert, CheckCircle,
+  HelpCircle, FileClock, Globe2, RefreshCw
 } from 'lucide-react';
+
+import SignedImage from './SignedImage';
+import TeamDirectory from './TeamDirectory';
+import { useAuthStore } from '@/store/authStore';
 
 interface NotificationSettings {
   enableAll: boolean;
@@ -52,6 +58,17 @@ interface SettingsPanelProps {
   onDeleteWorkspace?: (id: string) => void;
   onAddWorkspace?: (name: string, theme: string, coverUrl?: string) => void;
   members?: any[];
+  setMembers?: any;
+  tasks?: any[];
+  onAddMember?: any;
+  onUpdateMember?: any;
+  onDeleteMember?: any;
+  onAddSyncLog?: any;
+  syncLogs?: any[];
+  activeSettingsTab?: string;
+  setActiveSettingsTab?: (tab: string) => void;
+  onLogout?: () => void;
+  triggerToast?: any;
 }
 
 export default function SettingsPanel({
@@ -70,10 +87,38 @@ export default function SettingsPanel({
   onUpdateWorkspace,
   onDeleteWorkspace,
   onAddWorkspace,
-  members = []
+  members = [],
+  setMembers,
+  tasks = [],
+  onAddMember,
+  onUpdateMember,
+  onDeleteMember,
+  onAddSyncLog,
+  syncLogs = [],
+  activeSettingsTab,
+  setActiveSettingsTab,
+  onLogout,
+  triggerToast
 }: SettingsPanelProps) {
   const [copied, setCopied] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'personal' | 'workspace' | 'ai'>('personal');
+  const currentUser = useAuthStore((s) => s.currentUser);
+  
+  // Tab Routing state (internal fallback or linked via prop)
+  const [localActiveTab, setLocalActiveTab] = useState<string>('general');
+  const activeTab = activeSettingsTab || localActiveTab;
+  const setActiveTab = setActiveSettingsTab || setLocalActiveTab;
+
+  // Local state variables
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [newWSName, setNewWSName] = useState('');
+  const [newWSTheme, setNewWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
+  const [newWSCover, setNewWSCover] = useState('');
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
+  const [editWSName, setEditWSName] = useState('');
+  const [editWSTheme, setEditWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
+  const [editWSCover, setEditWSCover] = useState('');
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<any | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // AI settings states
   const [aiApiKey, setAiApiKey] = useState<string>('');
@@ -96,42 +141,11 @@ export default function SettingsPanel({
     if (typeof window !== 'undefined') {
       localStorage.setItem('avaxa_gemini_api_key', aiApiKey);
       localStorage.setItem('avaxa_ai_model', aiModel);
-      localStorage.setItem('avaxa_ai_temperature', String(aiTemp));
-      localStorage.setItem('avaxa_ai_search_grounding', String(aiSearchGrounding));
-      (window as any).playSystemSound?.('success');
+      localStorage.setItem('avaxa_ai_temperature', aiTemp.toString());
+      localStorage.setItem('avaxa_ai_search_grounding', aiSearchGrounding.toString());
+      if (onAddSyncLog) onAddSyncLog('Updated Gemini AI Integration settings successfully');
+      if (triggerToast) triggerToast('success', 'AI Configuration Saved', 'Your Gemini AI engine has been updated.');
     }
-  };
-
-  // Local states for editing individual workspaces inline
-  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
-  const [editWSName, setEditWSName] = useState<string>('');
-  const [editWSTheme, setEditWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
-  const [editWSCover, setEditWSCover] = useState<string>('');
-
-  // Local state for quickly creating a workspace inline
-  const [showQuickCreate, setShowQuickCreate] = useState<boolean>(false);
-  const [newWSName, setNewWSName] = useState<string>('');
-  const [newWSTheme, setNewWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
-  const [newWSCover, setNewWSCover] = useState<string>('');
-
-  // Confirmation state for deleting a workspace
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [workspaceToDelete, setWorkspaceToDelete] = useState<any | null>(null);
-  const [deleteConfirmText, setDeleteConfirmText] = useState<string>('');
-
-  const startEditWorkspace = (ws: any) => {
-    setEditingWorkspaceId(ws.id);
-    setEditWSName(ws.name);
-    setEditWSTheme(ws.theme || 'indigo');
-    setEditWSCover(ws.coverUrl || '');
-  };
-
-  const saveWorkspaceEdit = (id: string) => {
-    if (!editWSName.trim()) return;
-    if (onUpdateWorkspace) {
-      onUpdateWorkspace(id, editWSName.trim(), editWSTheme, editWSCover);
-    }
-    setEditingWorkspaceId(null);
   };
 
   const handleQuickCreateWorkspace = (e: React.FormEvent) => {
@@ -141,231 +155,49 @@ export default function SettingsPanel({
       onAddWorkspace(newWSName.trim(), newWSTheme, newWSCover);
     }
     setNewWSName('');
-    setNewWSCover('');
     setShowQuickCreate(false);
   };
 
-  const sqlCode = `-- 1. Tạo bảng workspaces lưu trữ Không gian làm việc
+  const startEditWorkspace = (ws: any) => {
+    setEditingWorkspaceId(ws.id);
+    setEditWSName(ws.name);
+    setEditWSTheme(ws.theme);
+    setEditWSCover(ws.coverUrl || '');
+  };
+
+  const saveWorkspaceEdit = (id: string) => {
+    if (!editWSName.trim()) return;
+    const targetWS = workspaces.find(w => w.id === id);
+    if (onUpdateWorkspace && targetWS) {
+      onUpdateWorkspace(id, editWSName.trim(), editWSTheme, editWSCover, targetWS.logoUrl, targetWS.settings);
+    }
+    setEditingWorkspaceId(null);
+  };
+
+  const sqlCode = `
 CREATE TABLE IF NOT EXISTS public.workspaces (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     theme TEXT DEFAULT 'indigo',
     initial TEXT,
+    coverUrl TEXT,
+    logoUrl TEXT,
+    settings JSONB DEFAULT '{}'::jsonb,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    "coverUrl" TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Bật Row Level Security (RLS) để cô lập dữ liệu người dùng
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
-
--- Tạo nguyên tắc truy cập (Policies) cho người dùng đăng nhập
-CREATE POLICY "Cho phép đọc mọi workspaces" ON public.workspaces
-    FOR SELECT USING (true);
-
-CREATE POLICY "Cho phép người dùng tạo workspace của họ" ON public.workspaces
-    FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE POLICY "Cho phép cập nhật workspace của chính mình" ON public.workspaces
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Cho phép xóa workspace của chính mình" ON public.workspaces
-    FOR DELETE USING (auth.uid() = user_id);
-
--- 2. Thêm cột workspace_id vào các bảng Tasks, Docs và Members hiện có
-ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS workspace_id TEXT;
-ALTER TABLE public.docs ADD COLUMN IF NOT EXISTS workspace_id TEXT;
-ALTER TABLE public.members ADD COLUMN IF NOT EXISTS workspace_id TEXT;
-
--- 2b. Tạo các bảng Spaces và Lists và cột liên kết cho Tasks
-CREATE TABLE IF NOT EXISTS public.spaces (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    emoji TEXT,
-    theme_color TEXT,
-    workspace_id TEXT REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    folders JSONB DEFAULT '[]'::jsonb,
-    whiteboards JSONB DEFAULT '[]'::jsonb,
-    channels JSONB DEFAULT '[]'::jsonb,
-    statuses JSONB DEFAULT '[]'::jsonb,
-    click_apps JSONB DEFAULT '{}'::jsonb,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.spaces ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Cho phép đọc spaces của chính mình" ON public.spaces
-    FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép tạo spaces của họ" ON public.spaces
-    FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép cập nhật spaces của chính mình" ON public.spaces
-    FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép xóa spaces của chính mình" ON public.spaces
-    FOR DELETE USING (auth.uid() = user_id OR user_id IS NULL);
-
-CREATE TABLE IF NOT EXISTS public.lists (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    space_id TEXT REFERENCES public.spaces(id) ON DELETE CASCADE,
-    folder_id TEXT,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.lists ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Cho phép đọc lists của chính mình" ON public.lists
-    FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép tạo lists của họ" ON public.lists
-    FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép cập nhật lists của chính mình" ON public.lists
-    FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Cho phép xóa lists của chính mình" ON public.lists
-    FOR DELETE USING (auth.uid() = user_id OR user_id IS NULL);
-
-ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS space_id TEXT;
-ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS list_id TEXT;
-
--- Bật Realtime cho các bảng Spaces và Lists nếu publication tồn tại
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_publication_tables 
-            WHERE pubname = 'supabase_realtime' AND tablename = 'spaces'
-        ) THEN
-            ALTER PUBLICATION supabase_realtime ADD TABLE public.spaces;
-        END IF;
-        
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_publication_tables 
-            WHERE pubname = 'supabase_realtime' AND tablename = 'lists'
-        ) THEN
-            ALTER PUBLICATION supabase_realtime ADD TABLE public.lists;
-        END IF;
-    END IF;
-END $$;
-
--- 3. Tạo bảng calendar_events lưu trữ sự kiện lịch biểu cục bộ đồng bộ
-CREATE TABLE IF NOT EXISTS public.calendar_events (
-    id TEXT PRIMARY KEY,
-    summary TEXT NOT NULL,
-    description TEXT,
-    start_time TEXT, -- dateTime ISO string
-    end_time TEXT,   -- dateTime ISO string
-    color TEXT DEFAULT '#4285F4',
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Cho phép đọc calendar_events của chính mình" ON public.calendar_events
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép tạo calendar_events của họ" ON public.calendar_events
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Cho phép cập nhật calendar_events của chính mình" ON public.calendar_events
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép xóa calendar_events của chính mình" ON public.calendar_events
-    FOR DELETE USING (auth.uid() = user_id);
-
--- 4. Tạo bảng habits lưu trữ thói quen kỷ luật bản thân
-CREATE TABLE IF NOT EXISTS public.habits (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    history JSONB DEFAULT '{}'::jsonb,
-    streak INTEGER DEFAULT 0,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.habits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Cho phép đọc habits của chính mình" ON public.habits
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép tạo habits của họ" ON public.habits
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Cho phép cập nhật habits của chính mình" ON public.habits
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép xóa habits của chính mình" ON public.habits
-    FOR DELETE USING (auth.uid() = user_id);
-
--- 5. Tạo bảng focus_sessions lưu trữ phiên tập trung Pomodoro
-CREATE TABLE IF NOT EXISTS public.focus_sessions (
-    id TEXT PRIMARY KEY,
-    duration_minutes INTEGER NOT NULL,
-    type TEXT NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL,
-    completed BOOLEAN DEFAULT TRUE,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.focus_sessions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Cho phép đọc focus_sessions của chính mình" ON public.focus_sessions
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép tạo focus_sessions của họ" ON public.focus_sessions
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Cho phép cập nhật focus_sessions của chính mình" ON public.focus_sessions
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép xóa focus_sessions của chính mình" ON public.focus_sessions
-    FOR DELETE USING (auth.uid() = user_id);
-
--- 5b. Tạo bảng base_apps lưu trữ Avaxa Base (no-code database)
-CREATE TABLE IF NOT EXISTS public.base_apps (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    emoji TEXT DEFAULT '📋',
-    description TEXT DEFAULT '',
-    tables JSONB DEFAULT '[]'::jsonb,
-    active_table_id TEXT,
-    workspace_id TEXT,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.base_apps ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Cho phép đọc base_apps của chính mình" ON public.base_apps
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép tạo base_apps của họ" ON public.base_apps
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Cho phép cập nhật base_apps của chính mình" ON public.base_apps
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Cho phép xóa base_apps của chính mình" ON public.base_apps
-    FOR DELETE USING (auth.uid() = user_id);
-
--- 6. Cấu hình Storage Bucket và chính sách cho Avatars
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('avatars', 'avatars', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Cho phép truy cập công khai ảnh đại diện" ON storage.objects;
-CREATE POLICY "Cho phép truy cập công khai ảnh đại diện" ON storage.objects
-    FOR SELECT USING (bucket_id = 'avatars');
-
-DROP POLICY IF EXISTS "Cho phép người dùng tải ảnh lên thư mục của mình" ON storage.objects;
-CREATE POLICY "Cho phép người dùng tải ảnh lên thư mục của mình" ON storage.objects
-    FOR INSERT WITH CHECK (
-        bucket_id = 'avatars' 
-        AND auth.role() = 'authenticated'
-        AND (storage.foldername(name))[1] = auth.uid()::text
+CREATE POLICY "Allow select workspaces for workspace members" ON public.workspaces
+    FOR SELECT USING (
+        auth.uid() = user_id 
+        OR id IN (
+            SELECT unnest(workspace_ids) 
+            FROM public.members 
+            WHERE user_id = auth.uid()
+        )
     );
-
-DROP POLICY IF EXISTS "Cho phép người dùng cập nhật ảnh của mình" ON storage.objects;
-CREATE POLICY "Cho phép người dùng cập nhật ảnh của mình" ON storage.objects
-    FOR UPDATE USING (
-        bucket_id = 'avatars' 
-        AND auth.role() = 'authenticated'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-DROP POLICY IF EXISTS "Cho phép người dùng xóa ảnh của mình" ON storage.objects;
-CREATE POLICY "Cho phép người dùng xóa ảnh của mình" ON storage.objects
-    FOR DELETE USING (
-        bucket_id = 'avatars' 
-        AND auth.role() = 'authenticated'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );`;
+`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(sqlCode);
@@ -380,1035 +212,477 @@ CREATE POLICY "Cho phép người dùng xóa ảnh của mình" ON storage.objec
     { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', hex: '#f43f5e' }
   ] as const;
 
+  // Sidebar Menu Definition
+  const menuSections = [
+    {
+      title: 'Admin',
+      items: [
+        { id: 'general', label: 'General', icon: Briefcase },
+        { id: 'people', label: 'People', icon: Users },
+        { id: 'teams', label: 'Teams', icon: UsersIcon },
+        { id: 'upgrade', label: 'Upgrade', icon: Sparkles },
+        { id: 'ai_usage', label: 'AI Usage', icon: Brain },
+        { id: 'security', label: 'Security & Permissions', icon: ShieldCheck },
+        { id: 'audit_logs', label: 'Audit Logs', icon: FileClock },
+        { id: 'trash', label: 'Trash', icon: Trash2 },
+      ]
+    },
+    {
+      title: 'Features',
+      items: [
+        { id: 'custom_fields', label: 'Custom Field Manager', icon: Layers },
+        { id: 'tags', label: 'Tag Manager', icon: Tag },
+        { id: 'templates', label: 'Template Center', icon: FolderOpen },
+        { id: 'automations', label: 'Automations Manager', icon: Zap },
+        { id: 'ai_notetaker', label: 'AI Notetaker', icon: Bot },
+        { id: 'emojis', label: 'Emojis', icon: CheckCircle },
+        { id: 'spaces', label: 'Spaces', icon: Database },
+        { id: 'task_types', label: 'Task Types', icon: Info },
+        { id: 'work_schedule', label: 'Work Schedule', icon: Clock },
+      ]
+    },
+    {
+      title: 'Integrations & ClickApps',
+      items: [
+        { id: 'app_center', label: 'App Center', icon: Sliders },
+        { id: 'import_export', label: 'Imports / Exports', icon: RefreshCw },
+        { id: 'clickup_api', label: 'ClickUp API', icon: Code },
+        { id: 'email_integration', label: 'Email Integration', icon: Mail },
+      ]
+    },
+    {
+      title: 'My Settings',
+      items: [
+        { id: 'preferences', label: 'Preferences', icon: Sliders },
+        { id: 'notifications', label: 'Notifications', icon: Bell },
+      ]
+    }
+  ];
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl shadow-sm">
-        <div>
-          <h2 className="text-lg font-bold font-display text-slate-800 dark:text-slate-55 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-indigo-500" />
-            System Settings
-          </h2>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Configure personalization and fine-tune your Avaxa OS workspace interface</p>
-        </div>
-      </div>
-
-      {/* Sub Tabs Selector */}
-      <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-1">
-        <button 
-          onClick={() => setActiveSubTab('personal')}
-          className={`px-4 py-2 text-xs font-bold transition-all relative cursor-pointer ${activeSubTab === 'personal' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
-        >
-          System Personalization
-          {activeSubTab === 'personal' && (
-            <motion.div layoutId="settingsTabIndicator" className="absolute bottom-0 inset-x-2 h-[2px] bg-indigo-650 rounded-full" />
-          )}
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('workspace')}
-          className={`px-4 py-2 text-xs font-bold transition-all relative cursor-pointer ${activeSubTab === 'workspace' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
-        >
-          Workspace Settings
-          {activeSubTab === 'workspace' && (
-            <motion.div layoutId="settingsTabIndicator" className="absolute bottom-0 inset-x-2 h-[2px] bg-indigo-650 rounded-full" />
-          )}
-        </button>
-        <button 
-          onClick={() => setActiveSubTab('ai')}
-          className={`px-4 py-2 text-xs font-bold transition-all relative cursor-pointer ${activeSubTab === 'ai' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-350'}`}
-        >
-          AI Configuration
-          {activeSubTab === 'ai' && (
-            <motion.div layoutId="settingsTabIndicator" className="absolute bottom-0 inset-x-2 h-[2px] bg-indigo-650 rounded-full" />
-          )}
-        </button>
-      </div>
-
-      {activeSubTab === 'personal' && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Dark Mode Card - Forced light mode */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="p-6 bg-white rounded-3xl border border-slate-200/60 shadow-sm space-y-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-50 rounded-xl">
-              <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">Pure Light Mode</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">App is locked to pure crystalline light theme</p>
-            </div>
+    <div className="flex h-[calc(100vh-140px)] w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs relative">
+      {/* 1. Left Navigation Sidebar */}
+      <aside className="w-[230px] border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex flex-col justify-between shrink-0 overflow-y-auto scrollbar-none p-3.5 space-y-4">
+        <div className="space-y-4">
+          <div className="px-2 py-1">
+            <h2 className="text-[14px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-display">
+              All settings
+            </h2>
           </div>
 
-          <div className="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100 text-[11px] text-slate-600 leading-relaxed">
-            ✨ <span className="font-bold text-slate-800">Minimalism:</span> To ensure visual harmony and consistency, dark mode and custom blur panels have been disabled in favor of the pure light theme layout.
-          </div>
-        </motion.div>
-
-        {/* Accent Colors */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-5"
-        >
-           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl">
-              <Palette className="w-5 h-5 text-indigo-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-50">Accent Color</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Personalize your primary workspace highlight color</p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-slate-55/40 dark:bg-slate-950/40 rounded-2xl border border-slate-150 dark:border-slate-800/60 transition-colors">
-            <span className="text-xs font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase select-none font-sans">
-              ACCENT COLOR
-            </span>
-            <div className="flex items-center gap-4">
-              {presets.map(p => {
-                const isActive = accentPreset === p.id;
-                let ringColorClass = '';
-                if (p.id === 'indigo') ringColorClass = 'ring-indigo-500';
-                else if (p.id === 'ocean') ringColorClass = 'ring-sky-500';
-                else if (p.id === 'forest') ringColorClass = 'ring-emerald-500';
-                else ringColorClass = 'ring-rose-500';
-
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setAccentPreset(p.id as any)}
-                    className={`w-6 h-6 rounded-full transition-all duration-200 cursor-pointer outline-none ${
-                      isActive 
-                        ? `ring-2 ring-offset-2 ${ringColorClass} scale-110 dark:ring-offset-slate-900` 
-                        : 'hover:scale-110 opacity-90 hover:opacity-100'
-                    } ${p.color}`}
-                    title={p.name}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Interactive Sound Effects Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-5"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-indigo-500">
-              {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500 animate-pulse" /> : <VolumeX className="w-5 h-5 text-slate-400" />}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-50">Interactive Sound Effects (Haptic Audio)</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Play subtle interface sounds when switching tabs, clicking buttons, or completing tasks</p>
-            </div>
-          </div>
-
-          <div className="flex w-full bg-slate-100 dark:bg-slate-950 p-1 rounded-xl">
-            <button
-              onClick={() => {
-                setSoundEnabled(true);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${soundEnabled ? 'bg-white shadow-sm text-indigo-700 dark:bg-slate-800 dark:text-indigo-400 border border-slate-200/40 dark:border-slate-700/60' : 'text-slate-500 hover:text-slate-705 dark:text-slate-400 dark:hover:text-slate-300'}`}
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              Enable Sound
-            </button>
-            <button
-              onClick={() => setSoundEnabled(false)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all ${!soundEnabled ? 'bg-white shadow-sm text-slate-700 dark:bg-slate-800 dark:text-slate-450 border border-slate-200/40 dark:border-slate-700/60' : 'text-slate-500 hover:text-slate-705 dark:text-slate-400 dark:hover:text-slate-300'}`}
-            >
-              <VolumeX className="w-3.5 h-3.5" />
-              Mute
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Glassmorphism Blur Strength Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-5"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-indigo-500">
-              <Layers className="w-5 h-5 text-indigo-500 animate-bounce" style={{ animationDuration: '3s' }} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-55 flex items-center gap-1.5">
-                <span>Glassmorphism Blur Strength (Blur Effect)</span>
-                <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Customize the glass blur effect depth on background panels</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl">
-            {[
-              { id: 'soft', name: 'Soft (8px)' },
-              { id: 'default', name: 'Default (16px)' },
-              { id: 'immersive', name: 'Immersive (28px)' }
-            ].map(b => (
-              <button
-                key={b.id}
-                onClick={() => setBlurIntensity(b.id as any)}
-                className={`py-2 px-1 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer ${blurIntensity === b.id ? 'bg-white shadow-xs text-indigo-700 dark:bg-slate-800 dark:text-indigo-400 border border-slate-200/40 dark:border-slate-700/60' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350'}`}
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 🔔 CÀI ĐẶT THÔNG BÁO CO-WORKING MASTER CONTROL */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="p-6 md:p-8 bg-white dark:bg-slate-905 p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-6"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-150 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-indigo-500 relative">
-              <Bell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              {notificationSettings.dndActive && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+          <nav className="space-y-4">
+            {menuSections.map((section, idx) => (
+              <div key={idx} className="space-y-1">
+                <span className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block select-none">
+                  {section.title}
                 </span>
-              )}
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-55 flex items-center gap-2">
-                Smart Notification Settings
-                {notificationSettings.dndActive && (
-                  <span className="text-[10px] bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-rose-100 dark:border-rose-900/30">
-                    DND Enabled
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Fine-tune notification frequency, alerts, and sounds to maintain maximum focus and productivity.
-              </p>
-            </div>
-          </div>
-
-          {/* Master quick switches */}
-          <div className="flex items-center gap-2.5 bg-slate-105 dark:bg-slate-950 p-1 rounded-xl self-start sm:self-center">
-            <button
-              type="button"
-              onClick={() => setNotificationSettings(prev => ({ ...prev, enableAll: !prev.enableAll }))}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                notificationSettings.enableAll
-                  ? 'bg-white dark:bg-slate-850 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/20 dark:border-slate-750'
-                  : 'text-slate-505 dark:text-slate-400'
-              }`}
-            >
-              Enable Notifications
-            </button>
-            <button
-              type="button"
-              onClick={() => setNotificationSettings(prev => ({ ...prev, dndActive: !prev.dndActive }))}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                notificationSettings.dndActive
-                  ? 'bg-rose-505 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 shadow-xs border border-rose-200/40 dark:border-rose-900/50'
-                  : 'text-slate-505 dark:text-slate-400'
-              }`}
-            >
-              Do Not Disturb Mode (DND)
-            </button>
-          </div>
+                <div className="space-y-0.5">
+                  {section.items.map(item => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left ${
+                          isActive 
+                            ? 'bg-slate-200/80 dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' 
+                            : 'text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-450 dark:text-slate-500'}`} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
         </div>
 
-        {/* 1. Tần suất & Tránh gây phiền */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350 flex items-center gap-1.5">
-              <Sliders className="w-4 h-4 text-indigo-400" />
-              Frequency & Spam Filter
-            </h4>
-            <p className="text-[11px] text-slate-455 dark:text-slate-500 leading-relaxed mb-3">
-              Smart soundproofing moderates rapid consecutive updates (such as clicking tag filters quickly, moving boards, or rapid chat messages).
-            </p>
-
-            <div className="space-y-2 bg-slate-50 dark:bg-slate-950/40 p-3.5 rounded-2xl border border-slate-150 dark:border-slate-800/80">
-              <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                <input
-                  type="radio"
-                  name="frequencyLimit"
-                  checked={notificationSettings.frequencyLimit === 'all'}
-                  onChange={() => setNotificationSettings(prev => ({ ...prev, frequencyLimit: 'all' }))}
-                  className="mt-0.5 rounded-full text-indigo-500 focus:ring-indigo-500 w-3.5 h-3.5"
-                />
-                <div>
-                  <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 block">All Notifications (Real-time)</span>
-                  <span className="text-[10px] text-slate-450 dark:text-slate-500">Deliver all notifications immediately in real time.</span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 cursor-pointer select-none border-t border-slate-200/40 dark:border-slate-800/50 pt-2.5">
-                <input
-                  type="radio"
-                  name="frequencyLimit"
-                  checked={notificationSettings.frequencyLimit === 'throttled'}
-                  onChange={() => setNotificationSettings(prev => ({ ...prev, frequencyLimit: 'throttled' }))}
-                  className="mt-0.5 rounded-full text-indigo-505 focus:ring-indigo-500 w-3.5 h-3.5"
-                />
-                <div>
-                  <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 block flex items-center gap-1">
-                    Throttled (Anti-Annoy) 🛡️
-                  </span>
-                  <span className="text-[10px] text-slate-450 dark:text-slate-500">
-                    Debounce duplicate notifications for 3s, capped at 1 notification per 1.5s.
-                  </span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 cursor-pointer select-none border-t border-slate-200/40 dark:border-slate-800/50 pt-2.5">
-                <input
-                  type="radio"
-                  name="frequencyLimit"
-                  checked={notificationSettings.frequencyLimit === 'minimal'}
-                  onChange={() => setNotificationSettings(prev => ({ ...prev, frequencyLimit: 'minimal' }))}
-                  className="mt-0.5 rounded-full text-indigo-505 focus:ring-indigo-500 w-3.5 h-3.5"
-                />
-                <div>
-                  <span className="text-xs font-extrabold text-slate-705 dark:text-slate-300 block">Minimal (Essential Only)</span>
-                  <span className="text-[10px] text-slate-450 dark:text-slate-500">Only notify urgent/high priority events, limited to once every 5 seconds.</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* 2. Thiết lập bộ lọc theo phân loại */}
-          <div className="space-y-3 lg:col-span-2">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-indigo-400" />
-              Alert Content Subscriptions
-            </h4>
-            <p className="text-[11px] text-slate-450 dark:text-slate-500 leading-relaxed mb-1">
-              Toggle specific event categories to narrow down the floating notification popups in the corner.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-150 dark:border-slate-800/80">
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-slate-705 dark:text-slate-305">New Assignments (Assignments)</span>
-                  <p className="text-[9.5px] text-slate-450 dark:text-slate-500">Alert when a new task is assigned to a member</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableAssignments}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableAssignments: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-slate-705 dark:text-slate-305">Task Deadlines (Deadlines)</span>
-                  <p className="text-[9.5px] text-slate-455 dark:text-slate-500">Alert for approaching due dates and deadlines</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableDeadlines}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableDeadlines: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-slate-705 dark:text-slate-305">Comments & Chat (Comments)</span>
-                  <p className="text-[9.5px] text-slate-455 dark:text-slate-500">Alert when colleagues send chat messages or comments</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableComments}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableComments: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-slate-705 dark:text-slate-305">Status Transitions (Status)</span>
-                  <p className="text-[9.5px] text-slate-455 dark:text-slate-500">Alert when a task changes status columns</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableStatusChanges}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableStatusChanges: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-105 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none border border-amber-500/10 bg-amber-500/5">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-black text-rose-600 dark:text-rose-400">Tag Filtering Popup (Anti-Annoy)</span>
-                  <p className="text-[9.5px] text-slate-455 dark:text-slate-550">Show a floating notification every time a hashtag is filtered</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableFilteringTags}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableFilteringTags: e.target.checked }))}
-                  className="rounded text-rose-505 focus:ring-rose-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900/40 transition-colors cursor-pointer select-none">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold text-slate-705 dark:text-slate-305">System Activity (System Logs)</span>
-                  <p className="text-[9.5px] text-slate-455 dark:text-slate-500">Alert when workspaces are created, synced, deleted, or restored</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableSystemNotify}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableSystemNotify: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-4 h-4 cursor-pointer"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Tùy chỉnh chi tiết khác */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-150 dark:border-slate-800/80 pt-4">
-          {/* Thời lượng hiển thị */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold text-slate-705 dark:text-slate-350 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-indigo-400" />
-              Notification Toast Duration
-            </label>
-            <div className="grid grid-cols-3 gap-2 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl">
-              {[
-                { id: 2200, label: 'Fast (2.2s)' },
-                { id: 4000, label: 'Medium (4.0s)' },
-                { id: 7500, label: 'Persistent (7.5s)' }
-              ].map(item => (
-                <button
-                  type="button"
-                  key={item.id}
-                  onClick={() => setNotificationSettings(prev => ({ ...prev, toastDuration: item.id }))}
-                  className={`py-2 text-[10px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                    notificationSettings.toastDuration === item.id
-                      ? 'bg-white shadow-xs text-indigo-700 dark:bg-slate-800 dark:text-indigo-400 border border-slate-200/40'
-                      : 'text-slate-505 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-305'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Âm báo & bộ lọc nâng cao */}
-          <div className="space-y-2.5">
-            <span className="text-xs font-bold text-slate-750 dark:text-slate-350 flex items-center gap-1.5">
-              <Volume2 className="w-4 h-4 text-indigo-400" />
-              Activity Event Sound Alerts
-            </span>
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950/40 p-2.5 rounded-xl border border-slate-200/40 dark:border-slate-800/60">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.enableSound}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, enableSound: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-3.5 h-3.5 cursor-pointer"
-                />
-                <span className="text-[11px] font-bold text-slate-650 dark:text-slate-350">Chime sounds</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={notificationSettings.onlyImportant}
-                  onChange={(e) => setNotificationSettings(prev => ({ ...prev, onlyImportant: e.target.checked }))}
-                  className="rounded text-indigo-505 focus:ring-indigo-505 w-3.5 h-3.5 cursor-pointer"
-                />
-                <span className="text-[11px] font-bold text-slate-650 dark:text-slate-350">Urgent events only</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* 💼 QUẢN TRỊ KHÔNG GIAN LÀM VIỆC (WORKSPACE ADMINISTRATION) */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.18 }}
-        className="p-6 md:p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-6"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-150 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl text-indigo-500">
-              <Briefcase className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-50 flex items-center gap-2">
-                Workspace Administration
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Create new, edit details, or delete workspaces to segment workflows systematically.
-              </p>
-            </div>
-          </div>
-
+        {/* Logout Bottom Trigger */}
+        <div className="pt-2 border-t border-slate-200/40 dark:border-slate-800">
           <button
-            id="ws_btn_quick_create_toggle"
-            type="button"
-            onClick={() => setShowQuickCreate(!showQuickCreate)}
-            className="flex items-center gap-1.5 py-2 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 transition-colors text-xs font-black text-indigo-600 dark:text-indigo-400 cursor-pointer self-start sm:self-center"
+            onClick={() => {
+              if (onLogout) onLogout();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer text-left"
           >
-            {showQuickCreate ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            <span>{showQuickCreate ? 'Cancel' : 'Add Workspace'}</span>
+            <LogOut className="w-4 h-4 text-rose-500" />
+            <span>Log out</span>
           </button>
         </div>
+      </aside>
 
-        {/* Inline Quick Create Workspace Panel */}
-        <AnimatePresence>
-          {showQuickCreate && (
-            <motion.form
-              id="ws_form_quick_create"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              onSubmit={handleQuickCreateWorkspace}
-              className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 space-y-4 overflow-hidden"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="new_ws_name" className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">New Workspace Name</label>
-                  <input
-                    id="new_ws_name"
-                    type="text"
-                    required
-                    value={newWSName}
-                    onChange={(e) => setNewWSName(e.target.value)}
-                    placeholder="E.g., Web Design, Finance..."
-                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-100"
-                  />
-                </div>
+      {/* 2. Right Detail Content area */}
+      <main className="flex-1 overflow-y-auto bg-white dark:bg-slate-905 p-6 md:p-8">
+        
+        {/* TAB: GENERAL WORKSPACE INFO */}
+        {activeTab === 'general' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-indigo-500" />
+                Workspace Settings
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure branding presets and feature parameters of your active workspace</p>
+            </div>
 
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Choose Accent Theme</span>
-                  <div className="flex gap-2.5 pt-1">
-                    {[
-                      { id: 'indigo', color: 'bg-indigo-500', name: 'Purple' },
-                      { id: 'ocean', color: 'bg-sky-500', name: 'Blue' },
-                      { id: 'forest', color: 'bg-emerald-500', name: 'Green' },
-                      { id: 'sunset', color: 'bg-rose-500', name: 'Rose' }
-                    ].map(themeItem => (
-                      <button
-                        key={themeItem.id}
-                        type="button"
-                        onClick={() => setNewWSTheme(themeItem.id as any)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform ${newWSTheme === themeItem.id ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : 'opacity-80 hover:scale-105'}`}
-                      >
-                        <span className={`w-5 h-5 rounded-full ${themeItem.color} block`} title={themeItem.name} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Cover choice section */}
-              <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/40 pt-3">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Select Background Cover (Cover Gallery)</span>
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => setNewWSCover('')}
-                    className={`relative shrink-0 w-16 h-11 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${!newWSCover ? 'border-indigo-500 bg-white dark:bg-slate-900 shadow-sm' : 'border-dashed border-slate-200 dark:border-slate-850'}`}
-                  >
-                    <span className="text-[8px] font-bold text-slate-400">Default</span>
-                    {!newWSCover && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-500" />}
-                  </button>
-                  {WORKSPACE_COVERS.map(cover => (
-                    <button
-                      key={cover.id}
-                      type="button"
-                      onClick={() => setNewWSCover(cover.url)}
-                      className={`relative shrink-0 w-16 h-11 rounded-lg border overflow-hidden transition-all group cursor-pointer ${newWSCover === cover.url ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'border-slate-200/65 dark:border-slate-800 opacity-80 hover:opacity-100'}`}
-                    >
-                      <img
-                        src={cover.url}
-                        alt={cover.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-black/50 text-[6px] font-black text-white text-center py-0.5 truncate px-1 uppercase tracking-tight">
-                        {cover.name}
-                      </div>
-                      {newWSCover === cover.url && (
-                        <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
-                          ✓
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-150 dark:border-slate-800/60">
-                <button
-                  id="ws_btn_quick_create_cancel"
-                  type="button"
-                  onClick={() => setShowQuickCreate(false)}
-                  className="px-3.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-bold text-slate-500 dark:text-slate-400"
-                >
-                  Cancel
-                </button>
-                <button
-                  id="ws_btn_quick_create_submit"
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white transition-colors text-xs font-black"
-                >
-                  Create Workspace
-                </button>
-              </div>
-            </motion.form>
-          )}
-        </AnimatePresence>
-
-        {/* Workspaces List and Inline Editing panels */}
-        <div className="space-y-3.5">
-          {workspaces.map((ws) => {
-            const isEditing = editingWorkspaceId === ws.id;
-            const isActive = activeWorkspaceId === ws.id;
-            const badgeBg = ws.theme === 'indigo' ? 'bg-indigo-500' :
-                            ws.theme === 'ocean' ? 'bg-sky-500' :
-                            ws.theme === 'forest' ? 'bg-emerald-500' : 'bg-rose-500';
-
-            return (
-              <div 
-                key={ws.id}
-                id={`ws_item_${ws.id}`}
-                className={`p-4 rounded-2xl border transition-all ${isActive ? 'bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/30' : 'bg-slate-50/50 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-950/40'}`}
-              >
-                {isEditing ? (
-                  // Inline edit mode
-                  <div className="space-y-4">
-                    <div className="text-[10px] font-extrabold uppercase text-indigo-500 tracking-wider">Editing Workspace</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label htmlFor={`edit_ws_name_${ws.id}`} className="text-[9.5px] font-bold text-slate-400 block">Workspace Name</label>
+            {/* General Info Card */}
+            {(() => {
+              const activeWS = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
+              if (!activeWS) return <div className="text-slate-400 italic text-xs">No active workspaces found.</div>;
+              return (
+                <div className="space-y-6">
+                  {/* Name and logo */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Workspace Name</label>
                         <input
-                          id={`edit_ws_name_${ws.id}`}
                           type="text"
-                          value={editWSName}
-                          onChange={(e) => setEditWSName(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100"
+                          value={activeWS.name}
+                          onChange={e => {
+                            onUpdateWorkspace?.(activeWS.id, e.target.value, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
+                          }}
+                          className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <span className="text-[9.5px] font-bold text-slate-400 block">Accent Color</span>
-                        <div className="flex gap-2.5 pt-0.5">
-                          {[
-                            { id: 'indigo', color: 'bg-indigo-500' },
-                            { id: 'ocean', color: 'bg-sky-500' },
-                            { id: 'forest', color: 'bg-emerald-500' },
-                            { id: 'sunset', color: 'bg-rose-500' }
-                          ].map(t => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => setEditWSTheme(t.id as any)}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform ${editWSTheme === t.id ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : 'opacity-80'}`}
-                            >
-                              <span className={`w-4 h-4 rounded-full ${t.color} block`} />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Cover selection for inline edit */}
-                      <div className="sm:col-span-2 space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800/45">
-                        <span className="text-[9.5px] font-bold text-slate-400 block">Change Background Cover (Cover Background)</span>
-                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                          <button
-                            type="button"
-                            onClick={() => setEditWSCover('')}
-                            className={`relative shrink-0 w-16 h-11 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${!editWSCover ? 'border-indigo-500 bg-white dark:bg-slate-900 shadow-sm' : 'border-dashed border-slate-200 dark:border-slate-850'}`}
-                          >
-                            <span className="text-[8px] font-bold text-slate-400">Default</span>
-                            {!editWSCover && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-indigo-500" />}
-                          </button>
-                          {WORKSPACE_COVERS.map(cover => (
-                            <button
-                              key={cover.id}
-                              type="button"
-                              onClick={() => setEditWSCover(cover.url)}
-                              className={`relative shrink-0 w-16 h-11 rounded-lg border overflow-hidden transition-all group cursor-pointer ${editWSCover === cover.url ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'border-slate-200/65 dark:border-slate-800 opacity-80 hover:opacity-100'}`}
-                            >
-                              <img
-                                src={cover.url}
-                                alt={cover.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="absolute inset-x-0 bottom-0 bg-black/50 text-[6px] font-black text-white text-center py-0.5 truncate px-1 uppercase tracking-tight">
-                                {cover.name}
-                              </div>
-                              {editWSCover === cover.url && (
-                                <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
-                                  ✓
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-150 dark:border-slate-800/50">
-                      <button
-                        id={`ws_edit_cancel_${ws.id}`}
-                        type="button"
-                        onClick={() => setEditingWorkspaceId(null)}
-                        className="px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] font-bold text-slate-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        id={`ws_edit_save_${ws.id}`}
-                        type="button"
-                        onClick={() => saveWorkspaceEdit(ws.id)}
-                        className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[11px] font-black"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // Standard view mode
-                  <div className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-16 h-10 rounded-xl text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0 select-none overflow-hidden relative"
-                        style={ws.coverUrl ? {
-                          backgroundImage: `url(${ws.coverUrl})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        } : undefined}
-                      >
-                        {!ws.coverUrl && <div className={`absolute inset-0 ${badgeBg}`} />}
-                        {ws.coverUrl && <div className="absolute inset-0 bg-slate-950/40" />}
-                        <span className="relative z-10 font-sans font-extrabold tracking-wide drop-shadow-sm">{ws.initial || ws.name.charAt(0).toUpperCase()}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{ws.name}</span>
-                          {isActive && (
-                            <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full font-extrabold uppercase shrink-0">
-                              Active
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                          ID: <code className="font-mono text-indigo-500/90">{ws.id}</code> · Accent Theme: 
-                          <span className="capitalize font-semibold ml-1">
-                            {ws.theme === 'indigo' ? 'Purple' :
-                             ws.theme === 'ocean' ? 'Blue' :
-                             ws.theme === 'forest' ? 'Green' : 'Rose'}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-auto sm:ml-0 shrink-0">
-                      <button
-                        id={`ws_action_edit_${ws.id}`}
-                        onClick={() => startEditWorkspace(ws)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-                        title="Edit Details"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      {!isActive && (
-                        <button
-                          id={`ws_action_delete_${ws.id}`}
-                          onClick={() => {
-                            if (workspaces.length <= 1) {
-                              return;
-                            }
-                            setWorkspaceToDelete(ws);
-                            setDeleteConfirmText('');
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Logo URL</label>
+                        <input
+                          type="text"
+                          value={activeWS.logoUrl || ''}
+                          onChange={e => {
+                            onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, e.target.value, activeWS.settings);
                           }}
-                          className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
-                          title="Delete Workspace"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                          placeholder="e.g. https://domain.com/logo.png"
+                          className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </motion.div>
 
-      {/* Supabase Integration SQL Setup Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
-              <Database className="w-5 h-5 text-indigo-500" />
-            </div>
+                  {/* Themes Accent */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350">Accent Color</h4>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Select accent highlight preset theme</p>
+                    </div>
+                    <div className="flex gap-2.5">
+                      {presets.map(p => {
+                        const isActive = activeWS.theme === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              onUpdateWorkspace?.(activeWS.id, activeWS.name, p.id, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
+                            }}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform cursor-pointer ${isActive ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : 'opacity-80'}`}
+                          >
+                            <span className={`w-5 h-5 rounded-full ${p.color} block`} title={p.name} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Covers */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Background Cover</h4>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Select cover artwork for workspace header backgrounds</p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, '', activeWS.logoUrl, activeWS.settings);
+                        }}
+                        className={`relative shrink-0 w-16 h-11 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${!activeWS.coverUrl ? 'border-indigo-500 bg-white dark:bg-slate-900 shadow-sm' : 'border-dashed border-slate-200 dark:border-slate-800'}`}
+                      >
+                        <span className="text-[8px] font-bold text-slate-400">Default</span>
+                      </button>
+                      {WORKSPACE_COVERS.map(cover => (
+                        <button
+                          key={cover.id}
+                          type="button"
+                          onClick={() => {
+                            onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, cover.url, activeWS.logoUrl, activeWS.settings);
+                          }}
+                          className={`relative shrink-0 w-16 h-11 rounded-lg border overflow-hidden transition-all group cursor-pointer ${activeWS.coverUrl === cover.url ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100'}`}
+                        >
+                          <img src={cover.url} alt={cover.name} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ClickApps */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350">Workspace Features (ClickApps)</h4>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Toggle active collaborative productivity modules</p>
+                    </div>
+                    {(() => {
+                      const clickApps = activeWS.settings?.defaultClickApps || {
+                        timeTracking: true,
+                        multipleAssignees: true,
+                        customFields: true,
+                        relationships: true,
+                        subtasks: true,
+                        priorities: true
+                      };
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {[
+                            { key: 'timeTracking', label: 'Time Tracking' },
+                            { key: 'multipleAssignees', label: 'Multiple Assignees' },
+                            { key: 'customFields', label: 'Custom Fields' },
+                            { key: 'relationships', label: 'Relationships' },
+                            { key: 'subtasks', label: 'Subtasks' },
+                            { key: 'priorities', label: 'Priorities' }
+                          ].map(app => (
+                            <label key={app.key} className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/60 cursor-pointer transition-colors text-xs font-bold text-slate-700 dark:text-slate-300">
+                              <span>{app.label}</span>
+                              <input
+                                type="checkbox"
+                                checked={!!clickApps[app.key]}
+                                onChange={e => {
+                                  const updatedClickApps = { ...clickApps, [app.key]: e.target.checked };
+                                  const updatedSettings = { ...activeWS.settings, defaultClickApps: updatedClickApps };
+                                  onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, updatedSettings);
+                                }}
+                                className="rounded text-indigo-650 w-4 h-4 cursor-pointer"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* SQL copy */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-300">Database Schema SQL Integration</h4>
+                      <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1 py-1 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-655 dark:text-slate-300 cursor-pointer"
+                      >
+                        {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                        <span>{copied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                    <div className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 font-mono text-[10px] max-h-[140px] overflow-y-auto p-3 text-slate-655 dark:text-slate-400">
+                      <pre className="whitespace-pre-wrap">{sqlCode}</pre>
+                    </div>
+                  </div>
+
+                  {/* Danger Zone: Delete Workspace */}
+                  {(!activeWS.user_id || activeWS.user_id === currentUser?.id) && workspaces.length > 1 && (
+                    <div className="p-6 bg-rose-50/20 dark:bg-rose-950/5 border border-rose-200/40 dark:border-rose-900/30 rounded-2xl space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded-xl text-rose-500">
+                          <Trash2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-rose-700 dark:text-rose-450">Danger Zone: Delete Workspace</h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Deleting a workspace deletes all associated resources and cannot be undone.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkspaceToDelete(activeWS);
+                          setDeleteConfirmText('');
+                        }}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer"
+                      >
+                        Delete Workspace
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* TAB: PEOPLE / TEAM MEMBER MANAGEMENT */}
+        {activeTab === 'people' && (
+          <div className="space-y-6 text-left">
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-50">Workspace Sync Integration via Supabase</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Initialize and structure your workspaces tables on your Supabase project backend.</p>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-500" />
+                Manage people
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Invite teammates and configure workspace permissions levels</p>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-4 shadow-2xs">
+              <TeamDirectory
+                members={members}
+                tasks={tasks}
+                workspaces={workspaces}
+                activeWorkspaceId={activeWorkspaceId}
+                onAddMember={onAddMember}
+                onUpdateMember={onUpdateMember}
+                onDeleteMember={onDeleteMember}
+                onAddSyncLog={onAddSyncLog}
+              />
             </div>
           </div>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 max-sm:w-full justify-center transition-colors text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy SQL Setup Code'}</span>
-          </button>
-        </div>
+        )}
 
-        <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
-          <p>
-            The <strong>Avaxa OS</strong> management system integrates a built-in real-time two-way synchronization data channel (Realtime Postgres Engine) with Supabase. By establishing the <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-indigo-500 text-[10px]">workspaces</code> table and database relation columns, activities across different workspaces are perfectly partitioned.
-          </p>
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-2.5">
-            <span className="text-base select-none mt-0.5">💡</span>
-            <span>
-              <strong>Tip:</strong> Please log in to your <strong>Supabase Dashboard</strong>, navigate to the <strong>SQL Editor</strong>, open a new query sheet, paste the SQL script below, and click <strong>Run</strong> to finalize the database schema initialization.
-            </span>
+        {/* TAB: TEAMS MANAGEMENT PLACEHOLDER */}
+        {activeTab === 'teams' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <UsersIcon className="w-5 h-5 text-indigo-500" />
+                Teams Directory
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Group members into department divisions (e.g. Design, Devs, Sales)</p>
+            </div>
+
+            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mx-auto text-lg">
+                👥
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h4 className="text-sm font-bold text-slate-805 dark:text-slate-200">Organize with Teams</h4>
+                <p className="text-xs text-slate-455 dark:text-slate-500 leading-relaxed">
+                  Avoid typing individual names continuously. Create functional cohorts to assign tasks, documents, or mention in chats instantly.
+                </p>
+              </div>
+              <button className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer">
+                Create Team
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950 font-mono text-[11px] max-h-[220px] overflow-y-auto p-4 text-slate-700 dark:text-slate-300">
-          <pre className="whitespace-pre-wrap">{sqlCode}</pre>
-        </div>
-      </motion.div>
-        </>
-      )}
+        {/* TAB: UPGRADE BILLING */}
+        {activeTab === 'upgrade' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-500" />
+                Upgrade Workspace Plan
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Scale productivity with unlimited features and advanced haptic sync engine</p>
+            </div>
 
-      {activeSubTab === 'workspace' && (() => {
-         const activeWS = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
-         if (!activeWS) return <div className="text-center py-10 text-slate-400 italic">No active workspaces found.</div>;
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl text-amber-500">
+                  <Sparkles className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-805 dark:text-slate-200">Avaxa Premium Pro Tier</h4>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Unlimited workspaces, real-time shared co-working, and custom fields manager</p>
+                </div>
+              </div>
+              <div className="border-t border-slate-200/40 dark:border-slate-800/80 pt-3">
+                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+                  <li className="flex items-center gap-2">✓ Unlimited collaborative workspace shares</li>
+                  <li className="flex items-center gap-2">✓ Realtime cloud sync with low-latency Supabase channels</li>
+                  <li className="flex items-center gap-2">✓ Advanced Gemini 3.5 Flash artificial intelligence capabilities</li>
+                  <li className="flex items-center gap-2">✓ Unlimited custom fields and automated workflows manager</li>
+                </ul>
+              </div>
+              <button 
+                onClick={() => {
+                  if (triggerToast) triggerToast('success', 'Plan Activated! 🎉', 'You have unlocked Avaxa Premium Pro.');
+                }}
+                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
+              >
+                Activate Premium Pro
+              </button>
+            </div>
+          </div>
+        )}
 
-         const clickApps = activeWS.settings?.defaultClickApps || {
-           timeTracking: true,
-           multipleAssignees: true,
-           customFields: true,
-           relationships: true,
-           subtasks: true,
-           priorities: true
-         };
+        {/* TAB: AI USAGE & CONFIGURATION */}
+        {activeTab === 'ai_usage' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Brain className="w-5 h-5 text-indigo-500" />
+                Gemini AI Engine Settings
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Fine-tune Google Gemini parameters for smart task generation and chat summary tools</p>
+            </div>
 
-         return (
-           <div className="space-y-6">
-             {/* Logo and Name edit */}
-             <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4 text-left">
-               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                 <Briefcase className="w-4 h-4 text-indigo-500" />
-                 General Workspace Info
-               </h3>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Workspace Name</label>
-                   <input
-                     type="text"
-                     value={activeWS.name}
-                     onChange={e => {
-                       onUpdateWorkspace?.(activeWS.id, e.target.value, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
-                     }}
-                     className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:bg-white outline-none"
-                   />
-                 </div>
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Logo URL</label>
-                   <input
-                     type="text"
-                     value={activeWS.logoUrl || ''}
-                     onChange={e => {
-                       onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, e.target.value, activeWS.settings);
-                     }}
-                     placeholder="e.g. https://domain.com/logo.png"
-                     className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:bg-white outline-none"
-                   />
-                 </div>
-               </div>
-             </div>
-
-             {/* Global ClickApps Settings */}
-             <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4 text-left">
-               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                 <Sliders className="w-4 h-4 text-indigo-500" />
-                 Global ClickApps
-               </h3>
-               <p className="text-[11px] text-slate-455 dark:text-slate-500">Enable or disable advanced features globally for this entire workspace</p>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                 {[
-                   { key: 'timeTracking', label: 'Time Tracking' },
-                   { key: 'multipleAssignees', label: 'Multiple Assignees' },
-                   { key: 'customFields', label: 'Custom Fields' },
-                   { key: 'relationships', label: 'Relationships' },
-                   { key: 'subtasks', label: 'Subtasks' },
-                   { key: 'priorities', label: 'Priorities' }
-                 ].map(app => (
-                   <label key={app.key} className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors text-xs font-bold text-slate-700 dark:text-slate-350">
-                     <span>{app.label}</span>
-                     <input
-                       type="checkbox"
-                       checked={!!clickApps[app.key]}
-                       onChange={e => {
-                         const updatedClickApps = { ...clickApps, [app.key]: e.target.checked };
-                         const updatedSettings = { ...activeWS.settings, defaultClickApps: updatedClickApps };
-                         onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, updatedSettings);
-                       }}
-                       className="rounded text-indigo-650 w-4 h-4 cursor-pointer"
-                     />
-                   </label>
-                 ))}
-               </div>
-             </div>
-
-             {/* Member Management */}
-             <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4 text-left">
-               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                 <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                 Manage Workspace Members
-               </h3>
-               
-               <div className="space-y-3.5">
-                 {members.map(member => (
-                   <div key={member.id} className="flex items-center justify-between gap-4 p-3 bg-slate-50/70 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
-                     <div className="flex items-center gap-3">
-                       <img src={member.avatar} className="w-8 h-8 rounded-full border border-slate-200 object-cover" alt={member.name} />
-                       <div>
-                         <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">{member.name}</span>
-                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Email: {member.name.toLowerCase().replace(/\s+/g, '')}@avaxa.com</span>
-                       </div>
-                     </div>
-                     
-                     <div className="flex items-center gap-2">
-                       <select
-                         value={member.role || 'member'}
-                         onChange={e => {
-                           alert(`Changed ${member.name}'s role to: ${e.target.value.toUpperCase()}`);
-                         }}
-                         className="px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-650 dark:text-slate-300 cursor-pointer outline-none"
-                       >
-                         <option value="owner">Owner</option>
-                         <option value="admin">Admin</option>
-                         <option value="member">Member</option>
-                         <option value="guest">Guest</option>
-                       </select>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-           </div>
-         );
-      })()}
-
-      {activeSubTab === 'ai' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6 text-left animate-fade-in"
-        >
-          {/* Main Card */}
-          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-6">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-indigo-500 animate-pulse" />
-              Gemini AI Integration Settings
-            </h3>
-            
-            <div className="space-y-4">
+            {/* AI Config card */}
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-5">
               {/* API Key */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500 flex items-center justify-between">
+                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500 flex justify-between">
                   <span>Gemini API Key</span>
-                  <span className="text-[9px] font-semibold text-slate-400 normal-case">Lưu tại trình duyệt của bạn</span>
+                  <span className="text-[9px] font-semibold text-slate-400 normal-case">Stored securely in your local storage</span>
                 </label>
                 <div className="relative flex items-center">
                   <input
                     type={showApiKey ? "text" : "password"}
                     value={aiApiKey}
                     onChange={e => setAiApiKey(e.target.value)}
-                    placeholder="Nhập API Key Gemini (ví dụ: AQ.Ab8RN...)"
-                    className="w-full pl-3.5 pr-10 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:bg-white outline-none font-mono"
+                    placeholder="Enter API Key (e.g. AIzaSy...)"
+                    className="w-full pl-3.5 pr-10 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-105 outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-350 cursor-pointer"
+                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              {/* Model selection */}
+              {/* Model */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Mô hình AI (Gemini Model)</label>
+                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">AI Model</label>
                 <select
                   value={aiModel}
                   onChange={e => setAiModel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-105 outline-none cursor-pointer"
                 >
                   <option value="gemini-3.5-flash">Gemini 3.5 Flash (Flagship - Recommended)</option>
                   <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Reasoning & Coding)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Ultra Fast & Lightweight)</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast & Lightweight)</option>
                 </select>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                  Mô hình 3.5 Flash tối ưu hóa tốc độ và khả năng tự động thực thi nhiệm vụ phức tạp.
-                </p>
               </div>
 
-              {/* Temperature Slider */}
+              {/* Temperature */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500 flex justify-between">
-                  <span>Độ sáng tạo (Temperature)</span>
+                  <span>Creativity (Temperature)</span>
                   <span className="font-mono font-bold text-indigo-500">{aiTemp.toFixed(1)}</span>
                 </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={aiTemp}
-                    onChange={e => setAiTemp(parseFloat(e.target.value))}
-                    className="w-full accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-400">
-                  <span>Chính xác / Logic (0.0)</span>
-                  <span>Mặc định (0.7)</span>
-                  <span>Sáng tạo / Tự do (1.0)</span>
-                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={aiTemp}
+                  onChange={e => setAiTemp(parseFloat(e.target.value))}
+                  className="w-full accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-750 rounded-lg appearance-none cursor-pointer"
+                />
               </div>
 
-              {/* Web Search Grounding Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850/60 rounded-2xl">
+              {/* Search Grounding */}
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-805 border border-slate-200/50 dark:border-slate-700/60 rounded-xl">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-indigo-650 dark:text-indigo-405">
                     <Globe className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Tìm kiếm Web mặc định (Google Search Grounding)</h4>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động tra cứu Google khi câu hỏi chứa thông tin thực tế cần cập nhật.</p>
+                    <h4 className="text-xs font-bold text-slate-705 dark:text-slate-300">Google Search Grounding</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Augment queries with real-time Google search summaries</p>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -1418,93 +692,485 @@ CREATE POLICY "Cho phép người dùng xóa ảnh của mình" ON storage.objec
                     onChange={e => setAiSearchGrounding(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-605"></div>
+                  <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/80">
-              <button
-                type="button"
-                onClick={() => {
-                  setAiApiKey('');
-                  setAiModel('gemini-3.5-flash');
-                  setAiTemp(0.7);
-                  setAiSearchGrounding(false);
-                }}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-650 dark:text-slate-300 cursor-pointer"
-              >
-                Reset về mặc định
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAiSettings}
-                className="px-5 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-extrabold flex items-center gap-1.5 shadow-md shadow-indigo-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-              >
-                <Check className="w-3.5 h-3.5" />
-                Lưu cấu hình AI
-              </button>
+              {/* Action buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200/40 dark:border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={handleSaveAiSettings}
+                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs"
+                >
+                  Save AI Engine Settings
+                </button>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Quick Diagnostics */}
-          <div className="p-5 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850/60 rounded-3xl space-y-2.5 animate-fade-in">
-            <h4 className="text-xs font-black uppercase text-indigo-500 tracking-wider">Trạng thái Kết nối AI</h4>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${aiApiKey || process.env.GEMINI_API_KEY ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-350">
-                {aiApiKey || process.env.GEMINI_API_KEY 
-                  ? "Sẵn sàng hoạt động (Trực tuyến - Gemini AI Cloud)" 
-                  : "Mô phỏng Ngoại tuyến (Simulation Mode)"}
-              </span>
+        {/* TAB: SECURITY & PERMISSIONS */}
+        {activeTab === 'security' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-500" />
+                Security & Permissions
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Establish database security constraints and member authorization settings</p>
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
-              Mọi tính năng AI bao gồm tóm tắt công việc, tạo nhiệm vụ, tag, giải thích bảng vẽ sẽ tự động đồng bộ hóa thời gian thực thông qua API của Google Gemini.
-            </p>
-          </div>
-        </motion.div>
-      )}
 
-      {/* Secure Workspace Delete Confirmation Popup Modal */}
+            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center mx-auto text-lg">
+                🛡️
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h4 className="text-sm font-bold text-slate-805 dark:text-slate-200">Row Level Security Activated</h4>
+                <p className="text-xs text-slate-455 dark:text-slate-500 leading-relaxed font-semibold">
+                  Every workspace operates under explicit Supabase RLS policies. Teammates can view, update, and manage tasks only inside shared spaces, leaving other databases fully isolated.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: AUDIT LOGS */}
+        {activeTab === 'audit_logs' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <FileClock className="w-5 h-5 text-indigo-500" />
+                System Audit Logs
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Track database synchronization logs and realtime events</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400 space-y-2.5 max-h-[350px] overflow-y-auto">
+              <div className="text-[10px] text-slate-500 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                <span>SYSTEM CONSOLE ENGINE v1.2</span>
+                <span className="animate-pulse text-emerald-500">● LIVE CONNECTION</span>
+              </div>
+              {syncLogs.length === 0 ? (
+                <div className="text-slate-500 italic">No network logs recorded. Active realtime synchronization is running.</div>
+              ) : (
+                <div className="space-y-1">
+                  {syncLogs.map((log: any, idx) => (
+                    <div key={log.id || idx} className="flex gap-2 text-left">
+                      <span className="text-slate-500 select-none">[{log.time || new Date().toLocaleTimeString()}]</span>
+                      <span>{log.action}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TRASH */}
+        {activeTab === 'trash' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-indigo-500" />
+                Trash Bin
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Recover deleted tasks, documents, or lists from this workspace</p>
+            </div>
+
+            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-3">
+              <div className="text-2xl">🗑️</div>
+              <h4 className="text-xs font-bold text-slate-805 dark:text-slate-200">Trash Bin is Empty</h4>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-xs mx-auto">Deleted items are permanently removed from database tables after 30 days.</p>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: FEATURES - CUSTOM FIELD MANAGER */}
+        {activeTab === 'custom_fields' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-indigo-500" />
+                Custom Field Manager
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Create custom metadata attributes (e.g. Budget, Phase, Department) for tasks</p>
+            </div>
+
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-250">Active Custom Fields</h4>
+                <button className="flex items-center gap-1 py-1.5 px-3 bg-indigo-500 hover:bg-indigo-650 text-white rounded-lg text-[10px] font-black cursor-pointer shadow-xs">
+                  + Add Custom Field
+                </button>
+              </div>
+              <div className="text-xs text-slate-455 dark:text-slate-500 italic">No custom fields created yet. Click above to define metadata properties.</div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: FEATURES - TAG MANAGER */}
+        {activeTab === 'tags' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-indigo-500" />
+                Workspace Tag Manager
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Manage and organize task index tags across the workspace</p>
+            </div>
+
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <h4 className="text-xs font-bold text-slate-805 dark:text-slate-250">All Tags</h4>
+              <div className="flex flex-wrap gap-2">
+                {['#bug', '#feature', '#docs', '#design', '#sprint1', '#refactor'].map(tag => (
+                  <div key={tag} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <span>{tag}</span>
+                    <button className="text-slate-450 hover:text-rose-500 font-bold shrink-0">×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: FEATURES - TEMPLATE CENTER */}
+        {activeTab === 'templates' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-indigo-500" />
+                Workspace Template Center
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Save space lists or board layouts as reusable templates</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { title: 'Software Scrum Sprint', desc: 'Pre-configured To Do, In Progress, QA, and Done lists with custom status mappings.' },
+                { title: 'Marketing Campaign Launch', desc: 'Pre-populated tag tags, custom fields, and task template guides for media tracking.' },
+                { title: 'Personal OKR Tracker', desc: 'Simple goal layout featuring priority trackers and progress bars.' },
+                { title: 'Weekly Team Sync', desc: 'Meeting agenda template configured inside space channels.' }
+              ].map((template, idx) => (
+                <div key={idx} className="p-5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-2.5">
+                  <h4 className="text-xs font-black text-slate-805 dark:text-slate-200">{template.title}</h4>
+                  <p className="text-[11px] text-slate-455 dark:text-slate-500 leading-relaxed">{template.desc}</p>
+                  <button className="text-[10px] font-black text-indigo-500 hover:underline cursor-pointer">Use Template →</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: FEATURES - AUTOMATIONS */}
+        {activeTab === 'automations' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-indigo-500" />
+                Workspace Automations
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Automate routines (e.g. Assign to Me when status changes to Doing)</p>
+            </div>
+
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-255">Active Automations</h4>
+                <button className="flex items-center gap-1 py-1.5 px-3 bg-indigo-500 hover:bg-indigo-650 text-white rounded-lg text-[10px] font-black cursor-pointer shadow-xs">
+                  + Create Automation
+                </button>
+              </div>
+              <div className="text-xs text-slate-455 dark:text-slate-500 italic">No automated triggers configured yet.</div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: FEATURES - OTHER */}
+        {['ai_notetaker', 'emojis', 'spaces', 'task_types', 'work_schedule'].includes(activeTab) && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2 capitalize">
+                <Settings className="w-5 h-5 text-indigo-500" />
+                {activeTab.replace('_', ' ')} Settings
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure advanced workspace features to fine-tune operations</p>
+            </div>
+            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl text-xs text-slate-455 italic">
+              Configure workspace features. These settings will automatically adapt to your active workspace constraints.
+            </div>
+          </div>
+        )}
+
+        {/* TAB: INTEGRATIONS - APP CENTER */}
+        {activeTab === 'app_center' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-indigo-500" />
+                Integrations App Center
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Connect external developer tools to your productivity workspace</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { name: 'Slack', desc: 'Post task updates, status alerts, or comments directly to Slack channels.', logo: '💬' },
+                { name: 'GitHub', desc: 'Link commits, pull requests, and issues directly inside task panels.', logo: '🐙' },
+                { name: 'Figma', desc: 'Embed design files and prototypes into whiteboards or task descriptions.', logo: '🎨' },
+                { name: 'Google Calendar', desc: 'Sync work deadlines and focus events with Google Calendar.', logo: '📅' },
+                { name: 'Zoom Meetings', desc: 'Spawn and join video conference links from chat channels.', logo: '📹' }
+              ].map((app, idx) => (
+                <div key={idx} className="p-5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="text-2xl">{app.logo}</div>
+                    <h4 className="text-xs font-black text-slate-805 dark:text-slate-100">{app.name}</h4>
+                    <p className="text-[10px] text-slate-455 dark:text-slate-505 leading-relaxed">{app.desc}</p>
+                  </div>
+                  <button className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer">
+                    Connect
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: INTEGRATIONS - OTHER */}
+        {['import_export', 'clickup_api', 'email_integration'].includes(activeTab) && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2 capitalize">
+                <Code className="w-5 h-5 text-indigo-500" />
+                {activeTab.replace('_', ' ')}
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Manage external developer tokens, import pipelines, and webhook triggers</p>
+            </div>
+            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl text-xs text-slate-455 italic">
+              Integrations setup. Connect third-party API webhooks to automate data migration pipelines.
+            </div>
+          </div>
+        )}
+
+        {/* TAB: PERSONALIZATION PREFERENCES */}
+        {activeTab === 'preferences' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-indigo-500" />
+                System Personalization
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Customize accent preset colors, sound effects, and glass panel blur strength</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Theme light lock info */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                    <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Pure Light Mode</h3>
+                    <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-0.5">UI locked to crystalline light theme</p>
+                  </div>
+                </div>
+                <div className="p-3 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  ✨ Dark mode and blur overlays are constrained to ensure high-fidelity styling across all list details.
+                </div>
+              </div>
+
+              {/* Theme highlight color choice */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                    <Palette className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Accent Theme Color</h3>
+                    <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-0.5">Choose highlight accent colors</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  {presets.map(p => {
+                    const isActive = accentPreset === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setAccentPreset(p.id as any)}
+                        className={`w-7 h-7 rounded-full transition-all cursor-pointer ${isActive ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900 scale-110' : 'opacity-80'}`}
+                      >
+                        <span className={`w-5 h-5 rounded-full ${p.color} block`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sound effects toggle */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                    {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500" /> : <VolumeX className="w-5 h-5 text-slate-450" />}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Interactive Sound Effects</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">Play subtle audio haptics when doing actions</p>
+                  </div>
+                </div>
+                <div className="flex bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
+                  <button
+                    onClick={() => setSoundEnabled(true)}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${soundEnabled ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
+                  >
+                    Enable sound
+                  </button>
+                  <button
+                    onClick={() => setSoundEnabled(false)}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${!soundEnabled ? 'bg-white shadow-xs text-slate-700 dark:bg-slate-800 dark:text-slate-400' : 'text-slate-500'}`}
+                  >
+                    Mute
+                  </button>
+                </div>
+              </div>
+
+              {/* Glassmorphism blur depth */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                    <Layers className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Glassmorphism Blur Strength</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">Adjust blur depth levels on panel containers</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
+                  {['soft', 'default', 'immersive'].map(lvl => (
+                    <button
+                      key={lvl}
+                      onClick={() => setBlurIntensity(lvl as any)}
+                      className={`py-1.5 text-[10px] font-extrabold capitalize rounded-lg ${blurIntensity === lvl ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: NOTIFICATIONS SUBSCRIPTION */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6 max-w-3xl text-left">
+            <div>
+              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-indigo-500" />
+                Notification Settings
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Toggle specific haptic notifications and configure spam filters</p>
+            </div>
+
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-6">
+              {/* Quick switches */}
+              <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-200/40 dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-805 dark:text-slate-250">Master Control</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setNotificationSettings(prev => ({ ...prev, enableAll: !prev.enableAll }))}
+                    className={`px-3 py-1.5 rounded-lg text-[10.5px] font-bold ${notificationSettings.enableAll ? 'bg-indigo-500 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350'}`}
+                  >
+                    Enable Notifications
+                  </button>
+                  <button
+                    onClick={() => setNotificationSettings(prev => ({ ...prev, dndActive: !prev.dndActive }))}
+                    className={`px-3 py-1.5 rounded-lg text-[10.5px] font-bold ${notificationSettings.dndActive ? 'bg-rose-500 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350'}`}
+                  >
+                    Do Not Disturb (DND)
+                  </button>
+                </div>
+              </div>
+
+              {/* Frequency limits */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Frequency Spam Filter</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'all', label: 'All Updates', desc: 'Show all notifications immediately.' },
+                    { id: 'throttled', label: 'Throttled (3s)', desc: 'Group consecutive updates.' },
+                    { id: 'minimal', label: 'Minimal (Essential)', desc: 'Only show high priority alerts.' }
+                  ].map(f => (
+                    <label key={f.id} className="p-3.5 rounded-xl bg-white dark:bg-slate-805 border border-slate-200/50 dark:border-slate-700/60 cursor-pointer flex flex-col justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="freq"
+                          checked={notificationSettings.frequencyLimit === f.id}
+                          onChange={() => setNotificationSettings(prev => ({ ...prev, frequencyLimit: f.id as any }))}
+                          className="text-indigo-505 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-805 dark:text-slate-200">{f.label}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-500 mt-1">{f.desc}</p>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Event Subscriptions */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Event Type Subscriptions</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { key: 'enableAssignments', label: 'New Assignments' },
+                    { key: 'enableDeadlines', label: 'Task Deadlines' },
+                    { key: 'enableComments', label: 'Comments & Chat' },
+                    { key: 'enableStatusChanges', label: 'Status Transitions' },
+                    { key: 'enableSystemNotify', label: 'System Action Logs' }
+                  ].map(evt => (
+                    <label key={evt.key} className="flex items-center justify-between p-3 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-700/60 rounded-xl cursor-pointer">
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{evt.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={!!(notificationSettings as any)[evt.key]}
+                        onChange={e => setNotificationSettings(prev => ({ ...prev, [evt.key]: e.target.checked }))}
+                        className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* 3. Secure Delete Workspace Confirmation Modal */}
       <AnimatePresence>
         {workspaceToDelete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 text-left"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-150 dark:border-slate-800"
-              id="delete_workspace_confirmation_modal"
-            >
-              {/* Header */}
+          <div className="fixed inset-0 z-50 bg-slate-955/60 backdrop-blur-sm flex items-center justify-center p-4 text-left">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
               <div className="p-6 border-b border-rose-100 dark:border-rose-950/30 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/10">
-                <div className="flex items-center gap-2 text-rose-650 dark:text-rose-450">
+                <div className="flex items-center gap-2 text-rose-650 dark:text-rose-455">
                   <AlertTriangle className="w-5 h-5 text-rose-500 animate-bounce" />
-                  <span className="font-display font-black text-rose-600 dark:text-rose-405 text-base">Confirm Workspace Deletion</span>
+                  <span className="font-display font-black text-rose-650 dark:text-rose-405 text-base">Confirm Workspace Deletion</span>
                 </div>
                 <button
                   onClick={() => setWorkspaceToDelete(null)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer"
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-850 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Body */}
               <div className="p-6 space-y-4 font-sans text-xs">
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p className="text-slate-655 dark:text-slate-300 leading-relaxed">
                   This action <strong>cannot be undone</strong>. All data related to the workspace <strong className="text-slate-800 dark:text-slate-100">"{workspaceToDelete.name}"</strong>, including tasks, wiki summaries, and chats, will be permanently deleted from this device and the cloud.
                 </p>
 
                 <div className="bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 p-3.5 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300">
                   Please type the exact name of the workspace below to confirm you want to delete it:
-                  <div className="mt-1.5 font-mono bg-amber-500/5 dark:bg-black/20 p-1 px-2 rounded border border-amber-550/20 text-center text-xs select-all text-amber-800 dark:text-amber-200 font-black">
+                  <div className="mt-1.5 font-mono bg-amber-500/5 dark:bg-black/20 p-1 px-2 rounded border border-amber-550/20 text-center text-xs select-all text-amber-800 dark:text-amber-250 font-black">
                     {workspaceToDelete.name}
                   </div>
                 </div>
@@ -1524,39 +1190,36 @@ CREATE POLICY "Cho phép người dùng xóa ảnh của mình" ON storage.objec
                 </div>
               </div>
 
-              {/* Actions Footer */}
-              <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-850/20 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
+              <div className="p-4 px-6 bg-slate-50 dark:bg-slate-850 border-t border-slate-105 dark:border-slate-800/80 flex items-center justify-end gap-3">
                 <button
-                  id="confirm_cancel_delete_ws"
                   type="button"
                   onClick={() => setWorkspaceToDelete(null)}
-                  className="px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[11px] font-extrabold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  className="px-4 py-2 hover:bg-slate-150 dark:hover:bg-slate-800 rounded-xl text-[11px] font-extrabold text-slate-505 dark:text-slate-400 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
-                  id="confirm_submit_delete_ws"
                   type="button"
                   disabled={deleteConfirmText !== workspaceToDelete.name}
                   onClick={() => {
                     if (onDeleteWorkspace) {
                       onDeleteWorkspace(workspaceToDelete.id);
                     }
-                    (window as any).playSystemSound?.('success');
+                    if (onAddSyncLog) onAddSyncLog(`Deleted workspace "${workspaceToDelete.name}" permanently`);
                     setWorkspaceToDelete(null);
                   }}
                   className={`px-5 py-2.5 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 ${
                     deleteConfirmText === workspaceToDelete.name
                       ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                      : 'bg-slate-150 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                      : 'bg-slate-150 dark:bg-slate-800 text-slate-455 dark:text-slate-600 cursor-not-allowed'
                   }`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Permanently Delete</span>
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -1460,7 +1460,7 @@ export default function ChatRoom({
                       }`}
                     >
                       <div className="relative shrink-0 flex">
-                        <img src={member.avatar} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 bg-white animate-fadeIn" alt="" />
+                        <SignedImage filePath={member.avatar} alt={member.name} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
                         <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
                           member.status === 'online' ? 'bg-emerald-500 animate-pulse' :
                           member.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
@@ -1505,7 +1505,7 @@ export default function ChatRoom({
 
         {/* User Card at footer sidebar */}
         <div className="p-3 bg-slate-100/50 border-t border-slate-200/60 flex items-center gap-2.5 shrink-0">
-          <img src={currentUser.avatar} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" alt="" />
+          <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
           <div className="min-w-0">
             <span className="block text-[11px] font-black text-slate-800 leading-none truncate">{currentUser.name}</span>
             <span className="block text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">Me</span>
@@ -1541,7 +1541,7 @@ export default function ChatRoom({
             {isDm && dmMember ? (
               <>
                 <div className="relative shrink-0 flex">
-                  <img src={dmMember.avatar} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" alt="" />
+                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
                   <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
                     dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' :
                     dmMember.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
@@ -1655,7 +1655,7 @@ export default function ChatRoom({
                     <Bot className="w-4.5 h-4.5 animate-pulse" />
                   </div>
                 ) : (
-                  <img src={msg.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" alt="" />
+                  <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" />
                 )}
 
                 {/* Message Body */}
@@ -2042,7 +2042,7 @@ export default function ChatRoom({
                     onClick={() => handleSelectMention(m)}
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
                   >
-                    <img src={m.avatar} className="w-5 h-5 rounded-full" alt="" />
+                    <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
                     <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
                     <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
                   </button>
@@ -2141,7 +2141,7 @@ export default function ChatRoom({
                     {members.map(m => (
                       <div key={m.id} className="flex items-center gap-2.5 p-1 rounded-lg">
                         <div className="relative shrink-0 flex">
-                          <img src={m.avatar} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn" alt="" />
+                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn" />
                           <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
                             m.status === 'online' ? 'bg-emerald-500 animate-pulse' :
                             m.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
@@ -2251,7 +2251,7 @@ export default function ChatRoom({
               {/* Parent Message Bubble */}
               <div className="p-3 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl shrink-0 text-left">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <img src={activeThreadMessage.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-5.5 h-5.5 rounded-full object-cover" alt="" />
+                  <SignedImage filePath={activeThreadMessage.senderAvatar} alt={activeThreadMessage.senderName} className="w-5.5 h-5.5 rounded-full object-cover" />
                   <span className="text-[11px] font-bold text-slate-700">{activeThreadMessage.senderName}</span>
                   <span className="text-[9px] text-slate-400 ml-auto font-medium">{activeThreadMessage.timestamp}</span>
                 </div>
@@ -2264,7 +2264,7 @@ export default function ChatRoom({
               <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin">
                 {messages.filter(m => m.parentId === activeThreadMessage.id).map(reply => (
                   <div key={reply.id} className="flex gap-2.5 items-start text-left p-1 rounded-lg">
-                    <img src={reply.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white" alt="" />
+                    <SignedImage filePath={reply.senderAvatar} alt={reply.senderName} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className="text-[11px] font-bold text-slate-800">{reply.senderName}</span>
@@ -2499,7 +2499,7 @@ export default function ChatRoom({
             {/* Preview of forwarded message */}
             <div className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl text-left">
               <div className="flex items-center gap-1.5 mb-1">
-                <img src={forwardingMessage.senderAvatar || 'https://api.dicebear.com/7.x/initials/svg?seed=U'} className="w-4 h-4 rounded-full" alt="" />
+                <SignedImage filePath={forwardingMessage.senderAvatar} alt={forwardingMessage.senderName} className="w-4 h-4 rounded-full" />
                 <span className="text-[10px] font-black text-slate-700">{forwardingMessage.senderName}</span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold line-clamp-3">{forwardingMessage.content}</p>

@@ -10,6 +10,8 @@ import {
   Clock, Save, Upload, Sparkles, AlertCircle, Trash2, Plus, X, Globe, Star
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import SignedImage from './SignedImage';
+
 
 interface ProfilePageProps {
   currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member' | 'guest'; isPremium?: boolean };
@@ -328,8 +330,8 @@ export default function ProfilePage({
         <div className="px-6 py-6 pt-0 relative flex flex-col md:flex-row items-center md:items-end gap-6">
           <div className="relative -mt-16 md:-mt-20 shrink-0 group">
             <div className="relative rounded-3xl overflow-hidden border-4 border-white dark:border-slate-900 shadow-xl bg-slate-100 dark:bg-slate-800">
-              <img 
-                src={avatar || "https://api.dicebear.com/7.x/adventurer/svg?seed=LanAnh"} 
+              <SignedImage 
+                filePath={avatar} 
                 className="w-28 h-28 md:w-36 md:h-36 object-cover" 
                 alt={name} 
               />

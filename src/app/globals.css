@@ -19,6 +19,12 @@
   --slate-750: #1e293b;
   --slate-805: #0f172a;
   --slate-955: #020617;
+
+  /* Avaxa Core Theme Color Gradients */
+  --avaxa-primary: #7B61FF;
+  --avaxa-gradient-start: #7B61FF;
+  --avaxa-gradient-end: #FF3366;
+  --avaxa-liquid-color: #33D1FF;
 }
 
 .dark {
@@ -35,6 +41,12 @@
   --slate-750: #cbd5e1;
   --slate-805: #1e293b;
   --slate-955: #0f172a;
+
+  /* Avaxa Core Theme Color Gradients */
+  --avaxa-primary: #7B61FF;
+  --avaxa-gradient-start: #7B61FF;
+  --avaxa-gradient-end: #FF3366;
+  --avaxa-liquid-color: #33D1FF;
 }
 
 html, body, #root {

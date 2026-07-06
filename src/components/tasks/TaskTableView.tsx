@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus } from 'lucide-react';
-import { Task, User, Workspace } from '../../types';
+import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X } from 'lucide-react';
+import { Task, User, Workspace, TaskStatus } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
 
@@ -24,6 +24,7 @@ interface TaskTableViewProps {
   setSelectedTaskIds: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTask: (task: Task) => void;
   onUpdateTask: (task: Task) => void;
+  onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => void;
   onAddSyncLog: (log: string) => void;
   triggerToast?: (type: string, title: string, message: string) => void;
   visibleFields?: string[];
@@ -33,13 +34,33 @@ interface TaskTableViewProps {
 
 export default function TaskTableView({
   filteredTasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
-  onUpdateTask, onAddSyncLog,
+  onUpdateTask, onAddTask, onAddSyncLog,
   visibleFields, customFields = [], onOpenFieldsPanel
 }: TaskTableViewProps) {
   const [sortCol, setSortCol] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [isCreatingInline, setIsCreatingInline] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftStatus, setDraftStatus] = useState<TaskStatus>('todo');
+  const [draftPriority, setDraftPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
+  const [draftAssigneeId, setDraftAssigneeId] = useState<string | null>(null);
+  const [draftStartDate, setDraftStartDate] = useState<string>('');
+  const [draftDueDate, setDraftDueDate] = useState<string>('');
+  const [draftTags, setDraftTags] = useState<string[]>([]);
+  const [draftCustomFields, setDraftCustomFields] = useState<Record<string, string>>({});
 
-  const activeFields = visibleFields || ['title', 'status', 'priority', 'assignee', 'space', 'dueDate', 'progress', 'tags'];
+  const resetDrafts = () => {
+    setDraftTitle('');
+    setDraftStatus('todo');
+    setDraftPriority('medium');
+    setDraftAssigneeId(null);
+    setDraftStartDate('');
+    setDraftDueDate('');
+    setDraftTags([]);
+    setDraftCustomFields({});
+  };
+
+  const activeFields = visibleFields || ['title', 'status', 'priority', 'assignee', 'space', 'startDate', 'dueDate', 'progress', 'tags'];
 
   const toggleSort = (col: string) => {
     if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
@@ -56,6 +77,7 @@ export default function TaskTableView({
         const w: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
         return ((w[a.priority] || 0) - (w[b.priority] || 0)) * dir;
       }
+      if (sortCol === 'startDate') return (a.startDate || '').localeCompare(b.startDate || '') * dir;
       if (sortCol === 'dueDate') return (a.dueDate || '').localeCompare(b.dueDate || '') * dir;
       if (sortCol === 'progress') return (a.progress - b.progress) * dir;
       return 0;
@@ -64,6 +86,40 @@ export default function TaskTableView({
   }, [filteredTasks, sortCol, sortDir]);
 
   const allSelected = sortedTasks.length > 0 && sortedTasks.every(t => selectedTaskIds.includes(t.id));
+  const visibleCustomFields = customFields.filter(cf => activeFields.includes(cf.name));
+  const columnCount = 2
+    + (activeFields.includes('status') ? 1 : 0)
+    + (activeFields.includes('priority') ? 1 : 0)
+    + (activeFields.includes('assignee') ? 1 : 0)
+    + (activeFields.includes('space') ? 1 : 0)
+    + (activeFields.includes('startDate') ? 1 : 0)
+    + (activeFields.includes('dueDate') ? 1 : 0)
+    + (activeFields.includes('progress') ? 1 : 0)
+    + (activeFields.includes('tags') ? 1 : 0)
+    + visibleCustomFields.length
+    + 1;
+
+  const handleInlineCreate = () => {
+    const title = draftTitle.trim();
+    if (!title || !onAddTask) return;
+
+    onAddTask({
+      title,
+      description: '',
+      priority: draftPriority,
+      status: draftStatus,
+      assigneeId: draftAssigneeId || undefined,
+      startDate: draftStartDate || undefined,
+      dueDate: draftDueDate || undefined,
+      tags: draftTags,
+      custom_fields: draftCustomFields,
+      subtasks: [],
+      isPinned: false
+    });
+
+    resetDrafts();
+    setIsCreatingInline(false);
+  };
 
   const getDaysText = (dueDate?: string) => {
     if (!dueDate) return null;
@@ -93,12 +149,13 @@ export default function TaskTableView({
             {activeFields.includes('priority') && <SortHeader col="priority" label="Priority" sortCol={sortCol} sortDir={sortDir} onToggleSort={toggleSort} />}
             {activeFields.includes('assignee') && <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Assignee</th>}
             {activeFields.includes('space') && <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Space</th>}
+            {activeFields.includes('startDate') && <SortHeader col="startDate" label="Start Date" sortCol={sortCol} sortDir={sortDir} onToggleSort={toggleSort} />}
             {activeFields.includes('dueDate') && <SortHeader col="dueDate" label="Due Date" sortCol={sortCol} sortDir={sortDir} onToggleSort={toggleSort} />}
             {activeFields.includes('progress') && <SortHeader col="progress" label="Progress" sortCol={sortCol} sortDir={sortDir} onToggleSort={toggleSort} />}
             {activeFields.includes('tags') && <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Tags</th>}
 
             {/* Custom fields headers */}
-            {customFields.filter(cf => activeFields.includes(cf.name)).map(cf => (
+            {visibleCustomFields.map(cf => (
               <th key={cf.id} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 {cf.name}
               </th>
@@ -161,8 +218,8 @@ export default function TaskTableView({
                 {activeFields.includes('priority') && (
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <PriorityPillSelect value={task.priority} onChange={newP => {
-                      onUpdateTask({ ...task, priority: newP });
-                      onAddSyncLog(`Priority "${task.title}" → ${newP}`);
+                      onUpdateTask({ ...task, priority: newP || 'medium' });
+                      onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
                     }} />
                   </td>
                 )}
@@ -192,6 +249,21 @@ export default function TaskTableView({
                         <span className="text-[11px] text-slate-350">—</span>
                       );
                     })()}
+                  </td>
+                )}
+
+                {activeFields.includes('startDate') && (
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <PremiumDatePicker
+                      dateValue={task.startDate || ''}
+                      onChange={newD => {
+                        onUpdateTask({ ...task, startDate: newD });
+                        onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
+                      }}
+                      label="—"
+                      align="left"
+                      className="text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"
+                    />
                   </td>
                 )}
 
@@ -238,7 +310,7 @@ export default function TaskTableView({
                 )}
 
                 {/* Custom fields data cells */}
-                {customFields.filter(cf => activeFields.includes(cf.name)).map(cf => {
+                {visibleCustomFields.map(cf => {
                   const val = task.custom_fields?.[cf.name] || '';
                   return (
                     <td key={cf.id} className="px-4 py-3 text-left" onClick={e => e.stopPropagation()}>
@@ -260,10 +332,146 @@ export default function TaskTableView({
               </tr>
             );
           })}
+          {isCreatingInline ? (
+            <tr className="border-t border-slate-200/70 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+              <td className="px-4 py-3 text-center">
+                <Plus className="w-3.5 h-3.5 text-slate-400" />
+              </td>
+              <td className="px-4 py-3">
+                <input
+                  type="text"
+                  autoFocus
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleInlineCreate();
+                    else if (e.key === 'Escape') { setIsCreatingInline(false); resetDrafts(); }
+                  }}
+                  placeholder="New task title..."
+                  className="w-full px-2.5 py-1.5 text-[13px] font-semibold border border-indigo-200 dark:border-indigo-900/40 rounded-xl bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors"
+                />
+              </td>
+
+              {activeFields.includes('status') && (
+                <td className="px-4 py-3">
+                  <StatusPillSelect value={draftStatus} onChange={setDraftStatus} />
+                </td>
+              )}
+
+              {activeFields.includes('priority') && (
+                <td className="px-4 py-3">
+                  <PriorityPillSelect value={draftPriority} onChange={newP => setDraftPriority(newP || 'medium')} />
+                </td>
+              )}
+
+              {activeFields.includes('assignee') && (
+                <td className="px-4 py-3">
+                  <AssigneePillSelect
+                    value={draftAssigneeId}
+                    members={members}
+                    onChange={setDraftAssigneeId}
+                  />
+                </td>
+              )}
+
+              {activeFields.includes('space') && (
+                <td className="px-4 py-3 text-[11px] font-bold text-slate-550 dark:text-slate-400">
+                  {workspaces.length > 0 ? (workspaces.find(w => w.id === 'w2')?.name || workspaces[0].name) : 'Personal Workspace'}
+                </td>
+              )}
+
+              {activeFields.includes('startDate') && (
+                <td className="px-4 py-3">
+                  <PremiumDatePicker
+                    dateValue={draftStartDate}
+                    onChange={newD => setDraftStartDate(newD || '')}
+                    label="—"
+                    align="left"
+                    className="text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"
+                  />
+                </td>
+              )}
+
+              {activeFields.includes('dueDate') && (
+                <td className="px-4 py-3">
+                  <PremiumDatePicker
+                    dateValue={draftDueDate}
+                    onChange={newD => setDraftDueDate(newD || '')}
+                    label="—"
+                    align="left"
+                    className="text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"
+                  />
+                </td>
+              )}
+
+              {activeFields.includes('progress') && (
+                <td className="px-4 py-3 text-[11px] text-slate-350">—</td>
+              )}
+
+              {activeFields.includes('tags') && (
+                <td className="px-4 py-3">
+                  <input
+                    type="text"
+                    placeholder="Tags..."
+                    value={draftTags.join(', ')}
+                    onChange={e => setDraftTags(e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
+                    className="px-2 py-1 text-[11px] border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[100px] focus:border-indigo-500 transition-colors font-semibold"
+                  />
+                </td>
+              )}
+
+              {visibleCustomFields.map(cf => (
+                <td key={cf.id} className="px-4 py-3">
+                  <input 
+                    type="text" 
+                    placeholder={`Enter ${cf.name}...`}
+                    value={draftCustomFields[cf.name] || ''} 
+                    onChange={e => setDraftCustomFields(prev => ({ ...prev, [cf.name]: e.target.value }))}
+                    className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[120px] focus:border-indigo-500 transition-colors font-semibold"
+                  />
+                </td>
+              ))}
+
+              <td className="px-4 py-3 text-center">
+                <div className="flex items-center gap-1 justify-center">
+                  <button
+                    type="button"
+                    onClick={handleInlineCreate}
+                    className="p-1.5 rounded-lg bg-indigo-650 text-white hover:bg-indigo-700 cursor-pointer"
+                    title="Save"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsCreatingInline(false); resetDrafts(); }}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Cancel"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            <tr className="border-t border-slate-200/70 dark:border-slate-800/60 bg-slate-50/40 dark:bg-slate-900/20">
+              <td className="px-4 py-3" />
+              <td colSpan={columnCount - 1} className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingInline(true)}
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add task
+                </button>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
-      {sortedTasks.length === 0 && (
+      {sortedTasks.length === 0 && !isCreatingInline && (
         <div className="text-center py-12 text-slate-400 dark:text-slate-500 text-sm font-medium">
           No tasks match the active filters
         </div>

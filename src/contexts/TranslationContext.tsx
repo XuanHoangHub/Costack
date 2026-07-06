@@ -921,6 +921,10 @@ const en: Translations = {
    estimateHoursLabel: 'Estimate',
    estimatingHours: 'Estimate (h)...',
    estimateHoursUnit: 'h',
+   addNewTaskInline: '+ Add new task',
+   inlineAddTitlePlaceholder: 'Enter task title...',
+   inlineAdd: 'Add',
+   inlineCancel: 'Cancel',
  };
 
 type TranslationContextValue = {

@@ -332,6 +332,20 @@ export default function TaskListView({
                                          compact={true} 
                                        />
                                      </div>
+
+                                     {/* Start Date picker */}
+                                     <div className="shrink-0 hidden lg:block" onClick={e => e.stopPropagation()}>
+                                       <PremiumDatePicker 
+                                         dateValue={task.startDate || ''} 
+                                         onChange={newD => {
+                                           onUpdateTask({ ...task, startDate: newD });
+                                           onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
+                                         }} 
+                                         label="—" 
+                                         align="right" 
+                                         className="text-[10px] text-slate-300 dark:text-slate-600 cursor-pointer border-0 bg-transparent"
+                                       />
+                                     </div>
  
                                      {/* Due Date picker */}
                                      <div className="shrink-0 text-right" onClick={e => e.stopPropagation()}>
@@ -370,8 +384,8 @@ export default function TaskListView({
                                      {/* Priority inline */}
                                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
                                        <PriorityPillSelect value={task.priority} onChange={newP => {
-                                         onUpdateTask({ ...task, priority: newP });
-                                         onAddSyncLog(`Priority "${task.title}" → ${newP}`);
+                                         onUpdateTask({ ...task, priority: newP || 'medium' });
+                                         onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
                                        }} />
                                      </div>
 

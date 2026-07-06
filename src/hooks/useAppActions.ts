@@ -300,7 +300,7 @@ export function useAppActions() {
             list_id: updated.listId || null,
             custom_fields: updated.custom_fields || {},
             recurrence: updated.recurrence || null
-          }).eq('id', updated.id).eq('user_id', session.user.id);
+          }).eq('id', updated.id);
           if (error) console.error('Supabase Task Update Error:', error);
         }
       } catch (err) {
@@ -327,7 +327,7 @@ export function useAppActions() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
+          const { error } = await supabase.from('tasks').delete().eq('id', id);
           if (error) console.error('Supabase Task Delete Error:', error);
         }
       } catch (err) {
@@ -440,7 +440,7 @@ export function useAppActions() {
             updatedAt: updated.updatedAt,
             updatedBy: updated.updatedBy,
             isAiGenerated: updated.isAiGenerated || false
-          }).eq('id', updated.id).eq('user_id', session.user.id);
+          }).eq('id', updated.id);
           if (error) console.error('Supabase Doc Update Error:', error);
         }
       } catch (err) {
@@ -456,7 +456,7 @@ export function useAppActions() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('docs').delete().eq('id', id).eq('user_id', session.user.id);
+          const { error } = await supabase.from('docs').delete().eq('id', id);
           if (error) console.error('Supabase Doc Delete Error:', error);
         }
       } catch (err) {
@@ -527,7 +527,7 @@ export function useAppActions() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          await supabase.from('base_apps').delete().eq('id', id).eq('user_id', session.user.id);
+          await supabase.from('base_apps').delete().eq('id', id);
         }
       } catch (err) {
         console.error('Base delete sync failure:', err);
@@ -621,7 +621,7 @@ export function useAppActions() {
             bio: updated.bio || null,
             joined_date: updated.joinedDate || null,
             workspace_ids: updated.workspaceIds || null
-          }).eq('id', dbId).eq('user_id', session.user.id);
+          }).eq('id', dbId);
           if (error) console.error('Supabase Member Update Error:', error);
         }
       } catch (err) {
@@ -638,7 +638,7 @@ export function useAppActions() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const dbId = id === 'user' ? `user-${session.user.id}` : id;
-          const { error } = await supabase.from('members').delete().eq('id', dbId).eq('user_id', session.user.id);
+          const { error } = await supabase.from('members').delete().eq('id', dbId);
           if (error) console.error('Supabase Member Delete Error:', error);
         }
       } catch (err) {
@@ -667,7 +667,7 @@ export function useAppActions() {
           const deletedSpaceIds = oldSpaceIds.filter(id => !newSpaceIds.includes(id));
 
           if (deletedSpaceIds.length > 0) {
-            await supabase.from('spaces').delete().in('id', deletedSpaceIds).eq('user_id', userId);
+             await supabase.from('spaces').delete().in('id', deletedSpaceIds);
           }
 
           for (const space of newSpaces) {
@@ -691,7 +691,7 @@ export function useAppActions() {
 
             const deletedListIds = oldListIds.filter(id => !newListIds.includes(id));
             if (deletedListIds.length > 0) {
-              await supabase.from('lists').delete().in('id', deletedListIds).eq('user_id', userId);
+               await supabase.from('lists').delete().in('id', deletedListIds);
             }
 
             if (space.lists.length > 0) {

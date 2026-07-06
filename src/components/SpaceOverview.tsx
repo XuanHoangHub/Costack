@@ -9,6 +9,9 @@ import {
   ListChecks, Target, BarChart3, ChevronRight, Briefcase
 } from 'lucide-react';
 
+import SignedImage from './SignedImage';
+
+
 // ── Theme color map ──
 const THEME_COLORS: Record<string, { 
   gradient: string; 
@@ -537,8 +540,8 @@ export default function SpaceOverview({
                   transition={{ duration: 0.3, delay: 0.3 + i * 0.05 }}
                   className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors"
                 >
-                  <img 
-                    src={member.avatar} 
+                  <SignedImage 
+                    filePath={member.avatar} 
                     alt={member.name} 
                     className="w-8 h-8 rounded-full border-2 border-white shadow-sm shrink-0"
                   />
@@ -567,9 +570,9 @@ export default function SpaceOverview({
               <div className="flex items-center">
                 <div className="flex -space-x-2">
                   {activeMembers.slice(0, 5).map(m => (
-                    <img 
+                    <SignedImage 
                       key={m.id}
-                      src={m.avatar} 
+                      filePath={m.avatar} 
                       alt={m.name}
                       className="w-6 h-6 rounded-full border-2 border-white"
                       title={m.name}

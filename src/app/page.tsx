@@ -28,6 +28,7 @@ import DocumentHub from '../components/DocumentHub';
 import TeamDirectory from '../components/TeamDirectory';
 import AvaxaBrainAssistant from '../components/AvaxaBrainAssistant';
 import SettingsPanel, { WORKSPACE_COVERS } from '../components/SettingsPanel';
+import SignedImage from '../components/SignedImage';
 import ProfilePage from '../components/ProfilePage';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import ProductivityHub from '../components/ProductivityHub';
@@ -54,6 +55,7 @@ export default function App() {
   // Navigation active tab controller
   const activeTab = useUiStore((s) => s.activeTab);
   const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string>('general');
   const isMainSidebarCollapsed = useUiStore((s) => s.isMainSidebarCollapsed);
   const setIsMainSidebarCollapsed = useUiStore((s) => s.setIsMainSidebarCollapsed);
   const accentPreset = useUiStore((s) => s.accentPreset);
@@ -222,6 +224,7 @@ export default function App() {
   const setWorkspaces = useWorkspaceStore((s) => s.setWorkspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const setActiveWorkspaceId = useWorkspaceStore((s) => s.setActiveWorkspaceId);
+  const currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
   const showWorkspaceMenu = useUiStore((s) => s.showWorkspaceMenu);
   const setShowWorkspaceMenu = useUiStore((s) => s.setShowWorkspaceMenu);
   const showAddWorkspaceModal = useUiStore((s) => s.showAddWorkspaceModal);
@@ -780,13 +783,13 @@ export default function App() {
   const previousStatus = usePomodoroStore((s) => s.previousStatus);
   const setPreviousStatus = usePomodoroStore((s) => s.setPreviousStatus);
 
-  // Offline/Sync state - consumed from useSyncStore
-  const isOffline = useSyncStore((s) => s.isOffline);
-  const setIsOffline = useSyncStore((s) => s.setIsOffline);
-  const syncing = useSyncStore((s) => s.syncing);
-  const setSyncing = useSyncStore((s) => s.setSyncing);
-  const syncProgress = useSyncStore((s) => s.syncProgress);
-  const setSyncProgress = useSyncStore((s) => s.setSyncProgress);
+  // Offline/Sync state - consumed from useUiStore
+  const isOffline = useUiStore((s) => s.isOffline);
+  const setIsOffline = useUiStore((s) => s.setIsOffline);
+  const syncing = useUiStore((s) => s.syncing);
+  const setSyncing = useUiStore((s) => s.setSyncing);
+  const syncProgress = useUiStore((s) => s.syncProgress);
+  const setSyncProgress = useUiStore((s) => s.setSyncProgress);
   const offlineTasksQueue = useSyncStore((s) => s.offlineTasksQueue);
   const setOfflineTasksQueue = useSyncStore((s) => s.setOfflineTasksQueue);
   const offlineDocsQueue = useSyncStore((s) => s.offlineDocsQueue);
@@ -886,7 +889,11 @@ export default function App() {
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number }>>(() => {
     return {
       dashboard: { label: 'Home Overview', icon: LayoutDashboard },
-      inbox: { label: 'Inbox', icon: Bell, count: notificationsList.filter(n => !n.read).length },
+      inbox: { 
+        label: 'Inbox', 
+        icon: Bell, 
+        count: notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length 
+      },
       calendar: { label: 'Calendar', icon: Calendar },
       chat: { label: 'Chat', icon: MessageSquare },
       docs: { label: 'Docs', icon: FileText },
@@ -1592,13 +1599,26 @@ export default function App() {
           return;
         }
 
-        // If they still don't have a profile, they need onboarding
+        // If they still don't have a profile, auto-create a default profile in the background
         if (isBrandNewUser) {
-          setShowOnboarding(true);
-          setWorkspaces([]);
-          setMembers([]);
-          setDataLoaded(true);
-          return;
+          const newProfile = {
+            id: myMemberId,
+            name: myName,
+            email: session.user.email || '',
+            avatar: myAvatar,
+            role: myRole,
+            status: 'online',
+            user_id: userId,
+            workspace_ids: []
+          };
+          try {
+            await supabase.from('members').insert([newProfile]);
+            myDbProfile = newProfile;
+            finalMembers.push(newProfile);
+            isBrandNewUser = false;
+          } catch (e) {
+            console.error('Failed to auto-create profile:', e);
+          }
         }
 
         let allowedIds: string[] = myDbProfile.workspace_ids || [];
@@ -1682,12 +1702,52 @@ export default function App() {
                 setActiveWorkspaceId(allowedIds[0]);
               }
             } else {
-              // Workspaces deleted or missing
-              setShowOnboarding(true);
-              setWorkspaces([]);
-              setMembers([]);
-              setDataLoaded(true);
-              return;
+              // Workspaces deleted or missing - auto-create fallback
+              const fallbackWsId = `ws-fallback-${Date.now()}`;
+              const fallbackWs = {
+                id: fallbackWsId,
+                name: 'Personal Workspace',
+                theme: 'indigo',
+                initial: 'P',
+                user_id: userId
+              };
+              try {
+                await supabase.from('workspaces').insert([fallbackWs]);
+                const generalSpaceId = `s-${fallbackWsId}-general`;
+                await supabase.from('spaces').insert([
+                  {
+                    id: generalSpaceId,
+                    name: 'General',
+                    emoji: '🧘',
+                    theme_color: 'indigo',
+                    workspace_id: fallbackWsId,
+                    folders: [],
+                    whiteboards: [],
+                    channels: [{ id: 'general', name: 'general' }],
+                    statuses: [
+                      { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' },
+                      { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
+                      { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
+                    ],
+                    click_apps: { subtasks: true, priorities: true }
+                  }
+                ]);
+                await supabase.from('lists').insert([
+                  { id: `l-${fallbackWsId}-inbox`, name: 'Inbox', space_id: generalSpaceId, user_id: userId },
+                  { id: `l-${fallbackWsId}-tasks`, name: 'Tasks', space_id: generalSpaceId, user_id: userId }
+                ]);
+                
+                const updatedWSIds = [fallbackWsId];
+                await supabase.from('members').update({ workspace_ids: updatedWSIds }).eq('id', myMemberId);
+                if (myDbProfile) {
+                  myDbProfile.workspace_ids = updatedWSIds;
+                }
+                
+                setWorkspaces([fallbackWs]);
+                setActiveWorkspaceId(fallbackWsId);
+              } catch (e) {
+                console.error('Failed to auto-create fallback workspace on missing:', e);
+              }
             }
           }
         } catch (e) {
@@ -3070,65 +3130,62 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-white text-slate-800 dark:text-slate-50 flex flex-col md:flex-row overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 w-full h-full bg-white text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
       
-      {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
+            {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
       <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none" />
       <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none" />
       <div className="liquid-blob blob-3 animate-liquid-1 pointer-events-none" />
 
-      {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
-      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 transition-all duration-350 ease-in-out ${
-        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-white dark:bg-slate-900 px-4 py-5 space-y-6'
-      }`}>
-        
-        <div className="space-y-6">
-          {/* Main Launcher App Branding Header */}
-          <div className="flex items-center justify-between px-1 relative">
+      {/* Dynamic Glass Top Header Status Strip (Spans 100% width across the top) */}
+      <header className="liquid-glass relative z-40 flex items-center border-b border-slate-200/50 dark:border-slate-800 min-h-[57px] shrink-0">
+        {/* Left header switcher section */}
+        <div className={`flex items-center justify-between px-4 py-2 shrink-0 border-r border-slate-200/50 dark:border-slate-800/50 transition-all duration-350 ease-in-out ${
+          isMainSidebarCollapsed ? 'w-0 px-0 overflow-hidden border-r-0' : 'w-[260px]'
+        }`}>
+          <div className="flex items-center gap-2 px-1 relative flex-1 min-w-0">
+            {/* Sidebar toggle button (collapse when expanded) */}
+            <button 
+              onClick={() => setIsMainSidebarCollapsed(true)} 
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Compact Switcher Pill Button */}
             <div 
-              className="flex-1 flex items-center justify-between p-2 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80 hover:bg-slate-100/50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 cursor-pointer group select-none shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]"
+              className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-105/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-all duration-200 cursor-pointer select-none group shadow-xs min-w-0"
               onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <motion.div 
-                  whileHover={{ scale: 1.05, rotate: 2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-extrabold text-[15px] shadow-sm transition-transform duration-300 shrink-0 overflow-hidden relative"
-                  style={!workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl && workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl ? {
-                    backgroundImage: `url(${workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  } : !workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl ? {
-                    background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))',
+              <div className="flex items-center gap-2 min-w-0">
+                <div 
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-white font-black text-[9px] shadow-xs shrink-0 select-none overflow-hidden"
+                  style={!currentWorkspace?.logoUrl ? {
+                    background: 'linear-gradient(135deg, #FF3366, #e11d48)'
                   } : undefined}
                 >
-                  {workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl ? (
-                    <img src={workspaces.find(w => w.id === activeWorkspaceId)?.logoUrl} className="w-full h-full object-cover relative z-10" alt="Workspace logo" />
+                  {currentWorkspace?.logoUrl ? (
+                    <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                   ) : (
-                    <>
-                      {workspaces.find(w => w.id === activeWorkspaceId)?.coverUrl && <div className="absolute inset-0 bg-slate-950/20" />}
-                      <span className="relative z-10 drop-shadow-xs uppercase">
-                        {workspaces.find(w => w.id === activeWorkspaceId)?.initial || 'A'}
-                      </span>
-                    </>
+                    <span>{currentWorkspace?.initial || 'A'}</span>
                   )}
-                </motion.div>
-                
-                <div className="leading-tight text-left min-w-0">
-                  <span className="font-display font-black tracking-tight text-slate-850 dark:text-slate-105 text-[13.5px] block truncate max-w-[110px]">
-                    {workspaces.find(w => w.id === activeWorkspaceId)?.name}
-                  </span>
-                  <span className="text-[8px] tracking-widest font-black uppercase text-indigo-505 dark:text-indigo-400 block mt-0.5">Workspace</span>
                 </div>
+                <span className="font-sans font-bold text-slate-800 dark:text-slate-105 text-[12.5px] tracking-tight truncate flex-1">
+                  {currentWorkspace?.name || 'Loading...'}
+                </span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-300 shrink-0 mr-1 group-hover:text-slate-650 dark:group-hover:text-slate-350 ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-650 dark:group-hover:text-slate-350 transition-colors ml-1" />
             </div>
 
-            {/* Micro-breathing Live status glow */}
-            <div className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 z-20">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOffline ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
-              <span className={`relative inline-flex rounded-full h-3 w-3 border-2 border-white dark:border-slate-900 shadow-sm ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-            </div>
+            {/* Calendar Shortcut Button */}
+            <button 
+              onClick={() => setActiveTab('calendar')} 
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50" 
+              title="Calendar"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
 
             {/* Workspace Dropdown Menu */}
             <AnimatePresence>
@@ -3136,139 +3193,642 @@ export default function App() {
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setShowWorkspaceMenu(false)} />
                   <motion.div
-                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute left-0 top-full mt-2 w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30 space-y-0.5 text-left origin-top"
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.2, type: "spring", stiffness: 350, damping: 25 }}
+                    className="absolute left-4 top-full mt-2 w-[240px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)] z-30 space-y-2 text-left origin-top"
                   >
-                    <div className="px-2 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">Switch Workspace</div>
-                    {workspaces.map(w => (
-                      <div key={w.id} className="relative group">
-                        <motion.button
-                           onClick={() => handleWorkspaceChange(w.id)}
-                          whileHover={{ 
-                            scale: 1.025, 
-                            boxShadow: '0 6px 16px rgba(99, 102, 241, 0.16)',
-                            y: -0.5
-                          }}
-                          whileTap={{ scale: 0.985 }}
-                          transition={{ type: "spring", stiffness: 380, damping: 22 }}
-                          className={`w-full flex items-center gap-2.5 p-1.5 pr-8 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left border border-transparent ${
-                            activeWorkspaceId === w.id 
-                              ? 'bg-slate-150/80 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-200/30 dark:border-slate-600/30 shadow-md' 
-                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 hover:shadow-xs hover:border-slate-100 dark:hover:border-slate-700/40'
-                          }`}
-                        >
-                          <div 
-                            className="w-9 h-6 rounded-md shrink-0 select-none overflow-hidden relative font-sans font-extrabold text-white text-[9px] flex items-center justify-center shadow-xs"
-                            style={!w.logoUrl && w.coverUrl ? {
-                              backgroundImage: `url(${w.coverUrl})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            } : !w.logoUrl ? {
-                              background: activeWorkspaceId === w.id 
-                                ? 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))'
-                                : 'var(--avaxa-primary)'
-                            } : undefined}
-                          >
-                            {w.logoUrl ? (
-                              <img src={w.logoUrl} className="w-full h-full object-cover relative z-10" alt="Workspace avatar" />
-                            ) : (
-                              <>
-                                {w.coverUrl && <div className="absolute inset-0 bg-slate-950/30" />}
-                                <span className="relative z-10 drop-shadow-xs uppercase">{w.initial}</span>
-                              </>
-                            )}
-                          </div>
-                          <span className="truncate">{w.name}</span>
-                          {activeWorkspaceId === w.id && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500 shrink-0" />}
-                        </motion.button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openWorkspaceSettings(w); }}
-                          className={`absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md cursor-pointer transition-all ${
-                            showWorkspaceSettingsId === w.id 
-                              ? 'opacity-100 text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' 
-                              : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                          }`}
-                        >
-                          <Settings className="w-3 h-3" />
-                        </button>
-                        
-                        {showWorkspaceSettingsId === w.id && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="px-2 py-2 space-y-2 border-t border-slate-200 dark:border-slate-700/50 mt-0.5"
-                          >
-                            <input
-                              type="text"
-                              value={editWSName}
-                              onChange={(e) => setEditWSName(e.target.value)}
-                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 placeholder-slate-400"
-                              placeholder="Tên workspace"
-                            />
-                            <div className="flex items-center gap-1.5">
-                              {(['indigo', 'ocean', 'forest', 'sunset'] as const).map(theme => (
-                                <button
-                                  key={theme}
-                                  onClick={() => setEditWSTheme(theme)}
-                                  className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
-                                    editWSTheme === theme 
-                                      ? 'border-slate-900 dark:border-white scale-110' 
-                                      : 'border-transparent hover:scale-105'
-                                  }`}
-                                  style={{
-                                    background: theme === 'indigo' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' :
-                                                theme === 'ocean' ? 'linear-gradient(135deg, #0ea5e9, #06b6d4)' :
-                                                theme === 'forest' ? 'linear-gradient(135deg, #22c55e, #16a34a)' :
-                                                theme === 'sunset' ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : '#6366f1'
-                                  }}
-                                  title={theme}
-                                />
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={cancelWorkspaceSettings}
-                                className="flex-1 px-2 py-1 text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                              >
-                                Hủy
-                              </button>
-                              <button
-                                onClick={saveWorkspaceSettings}
-                                className="flex-1 px-2 py-1 text-[10px] font-bold rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors cursor-pointer"
-                              >
-                                Lưu
-                              </button>
-                            </div>
-                          </motion.div>
+                    {/* Active Workspace Header Card */}
+                    <div className="flex items-center gap-2.5 px-1 py-0.5">
+                      <div 
+                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[13px] shadow-sm shrink-0 select-none overflow-hidden"
+                        style={!currentWorkspace?.logoUrl ? {
+                          background: 'linear-gradient(135deg, #FF3366, #e11d48)'
+                        } : undefined}
+                      >
+                        {currentWorkspace?.logoUrl ? (
+                          <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                        ) : (
+                          <span>{currentWorkspace?.initial || 'A'}</span>
                         )}
                       </div>
-                    ))}
-                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
-                    <button 
-                      onClick={() => {
-                        setShowAddWorkspaceModal(true);
-                        setShowWorkspaceMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer text-left"
-                    >
-                      <div className="w-6 h-6 shrink-0 rounded-md border border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                        <span className="text-lg leading-none mb-0.5">+</span>
+                      <div className="leading-tight min-w-0">
+                        <div className="font-bold text-slate-800 dark:text-slate-105 text-[13px] truncate">
+                          {currentWorkspace?.name || 'Loading...'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'} • <button onClick={() => { setShowWorkspaceMenu(false); setActiveTab('settings'); setActiveSettingsTab('upgrade'); }} className="text-indigo-500 hover:text-indigo-600 font-semibold cursor-pointer">Upgrade</button>
+                        </div>
                       </div>
-                      <span>Create new workspace</span>
+                    </div>
+
+                    {/* Quick Setting & People actions */}
+                    <div className="grid grid-cols-2 gap-1.5 px-0.5">
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('general');
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-855 cursor-pointer transition-colors"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-slate-400" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('people');
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-855 cursor-pointer transition-colors"
+                      >
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        People
+                      </button>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-850" />
+
+                    {/* Manage list */}
+                    <div className="space-y-0.5">
+                      <div className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        Manage
+                      </div>
+                      
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('app_center');
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
+                      >
+                        <Grid className="w-4 h-4 text-indigo-500" />
+                        <span>Apps</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('templates');
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
+                      >
+                        <Briefcase className="w-4 h-4 text-emerald-500" />
+                        <span>Templates</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('custom_fields');
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
+                      >
+                        <Edit3 className="w-4 h-4 text-sky-500" />
+                        <span>Custom Fields</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('automations');
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
+                      >
+                        <Zap className="w-4 h-4 text-amber-505" />
+                        <span>Automations</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowWorkspaceMenu(false);
+                          setActiveTab('settings');
+                          setActiveSettingsTab('tags');
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
+                      >
+                        <Hash className="w-4 h-4 text-rose-500" />
+                        <span>Tag Manager</span>
+                      </button>
+                    </div>
+
+                    {/* Workspaces list subsection */}
+                    {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
+                      <>
+                        <div className="border-t border-slate-100 dark:border-slate-850" />
+                        <div className="space-y-0.5">
+                          <div className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                            Other Workspaces
+                          </div>
+                          <div className="max-h-[100px] overflow-y-auto space-y-0.5 pr-0.5 scrollbar-none">
+                            {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
+                              <button
+                                key={w.id}
+                                onClick={() => {
+                                  setShowWorkspaceMenu(false);
+                                  handleWorkspaceChange(w.id);
+                                }}
+                                className="w-full flex items-center gap-2.5 p-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-355 hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer transition-all text-left"
+                              >
+                                <div 
+                                  className="w-5 h-5 rounded-md flex items-center justify-center text-white font-black text-[8px] shrink-0 overflow-hidden"
+                                  style={!w.logoUrl ? {
+                                    background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                                w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                                w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                                'linear-gradient(135deg, #7B61FF, #6D55FE)',
+                                  } : undefined}
+                                >
+                                  {w.logoUrl ? (
+                                    <img src={w.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                                  ) : (
+                                    <span>{w.initial || 'W'}</span>
+                                  )}
+                                </div>
+                                <span className="truncate flex-1">{w.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="border-t border-slate-100 dark:border-slate-850" />
+
+                    {/* Create workspace button */}
+                    <button
+                      onClick={() => {
+                        setShowWorkspaceMenu(false);
+                        setShowAddWorkspaceModal(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 p-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 cursor-pointer transition-colors"
+                    >
+                      <span className="text-base font-light mb-0.5">+</span>
+                      Create Workspace
                     </button>
                   </motion.div>
                 </>
               )}
             </AnimatePresence>
           </div>
+        </div>
 
+        {/* Right side Header section */}
+        <div className="flex-1 flex items-center justify-between px-6 py-3 min-w-0">
+          <div className="flex items-center gap-2.5">
+            {/* Sidebar toggle button (restore when collapsed) */}
+            {isMainSidebarCollapsed && (
+              <button 
+                onClick={() => setIsMainSidebarCollapsed(false)} 
+                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-105 dark:hover:bg-slate-805 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 mr-1"
+                title="Expand Sidebar"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {(() => {
+              let label = '';
+              let ActiveIcon = null;
+              const activeItem = sidebarItems.find(i => i.id === activeTab);
+              if (activeItem) {
+                label = activeItem.label;
+                ActiveIcon = activeItem.icon;
+              } else if (activeTab === 'tasks' || activeTab === 'my-tasks') {
+                label = 'Space';
+                ActiveIcon = Briefcase;
+              }
+              return (
+                <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1 rounded-xl border border-slate-200/10 dark:border-slate-800/10">
+                  {ActiveIcon && <ActiveIcon className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" style={{ color: 'var(--avaxa-text)' }} />}
+                  <h1 className="text-xs font-black font-sans text-slate-800 dark:text-slate-105 tracking-wide capitalize">
+                    {label}
+                  </h1>
+                </div>
+              );
+            })()}
+            
+            {/* Mobile search trigger */}
+            <button
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className="sm:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 rounded-xl transition-colors cursor-pointer ml-1"
+              title="Global Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
+          <div className="relative max-w-md w-64 md:w-80 lg:w-96 mx-4 hidden sm:block">
+            <button
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-slate-105/75 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-150/90 hover:border-slate-300 dark:hover:bg-slate-900/90 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-xs"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="truncate">Quick search tasks, docs, teammates...</span>
+              </div>
+              <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-white dark:bg-slate-950 text-slate-400 dark:text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-800/80 shadow-xs shrink-0">
+                <span>⌘</span>
+                <span>K</span>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {(() => {
+              const formattedDate = new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric'
+              });
+              return (
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-100/45 dark:bg-slate-900/35 px-2.5 py-1 rounded-lg border border-slate-200/40 dark:border-slate-800/40 select-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                  {formattedDate}
+                </span>
+              );
+            })()}
+            
+            {/* Upgrade Premium Button */}
+            {!currentUser.isPremium && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowPremiumModal(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10.5px] font-bold text-white shadow-md hover:shadow-amber-505/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer relative overflow-hidden group"
+                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span>Upgrade Premium</span>
+                <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
+              </motion.button>
+            )}
+
+            {/* 🔔 Notification Center Dropdown & Badge Manager */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
+                className="p-1.5 rounded-xl hover:bg-slate-105 transition-colors text-slate-505 hover:text-slate-705 border border-transparent hover:border-slate-200/50 relative cursor-pointer"
+                title="Notification Settings"
+              >
+                <Bell className="w-5 h-5" />
+                {notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 bg-rose-500 rounded-full text-[9px] font-black text-white items-center justify-center animate-pulse shadow-sm">
+                    {notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotificationsMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowNotificationsMenu(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 font-sans"
+                    >
+                      {/* Header */}
+                      <div className="p-3.5 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-1.5">
+                          <Bell className="w-4 h-4 text-indigo-505" />
+                          <span className="text-xs font-black text-slate-800">Notifications ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length})</span>
+                        </div>
+                        {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
+                          <div className="flex gap-2.5">
+                            <button
+                              onClick={() => {
+                                const activeIds = notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(n => n.id);
+                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, read: true } : n));
+                                (window as any).playSystemSound?.('success');
+                              }}
+                              className="text-[10px] font-extrabold text-indigo-650 hover:underline cursor-pointer"
+                            >
+                              Read all
+                            </button>
+                            <button
+                              onClick={() => {
+                                const activeIds = notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(n => n.id);
+                                setNotificationsList(prev => prev.map(n => activeIds.includes(n.id) ? { ...n, cleared: true } : n));
+                                (window as any).playSystemSound?.('delete');
+                              }}
+                              className="text-[10px] font-extrabold text-rose-500 hover:underline cursor-pointer flex items-center gap-0.5"
+                            >
+                              Clear all
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notifications List scrollable */}
+                      <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                        {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length === 0 ? (
+                          <div className="py-8 px-4 text-center space-y-2">
+                            <span className="text-xl inline-block">🎉</span>
+                            <p className="text-xs font-bold text-slate-800">Inbox empty!</p>
+                            <p className="text-[10px] text-slate-455 font-medium">You have no new notifications.</p>
+                          </div>
+                        ) : (
+                          notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(notif => {
+                            const isUnread = !notif.read;
+                            return (
+                              <div 
+                                key={notif.id} 
+                                className={`p-3 relative transition-colors flex gap-3 hover:bg-slate-55/75 group ${isUnread ? 'bg-indigo-50/20' : ''}`}
+                              >
+                                {/* Left Icon indicator based on type */}
+                                <div className="shrink-0 mt-0.5">
+                                  <div className={`p-1.5 rounded-lg ${
+                                    notif.type === 'assignment' ? 'bg-indigo-50 text-indigo-650' :
+                                    notif.type === 'deadline' ? 'bg-rose-50 text-rose-600' :
+                                    notif.type === 'comment' || notif.type === 'message' ? 'bg-sky-50 text-sky-600' :
+                                    'bg-emerald-50 text-emerald-600'
+                                  }`}>
+                                    {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
+                                    {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
+                                    {(notif.type === 'comment' || notif.type === 'message') && <MessageSquare className="w-3.5 h-3.5" />}
+                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && <Sparkles className="w-3.5 h-3.5" />}
+                                  </div>
+                                </div>
+
+                                {/* Body */}
+                                <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
+                                  // mark as read
+                                  setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                }}>
+                                  <div className="flex items-center justify-between">
+                                    <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>
+                                      {notif.title}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-mono shrink-0">{notif.timestamp}</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 leading-relaxed break-words">
+                                    {notif.message}
+                                  </p>
+                                </div>
+
+                                {/* Quick Individual Delete & Read markers */}
+                                <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
+                                  {isUnread && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setNotificationsList(prev => prev.filter(n => n.id !== notif.id));
+                                      (window as any).playSystemSound?.('delete');
+                                    }}
+                                    className="p-1 rounded-md text-slate-405 hover:text-rose-505 hover:bg-rose-55 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                    title="Delete notification"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      
+                      {/* Footer link to settings */}
+                      <div className="p-2.5 text-center bg-slate-50">
+                        <button
+                          onClick={() => {
+                            setActiveTab('settings');
+                            setShowNotificationsMenu(false);
+                          }}
+                          className="text-[10px] font-black text-indigo-705 hover:underline cursor-pointer inline-flex items-center gap-1 animate-pulse"
+                        >
+                          ⚙️ Settings & Anti-Spam Frequency
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Interactive Connected User Badge and Status Switcher */}
+            <div className="relative font-sans text-left">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
+                className="cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-205 rounded-xl transition-all select-none shadow-xs"
+              >
+                <div className="relative shrink-0 flex">
+                  <SignedImage filePath={currentUser.avatar} className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/50 shadow-xs transition-all" alt={currentUser.name} />
+                  {/* Status indicator absolute dot on avatar */}
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${
+                    userStatus === 'online' ? 'bg-emerald-500' :
+                    userStatus === 'focused' ? 'bg-indigo-500' : 'bg-amber-400'
+                  }`} />
+                </div>
+                
+                <div className="text-left hidden sm:flex flex-col select-none pr-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-[12px] text-slate-805 leading-none truncate max-w-[90px]">
+                      {currentUser.name}
+                    </span>
+                    {currentUser.isPremium ? (
+                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90">PRO</span>
+                    ) : (
+                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90 font-mono">FREE</span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">
+                    {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
+                  </span>
+                </div>
+
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0" />
+              </motion.div>
+              
+              {/* Dropdown status content menu */}
+              <AnimatePresence>
+                {showStatusMenu && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setShowStatusMenu(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 p-1.5 bg-white border border-slate-200/80 rounded-xl shadow-xl z-30 space-y-0.5 text-left origin-top-right font-sans"
+                    >
+                      {/* User Info Header with Role */}
+                      <div className="px-2.5 py-2.5 mb-1 bg-slate-50/70 border-b border-slate-100 flex flex-col rounded-lg">
+                        <span className="font-extrabold text-xs text-slate-805 truncate">{currentUser.name}</span>
+                        <span className="text-[10px] text-slate-405 truncate mt-0.5">{currentUser.email}</span>
+                        <span className="text-[9px] text-indigo-650 font-extrabold uppercase mt-1.5 bg-indigo-55 w-max px-1.5 py-0.5 rounded-md">
+                          {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
+                        </span>
+                      </div>
+
+                      {/* Trạng thái section header */}
+                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        Work Status
+                      </div>
+
+                      {/* Status options */}
+                      <button
+                        onClick={() => {
+                          setUserStatus('online');
+                          setShowStatusMenu(false);
+                          if (pomodoroActive) {
+                            setPomodoroActive(false);
+                            setPomodoroTime(workDuration * 60);
+                            addSyncLog('Changed status: Online (Paused Pomodoro)');
+                          } else {
+                            addSyncLog('Changed status: Online');
+                          }
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
+                          <span>Online</span>
+                        </div>
+                        {userStatus === 'online' && <Check className="w-3.5 h-3.5 text-emerald-500 font-bold" />}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserStatus('focused');
+                          setShowStatusMenu(false);
+                          addSyncLog("Changed status: Focused");
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />
+                          <span>Focusing</span>
+                        </div>
+                        {userStatus === 'focused' && <Check className="w-3.5 h-3.5 text-indigo-500 font-bold" />}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserStatus('away');
+                          setShowStatusMenu(false);
+                          if (pomodoroActive) {
+                            setPomodoroActive(false);
+                            setPomodoroTime(workDuration * 60);
+                            addSyncLog('Changed status: Away (Paused Pomodoro)');
+                          } else {
+                            addSyncLog('Changed status: Away');
+                          }
+                          (window as any).playSystemSound?.('toggle');
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-55 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
+                          <span>Away</span>
+                        </div>
+                        {userStatus === 'away' && <Check className="w-3.5 h-3.5 text-amber-500 font-bold" />}
+                      </button>
+
+                      {/* Divider */}
+                      <div className="border-t border-slate-100 my-1" />
+
+                      {/* Quick access system controls inside profile */}
+                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                        My Applications
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab('profile');
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-55 hover:text-indigo-650 transition-colors cursor-pointer"
+                      >
+                        <UserIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>User Profile</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab('settings');
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-55 hover:text-indigo-655 transition-colors cursor-pointer"
+                      >
+                        <Settings className="w-4 h-4 text-slate-400" />
+                        <span>System Settings</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowPremiumModal(true);
+                          setShowStatusMenu(false);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-955/20 transition-colors cursor-pointer border border-dashed border-amber-200 dark:border-amber-800/40 my-1 bg-amber-500/5"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+                        <span>{currentUser.isPremium ? 'Pro Activated' : 'Upgrade Premium Pro'}</span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          setShowStatusMenu(false);
+                          addSyncLog('Signed out of account');
+                          (window as any).playSystemSound?.('delete');
+                          try { await supabase.auth.signOut(); } catch (e) {}
+                          setCurrentUser(null);
+                          localStorage.removeItem('avaxa_session');
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Below Header row wrapper container */}
+      <div className="flex-1 flex flex-row min-h-0 overflow-hidden relative">
+
+
+      {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
+      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 transition-all duration-350 ease-in-out ${
+        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-white dark:bg-slate-900 px-4 py-5 space-y-4'
+      }`}>
+        
+        <div className="space-y-6 h-full flex flex-col justify-between">
           <div className="space-y-4">
-            {/* Removed User Badge from sidebar */}
-
-          <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-220px)] scrollbar-none pb-4">
+            
+<div className="space-y-4 overflow-y-auto max-h-[calc(100vh-220px)] scrollbar-none pb-4">
             {/* ClickUp Sidebar Hierarchy */}
             <div className="space-y-3 relative px-1 flex flex-col pt-1">
               
@@ -3588,453 +4148,14 @@ export default function App() {
             </button>
           </div>
           
-          <button
-            onClick={() => setIsMainSidebarCollapsed(true)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer border border-transparent hover:border-slate-200/55 dark:hover:border-slate-700/55"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Collapse Navigation</span>
-          </button>
+          
         </div>
 
       </div>
 
       {/* Main workspace layout wrapper */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        {/* Floating Sidebar Restore Trigger Button */}
-        {isMainSidebarCollapsed && (
-          <button
-            onClick={() => setIsMainSidebarCollapsed(false)}
-            className="absolute left-3 top-3.5 z-50 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:text-indigo-650 hover:bg-slate-50 transition-all cursor-pointer hidden md:block"
-            title="Expand Navigation Sidebar"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </button>
-        )}
         
-        {/* Dynamic Glass Top Header Status Strip */}
-        <header className="px-6 py-3 md:py-3.5 liquid-glass relative z-30 flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            {(() => {
-              let label = '';
-              let ActiveIcon = null;
-              const activeItem = sidebarItems.find(i => i.id === activeTab);
-              if (activeItem) {
-                label = activeItem.label;
-                ActiveIcon = activeItem.icon;
-              } else if (activeTab === 'tasks' || activeTab === 'my-tasks') {
-                label = 'Space';
-                ActiveIcon = Briefcase;
-              }
-              return (
-                <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1 rounded-xl border border-slate-200/10 dark:border-slate-800/10">
-                  {ActiveIcon && <ActiveIcon className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" style={{ color: 'var(--avaxa-text)' }} />}
-                  <h1 className="text-xs font-black font-sans text-slate-800 dark:text-slate-100 tracking-wide capitalize">
-                    {label}
-                  </h1>
-                </div>
-              );
-            })()}
-            
-            {/* Mobile search trigger */}
-            <button
-              onClick={() => {
-                setIsSearchOpen(true);
-                setTimeout(() => searchInputRef.current?.focus(), 80);
-              }}
-              className="sm:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 rounded-xl transition-colors cursor-pointer ml-1"
-              title="Global Search"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
-          <div className="relative max-w-md w-64 md:w-80 lg:w-96 mx-4 hidden sm:block">
-            <button
-              onClick={() => {
-                setIsSearchOpen(true);
-                setTimeout(() => searchInputRef.current?.focus(), 80);
-              }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-slate-105/75 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-150/90 hover:border-slate-300 dark:hover:bg-slate-900/90 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-xs"
-            >
-              <div className="flex items-center gap-2 truncate">
-                <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                <span className="truncate">Quick search tasks, docs, teammates...</span>
-              </div>
-              <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-white dark:bg-slate-950 text-slate-400 dark:text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-800/80 shadow-xs shrink-0">
-                <span>⌘</span>
-                <span>K</span>
-              </div>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            {(() => {
-              const formattedDate = new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric'
-              });
-              return (
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-100/45 dark:bg-slate-900/35 px-2.5 py-1 rounded-lg border border-slate-200/40 dark:border-slate-800/40 select-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
-                  {formattedDate}
-                </span>
-              );
-            })()}
-            
-            
-            {/* Upgrade Premium Button */}
-            {!currentUser.isPremium && (
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setShowPremiumModal(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10.5px] font-bold text-white shadow-md hover:shadow-amber-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer relative overflow-hidden group"
-                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
-              >
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>Upgrade Premium</span>
-                <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
-              </motion.button>
-            )}
-
-            {/* 🔔 Notification Center Dropdown & Badge Manager */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700 border border-transparent hover:border-slate-200/50 relative cursor-pointer"
-                title="Notification Settings"
-              >
-                <Bell className="w-5 h-5" />
-                {notificationsList.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 bg-rose-500 rounded-full text-[9px] font-black text-white items-center justify-center animate-pulse shadow-sm">
-                    {notificationsList.filter(n => !n.read).length}
-                  </span>
-                )}
-              </button>
-
-              <AnimatePresence>
-                {showNotificationsMenu && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowNotificationsMenu(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 font-sans"
-                    >
-                      {/* Header */}
-                      <div className="p-3.5 flex items-center justify-between bg-slate-50">
-                        <div className="flex items-center gap-1.5">
-                          <Bell className="w-4 h-4 text-indigo-500" />
-                          <span className="text-xs font-black text-slate-800">Notifications ({notificationsList.length})</span>
-                        </div>
-                        {notificationsList.length > 0 && (
-                          <div className="flex gap-2.5">
-                            <button
-                              onClick={() => {
-                                setNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
-                                (window as any).playSystemSound?.('success');
-                              }}
-                              className="text-[10px] font-extrabold text-indigo-600 hover:underline cursor-pointer"
-                            >
-                              Read all
-                            </button>
-                            <button
-                              onClick={() => {
-                                setNotificationsList([]);
-                                (window as any).playSystemSound?.('delete');
-                              }}
-                              className="text-[10px] font-extrabold text-rose-500 hover:underline cursor-pointer flex items-center gap-0.5"
-                            >
-                              Clear all
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Notifications List scrollable */}
-                      <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
-                        {notificationsList.length === 0 ? (
-                          <div className="py-8 px-4 text-center space-y-2">
-                            <span className="text-xl inline-block">🎉</span>
-                            <p className="text-xs font-bold text-slate-800">Inbox empty!</p>
-                            <p className="text-[10px] text-slate-450 font-medium">You have no new notifications.</p>
-                          </div>
-                        ) : (
-                          notificationsList.map(notif => {
-                            const isUnread = !notif.read;
-                            return (
-                              <div 
-                                key={notif.id} 
-                                className={`p-3 relative transition-colors flex gap-3 hover:bg-slate-50/70 group ${isUnread ? 'bg-indigo-50/20' : ''}`}
-                              >
-                                {/* Left Icon indicator based on type */}
-                                <div className="shrink-0 mt-0.5">
-                                  <div className={`p-1.5 rounded-lg ${
-                                    notif.type === 'assignment' ? 'bg-indigo-50 text-indigo-600' :
-                                    notif.type === 'deadline' ? 'bg-rose-50 text-rose-600' :
-                                    notif.type === 'comment' || notif.type === 'message' ? 'bg-sky-50 text-sky-600' :
-                                    'bg-emerald-50 text-emerald-600'
-                                  }`}>
-                                    {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
-                                    {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
-                                    {(notif.type === 'comment' || notif.type === 'message') && <MessageSquare className="w-3.5 h-3.5" />}
-                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && <Sparkles className="w-3.5 h-3.5" />}
-                                  </div>
-                                </div>
-
-                                {/* Body */}
-                                <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
-                                  // mark as read
-                                  setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                                }}>
-                                  <div className="flex items-center justify-between">
-                                    <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>
-                                      {notif.title}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400 font-mono shrink-0">{notif.timestamp}</span>
-                                  </div>
-                                  <p className="text-[10px] text-slate-500 leading-relaxed break-words">
-                                    {notif.message}
-                                  </p>
-                                </div>
-
-                                {/* Quick Individual Delete & Read markers */}
-                                <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
-                                  {isUnread && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setNotificationsList(prev => prev.filter(n => n.id !== notif.id));
-                                      (window as any).playSystemSound?.('delete');
-                                    }}
-                                    className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                    title="Delete notification"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                      
-                      {/* Footer link to settings */}
-                      <div className="p-2.5 text-center bg-slate-50">
-                        <button
-                          onClick={() => {
-                            setActiveTab('settings');
-                            setShowNotificationsMenu(false);
-                          }}
-                          className="text-[10px] font-black text-indigo-700 hover:underline cursor-pointer inline-flex items-center gap-1 animate-pulse"
-                        >
-                          ⚙️ Settings & Anti-Spam Frequency
-                        </button>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Interactive Connected User Badge and Status Switcher */}
-            <div className="relative font-sans text-left">
-              <motion.div 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className="cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl transition-all select-none shadow-xs"
-              >
-                <div className="relative shrink-0 flex">
-                  <img src={currentUser.avatar} className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/50 shadow-xs transition-all" alt={currentUser.name} />
-                  {/* Status indicator absolute dot on avatar */}
-                  <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${
-                    userStatus === 'online' ? 'bg-emerald-500' :
-                    userStatus === 'focused' ? 'bg-indigo-500' : 'bg-amber-400'
-                  }`} />
-                </div>
-                
-                <div className="text-left hidden sm:flex flex-col select-none pr-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-[12px] text-slate-800 leading-none truncate max-w-[90px]">
-                      {currentUser.name}
-                    </span>
-                    {currentUser.isPremium ? (
-                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90">PRO</span>
-                    ) : (
-                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90 font-mono">FREE</span>
-                    )}
-                  </div>
-                  <span className="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">
-                    {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
-                  </span>
-                </div>
-
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${showStatusMenu ? 'rotate-180' : ''}`} />
-              </motion.div>
-              
-              {/* Dropdown status content menu */}
-              <AnimatePresence>
-                {showStatusMenu && (
-                  <>
-                    <div className="fixed inset-0 z-20" onClick={() => setShowStatusMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-56 p-1.5 bg-white border border-slate-200/80 rounded-xl shadow-xl z-30 space-y-0.5 text-left origin-top-right font-sans"
-                    >
-                      {/* User Info Header with Role */}
-                      <div className="px-2.5 py-2.5 mb-1 bg-slate-50/70 border-b border-slate-100 flex flex-col rounded-lg">
-                        <span className="font-extrabold text-xs text-slate-800 truncate">{currentUser.name}</span>
-                        <span className="text-[10px] text-slate-400 truncate mt-0.5">{currentUser.email}</span>
-                        <span className="text-[9px] text-indigo-600 font-extrabold uppercase mt-1.5 bg-indigo-50 w-max px-1.5 py-0.5 rounded-md">
-                          {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
-                        </span>
-                      </div>
-
-                      {/* Trạng thái section header */}
-                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                        Work Status
-                      </div>
-
-                      {/* Status options */}
-                      <button
-                        onClick={() => {
-                          setUserStatus('online');
-                          setShowStatusMenu(false);
-                          if (pomodoroActive) {
-                            setPomodoroActive(false);
-                            setPomodoroTime(workDuration * 60);
-                            addSyncLog('Changed status: Online (Paused Pomodoro)');
-                          } else {
-                            addSyncLog('Changed status: Online');
-                          }
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
-                          <span>Online</span>
-                        </div>
-                        {userStatus === 'online' && <Check className="w-3.5 h-3.5 text-emerald-500 font-bold" />}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setUserStatus('focused');
-                          setShowStatusMenu(false);
-                          addSyncLog(`Changed status: Focused`);
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />
-                          <span>Focusing</span>
-                        </div>
-                        {userStatus === 'focused' && <Check className="w-3.5 h-3.5 text-indigo-500 font-bold" />}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setUserStatus('away');
-                          setShowStatusMenu(false);
-                          if (pomodoroActive) {
-                            setPomodoroActive(false);
-                            setPomodoroTime(workDuration * 60);
-                            addSyncLog('Changed status: Away (Paused Pomodoro)');
-                          } else {
-                            addSyncLog('Changed status: Away');
-                          }
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
-                          <span>Away</span>
-                        </div>
-                        {userStatus === 'away' && <Check className="w-3.5 h-3.5 text-amber-500 font-bold" />}
-                      </button>
-
-                      {/* Divider */}
-                      <div className="border-t border-slate-100 my-1" />
-
-                      {/* Quick access system controls inside profile */}
-                      <div className="px-2.5 pt-1.5 pb-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                        My Applications
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab('profile');
-                          setShowStatusMenu(false);
-                          (window as any).playSystemSound?.('click');
-                        }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
-                      >
-                        <UserIcon className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span>User Profile</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab('settings');
-                          setShowStatusMenu(false);
-                          (window as any).playSystemSound?.('click');
-                        }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
-                      >
-                        <Settings className="w-4 h-4 text-slate-400" />
-                        <span>System Settings</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowPremiumModal(true);
-                          setShowStatusMenu(false);
-                          (window as any).playSystemSound?.('click');
-                        }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-955/20 transition-colors cursor-pointer border border-dashed border-amber-200 dark:border-amber-800/40 my-1 bg-amber-500/5"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-                        <span>{currentUser.isPremium ? 'Pro Activated' : 'Upgrade Premium Pro'}</span>
-                      </button>
-
-                      <button
-                        onClick={async () => {
-                          setShowStatusMenu(false);
-                          addSyncLog('Signed out of account');
-                          (window as any).playSystemSound?.('delete');
-                          try { await supabase.auth.signOut(); } catch (e) {}
-                          setCurrentUser(null);
-                          localStorage.removeItem('avaxa_session');
-                        }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-500" />
-                        <span>Sign Out</span>
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </header>
 
         {(() => {
           const currentWorkspaceTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
@@ -4323,6 +4444,8 @@ export default function App() {
                       onDeleteWorkspace={handleDeleteWorkspace}
                       onAddWorkspace={handleCreateWorkspace}
                       members={members}
+                      activeSettingsTab={activeSettingsTab}
+                      setActiveSettingsTab={setActiveSettingsTab}
                     />
                   )}
                 </motion.div>
@@ -5323,6 +5446,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      </div>
     </div>
   );
 }

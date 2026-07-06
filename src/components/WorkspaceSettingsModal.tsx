@@ -6,11 +6,15 @@ import {
   Upload, Trash2, Loader2, AlertTriangle, 
   Briefcase, Sliders, ShieldCheck, Image, Save,
   UserPlus, UserMinus, Plus, Search, X, ShieldAlert, Check,
-  Mail, Phone
+  Mail, Phone, RefreshCw
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { Workspace, User } from '../types';
+import { Workspace, User, WorkspaceInvitation } from '../types';
 import { WORKSPACE_COVERS } from './SettingsPanel';
+import SignedImage from './SignedImage';
+import InviteModal from './InviteModal';
+import { useNotificationStore } from '@/store/notificationStore';
+
 
 interface WorkspaceSettingsModalProps {
   isOpen: boolean;
@@ -69,6 +73,136 @@ export default function WorkspaceSettingsModal({
   const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'guest'>('member');
   const [inviteDept, setInviteDept] = useState('Technical');
   const [selectedMemberToAdd, setSelectedMemberToAdd] = useState('');
+  
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+
+  const triggerToast = useNotificationStore(s => s.addToast);
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const fetchInvitations = React.useCallback(async () => {
+    if (!workspace) return;
+    try {
+      const { data, error } = await supabase
+        .from('workspace_invitations')
+        .select('*')
+        .eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setInvitations(data.map((inv: any) => ({
+          id: inv.id,
+          workspaceId: inv.workspace_id,
+          email: inv.email,
+          role: inv.role,
+          invitedBy: inv.invited_by,
+          token: inv.token,
+          status: inv.status,
+          createdAt: inv.created_at,
+          expiresAt: inv.expires_at
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching invitations:', err);
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    if (isOpen && workspace && activeTab === 'members') {
+      fetchInvitations();
+    }
+  }, [isOpen, workspace, activeTab, fetchInvitations]);
+
+  const handleSendInvites = async (emails: string[], role: string) => {
+    if (!workspace) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const invitedBy = session?.user?.id ? `user-${session.user.id}` : 'system';
+
+      const newRecords = emails.map(email => ({
+        workspace_id: workspace.id,
+        email,
+        role: role as any,
+        invited_by: invitedBy,
+        status: 'pending'
+      }));
+
+      const { data, error } = await supabase
+        .from('workspace_invitations')
+        .insert(newRecords)
+        .select();
+
+      if (!error && data) {
+        fetchInvitations();
+        
+        data.forEach((record: any) => {
+          triggerToast({
+            id: generateId(),
+            type: 'success',
+            title: 'Invitation Sent',
+            message: `Link for ${record.email}: ${window.location.origin}/?invite_token=${record.token}`,
+            duration: 10000
+          });
+        });
+      } else {
+        console.error('Error inserting invitations:', error);
+        triggerToast({
+          id: generateId(),
+          type: 'info',
+          title: 'Error',
+          message: 'Failed to send invitations.',
+          duration: 4000
+        });
+      }
+    } catch (err) {
+      console.error('Exception sending invites:', err);
+    }
+  };
+
+  const handleResendInvite = async (inv: WorkspaceInvitation) => {
+    try {
+      const newExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from('workspace_invitations')
+        .update({ created_at: new Date().toISOString(), expires_at: newExpires })
+        .eq('id', inv.id);
+
+      if (!error) {
+        fetchInvitations();
+        triggerToast({
+          id: generateId(),
+          type: 'success',
+          title: 'Resent Invitation',
+          message: `Link for ${inv.email}: ${window.location.origin}/?invite_token=${inv.token}`,
+          duration: 10000
+        });
+      }
+    } catch (err) {
+      console.error('Exception resending invite:', err);
+    }
+  };
+
+  const handleRevokeInvite = async (invId: string) => {
+    try {
+      const { error } = await supabase
+        .from('workspace_invitations')
+        .delete()
+        .eq('id', invId);
+
+      if (!error) {
+        setInvitations(prev => prev.filter(inv => inv.id !== invId));
+        triggerToast({
+          id: generateId(),
+          type: 'success',
+          title: 'Invitation Revoked',
+          message: 'The invitation has been successfully cancelled.',
+          duration: 4000
+        });
+      }
+    } catch (err) {
+      console.error('Exception revoking invite:', err);
+    }
+  };
 
   // Sync state with selected workspace
   useEffect(() => {
@@ -678,83 +812,20 @@ export default function WorkspaceSettingsModal({
                         </div>
                       )}
                     </div>
-
                     {/* Invite New Member Form */}
-                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl space-y-3 text-left">
-                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">Invite New Colleague</span>
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Name"
-                            value={inviteName}
-                            onChange={(e) => setInviteName(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                          />
-                          <input
-                            type="email"
-                            placeholder="Email"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            value={inviteRole}
-                            onChange={(e) => setInviteRole(e.target.value as any)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
-                          >
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                            <option value="guest">Guest</option>
-                          </select>
-                          <select
-                            value={inviteDept}
-                            onChange={(e) => setInviteDept(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
-                          >
-                            <option value="Technical">Engineering</option>
-                            <option value="Design">Design</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="Business">Sales</option>
-                            <option value="HR">HR</option>
-                            <option value="Finance">Finance</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!inviteName.trim() || !inviteEmail.trim()) {
-                              alert("Please enter Name and Email.");
-                              return;
-                            }
-                            if (onAddMember) {
-                              const formattedJoinedDate = new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
-                              onAddMember({
-                                name: inviteName.trim(),
-                                email: inviteEmail.trim(),
-                                role: inviteRole,
-                                department: inviteDept,
-                                avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(inviteName.trim())}`,
-                                status: 'online',
-                                workspaceIds: [workspace.id],
-                                phone: '',
-                                bio: 'No biography updated yet.',
-                                joinedDate: formattedJoinedDate
-                              });
-                              setInviteName('');
-                              setInviteEmail('');
-                              setInviteRole('member');
-                              setInviteDept('Technical');
-                            }
-                          }}
-                          className="w-full py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Invite & Add</span>
-                        </button>
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl flex flex-col justify-between items-start gap-3 text-left">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Invite Colleague</span>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1">Send a secure workspace invitation to multiple team members.</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowInviteModal(true)}
+                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 active:scale-[0.98] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Invite via email</span>
+                      </button>
                     </div>
                   </div>
 
@@ -776,8 +847,8 @@ export default function WorkspaceSettingsModal({
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
-                                  <img 
-                                    src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'} 
+                                  <SignedImage 
+                                    filePath={member.avatar} 
                                     className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
                                     alt={member.name} 
                                   />
@@ -842,6 +913,66 @@ export default function WorkspaceSettingsModal({
                       )}
                     </div>
                   </div>
+
+                  {/* Pending Workspace Invitations List */}
+                  <div className="space-y-2 text-left pt-2">
+                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Pending Invitations ({invitations.filter(i => i.status === 'pending').length})</span>
+                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-2xl p-2 bg-slate-50/20">
+                      {invitations.filter(i => i.status === 'pending').length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-xs italic">
+                          No pending invitations.
+                        </div>
+                      ) : (
+                        invitations.filter(i => i.status === 'pending').map((inv) => {
+                          const invitedDateStr = new Date(inv.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'numeric', day: 'numeric' });
+                          return (
+                            <div 
+                              key={inv.id} 
+                              className="flex items-center justify-between gap-4 p-2.5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 rounded-xl hover:shadow-xs transition-shadow"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
+                                  <Mail className="w-4 h-4" />
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">
+                                    {inv.email}
+                                  </span>
+                                  <span className="text-[9.5px] text-slate-400 dark:text-slate-555 font-medium block truncate">
+                                    Invited on {invitedDateStr} as <span className="font-extrabold uppercase text-indigo-500">{inv.role}</span>
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="px-1.5 py-0.5 text-[8.5px] font-black uppercase rounded bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100/10">
+                                  Pending
+                                </span>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => handleResendInvite(inv)}
+                                  className="p-1.5 text-indigo-500 hover:text-indigo-650 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors cursor-pointer"
+                                  title="Resend Invite"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevokeInvite(inv.id)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer"
+                                  title="Revoke Invite"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -891,6 +1022,12 @@ export default function WorkspaceSettingsModal({
               )}
             </div>
           </div>
+          <InviteModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            onSendInvites={handleSendInvites}
+            workspaceName={workspace.name}
+          />
         </motion.div>
       </div>
     </AnimatePresence>

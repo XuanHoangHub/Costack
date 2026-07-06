@@ -5,7 +5,7 @@ import {
   Bell, Check, Trash2, Eye, EyeOff, Pin, Archive, Clock, Search, 
   ArrowRight, Inbox, HelpCircle, ArchiveRestore, Sparkles, Filter, CheckSquare
 } from 'lucide-react';
-import { Task, User, Workspace } from '../types';
+import { Task, User, Workspace, WorkspaceInvitation } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 
 interface InboxViewProps {
@@ -21,6 +21,9 @@ interface InboxViewProps {
   triggerToast?: (type: any, title: string, message: string) => void;
   currentUser: any;
   onUpgradePremium: () => void;
+  workspaceInvitations?: WorkspaceInvitation[];
+  onAcceptInvite?: (id: string, workspaceId: string, role: string) => void;
+  onDeclineInvite?: (id: string) => void;
 }
 
 export default function InboxView({
@@ -35,7 +38,10 @@ export default function InboxView({
   onAddSyncLog,
   triggerToast,
   currentUser,
-  onUpgradePremium
+  onUpgradePremium,
+  workspaceInvitations = [],
+  onAcceptInvite,
+  onDeclineInvite
 }: InboxViewProps) {
   // Tabs: 'important' | 'other' | 'snoozed' | 'cleared'
   const [activeTab, setActiveTab] = useState<'important' | 'other' | 'snoozed' | 'cleared'>('important');
@@ -410,6 +416,48 @@ export default function InboxView({
 
         {/* Notifications Scrollable List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar min-h-0">
+          {/* Workspace Invitations Section */}
+          {workspaceInvitations.length > 0 && (
+            <div className="mb-4 space-y-2.5 border-b border-slate-100 dark:border-slate-800/80 pb-4 shrink-0">
+              <div className="flex items-center gap-1.5 px-1 mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Workspace Invitations ({workspaceInvitations.length})</span>
+              </div>
+              {workspaceInvitations.map(inv => (
+                <div 
+                  key={inv.id} 
+                  className="p-3.5 bg-indigo-50/20 dark:bg-indigo-950/5 border border-indigo-100/40 dark:border-indigo-900/15 rounded-2xl flex flex-col gap-3 shadow-3xs"
+                >
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                        <h5 className="text-[11.5px] font-black text-slate-850 dark:text-slate-100 truncate">{inv.workspaceName}</h5>
+                      </div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-normal">
+                        You have been invited to join as <span className="font-extrabold uppercase text-indigo-500">{inv.role}</span>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button 
+                      onClick={() => onDeclineInvite?.(inv.id)}
+                      className="px-3 py-1 text-[10px] font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-700 border border-slate-200 dark:border-slate-800 cursor-pointer transition-colors"
+                    >
+                      Decline
+                    </button>
+                    <button 
+                      onClick={() => onAcceptInvite?.(inv.id, inv.workspaceId, inv.role)}
+                      className="px-3 py-1 text-[10px] font-black rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-colors shadow-2xs shadow-indigo-200"
+                    >
+                      Accept
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {filteredNotifications.map(notif => {
             const hasTaskLink = !!getAssociatedTaskId(notif);
             const isSelected = selectedNotificationId === notif.id;

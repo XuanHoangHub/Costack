@@ -45,8 +45,7 @@ export function useSupabaseSync() {
           try {
             const { data: dbWorkspaces, error: wsError } = await supabase
               .from('workspaces')
-              .select('*')
-              .eq('user_id', userId);
+              .select('*');
 
             if (!active) return;
 
@@ -162,8 +161,7 @@ export function useSupabaseSync() {
 
         const { data: dbTasks, error: tasksErr } = await supabase
           .from('tasks')
-          .select('*')
-          .eq('user_id', userId);
+          .select('*');
 
         if (!active) return;
 
@@ -200,8 +198,7 @@ export function useSupabaseSync() {
 
         const { data: dbDocs, error: docsErr } = await supabase
           .from('docs')
-          .select('*')
-          .eq('user_id', userId);
+          .select('*');
 
         if (!active) return;
 
@@ -232,8 +229,7 @@ export function useSupabaseSync() {
         try {
           const { data: dbBases } = await supabase
             .from('base_apps')
-            .select('*')
-            .eq('user_id', userId);
+            .select('*');
 
           if (active && dbBases && dbBases.length > 0) {
             const bases = dbBases.map(b => ({
@@ -258,13 +254,11 @@ export function useSupabaseSync() {
           try {
             const { data: dbSpaces, error: spacesErr } = await supabase
               .from('spaces')
-              .select('*')
-              .eq('user_id', userId);
+              .select('*');
             
             const { data: dbLists, error: listsErr } = await supabase
               .from('lists')
-              .select('*')
-              .eq('user_id', userId);
+              .select('*');
 
             if (!active) return false;
 
@@ -404,7 +398,7 @@ export function useSupabaseSync() {
 
         if (active) {
           tasksChannel = supabase.channel('realtime-tasks')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${userId}` }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const t = payload.new as any;
@@ -451,7 +445,7 @@ export function useSupabaseSync() {
             .subscribe();
 
           docsChannel = supabase.channel('realtime-docs')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: `user_id=eq.${userId}` }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const d = payload.new as any;
@@ -521,7 +515,7 @@ export function useSupabaseSync() {
             .subscribe();
 
           workspacesChannel = supabase.channel('realtime-workspaces')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces', filter: `user_id=eq.${userId}` }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const w = payload.new as any;
@@ -553,13 +547,13 @@ export function useSupabaseSync() {
             .subscribe();
 
           spacesChannel = supabase.channel('realtime-spaces')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'spaces', filter: `user_id=eq.${userId}` }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'spaces' }, () => {
               fetchSpacesAndLists();
             })
             .subscribe();
 
           listsChannel = supabase.channel('realtime-lists')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'lists', filter: `user_id=eq.${userId}` }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, () => {
               fetchSpacesAndLists();
             })
             .subscribe();

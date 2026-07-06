@@ -16,6 +16,21 @@ export interface User {
   isPremium?: boolean;
 }
 
+export interface WorkspaceInvitation {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: 'admin' | 'member' | 'guest';
+  invitedBy: string;
+  token: string;
+  status: 'pending' | 'accepted' | 'declined' | 'revoked';
+  createdAt: string;
+  expiresAt: string;
+  workspaceName?: string;
+  workspaceTheme?: string;
+  workspaceCoverUrl?: string;
+}
+
 export interface SubTask {
   id: string;
   title: string;

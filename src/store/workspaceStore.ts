@@ -17,7 +17,15 @@ interface WorkspaceState {
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set, get) => ({
-      workspaces: [],
+      workspaces: [
+        {
+          id: 'w2',
+          name: 'Personal Workspace',
+          theme: 'indigo',
+          initial: 'P',
+          user_id: ''
+        }
+      ],
       activeWorkspaceId: 'w2',
       accentPreset: 'indigo',
       setWorkspaces: (workspaces) => set({ workspaces: typeof workspaces === 'function' ? workspaces(get().workspaces) : workspaces }),
