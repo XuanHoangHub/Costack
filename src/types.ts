@@ -113,6 +113,8 @@ export interface Task {
   relationships?: {
     tasks?: string[];
     docs?: string[];
+    blockedBy?: string[];
+    blocks?: string[];
   };
   recurrence?: {
     frequency: 'daily' | 'weekly' | 'monthly' | 'none';
@@ -173,6 +175,11 @@ export interface NotificationSettings {
   toastDuration: number;
   dndActive: boolean;
   frequencyLimit: 'throttled' | 'minimal' | 'all';
+  dndDurationUntil?: string | null;
+  dndScheduleEnabled?: boolean;
+  dndScheduleStart?: string;
+  dndScheduleEnd?: string;
+  dndAllowUrgent?: boolean;
 }
 
 export interface ChatMessage {

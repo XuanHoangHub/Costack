@@ -29,6 +29,11 @@ const defaultSettings: NotificationSettings = {
   toastDuration: 4000,
   dndActive: false,
   frequencyLimit: 'throttled',
+  dndDurationUntil: null,
+  dndScheduleEnabled: false,
+  dndScheduleStart: '22:00',
+  dndScheduleEnd: '07:00',
+  dndAllowUrgent: true,
 };
 
 export const useNotificationStore = create<NotificationState>()(

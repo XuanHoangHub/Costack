@@ -11,7 +11,7 @@ import {
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff,
-  Forward, AtSign, Check
+  Forward, AtSign, Check, Settings, ChevronDown, Clock
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -326,10 +326,26 @@ export default function ChatRoom({
   // Refs
   const messageEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const resolveChannelLocation = (chanId: string) => {
-    if (chanId.includes(':space-')) {
+    if (chanId.includes(':folder-')) {
+      const prefixIndex = chanId.indexOf(':folder-');
+      const infoStr = chanId.substring(prefixIndex + 8);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        const localChanId = 'folder-' + infoStr.substring(space.id.length + 1);
+        return { spaceId: space.id, localChanId, isWorkspaceLevel: false };
+      }
+    } else if (chanId.includes(':list-')) {
+      const prefixIndex = chanId.indexOf(':list-');
+      const infoStr = chanId.substring(prefixIndex + 6);
+      const space = spaces.find(s => infoStr.startsWith(s.id));
+      if (space) {
+        const localChanId = 'list-' + infoStr.substring(space.id.length + 1);
+        return { spaceId: space.id, localChanId, isWorkspaceLevel: false };
+      }
+    } else if (chanId.includes(':space-')) {
       const prefixIndex = chanId.indexOf(':space-');
       const infoStr = chanId.substring(prefixIndex + 7);
       const space = spaces.find(s => infoStr.startsWith(s.id));
@@ -376,6 +392,20 @@ export default function ChatRoom({
                 id: `${workspaceId}:${c.id}`,
                 name: c.name,
                 description: c.description || 'Kênh thảo luận chung của workspace',
+                type: c.type || 'public'
+              });
+            } else if (c.id.startsWith('folder-')) {
+              customChannels.push({
+                id: `${workspaceId}:folder-${s.id}-${c.id.substring(7)}`,
+                name: c.name,
+                description: c.description || `Kênh chat của Folder ${c.name}`,
+                type: c.type || 'public'
+              });
+            } else if (c.id.startsWith('list-')) {
+              customChannels.push({
+                id: `${workspaceId}:list-${s.id}-${c.id.substring(5)}`,
+                name: c.name,
+                description: c.description || `Kênh chat của List ${c.name}`,
                 type: c.type || 'public'
               });
             } else {
@@ -837,7 +867,7 @@ export default function ChatRoom({
   };
 
   // @Mention handler
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInputVal(val);
 
@@ -1222,6 +1252,8 @@ export default function ChatRoom({
     dmMember = members.find(m => m.id === memberId);
   }
 
+  const isSelfDm = isDm && (activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) || activeChannelId.endsWith('-user-user') || dmMember?.id === currentUser.id);
+
   // Resolve Space channel if activeChannelId is a Space Channel
   const isSpaceChan = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
   let spaceChanName = '';
@@ -1275,16 +1307,19 @@ export default function ChatRoom({
       {!forcedChannelId && (
         <div className="w-64 border-r border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left">
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
-          {/* Header search bar */}
-          <div className="relative shrink-0">
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search channels..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-105 border border-slate-200/60 dark:border-slate-700/60 outline-none text-[11px] font-medium placeholder-slate-400 focus:border-indigo-500 dark:focus:border-indigo-500 transition-colors"
-            />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          {/* Header area */}
+          <div className="flex items-center justify-between px-2 py-1 select-none shrink-0">
+            <span className="text-[15px] font-black text-slate-800 tracking-tight">Chat</span>
+            <button
+              onClick={() => {
+                const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
+                setActiveChannelId(selfDmId);
+              }}
+              className="p-1.5 rounded-lg border border-slate-200/60 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 shadow-xs transition-all cursor-pointer active:scale-95"
+              title="New Chat"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Channels list scrollable */}
@@ -1503,13 +1538,19 @@ export default function ChatRoom({
           </div>
         </div>
 
-        {/* User Card at footer sidebar */}
-        <div className="p-3 bg-slate-100/50 border-t border-slate-200/60 flex items-center gap-2.5 shrink-0">
-          <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
-          <div className="min-w-0">
-            <span className="block text-[11px] font-black text-slate-800 leading-none truncate">{currentUser.name}</span>
-            <span className="block text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">Me</span>
+        {/* Sidebar Footer Bar */}
+        <div className="px-4 py-2.5 bg-slate-100/30 border-t border-slate-200/60 flex items-center justify-between shrink-0 text-slate-400 select-none">
+          <div className="flex items-center gap-3">
+            <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+              <Plus className="w-4 h-4" />
+            </button>
+            <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+              <Clock className="w-4 h-4" />
+            </button>
           </div>
+          <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
 
         </div>
@@ -1536,51 +1577,59 @@ export default function ChatRoom({
         )}
         
         {/* Chat header */}
-        <header className="px-5 py-3 border-b border-slate-150 flex items-center justify-between shrink-0">
-          <div className="text-left flex items-center gap-3 min-w-0">
-            {isDm && dmMember ? (
-              <>
+        <header className="border-b border-slate-200/80 bg-white flex flex-col shrink-0">
+          {/* Top row */}
+          <div className="px-5 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              {isSelfDm ? (
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
-                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                    dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' :
-                    dmMember.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
-                  }`}></span>
+                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white bg-emerald-500 animate-pulse"></span>
                 </div>
-                <div className="text-left min-w-0">
-                  <h2 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 leading-none truncate">
-                    {dmMember.name}
-                  </h2>
-                  <p className="text-[10px] text-slate-450 font-bold mt-1 uppercase tracking-wide">
-                    {dmMember.role === 'admin' ? 'PM' : 'Developer'} • {dmMember.status}
-                  </p>
+              ) : isDm && dmMember ? (
+                <div className="relative shrink-0 flex">
+                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
+                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                 </div>
-              </>
-            ) : (
-              <div className="text-left min-w-0">
-                <h3 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1 leading-none truncate">
-                  {isSpaceChan ? (
-                    <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
-                  ) : activeChannel?.name.includes('ai') ? (
-                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
-                  ) : (
-                    <Hash className="w-4 h-4 text-slate-400 shrink-0" />
-                  )}
-                  {isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
-                </h3>
-                <p className="text-[10px] text-slate-400 font-medium truncate max-w-[320px] mt-1">
-                  {isSpaceChan ? spaceChanDesc : (activeChannel?.description || 'Collaborate with your team')}
-                </p>
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-650 shrink-0 font-black text-xs select-none">
+                  {isSpaceChan ? '📁' : '#'}
+                </div>
+              )}
+              
+              <div className="text-left min-w-0 flex items-center gap-2">
+                <h2 className="text-sm font-black text-slate-800 leading-none truncate">
+                  {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
+                </h2>
+                <button className="text-slate-400 hover:text-slate-650 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50"><MoreVertical className="w-3.5 h-3.5" /></button>
+                <button className="text-slate-355 hover:text-amber-500 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50">★</button>
               </div>
-            )}
+            </div>
+
+            {/* Branding Logo */}
+            <div className="flex items-center gap-1.5 select-none font-bold text-xs text-slate-800">
+              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500" />
+              <span>Brain²</span>
+            </div>
           </div>
-          <button 
-            onClick={() => setShowMemberDrawer(!showMemberDrawer)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200/60 bg-slate-50 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer shrink-0"
-           >
-            <Users className="w-3.5 h-3.5" />
-            <span>Members ({members.length})</span>
-          </button>
+
+          {/* Bottom row (Tabs and Right Utilities) */}
+          <div className="px-5 border-t border-slate-100 flex items-center justify-between select-none">
+            {/* Tabs */}
+            <div className="flex gap-4 text-xs font-bold text-slate-500 pt-2.5 pb-2">
+              <button className="text-slate-800 border-b-2 border-indigo-600 pb-2 -mb-[9px] px-0.5 cursor-pointer">Chat</button>
+              <button className="hover:text-slate-800 transition-colors pb-2 px-0.5 cursor-pointer">Calendar</button>
+              <button className="hover:text-slate-800 transition-colors pb-2 px-0.5 cursor-pointer">Tasks</button>
+            </div>
+
+            {/* Right Action Utilities (float bar) */}
+            <div className="flex items-center gap-1.5 text-slate-400 pb-1">
+              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Search className="w-3.5 h-3.5" /></button>
+              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><MessageSquare className="w-3.5 h-3.5" /></button>
+              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Smile className="w-3.5 h-3.5" /></button>
+              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
         </header>
 
         {/* Pinned Messages Bar */}
@@ -1616,6 +1665,30 @@ export default function ChatRoom({
 
         {/* Messages List Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
+          {isSelfDm && (
+            <div className="flex flex-col items-center justify-center text-center py-10 max-w-md mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-center mb-4 text-2xl">
+                🧠
+              </div>
+              <h2 className="text-[15px] font-black text-slate-800 dark:text-slate-105 mb-1.5">This is your personal space</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-semibold">
+                It's just you and your brilliant ideas! Draft messages, set reminders, or store ideas and files for easy access later.
+              </p>
+              <button type="button" className="flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-850 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition-all w-full cursor-pointer shadow-xs">
+                <span>👤</span> View Profile
+              </button>
+              
+              {/* Calendar option card */}
+              <div className="mt-4 w-full p-4 border border-rose-100 bg-rose-50/20 dark:border-rose-955/40 dark:bg-rose-955/10 rounded-2xl flex items-center gap-3 text-left hover:bg-rose-50/40 dark:hover:bg-rose-955/20 transition-all cursor-pointer">
+                <span className="text-2xl">📅</span>
+                <div className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-150">View your calendar</span>
+                  <span className="block text-[10px] text-slate-455 dark:text-slate-400 font-medium mt-0.5">Create events or manage your schedule</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {messages.filter(m => !m.parentId).map((msg, idx, filtered) => {
             const isMe = msg.senderId === 'user';
             const isEditing = editingMsgId === msg.id;
@@ -1920,185 +1993,181 @@ export default function ChatRoom({
           </div>
         )}
 
-        {/* Formatting Toolbar */}
-        {!isRecording && (
-          <div className="px-4 py-1 border-t border-slate-150 bg-slate-50/50 flex gap-2 text-slate-400 shrink-0 select-none">
-            <button 
-              type="button" 
-              onClick={() => insertFormatting('bold')} 
-              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
-              title="Bold (**)"
-            >
-              <Bold className="w-3.5 h-3.5" />
-            </button>
-            <button 
-              type="button" 
-              onClick={() => insertFormatting('italic')} 
-              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
-              title="Italic (*)"
-            >
-              <Italic className="w-3.5 h-3.5" />
-            </button>
-            <button 
-              type="button" 
-              onClick={() => insertFormatting('code')} 
-              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
-              title="Inline Code (`)"
-            >
-              <Code className="w-3.5 h-3.5" />
-            </button>
-            <button 
-              type="button" 
-              onClick={() => insertFormatting('quote')} 
-              className="p-1 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
-              title="Blockquote (>)"
-            >
-              <Quote className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-            <button 
-              type="button" 
-              onClick={() => {
-                setInputVal(prev => prev + '@');
-                setShowMentionDropdown(true);
-                setMentionQuery('');
-                setMentionCursorPos(inputVal.length + 1);
-                inputRef.current?.focus();
-              }} 
-              className="p-1 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors cursor-pointer flex items-center justify-center"
-              title="Mention @"
-            >
-              <AtSign className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Input Text Box Footer */}
-        <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-150 flex gap-2.5 items-center">
-          <button 
-            type="button" 
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-            title="Attach file"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const isImg = file.type.startsWith('image/');
-                const fileUrl = isImg ? URL.createObjectURL(file) : '#';
-                setSelectedFile({
-                  name: file.name,
-                  size: file.size,
-                  type: file.type,
-                  url: fileUrl
-                });
-                triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
-              }
-            }}
-          />
-          
-          {isRecording ? (
-            <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-250 animate-pulse text-xs font-semibold text-rose-600">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
-                <span>Recording Voice: {recordingDuration}s</span>
-              </div>
-              <button 
-                type="button" 
-                onClick={stopRecording}
-                className="p-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center"
-                title="Stop and save recording"
-              >
-                <Square className="w-3.5 h-3.5 fill-white" />
-              </button>
-            </div>
-          ) : (
-            <>
-            <input 
-              type="text"
-              ref={inputRef}
-              value={inputVal}
-              onChange={handleInputChange}
-              placeholder={activeChannel?.name.includes('ai') ? "Ask Avaxa Brain AI..." : "Type a message..."}
-              className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
-            />
-
-            {/* @Mention Autocomplete Dropdown */}
-            {showMentionDropdown && filteredMentionMembers.length > 0 && (
-              <div className="absolute bottom-full left-14 mb-2 bg-white border border-slate-200/80 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
-                <div className="px-2 py-1 mb-1">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mention a member</span>
+                {/* Mockup-style unified rich editor box card */}
+        <div className="p-4 bg-white border-t border-slate-150 shrink-0">
+          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/10 rounded-2xl p-3 bg-white transition-all shadow-xs flex flex-col gap-2">
+            
+            {/* Selected file preview widget */}
+            {selectedFile && (
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-250 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-2 truncate">
+                  <span>📎</span>
+                  <span className="truncate">{selectedFile.name}</span>
                 </div>
-                {filteredMentionMembers.map(m => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => handleSelectMention(m)}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
-                  >
-                    <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
-                    <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
-                    <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
-                  </button>
-                ))}
+                <button type="button" onClick={() => setSelectedFile(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
-            </>
-          )}
 
-          {!isRecording && (
-            <button 
-              type="button" 
-              onClick={startRecording}
-              className="p-2 rounded-xl border border-slate-200/60 bg-slate-50 text-slate-400 hover:text-rose-650 hover:bg-rose-50 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
-              title="Record voice message"
-            >
-              <Mic className="w-4 h-4" />
-            </button>
-          )}
+            {/* Input Text Area container */}
+            {isRecording ? (
+              <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-250 animate-pulse text-xs font-semibold text-rose-600">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                  <span>Recording Voice: {recordingDuration}s</span>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={stopRecording}
+                  className="p-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  <Square className="w-3.5 h-3.5 fill-white" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative flex-1">
+                <textarea
+                  ref={inputRef}
+                  value={inputVal}
+                  onChange={handleInputChange}
+                  placeholder={
+                    isSelfDm 
+                      ? `Write to ${currentUser.name}, press 'space' for AI, '/' for commands`
+                      : activeChannel?.name.includes('ai') 
+                        ? "Ask Avaxa Brain AI..." 
+                        : `Write to ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}, press 'space' for AI...`
+                  }
+                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 text-slate-800 resize-none min-h-[48px] custom-scrollbar focus:ring-0 p-0"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }
+                  }}
+                />
 
-          <button 
-            type="button" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`p-2 rounded-xl border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
-              showEmojiPicker 
-                ? 'border-indigo-550 bg-indigo-50 text-indigo-600' 
-                : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
-            }`}
-            title="Insert emoji"
-          >
-            <Smile className="w-4 h-4" />
-          </button>
+                {/* @Mention Autocomplete Dropdown */}
+                {showMentionDropdown && filteredMentionMembers.length > 0 && (
+                  <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200/80 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
+                    <div className="px-2 py-1 mb-1">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mention a member</span>
+                    </div>
+                    {filteredMentionMembers.map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleSelectMention(m)}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
+                      >
+                        <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
+                        <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
+                        <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-          {activeChannel?.name.includes('ai') && (
-            <button
-              type="button"
-              onClick={() => setSearchWeb(!searchWeb)}
-              className={`p-2 rounded-xl border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
-                searchWeb 
-                  ? 'border-indigo-550 bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400' 
-                  : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
-              }`}
-              title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
-            >
-              <Globe className="w-4.5 h-4.5" />
-            </button>
-          )}
+            {/* Hidden File Input handler */}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const isImg = file.type.startsWith('image/');
+                  const fileUrl = isImg ? URL.createObjectURL(file) : '#';
+                  setSelectedFile({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    url: fileUrl
+                  });
+                  triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
+                }
+              }}
+            />
 
-          <button 
-            type="submit"
-            className="p-2.5 rounded-2xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer shrink-0"
-            style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+            {/* Bottom Row Utilities and Actions */}
+            <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100/60">
+              {/* Left Utilities */}
+              <div className="flex items-center gap-1.5 text-slate-400 select-none">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Add File">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => setInputVal(prev => prev + ' ')} className="p-1 hover:text-amber-500 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="AI Sparkles">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                </button>
+                <button type="button" onClick={() => insertFormatting('bold')} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Format Text">
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Attach file">
+                  <Paperclip className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => { setInputVal(prev => prev + '@'); setShowMentionDropdown(true); setMentionQuery(''); }} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Mention @">
+                  <AtSign className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Stickers & Emoji">
+                  <Smile className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="GIF">
+                  <span className="text-[9px] font-black leading-none border border-slate-350 px-1 py-0.5 rounded">GIF</span>
+                </button>
+                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Video Meeting">
+                  <span className="text-sm">📹</span>
+                </button>
+                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Checklist">
+                  <span className="text-sm">☑️</span>
+                </button>
+                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Template">
+                  <span className="text-sm">📝</span>
+                </button>
+                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Automation & Integrations">
+                  <span className="text-sm">⚡</span>
+                </button>
+              </div>
+
+              {/* Right Action Buttons */}
+              <div className="flex items-center gap-2">
+                {activeChannel?.name.includes('ai') && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchWeb(!searchWeb)}
+                    className={`p-1 rounded-lg border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
+                      searchWeb 
+                        ? 'border-indigo-550 bg-indigo-50 text-indigo-650' 
+                        : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
+                    }`}
+                    title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {!isRecording && (
+                  <button type="button" onClick={startRecording} className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Record Voice">
+                    <Mic className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+                )}
+                
+                <button type="submit" disabled={!inputVal.trim() && !selectedFile} className={`p-1.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                  (inputVal.trim() || selectedFile) 
+                    ? 'bg-indigo-650 text-white shadow-xs hover:bg-indigo-750 active:scale-95' 
+                    : 'text-slate-350 bg-slate-50 border border-slate-200/60 pointer-events-none'
+                }`} title="Send Message">
+                  <Send className="w-3.5 h-3.5 fill-current" />
+                </button>
+                
+                <button type="button" className="text-slate-400 hover:text-slate-750 transition-colors p-1 hover:bg-slate-50 rounded-lg cursor-pointer">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
 
       </div>
 

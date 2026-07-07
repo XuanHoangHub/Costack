@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
-import { ChevronDown, Plus, GripVertical, Paperclip, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, Plus, GripVertical, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
@@ -70,6 +70,13 @@ export default function TaskListView({
   const [inlineEditTaskId, setInlineEditTaskId] = useState<string | null>(null);
   const [inlineEditTitle, setInlineEditTitle] = useState('');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [expandedSubtaskTaskIds, setExpandedSubtaskTaskIds] = useState<string[]>([]);
+  
+  const toggleSubtaskExpand = (taskId: string) => {
+    setExpandedSubtaskTaskIds(prev => 
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
   const isDraggingRef = useRef(false);
 
   React.useEffect(() => {
@@ -209,11 +216,28 @@ export default function TaskListView({
                                        <GripVertical className="w-3.5 h-3.5" />
                                      </div>
 
+                                     {/* Subtask Dropdown expand arrow (Image 3) */}
+                                     {task.subtasks && task.subtasks.length > 0 ? (
+                                       <button 
+                                         type="button"
+                                         onClick={e => { e.stopPropagation(); toggleSubtaskExpand(task.id); }}
+                                         className={`p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-805 text-slate-400 hover:text-slate-655 transition-all shrink-0 ${
+                                           expandedSubtaskTaskIds.includes(task.id) ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'
+                                         }`}
+                                       >
+                                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedSubtaskTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
+                                       </button>
+                                     ) : (
+                                       <div className="w-[18px] h-[18px] shrink-0" />
+                                     )}
+
                                      {/* Checkbox */}
                                      <input type="checkbox" checked={isSelected}
                                        onChange={e => { e.stopPropagation(); setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }}
                                        onClick={e => e.stopPropagation()}
-                                       className="w-4 h-4 rounded-sm border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0 accent-indigo-600" />
+                                       className={`w-4 h-4 rounded-md border border-slate-200 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0 transition-all accent-indigo-600 ${
+                                         isSelected ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'
+                                       }`} />
 
                                      {/* Status select dropdown */}
                                      <div className="shrink-0" onClick={e => e.stopPropagation()}>

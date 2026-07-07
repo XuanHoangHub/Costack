@@ -137,6 +137,7 @@ interface TaskBoardViewProps {
   cardCover?: boolean;
   setCardCover?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void;
+  onStartFocus?: (task: Task) => void;
 }
 
 export default function TaskBoardView({
@@ -144,9 +145,13 @@ export default function TaskBoardView({
   onUpdateTask, onAddSyncLog, triggerToast, boardGroupBy, setBoardGroupBy,
   boardSwimlaneBy, setBoardSwimlaneBy, filterTag, setFilterTag,
   isSmartSort, isUrgentNearDueTask, isMultiSelectMode, activeDragId, activeOverDropId,
-  cardSize = 'medium', setCardSize, cardCover = true, setCardCover, onAddTask
+  cardSize = 'medium', setCardSize, cardCover = true, setCardCover, onAddTask, onStartFocus
 }: TaskBoardViewProps) {
 
+  const [localTasks, setLocalTasks] = React.useState(filteredTasks);
+  React.useEffect(() => {
+    setLocalTasks(filteredTasks);
+  }, [filteredTasks]);
   const [localActiveDragId, setLocalActiveDragId] = React.useState<string | null>(null);
   const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<string[]>([]);
   const [inlineAddCell, setInlineAddCell] = useState<string | null>(null);
@@ -265,7 +270,7 @@ export default function TaskBoardView({
   };
 
   const getFilteredCellTasks = (colKey: string, rowKey?: string) => {
-    return filteredTasks.filter(t => {
+    return localTasks.filter(t => {
       let matchesCol = false;
       if (boardGroupBy === 'status') {
         matchesCol = t.status === colKey;
@@ -342,7 +347,7 @@ export default function TaskBoardView({
     const taskId = draggableId.replace('kanban_card_', '');
     const droppableId = destination.droppableId;
 
-    const taskToUpdate = filteredTasks.find(t => t.id === taskId);
+    const taskToUpdate = localTasks.find(t => t.id === taskId);
     if (!taskToUpdate) return;
 
     let targetColumn = droppableId;
@@ -390,6 +395,7 @@ export default function TaskBoardView({
 
     if (Object.keys(updatedFields).length > 0) {
       const updatedTask = { ...taskToUpdate, ...updatedFields };
+      setLocalTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       onUpdateTask(updatedTask);
       
       const changeDesc = Object.entries(updatedFields)

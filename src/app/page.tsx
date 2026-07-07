@@ -40,11 +40,43 @@ import AnalyticsHub from '../components/AnalyticsHub';
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
-  Search, X, FileText, Hash, ArrowRight, CornerDownLeft, Check, ChevronDown,
+  Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown,
   Timer, Bell, Calendar, Settings, Plus,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database,
   GripVertical, BarChart3
 } from 'lucide-react';
+
+const checkIsDndActive = (settings: any) => {
+  if (!settings) return false;
+  if (settings.dndActive) return true;
+  
+  if (settings.dndDurationUntil) {
+    if (Date.now() < new Date(settings.dndDurationUntil).getTime()) {
+      return true;
+    }
+  }
+  
+  if (settings.dndScheduleEnabled && settings.dndScheduleStart && settings.dndScheduleEnd) {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    const [startHour, startMin] = settings.dndScheduleStart.split(':').map(Number);
+    const [endHour, endMin] = settings.dndScheduleEnd.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    if (startMinutes <= endMinutes) {
+      if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+        return true;
+      }
+    } else {
+      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
 
 export default function App() {
   const isLoaded = useRef(false);
@@ -981,9 +1013,21 @@ export default function App() {
     const msgLower = message.toLowerCase();
 
     // Guard on global switches
-    if (!notificationSettings.enableAll || notificationSettings.dndActive) {
-      console.log(`[Notification Suppressed - Off or DND]: ${title}`);
-      return;
+    const isDndActive = checkIsDndActive(notificationSettings);
+
+    if (!notificationSettings.enableAll || isDndActive) {
+      const isUrgentNotification = type === 'deadline' || 
+                                   titleLower.includes('gấp') || 
+                                   titleLower.includes('quan trọng') || 
+                                   titleLower.includes('hạn chót') || 
+                                   msgLower.includes('hạn chót');
+      
+      if (isDndActive && notificationSettings.dndAllowUrgent && isUrgentNotification) {
+        console.log(`[Notification Bypassed DND - Urgent Exception]: ${title}`);
+      } else {
+        console.log(`[Notification Suppressed - Off or DND]: ${title}`);
+        return;
+      }
     }
 
     // Filter tag updates click annoyances
@@ -4730,9 +4774,18 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="pt-3.5 border-t border-slate-100 dark:border-slate-800/80 px-1 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-                      <span>Shortcut: <strong className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700/80 text-slate-500 dark:text-slate-400">Esc</strong> to close</span>
-                      <span className="flex items-center gap-1"><CornerDownLeft className="w-3 h-3" /> Click to jump to tab</span>
+                    {/* Upgraded Footer (Image 1 style) */}
+                    <div className="pt-3.5 border-t border-slate-150 dark:border-slate-800 px-1 flex items-center justify-between text-[11px] font-medium text-slate-405 dark:text-slate-500">
+                      <span className="flex items-center gap-1.5">
+                        <span>Press <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 px-1 py-0.5 rounded text-[10px] font-mono">/</kbd> to see all available commands, hit <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 px-1 py-0.5 rounded text-[10px] font-mono">Tab</kbd> to see additional actions</span>
+                      </span>
+                      <button 
+                        onClick={() => alert("Search settings loaded.")}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 transition-colors cursor-pointer flex items-center justify-center"
+                        title="Search Settings"
+                      >
+                        <Cog className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ) : (

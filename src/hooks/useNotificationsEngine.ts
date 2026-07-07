@@ -7,6 +7,38 @@ import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useTaskStore } from '@/store/taskStore';
 import { useSyncStore } from '@/store/syncStore';
 
+const checkIsDndActive = (settings: any) => {
+  if (!settings) return false;
+  if (settings.dndActive) return true;
+  
+  if (settings.dndDurationUntil) {
+    if (Date.now() < new Date(settings.dndDurationUntil).getTime()) {
+      return true;
+    }
+  }
+  
+  if (settings.dndScheduleEnabled && settings.dndScheduleStart && settings.dndScheduleEnd) {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    
+    const [startHour, startMin] = settings.dndScheduleStart.split(':').map(Number);
+    const [endHour, endMin] = settings.dndScheduleEnd.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    if (startMinutes <= endMinutes) {
+      if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+        return true;
+      }
+    } else {
+      if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
 export function useNotificationsEngine() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const tasks = useTaskStore((s) => s.tasks);
@@ -27,9 +59,21 @@ export function useNotificationsEngine() {
     const titleLower = title.toLowerCase();
     const msgLower = message.toLowerCase();
 
-    if (!notificationSettings.enableAll || notificationSettings.dndActive) {
-      console.log(`[Notification Suppressed - Off or DND]: ${title}`);
-      return;
+    const isDndActive = checkIsDndActive(notificationSettings);
+
+    if (!notificationSettings.enableAll || isDndActive) {
+      const isUrgentNotification = type === 'deadline' || 
+                                   titleLower.includes('gấp') || 
+                                   titleLower.includes('quan trọng') || 
+                                   titleLower.includes('hạn chót') || 
+                                   msgLower.includes('hạn chót');
+      
+      if (isDndActive && notificationSettings.dndAllowUrgent && isUrgentNotification) {
+        console.log(`[Notification Bypassed DND - Urgent Exception]: ${title}`);
+      } else {
+        console.log(`[Notification Suppressed - Off or DND]: ${title}`);
+        return;
+      }
     }
 
     if ((titleLower.includes('nhãn') || msgLower.includes('nhãn') || titleLower.includes('lọc')) && !notificationSettings.enableFilteringTags) {

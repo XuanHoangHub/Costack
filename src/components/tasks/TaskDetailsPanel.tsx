@@ -7,10 +7,43 @@ import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttach
 import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
 import SignedImage from '../SignedImage';
 import {
-  X, Trash2, Bot, CheckSquare, Plus, Edit2, Send, Paperclip, Upload,
-  MessageSquare, History, Clock, Pin, Tag, Sparkles, FileText, Check,
-  Calendar, User as UserIcon, Flag, CircleDot, ChevronDown, RefreshCw,
-  SlidersHorizontal, Phone, Search, Filter, Activity, Play, Square, Timer
+  X,
+  Trash2,
+  Bot,
+  CheckSquare,
+  Plus,
+  Edit2,
+  Send,
+  Paperclip,
+  Upload,
+  MessageSquare,
+  History,
+  Clock,
+  Pin,
+  Tag,
+  Sparkles,
+  FileText,
+  Check,
+  Calendar,
+  User as UserIcon,
+  Flag,
+  CircleDot,
+  ChevronDown,
+  RefreshCw,
+  SlidersHorizontal,
+  Phone,
+  Search,
+  Filter,
+  Activity,
+  Play,
+  Square,
+  Timer,
+  List,
+  Users,
+  MoreHorizontal,
+  Star,
+  Link as LinkIcon,
+  ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react';
 
 // ── Priority accent mapping ──
@@ -94,6 +127,64 @@ export default function TaskDetailsPanel({
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editingSubtaskValue, setEditingSubtaskValue] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [modalLayout, setModalLayout] = useState<'modal' | 'fullscreen' | 'sidebar'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('avaxa_task_modal_layout') as any) || 'modal';
+    }
+    return 'modal';
+  });
+  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('avaxa_task_modal_sidebar_expanded') === 'true';
+    }
+    return false;
+  });
+
+  const toggleSidebarExpand = () => {
+    const nextVal = !isSidebarExpanded;
+    setIsSidebarExpanded(nextVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('avaxa_task_modal_sidebar_expanded', String(nextVal));
+    }
+  };
+  const [activeRightTab, setActiveRightTab] = useState<'activity' | 'subtasks' | 'links' | null>('activity');
+  const [pastedLinkUrl, setPastedLinkUrl] = useState('');
+  const [isStarred, setIsStarred] = useState(task.isPinned || false);
+
+  const handleLayoutChange = (newLayout: 'modal' | 'fullscreen' | 'sidebar') => {
+    setModalLayout(newLayout);
+    localStorage.setItem('avaxa_task_modal_layout', newLayout);
+  };
+
+  // Layout styles mapping
+  const overlayClass = 
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/45 backdrop-blur-xs transition-all duration-305' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-black/25 transition-all duration-305' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-black/10 backdrop-blur-0 pointer-events-none transition-all duration-305';
+
+  const panelClass =
+    modalLayout === 'modal' ? 'relative w-full max-w-5xl h-[88vh] bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-slate-950 flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white dark:bg-slate-955 border-l border-slate-200/80 dark:border-slate-800 rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+
+  const panelAnimation: any =
+    modalLayout === 'modal' ? {
+      initial: { scale: 0.96, opacity: 0, y: 10 },
+      animate: { scale: 1, opacity: 1, y: 0 },
+      exit: { scale: 0.96, opacity: 0, y: 10 },
+      transition: { type: 'spring', damping: 28, stiffness: 300 }
+    } : modalLayout === 'fullscreen' ? {
+      initial: { scale: 1, opacity: 0 },
+      animate: { scale: 1, opacity: 1 },
+      exit: { scale: 1, opacity: 0 },
+      transition: { duration: 0.18, ease: 'easeOut' }
+    } : {
+      initial: { x: '100%', opacity: 1 },
+      animate: { x: 0, opacity: 1 },
+      exit: { x: '100%', opacity: 1 },
+      transition: { type: 'tween', duration: 0.28, ease: 'easeOut' }
+    };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
   const [showLinkTaskDropdown, setShowLinkTaskDropdown] = useState(false);
   const [showLinkDocDropdown, setShowLinkDocDropdown] = useState(false);
@@ -291,16 +382,13 @@ export default function TaskDetailsPanel({
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/40 backdrop-blur-sm" 
+        className={overlayClass} 
         onClick={onClose}
       >
         <motion.div 
-          initial={{ scale: 0.96, opacity: 0, y: 10 }} 
-          animate={{ scale: 1, opacity: 1, y: 0 }} 
-          exit={{ scale: 0.96, opacity: 0, y: 10 }} 
-          transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+          {...panelAnimation}
           onClick={e => e.stopPropagation()}
-          className="relative w-full max-w-5xl h-[88vh] bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl"
+          className={panelClass}
         >
 
           {/* ══════════════════════════════════════════════════════════════ */}
@@ -308,38 +396,192 @@ export default function TaskDetailsPanel({
           {/* ══════════════════════════════════════════════════════════════ */}
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar">
             
-            {/* ── Header Bar ── */}
-            <div className={`shrink-0 px-6 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-gradient-to-r ${theme.gradient}`}>
-              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 select-none">
-                <span className="flex items-center gap-1">📁 {spaceName}</span>
+            {/* ── Header Bar (Modern Image 2 & 3 Style) ── */}
+            <div className="shrink-0 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/45 dark:bg-slate-900/30 select-none">
+              
+              {/* Left: Path Breadcrumb */}
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-455">
+                <div className="flex items-center gap-1">
+                  <span className="text-[12px] shrink-0">📁</span>
+                  <span className="truncate max-w-[80px] md:max-w-[120px]">{spaceName}</span>
+                </div>
                 <span className="text-slate-300 dark:text-slate-700">/</span>
-                <span className="flex items-center gap-1">📋 {listName}</span>
-                {task.isPinned && <span className="ml-1 text-amber-500 text-xs">★</span>}
+                <div className="flex items-center gap-1 text-slate-750 dark:text-slate-305">
+                  <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="font-extrabold truncate max-w-[120px] md:max-w-[200px]">{listName}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => onUpdateTask({ ...task, isPinned: !task.isPinned })}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${task.isPinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/30' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                  <Pin className={`w-3.5 h-3.5 ${task.isPinned ? 'fill-amber-400' : ''}`} />
+
+              {/* Right: Actions Row */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400 hidden sm:inline-block font-semibold">
+                  Created {new Date(task.createdAt || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                </span>
+                
+                {/* Brain² logo badge */}
+                <button 
+                  onClick={() => onAiSummary(task)}
+                  className="py-1 px-2.5 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-650 hover:from-indigo-600 hover:to-violet-750 text-white font-extrabold text-[10px] flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                >
+                  <Sparkles className="w-3 h-3 text-indigo-200 animate-pulse" />
+                  <span>Brain²</span>
                 </button>
-                {!confirmDelete ? (
-                  <button onClick={() => setConfirmDelete(true)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all cursor-pointer">
-                    <Trash2 className="w-3.5 h-3.5" />
+
+                {/* Share Button */}
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    if (triggerToast) triggerToast('success', 'Link Copied', 'Task link copied to clipboard!');
+                  }}
+                  className="py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-655 dark:text-slate-305 font-extrabold text-[10px] flex items-center gap-1 cursor-pointer transition-all shadow-3xs"
+                >
+                  <Users className="w-3 h-3 text-slate-450" />
+                  <span>Share</span>
+                </button>
+
+                {/* More Options Menu */}
+                <div className="relative flex items-center">
+                  <button 
+                    onClick={() => setConfirmDelete(!confirmDelete)}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 cursor-pointer transition-colors"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
                   </button>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => { onDeleteTask(task.id); onClose(); }}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-600 text-white cursor-pointer hover:bg-rose-700 transition-colors">Delete</button>
-                    <button onClick={() => setConfirmDelete(false)}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
-                  </div>
+                  {confirmDelete && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setConfirmDelete(false)} />
+                      <div className="absolute right-0 top-full mt-1.5 z-50 w-36 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1 text-left">
+                        <button
+                          onClick={() => {
+                            onDeleteTask(task.id);
+                            onClose();
+                          }}
+                          className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Task</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+                {/* Star Pin Button */}
+                <button 
+                  onClick={() => {
+                    const pinned = !task.isPinned;
+                    onUpdateTask({ ...task, isPinned: pinned });
+                    setIsStarred(pinned);
+                  }}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    task.isPinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-955/25' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-900'
+                  }`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${task.isPinned ? 'fill-amber-400' : ''}`} />
+                </button>
+
+                {/* Layout Switched Dropdown Button (Image 3 layout selector) */}
+                <div className="relative flex items-center">
+                  <button 
+                    onClick={() => setLayoutMenuOpen(!layoutMenuOpen)}
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer text-slate-400 hover:text-slate-655 hover:bg-slate-100 dark:hover:bg-slate-800 ${layoutMenuOpen ? 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-500' : ''}`}
+                    title="Switch layout"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                  </button>
+
+                  <AnimatePresence>
+                    {layoutMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-[190]" onClick={() => setLayoutMenuOpen(false)} />
+                        <motion.div 
+                          initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                          className="absolute right-0 top-full mt-2 z-[200] w-[310px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-4 text-left font-sans select-none"
+                        >
+                          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Switch layout</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Option 1: Modal */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleLayoutChange('modal');
+                                setLayoutMenuOpen(false);
+                              }}
+                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                                modalLayout === 'modal' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500'
+                              }`}
+                            >
+                              <div className="w-12 h-8 rounded border border-current flex items-center justify-center mb-1.5 bg-white dark:bg-slate-955/40">
+                                <div className="w-8 h-5 rounded-xs border border-current bg-current/10" />
+                              </div>
+                              <span className="text-[10px] font-bold">Modal</span>
+                            </button>
+
+                            {/* Option 2: Full screen */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleLayoutChange('fullscreen');
+                                setLayoutMenuOpen(false);
+                              }}
+                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                                modalLayout === 'fullscreen' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500'
+                              }`}
+                            >
+                              <div className="w-12 h-8 rounded border border-current flex items-stretch justify-stretch p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
+                                <div className="flex-1 rounded-xs border border-current bg-current/10" />
+                              </div>
+                              <span className="text-[10px] font-bold">Full screen</span>
+                            </button>
+
+                            {/* Option 3: Sidebar */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleLayoutChange('sidebar');
+                                setLayoutMenuOpen(false);
+                              }}
+                              className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                                modalLayout === 'sidebar' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-450' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-500'
+                              }`}
+                            >
+                              <div className="w-12 h-8 rounded border border-current flex items-stretch justify-end p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
+                                <div className="w-4 rounded-xs border border-current bg-current/10" />
+                              </div>
+                              <span className="text-[10px] font-bold">Sidebar</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Close Button */}
+                {/* Sidebar Expand Button (Image 2 Chevron Style) */}
+                {modalLayout === 'sidebar' && (
+                  <button 
+                    onClick={toggleSidebarExpand}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center"
+                    title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                  >
+                    {isSidebarExpanded ? (
+                      <ChevronsRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronsLeft className="w-4 h-4" />
+                    )}
+                  </button>
                 )}
-                <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer ml-0.5">
+
+                <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
-
             {/* ── Content Body ── */}
             <div className="p-6 md:px-7 space-y-6">
 
@@ -955,97 +1197,344 @@ export default function TaskDetailsPanel({
           </div>
 
           {/* ══════════════════════════════════════════════════════════════ */}
-          {/* ── RIGHT PANEL: Activity Log & Chat Feed ── */}
           {/* ══════════════════════════════════════════════════════════════ */}
-          <div className="w-full md:w-[38%] border-t md:border-t-0 md:border-l border-slate-200/80 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/10 flex flex-col h-full min-w-0">
-            
-            {/* Right Header */}
-            <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none">
-              <span className="text-[12px] font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-indigo-500" />
-                Activity Log
-              </span>
-              <div className="flex items-center gap-2 text-slate-400">
-                <Phone className="w-3.5 h-3.5 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors" />
-                <Search className="w-3.5 h-3.5 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors" />
-                <Filter className="w-3.5 h-3.5 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors" />
-              </div>
-            </div>
+          {/* ── VERTICAL ICONS RAIL & SWITCHABLE SIDEBAR (Image 4 & 5 Style) ── */}
+          {/* ══════════════════════════════════════════════════════════════ */}
+          
+          {/* Vertical Icons Rail */}
+          <div className="w-12 border-l border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col items-center py-4 gap-4 shrink-0 select-none">
+            <button
+              onClick={() => setActiveRightTab(activeRightTab === 'activity' ? null : 'activity')}
+              className={`p-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 relative ${
+                activeRightTab === 'activity' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-405' : 'text-slate-400 hover:text-slate-655'
+              }`}
+              title="Activity log & comments"
+            >
+              <MessageSquare className="w-4 h-4" />
+              {(task.comments?.length || 0) > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950" />
+              )}
+            </button>
 
-            {/* Timeline Feed */}
-            <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
-              {timelineItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 text-center select-none">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-850 flex items-center justify-center mb-2.5">
-                    <MessageSquare className="w-5 h-5 text-slate-300" />
+            <button
+              onClick={() => setActiveRightTab(activeRightTab === 'subtasks' ? null : 'subtasks')}
+              className={`p-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                activeRightTab === 'subtasks' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-405' : 'text-slate-400 hover:text-slate-655'
+              }`}
+              title="Subtasks tracker"
+            >
+              <CheckSquare className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setActiveRightTab(activeRightTab === 'links' ? null : 'links')}
+              className={`p-2 rounded-xl transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                activeRightTab === 'links' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-405' : 'text-slate-400 hover:text-slate-655'
+              }`}
+              title="Add links & integrations"
+            >
+              <LinkIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Switchable Sidebar Content Panel */}
+          {activeRightTab && (
+            <div className="w-full md:w-[310px] border-l border-slate-200/80 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 flex flex-col h-full min-w-0">
+              
+              {activeRightTab === 'activity' && (
+                <div className="flex flex-col h-full min-w-0">
+                  {/* Right Header */}
+                  <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none">
+                    <span className="text-[12px] font-bold text-slate-850 dark:text-slate-105 flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-indigo-500" />
+                      Activity Log
+                    </span>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Phone className="w-3.5 h-3.5 hover:text-slate-655 dark:hover:text-slate-200 cursor-pointer transition-colors" />
+                      <Search className="w-3.5 h-3.5 hover:text-slate-655 dark:hover:text-slate-200 cursor-pointer transition-colors" />
+                      <Filter className="w-3.5 h-3.5 hover:text-slate-655 dark:hover:text-slate-200 cursor-pointer transition-colors" />
+                    </div>
                   </div>
-                  <span className="text-[12px] font-medium text-slate-400">No activity or comments yet</span>
-                  <span className="text-[10px] text-slate-350 mt-1">Changes and comments appear here</span>
+
+                  {/* Timeline Feed */}
+                  <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
+                    {timelineItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-14 text-center select-none">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-855 flex items-center justify-center mb-2.5">
+                          <MessageSquare className="w-5 h-5 text-slate-300" />
+                        </div>
+                        <span className="text-[12px] font-medium text-slate-400">No activity or comments yet</span>
+                        <span className="text-[10px] text-slate-355 mt-1">Changes appear here</span>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-800" />
+                        <div className="space-y-4">
+                          {timelineItems.map((item, idx) => {
+                            if (item.type === 'activity') {
+                              const actColor = getActivityColor(item.content);
+                              return (
+                                <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: idx * 0.02 }}
+                                  className="flex items-start gap-3 relative">
+                                  <div className={`w-[22px] h-[22px] rounded-full ${actColor.dot} flex items-center justify-center shrink-0 z-10 ring-4 ring-slate-50 dark:ring-slate-950`}>
+                                    <History className="w-3 h-3 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0 pt-0.5 text-left">
+                                    <div className="text-[11.5px] text-slate-600 dark:text-slate-305">
+                                      <span className="font-bold text-slate-800 dark:text-slate-105">{item.userName}</span>
+                                      <span className="ml-1 text-slate-555 dark:text-slate-400">{item.content}</span>
+                                    </div>
+                                    <div className="text-[9.5px] text-slate-400 mt-0.5">{item.timestamp}</div>
+                                  </div>
+                                </motion.div>
+                              );
+                            } else {
+                              return (
+                                <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: idx * 0.02 }}
+                                  className="flex items-start gap-3 relative">
+                                  <div className="relative shrink-0 z-10 ring-4 ring-slate-50 dark:ring-slate-950">
+                                    <SignedImage filePath={item.avatar} className="w-5.5 h-5.5 rounded-full border border-slate-200 dark:border-slate-800 object-cover" alt={item.userName} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(item.userName)}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0 pt-0.5 text-left">
+                                    <div className="flex items-center gap-1.5 mb-1 text-[11.5px]">
+                                      <span className="font-bold text-slate-850 dark:text-slate-105">{item.userName}</span>
+                                      <span className="text-[9px] text-slate-450">{item.timestamp}</span>
+                                    </div>
+                                    <div className="p-3 rounded-xl rounded-tl-sm bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-[11.5px] text-slate-600 dark:text-slate-305 leading-relaxed font-medium shadow-xs">
+                                      {item.content}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            }
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comment Input */}
+                  <div className="p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-955 shrink-0">
+                    <div className="flex items-center gap-2 bg-slate-50/80 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-805 rounded-xl px-4 py-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
+                      <input value={commentText} onChange={e => setCommentText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addComment(); }}
+                        placeholder="Write a comment..."
+                        className="flex-1 text-[12px] font-medium outline-none bg-transparent text-slate-700 dark:text-slate-255 placeholder-slate-400" />
+                      <button onClick={addComment} disabled={!commentText.trim()}
+                        className="p-2 rounded-lg bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm">
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-200 dark:bg-slate-800" />
-                  <div className="space-y-4">
-                    {timelineItems.map((item, idx) => {
-                      if (item.type === 'activity') {
-                        const actColor = getActivityColor(item.content);
-                        return (
-                          <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.02 }}
-                            className="flex items-start gap-3 relative">
-                            <div className={`w-[22px] h-[22px] rounded-full ${actColor.dot} flex items-center justify-center shrink-0 z-10 ring-4 ring-slate-50 dark:ring-slate-950`}>
-                              <History className="w-3 h-3 text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0 pt-0.5">
-                              <div className="text-[11.5px] text-slate-600 dark:text-slate-300">
-                                <span className="font-bold text-slate-800 dark:text-slate-100">{item.userName}</span>
-                                <span className="ml-1 text-slate-500 dark:text-slate-400">{item.content}</span>
-                              </div>
-                              <div className="text-[9.5px] text-slate-400 mt-0.5">{item.timestamp}</div>
-                            </div>
-                          </motion.div>
-                        );
-                      } else {
-                        return (
-                          <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.02 }}
-                            className="flex items-start gap-3 relative">
-                            <div className="relative shrink-0 z-10 ring-4 ring-slate-50 dark:ring-slate-950">
-                              <SignedImage filePath={item.avatar} className="w-5.5 h-5.5 rounded-full border border-slate-200 dark:border-slate-800 object-cover" alt={item.userName} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(item.userName)}`} />
-                            </div>
-                            <div className="flex-1 min-w-0 pt-0.5">
-                              <div className="flex items-center gap-1.5 mb-1 text-[11.5px]">
-                                <span className="font-bold text-slate-800 dark:text-slate-100">{item.userName}</span>
-                                <span className="text-[9px] text-slate-400">{item.timestamp}</span>
-                              </div>
-                              <div className="p-3 rounded-xl rounded-tl-sm bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-[11.5px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium shadow-xs">
-                                {item.content}
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      }
-                    })}
+              )}
+
+              {activeRightTab === 'subtasks' && (
+                <div className="flex flex-col h-full min-w-0">
+                  {/* Right Header */}
+                  <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none">
+                    <span className="text-[12px] font-bold text-slate-800 dark:text-slate-105 flex items-center gap-1.5">
+                      <CheckSquare className="w-4 h-4 text-indigo-500 animate-bounce" />
+                      Subtasks Checklist
+                    </span>
+                  </div>
+
+                  <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 text-left">
+                    {task.subtasks.length > 0 && (
+                      <div className="space-y-1 bg-white dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-150 dark:border-slate-805/80 shadow-3xs">
+                        <div className="flex items-center justify-between text-[10.5px] font-extrabold text-indigo-655 dark:text-indigo-405 uppercase tracking-wider mb-2">
+                          <span>Checklist Progress</span>
+                          <span className="tabular-nums">{task.progress}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-805 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-355" style={{ width: `${task.progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      {task.subtasks.map(sub => (
+                        <div key={sub.id} className="flex items-center gap-2.5 group py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/80 rounded-xl hover:border-slate-350 dark:hover:border-slate-700 transition-all">
+                          <button onClick={() => toggleSubtask(sub.id)}
+                            className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${sub.completed ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 dark:border-slate-655 hover:border-indigo-400'}`}>
+                            {sub.completed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                          </button>
+                          {editingSubtaskId === sub.id ? (
+                            <input autoFocus value={editingSubtaskValue}
+                              onChange={e => setEditingSubtaskValue(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') editSubtask(sub.id, editingSubtaskValue); if (e.key === 'Escape') setEditingSubtaskId(null); }}
+                              onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
+                              className="flex-1 text-[12px] font-medium bg-transparent border-b-2 border-indigo-400 outline-none py-0.5 text-slate-850 dark:text-slate-105" />
+                          ) : (
+                            <span onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
+                              className={`flex-1 text-[12px] cursor-text transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-550' : 'text-slate-700 dark:text-slate-250 font-bold'}`}>
+                              {sub.title}
+                            </span>
+                          )}
+                          <button onClick={() => deleteSubtask(sub.id)}
+                            className="p-1 text-slate-350 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {task.subtasks.length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-10 text-center select-none italic text-slate-405 text-xs">
+                        No subtasks added yet.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Subtask Input */}
+                  <div className="p-4 border-t border-slate-200/80 dark:border-slate-805 bg-white dark:bg-slate-950 shrink-0">
+                    <div className="flex items-center gap-2 bg-slate-50/80 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-4 py-2">
+                      <Plus className="w-4 h-4 text-slate-450" />
+                      <input value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
+                        placeholder="Add subtask..."
+                        className="flex-1 text-[12px] font-medium outline-none bg-transparent text-slate-750 dark:text-slate-200 placeholder-slate-400" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeRightTab === 'links' && (
+                <div className="flex flex-col h-full min-w-0">
+                  {/* Right Header */}
+                  <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none">
+                    <span className="text-[12px] font-bold text-slate-805 dark:text-slate-105 flex items-center gap-1.5">
+                      <LinkIcon className="w-4 h-4 text-indigo-500 animate-pulse" />
+                      Add links & connections
+                    </span>
+                  </div>
+
+                  <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 text-left select-none">
+                    {/* Paste URL */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9.5px] font-black text-slate-405 dark:text-slate-500 uppercase tracking-wider">Paste URL</label>
+                      <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 shadow-3xs">
+                        <LinkIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <input 
+                          type="text" 
+                          placeholder="Paste URL..." 
+                          value={pastedLinkUrl}
+                          onChange={e => setPastedLinkUrl(e.target.value)}
+                          className="flex-1 bg-transparent border-none outline-none text-xs font-semibold text-slate-750 dark:text-slate-200 placeholder-slate-400"
+                        />
+                        <button 
+                          onClick={() => {
+                            if (!pastedLinkUrl.trim()) return;
+                            const cleanUrl = pastedLinkUrl.trim();
+                            const newAtt = {
+                              id: `att-${Date.now()}`,
+                      filePath: '',
+                      uploadedAt: new Date().toISOString(),
+                              name: cleanUrl.replace(/^(https?:\/\/)?(www\.)?/, '').slice(0, 24) || 'Linked URL',
+                              url: cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`,
+                              size: 0
+                            };
+                            onUpdateTask({ ...task, attachments: [...(task.attachments || []), newAtt] });
+                            setPastedLinkUrl('');
+                            if (triggerToast) triggerToast('success', 'Link Connected', 'Successfully connected link to task!');
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-black bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg transition-colors cursor-pointer"
+                        >
+                          Link
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Integrations Grid (Image 5 Style) */}
+                    <div className="space-y-2">
+                      <label className="text-[9.5px] font-black text-slate-405 dark:text-slate-500 uppercase tracking-wider">Integrations</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'Figma', icon: '🎨', color: 'text-orange-500 bg-orange-50/50 hover:bg-orange-50 dark:bg-orange-955/20 border-orange-100/10' },
+                          { name: 'Dropbox', icon: '📦', color: 'text-blue-500 bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-955/20 border-blue-100/10' },
+                          { name: 'GitHub', icon: '🐙', color: 'text-slate-700 bg-slate-100/50 hover:bg-slate-100 dark:text-slate-200 dark:bg-slate-800/40 border-slate-205/10' },
+                          { name: 'Slack', icon: '💬', color: 'text-rose-500 bg-rose-50/50 hover:bg-rose-50 dark:bg-rose-955/20 border-rose-100/10' },
+                          { name: 'Zoom', icon: '📹', color: 'text-cyan-500 bg-cyan-50/50 hover:bg-cyan-50 dark:bg-cyan-955/20 border-cyan-100/10' },
+                          { name: 'Drive', icon: '🔺', color: 'text-emerald-500 bg-emerald-50/50 hover:bg-emerald-50 dark:bg-emerald-955/20 border-emerald-100/10' },
+                        ].map(item => (
+                          <button
+                            key={item.name}
+                            type="button"
+                            onClick={() => {
+                              const newAtt = {
+                                id: `att-${Date.now()}`,
+                      filePath: '',
+                      uploadedAt: new Date().toISOString(),
+                                name: `${item.name} Asset Reference`,
+                                url: `https://${item.name.toLowerCase()}.com/mock-avaxa-productivity-asset`,
+                                size: 0
+                              };
+                              onUpdateTask({ ...task, attachments: [...(task.attachments || []), newAtt] });
+                              if (triggerToast) triggerToast('success', 'Asset Linked', `Linked ${item.name} file reference successfully!`);
+                            }}
+                            className={`flex flex-col items-center justify-center p-2 rounded-xl border border-transparent transition-all cursor-pointer shadow-3xs ${item.color}`}
+                          >
+                            <span className="text-base mb-1">{item.icon}</span>
+                            <span className="text-[10px] font-bold">{item.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" className="text-[10px] font-black text-indigo-500 hover:underline mt-1 cursor-pointer">
+                        and more &gt;
+                      </button>
+                    </div>
+
+                    {/* Or Relate Items */}
+                    <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-805">
+                      <label className="text-[9.5px] font-black text-slate-405 dark:text-slate-500 uppercase tracking-wider">Or relate items</label>
+                      <div className="space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const name = prompt("Enter linked task or doc title:");
+                            if (name?.trim()) {
+                              if (triggerToast) triggerToast('success', 'Linked Reference', `Linked this task to reference: "${name.trim()}"`);
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-2 hover:bg-slate-100/60 dark:hover:bg-slate-850/60 rounded-xl text-xs font-bold text-slate-655 dark:text-slate-350 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">🔄 Task or Doc</span>
+                          <ChevronRight className="w-3 h-3 text-slate-400" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (triggerToast) triggerToast('info', 'Dependencies Config', 'Set task dependency blocks inside timeline/gantt views.');
+                          }}
+                          className="w-full flex items-center justify-between p-2 hover:bg-slate-100/60 dark:hover:bg-slate-850/60 rounded-xl text-xs font-bold text-slate-655 dark:text-slate-350 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">🔗 Dependencies</span>
+                          <ChevronRight className="w-3 h-3 text-slate-400" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const customLabel = prompt("Enter custom category name:");
+                            if (customLabel?.trim()) {
+                              if (triggerToast) triggerToast('success', 'Custom Relate Added', `Created custom category relation: "${customLabel.trim()}"`);
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-2 hover:bg-slate-100/60 dark:hover:bg-slate-850/60 rounded-xl text-xs font-bold text-slate-655 dark:text-slate-350 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">➕ Custom</span>
+                          <ChevronRight className="w-3 h-3 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Comment Input */}
-            <div className="p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
-              <div className="flex items-center gap-2 bg-slate-50/80 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-4 py-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
-                <input value={commentText} onChange={e => setCommentText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') addComment(); }}
-                  placeholder="Write a comment..."
-                  className="flex-1 text-[12px] font-medium outline-none bg-transparent text-slate-700 dark:text-slate-200 placeholder-slate-400" />
-                <button onClick={addComment} disabled={!commentText.trim()}
-                  className="p-2 rounded-lg bg-indigo-600 text-white cursor-pointer hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm">
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>,

@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock } from 'lucide-react';
+import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 
 // ── Custom Hook for Portal Positioning ──
-function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200) {
-  const [coords, setCoords] = useState<{ top: number; bottom: number; left: number; right: number; width: number } | null>(null);
+function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
+  const [coords, setCoords] = useState<{ top: number; bottom: number; left: number; right: number; width: number; safeLeft: number } | null>(null);
   const [openUpward, setOpenUpward] = useState(false);
 
   React.useEffect(() => {
@@ -18,8 +18,19 @@ function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTML
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(spaceBelow < dropdownHeight && rect.top > dropdownHeight + 5);
-      setCoords({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width });
+      
+      // Smart vertical check: if space below is less than dropdownHeight and there is more space above, open upward.
+      const upward = spaceBelow < dropdownHeight && rect.top > spaceBelow;
+      setOpenUpward(upward);
+      
+      // Calculate safe left position to avoid horizontal clipping
+      let safeLeft = rect.left;
+      if (safeLeft + dropdownWidth > window.innerWidth) {
+        safeLeft = window.innerWidth - dropdownWidth - 8;
+      }
+      safeLeft = Math.max(8, safeLeft);
+
+      setCoords({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, safeLeft });
     };
     updateCoords();
     window.addEventListener('scroll', updateCoords, true);
@@ -28,7 +39,7 @@ function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTML
       window.removeEventListener('scroll', updateCoords, true);
       window.removeEventListener('resize', updateCoords);
     };
-  }, [isOpen, containerRef, dropdownHeight]);
+  }, [isOpen, containerRef, dropdownHeight, dropdownWidth]);
 
   return { coords, openUpward };
 }
@@ -38,7 +49,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 180);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -71,7 +82,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
       style={{
         position: 'fixed',
         zIndex: 9999,
-        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
@@ -119,7 +130,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 150);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 150, 160);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -150,7 +161,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
       style={{
         position: 'fixed',
         zIndex: 9999,
-        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
       {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(s => (
@@ -187,7 +198,7 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 220);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220, 208);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -212,7 +223,7 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
       style={{
         position: 'fixed',
         zIndex: 9999,
-        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
       <button type="button" onClick={() => { onChange(null); setOpen(false); }}
@@ -270,24 +281,107 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
   );
 }
 
+
+function getPresetLabels() {
+  const now = new Date();
+  
+  const getWeekday = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short' });
+  const getShortDate = (d: Date) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  
+  const todayLabel = getWeekday(now);
+  
+  const laterTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const laterLabel = laterTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowLabel = getWeekday(tomorrow);
+  
+  const thisWeekend = new Date(now);
+  const dayOfWeek = now.getDay();
+  const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+  thisWeekend.setDate(now.getDate() + (daysToSaturday === 0 ? 7 : daysToSaturday));
+  const thisWeekendLabel = getWeekday(thisWeekend);
+  
+  const daysToMonday = (1 - dayOfWeek + 7) % 7;
+  const nextWeek = new Date(now);
+  nextWeek.setDate(now.getDate() + (daysToMonday === 0 ? 7 : daysToMonday));
+  const nextWeekLabel = getWeekday(nextWeek);
+  
+  const nextWeekend = new Date(thisWeekend);
+  nextWeekend.setDate(thisWeekend.getDate() + 7);
+  const nextWeekendLabel = getShortDate(nextWeekend);
+  
+  const twoWeeks = new Date(now);
+  twoWeeks.setDate(now.getDate() + 14);
+  const twoWeeksLabel = getShortDate(twoWeeks);
+  
+  const fourWeeks = new Date(now);
+  fourWeeks.setDate(now.getDate() + 28);
+  const fourWeeksLabel = getShortDate(fourWeeks);
+  
+  return {
+    today: todayLabel,
+    later: laterLabel,
+    tomorrow: tomorrowLabel,
+    thisWeekend: thisWeekendLabel,
+    nextWeek: nextWeekLabel,
+    nextWeekend: nextWeekendLabel,
+    twoWeeks: twoWeeksLabel,
+    fourWeeks: fourWeeksLabel
+  };
+}
+
 // ── Premium Date Picker ──
-export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clearable = true, align = 'right', className = '', displayLabel }: {
-  label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center'; className?: string; displayLabel?: string;
+export function PremiumDatePicker({ label, dateValue, timeValue, onChange, startDateValue = '', onStartDateChange, clearable = true, align = 'right', className = '', displayLabel }: {
+  label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; startDateValue?: string; onStartDateChange?: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center'; className?: string; displayLabel?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedTime, setSelectedTime] = useState(timeValue || '');
+  
+  const [activeTab, setActiveTab] = useState<'start' | 'due'>(() => {
+    if (label?.toLowerCase() === 'start') return 'start';
+    return 'due';
+  });
 
-  const [currentYear, setCurrentYear] = useState(() => {
-    if (dateValue) return parseInt(dateValue.split('-')[0]) || new Date().getFullYear();
-    return new Date().getFullYear();
-  });
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    if (dateValue) return (parseInt(dateValue.split('-')[1]) - 1) || new Date().getMonth();
-    return new Date().getMonth();
-  });
+  const [localStartDate, setLocalStartDate] = useState('');
+  const [localStartDateTime, setLocalStartDateTime] = useState('');
+  const [localDueDate, setLocalDueDate] = useState('');
+  const [localDueDateTime, setLocalDueDateTime] = useState('');
+
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const startParts = startDateValue ? startDateValue.split('T') : ['', ''];
+      setLocalStartDate(startParts[0] || '');
+      setLocalStartDateTime(startParts[1] || '');
+
+      const dueParts = dateValue ? dateValue.split('T') : ['', ''];
+      setLocalDueDate(dueParts[0] || '');
+      setLocalDueDateTime(dueParts[1] || '');
+      
+      setActiveTab(label?.toLowerCase() === 'start' ? 'start' : 'due');
+    }
+  }, [isOpen, startDateValue, dateValue, label]);
+
+  const activeDateStr = activeTab === 'start' ? localStartDate : localDueDate;
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+
+  React.useEffect(() => {
+    if (activeDateStr) {
+      const parts = activeDateStr.split('-');
+      if (parts.length === 3) {
+        setCurrentYear(parseInt(parts[0]) || new Date().getFullYear());
+        setCurrentMonth((parseInt(parts[1]) - 1) || new Date().getMonth());
+      }
+    } else {
+      setCurrentYear(new Date().getFullYear());
+      setCurrentMonth(new Date().getMonth());
+    }
+  }, [activeTab, activeDateStr]);
 
   const [coords, setCoords] = useState<{ top: number; bottom: number; left: number; right: number; width: number } | null>(null);
   const [openUpward, setOpenUpward] = useState(false);
@@ -306,9 +400,13 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
   React.useEffect(() => {
     if (!isOpen || !containerRef.current) return;
     const updateCoords = () => {
-      const rect = containerRef.current!.getBoundingClientRect();
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenUpward(spaceBelow < 440 && rect.top > 445);
+      
+      // Smart vertical check:
+      setOpenUpward(spaceBelow < 450 && rect.top > spaceBelow);
+      
       setCoords({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width });
     };
     updateCoords();
@@ -323,48 +421,83 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
   const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
   const totalCells = adjustedFirstDay + daysInMonth;
   const trailingDays = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   const prevMonth = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
   const nextMonth = () => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); } else setCurrentMonth(m => m + 1); };
+
+  const saveDate = (datePart: string, timePart: string, target: 'start' | 'due') => {
+    const fullVal = datePart ? (timePart ? `${datePart}T${timePart}` : datePart) : undefined;
+    if (target === 'start') {
+      setLocalStartDate(datePart);
+      setLocalStartDateTime(timePart);
+      onStartDateChange?.(fullVal);
+    } else {
+      setLocalDueDate(datePart);
+      setLocalDueDateTime(timePart);
+      onChange(fullVal);
+    }
+  };
 
   const selectDate = (day: number) => {
     const mm = String(currentMonth + 1).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
     const newDate = `${currentYear}-${mm}-${dd}`;
-    onChange(selectedTime ? `${newDate}T${selectedTime}` : newDate);
-    setIsOpen(false);
-    setShowTimePicker(false);
+    const activeTime = activeTab === 'start' ? localStartDateTime : localDueDateTime;
+    saveDate(newDate, activeTime, activeTab);
   };
 
-  const selectPreset = (offsetDays: number) => {
+  const selectPreset = (offsetDays: number, setTimeLabel?: string) => {
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const newDate = `${yyyy}-${mm}-${dd}`;
-    onChange(selectedTime ? `${newDate}T${selectedTime}` : newDate);
+    
+    let targetTime = activeTab === 'start' ? localStartDateTime : localDueDateTime;
+    if (setTimeLabel) {
+      targetTime = setTimeLabel;
+    }
+    
+    saveDate(newDate, targetTime, activeTab);
     setCurrentMonth(d.getMonth());
     setCurrentYear(d.getFullYear());
-    setIsOpen(false);
-    setShowTimePicker(false);
+  };
+
+  const clearActiveDate = (target: 'start' | 'due') => {
+    saveDate('', '', target);
   };
 
   const applyTime = (time: string) => {
-    setSelectedTime(time);
-    if (dateValue) {
-      const datePart = dateValue.split('T')[0];
-      onChange(time ? `${datePart}T${time}` : datePart);
+    if (activeTab === 'start') {
+      setLocalStartDateTime(time);
+      if (localStartDate) saveDate(localStartDate, time, 'start');
+    } else {
+      setLocalDueDateTime(time);
+      if (localDueDate) saveDate(localDueDate, time, 'due');
     }
   };
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const selectedDateStr = dateValue?.split('T')[0] || '';
+  
+  const presets = getPresetLabels();
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+  const daysToMonday = (1 - dayOfWeek + 7) % 7;
 
-  // Smart display formatting
+  const formatDateForBox = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0].substring(2)}`;
+    }
+    return dateStr;
+  };
+
   const displayText = displayLabel || (dateValue ? (() => {
     const parts = dateValue.split('T')[0].split('-');
     if (parts.length === 3) {
@@ -376,16 +509,12 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
       const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
       const tmrwStr = `${tmrw.getFullYear()}-${String(tmrw.getMonth() + 1).padStart(2, '0')}-${String(tmrw.getDate()).padStart(2, '0')}`;
       if (ds === tmrwStr) return 'Tomorrow';
-      const yest = new Date(); yest.setDate(yest.getDate() - 1);
-      const yestStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
-      if (ds === yestStr) return 'Yesterday';
       return `${monthNamesShort[m]} ${d}${y !== today.getFullYear() ? `, ${y}` : ''}`;
     }
     return dateValue;
   })() : (label || 'Select Date'));
 
-  // Determine if selected date is overdue
-  const isOverdue = dateValue && selectedDateStr < todayStr && label?.toLowerCase() === 'due';
+  const isOverdue = dateValue && dateValue.split('T')[0] < todayStr && label?.toLowerCase() === 'due';
 
   const calendarContent = (
     <motion.div
@@ -394,206 +523,270 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, clear
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: openUpward ? 8 : -8, scale: 0.96 }}
       transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-      className="select-none rounded-[20px] bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800"
+      className="select-none rounded-[24px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
       style={{
         position: 'fixed',
         zIndex: 9999,
-        width: 310,
+        width: 480,
         boxShadow: '0 25px 60px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
-        ...(coords ? (openUpward
-          ? { bottom: window.innerHeight - coords.top + 8, left: align === 'right' ? coords.right - 310 : coords.left }
-          : { top: coords.bottom + 8, left: align === 'right' ? coords.right - 310 : coords.left }
-        ) : {})
+        ...(coords ? (() => {
+          let left = align === 'right' ? coords.right - 480 : coords.left;
+          left = Math.max(8, left);
+          if (left + 480 > window.innerWidth) {
+            left = window.innerWidth - 480 - 8;
+          }
+          return openUpward
+            ? { bottom: window.innerHeight - coords.top + 8, left }
+            : { top: coords.bottom + 8, left };
+        })() : {})
       }}
     >
-      {/* ── Gradient Header ── */}
-      <div className="relative overflow-hidden rounded-t-[20px]" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)' }}>
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.2) 0%, transparent 40%)' }} />
-        <div className="relative px-5 pt-4 pb-3">
-          <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={prevMonth}
-              className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-all cursor-pointer active:scale-90">
-              <ChevronLeft className="w-3.5 h-3.5 text-white" />
-            </button>
-            <div className="text-center">
-              <div className="text-[13px] font-black text-white tracking-wide">{monthNames[currentMonth]}</div>
-              <div className="text-[10px] font-bold text-white/60">{currentYear}</div>
-            </div>
-            <button type="button" onClick={nextMonth}
-              className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-all cursor-pointer active:scale-90">
-              <ChevronRight className="w-3.5 h-3.5 text-white" />
-            </button>
-          </div>
-          {selectedDateStr && (
-            <div className="text-center mt-1">
-              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{label || 'Selected'}</span>
-              <div className="text-lg font-black text-white leading-tight">
-                {(() => {
-                  const parts = selectedDateStr.split('-');
-                  return `${monthNamesShort[parseInt(parts[1]) - 1]} ${parseInt(parts[2])}, ${parts[0]}`;
-                })()}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Quick Presets Bar ── */}
-      <div className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800/60">
-        {[
-          { label: 'Today', offset: 0, icon: '📌' },
-          { label: 'Tomorrow', offset: 1, icon: '➡️' },
-          { label: 'Next Week', offset: 7, icon: '📅' },
-          { label: '+2 Weeks', offset: 14, icon: '🗓️' },
-        ].map(preset => (
-          <button key={preset.label} type="button" onClick={() => selectPreset(preset.offset)}
-            className="flex-1 flex items-center justify-center gap-1 px-1 py-1.5 rounded-lg text-[9px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer active:scale-95 uppercase tracking-wider">
-            <span className="text-[10px]">{preset.icon}</span>
-            <span>{preset.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Calendar Grid ── */}
-      <div className="px-4 pt-3 pb-2">
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-0 mb-1">
-          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-            <div key={d} className="text-center py-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">{d}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Days grid */}
-        <div className="grid grid-cols-7 gap-0">
-          {/* Previous month ghost days */}
-          {Array.from({ length: adjustedFirstDay }).map((_, i) => {
-            const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
-            return (
-              <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square">
-                <span className="text-[11px] font-medium text-slate-200 dark:text-slate-700">{ghostDay}</span>
-              </div>
-            );
-          })}
-
-          {/* Current month days */}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isSelected = dateStr === selectedDateStr;
-            const isToday = dateStr === todayStr;
-            const isPast = dateStr < todayStr;
-            const isWeekend = (() => {
-              const wd = new Date(currentYear, currentMonth, day);
-              return wd.getDay() === 0 || wd.getDay() === 6;
-            })();
-
-            return (
-              <div key={day} className="flex items-center justify-center w-full aspect-square p-[2px]">
-                <button
-                  type="button"
-                  onClick={() => selectDate(day)}
-                  className={`relative w-full h-full rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 hover:scale-110 active:scale-90 ${
-                    isSelected
-                      ? 'text-white font-black shadow-md shadow-indigo-500/30'
-                      : isToday
-                        ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
-                        : isPast
-                          ? 'font-semibold text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          : isWeekend
-                            ? 'font-bold text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            : 'font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  style={isSelected ? { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' } : undefined}
-                >
-                  {isToday && !isSelected && (
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
-                  )}
-                  <span className="text-[11.5px] relative z-10">{day}</span>
-                </button>
-              </div>
-            );
-          })}
-
-          {/* Next month ghost days */}
-          {Array.from({ length: trailingDays }).map((_, i) => (
-            <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square">
-              <span className="text-[11px] font-medium text-slate-200 dark:text-slate-700">{i + 1}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Time Picker Toggle ── */}
-      <div className="px-4 pb-3">
-        <button type="button" onClick={() => setShowTimePicker(!showTimePicker)}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 transition-all cursor-pointer group">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-lg bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/40 transition-colors">
-              <Clock className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">
-              {selectedTime ? `Time: ${selectedTime}` : 'Add time'}
+      {/* ── Top Start/Due Date Boxes ── */}
+      <div className="p-4 pb-2 flex items-center gap-2 border-b border-slate-100 dark:border-slate-850">
+        <div 
+          onClick={() => setActiveTab('start')}
+          className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+            activeTab === 'start'
+              ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
+              : 'border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-405 shrink-0" />
+            <span className={`text-sm font-semibold truncate ${localStartDate ? 'text-slate-850 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
+              {localStartDate ? formatDateForBox(localStartDate) : 'Start date'}
             </span>
           </div>
-          <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${showTimePicker ? 'rotate-180' : ''}`} />
-        </button>
-
-        <AnimatePresence>
-          {showTimePicker && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="overflow-hidden"
+          {localStartDate && (
+            <button 
+              type="button" 
+              onClick={(e) => { e.stopPropagation(); clearActiveDate('start'); }}
+              className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
             >
-              <div className="pt-2 grid grid-cols-4 gap-1">
-                {['09:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'].map(t => (
-                  <button key={t} type="button"
-                    onClick={() => applyTime(t)}
-                    className={`py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer active:scale-95 ${
-                      selectedTime === t
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400'
-                    }`}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="time"
-                  value={selectedTime}
-                  onChange={e => applyTime(e.target.value)}
-                  className="flex-1 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/30 transition-all"
-                />
-                {selectedTime && (
-                  <button type="button" onClick={() => { applyTime(''); setSelectedTime(''); }}
-                    className="px-2 py-1.5 rounded-lg text-[9px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition-colors cursor-pointer">
-                    Clear
-                  </button>
-                )}
-              </div>
-            </motion.div>
+              <X className="w-3 h-3" />
+            </button>
           )}
-        </AnimatePresence>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('due')}
+          className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
+            activeTab === 'due'
+              ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
+              : 'border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <CalendarDays className="w-3.5 h-3.5 text-slate-405 shrink-0" />
+            <span className={`text-sm font-semibold truncate ${localDueDate ? 'text-slate-850 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
+              {localDueDate ? formatDateForBox(localDueDate) : 'Due date'}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+            {localDueDate && (
+              <button 
+                type="button" 
+                onClick={() => clearActiveDate('due')}
+                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            
+            <button 
+              type="button"
+              onClick={() => setShowTimePicker(!showTimePicker)}
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+            >
+              {activeTab === 'start'
+                ? (localStartDateTime || 'Add time')
+                : (localDueDateTime || 'Add time')
+              }
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* ── Bottom Actions Bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800/60 rounded-b-[20px]">
-        <button type="button"
-          onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); selectDate(t.getDate()); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all cursor-pointer active:scale-95">
-          <span>⚡</span> Jump to Today
+      {/* ── Side-by-Side Area ── */}
+      <div className="flex min-h-[320px]">
+        
+        {/* Left presets column */}
+        <div className="w-[160px] shrink-0 border-r border-slate-100 dark:border-slate-850 flex flex-col justify-between py-3">
+          <div className="space-y-0.5">
+            {[
+              { label: 'Today', sub: presets.today, offset: 0 },
+              { label: 'Later', sub: presets.later, offset: 0, isLater: true },
+              { label: 'Tomorrow', sub: presets.tomorrow, offset: 1 },
+              { label: 'This weekend', sub: presets.thisWeekend, offset: daysToSaturday === 0 ? 7 : daysToSaturday },
+              { label: 'Next week', sub: presets.nextWeek, offset: daysToMonday === 0 ? 7 : daysToMonday },
+              { label: 'Next weekend', sub: presets.nextWeekend, offset: (daysToSaturday === 0 ? 7 : daysToSaturday) + 7 },
+              { label: '2 weeks', sub: presets.twoWeeks, offset: 14 },
+              { label: '4 weeks', sub: presets.fourWeeks, offset: 28 },
+            ].map(item => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => selectPreset(item.offset, item.isLater ? item.sub : undefined)}
+                className="w-[144px] flex items-center justify-between px-3 py-2 text-left text-[13px] font-semibold text-slate-705 dark:text-slate-250 hover:bg-slate-55 dark:hover:bg-slate-900 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg mx-2 transition-colors cursor-pointer"
+              >
+                <span>{item.label}</span>
+                <span className="text-xs text-slate-455 dark:text-slate-500 font-semibold">{item.sub}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-1 pt-1.5 border-t border-slate-100 dark:border-slate-850">
+            <button
+              type="button"
+              onClick={() => alert('Recurring options configuration is mocked.')}
+              className="w-[144px] flex items-center justify-between px-3 py-2 text-left text-[13px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-55 dark:hover:bg-slate-900 rounded-lg mx-2 transition-colors cursor-pointer group"
+            >
+              <span>Set Recurring</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+
+        {/* Right calendar column */}
+        <div className="flex-1 p-4 flex flex-col justify-between">
+          
+          <div className="flex items-center justify-between mb-3.5">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-wide">
+              {monthNamesFull[currentMonth]} {currentYear}
+            </h4>
+            <div className="flex items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); selectDate(t.getDate()); }}
+                className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+              >
+                Today
+              </button>
+              <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
+                <button 
+                  type="button" 
+                  onClick={prevMonth}
+                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  type="button" 
+                  onClick={nextMonth}
+                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0 text-center mb-1.5">
+            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+              <div key={d}>
+                <span className="text-xs font-semibold text-slate-455 dark:text-slate-550">{d}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5 flex-1 items-center">
+            {Array.from({ length: adjustedFirstDay }).map((_, i) => {
+              const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
+              return (
+                <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square opacity-20">
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{ghostDay}</span>
+                </div>
+              );
+            })}
+
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const isSelected = dateStr === (activeTab === 'start' ? localStartDate : localDueDate);
+              const isToday = dateStr === todayStr;
+              const isPast = dateStr < todayStr;
+              const isWeekend = (() => {
+                const wd = new Date(currentYear, currentMonth, day);
+                return wd.getDay() === 0 || wd.getDay() === 6;
+              })();
+
+              return (
+                <div key={day} className="flex items-center justify-center w-full aspect-square p-[1px]">
+                  <button
+                    type="button"
+                    onClick={() => selectDate(day)}
+                    className={`relative w-full h-full rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 hover:scale-[1.08] active:scale-95 text-xs ${
+                      isSelected
+                        ? 'text-white font-black bg-indigo-650 shadow-md shadow-indigo-500/20'
+                        : isToday
+                          ? 'font-black text-indigo-650 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20'
+                          : isPast
+                            ? 'font-medium text-slate-305 dark:text-slate-655 hover:bg-slate-50 dark:hover:bg-slate-900'
+                            : isWeekend
+                              ? 'font-semibold text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900'
+                              : 'font-semibold text-slate-700 dark:text-slate-250 hover:bg-slate-50 dark:hover:bg-slate-900'
+                    }`}
+                  >
+                    {isToday && !isSelected && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
+                    )}
+                    <span className="relative z-10">{day}</span>
+                  </button>
+                </div>
+              );
+            })}
+
+            {Array.from({ length: trailingDays }).map((_, i) => (
+              <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square opacity-20">
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{i + 1}</span>
+              </div>
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {showTimePicker && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="mt-2 border-t border-slate-100 dark:border-slate-850 pt-2 flex items-center gap-2"
+              >
+                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl px-2 py-1 flex-1">
+                  <Clock className="w-3 h-3 text-slate-455 shrink-0" />
+                  <input
+                    type="time"
+                    value={activeTab === 'start' ? localStartDateTime : localDueDateTime}
+                    onChange={e => applyTime(e.target.value)}
+                    className="w-full text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent border-none outline-none p-0 focus:ring-0"
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => applyTime('')}
+                  className="px-2.5 py-1.5 rounded-xl text-[10px] font-black text-rose-500 bg-rose-55 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-955/40 transition-colors cursor-pointer"
+                >
+                  Clear Time
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+      </div>
+
+      {/* ── Bottom Close Bar ── */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-850 rounded-b-[24px]">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Editing: {activeTab === 'start' ? 'Start date' : 'Due date'}
+        </span>
+        <button 
+          type="button" 
+          onClick={() => { setIsOpen(false); setShowTimePicker(false); }}
+          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer active:scale-[0.98]"
+        >
+          Close
         </button>
-        {clearable && dateValue && (
-          <button type="button" onClick={() => { onChange(undefined); setIsOpen(false); setShowTimePicker(false); }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all cursor-pointer active:scale-95">
-            <X className="w-3 h-3" /> Clear Date
-          </button>
-        )}
       </div>
     </motion.div>
   );
@@ -620,7 +813,7 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 220);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220, 208);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -645,7 +838,7 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
       style={{
         position: 'fixed',
         zIndex: 9999,
-        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.left } : { top: coords.bottom + 6, left: coords.left }) : {})
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
       {workspaces.map(w => (

@@ -28,6 +28,11 @@ interface NotificationSettings {
   toastDuration: number;
   dndActive: boolean;
   frequencyLimit: 'all' | 'throttled' | 'minimal';
+  dndDurationUntil?: string | null;
+  dndScheduleEnabled?: boolean;
+  dndScheduleStart?: string;
+  dndScheduleEnd?: string;
+  dndAllowUrgent?: boolean;
 }
 
 export const WORKSPACE_COVERS = [
@@ -1089,6 +1094,357 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     Do Not Disturb (DND)
                   </button>
                 </div>
+              </div>
+
+              {/* DND Duration Pause & Custom Schedules */}
+              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
+                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  Do Not Disturb Options (Tránh làm phiền)
+                </h4>
+
+                {/* 1. Temp Pause */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
+                    {notificationSettings.dndDurationUntil && (
+                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
+                        Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { label: '30m', min: 30 },
+                      { label: '1h', min: 60 },
+                      { label: '2h', min: 120 },
+                      { label: '8h', min: 480 }
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
+                          setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        tomorrow.setHours(8, 0, 0, 0);
+                        setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                    >
+                      Đến ngày mai
+                    </button>
+                    {notificationSettings.dndDurationUntil && (
+                      <button
+                        type="button"
+                        onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
+                      >
+                        Hủy tạm dừng
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Schedule DND */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
+                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={!!notificationSettings.dndScheduleEnabled}
+                        onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {notificationSettings.dndScheduleEnabled && (
+                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleStart || '22:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleEnd || '07:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Allow Exceptions */}
+                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
+                  <div className="text-left">
+                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
+                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!notificationSettings.dndAllowUrgent}
+                    onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
+                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                  />
+                </label>
+              </div>
+
+              {/* DND Duration Pause & Custom Schedules */}
+              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
+                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  Do Not Disturb Options (Tránh làm phiền)
+                </h4>
+
+                {/* 1. Temp Pause */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
+                    {notificationSettings.dndDurationUntil && (
+                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
+                        Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { label: '30m', min: 30 },
+                      { label: '1h', min: 60 },
+                      { label: '2h', min: 120 },
+                      { label: '8h', min: 480 }
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
+                          setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        tomorrow.setHours(8, 0, 0, 0);
+                        setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                    >
+                      Đến ngày mai
+                    </button>
+                    {notificationSettings.dndDurationUntil && (
+                      <button
+                        type="button"
+                        onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
+                      >
+                        Hủy tạm dừng
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Schedule DND */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
+                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={!!notificationSettings.dndScheduleEnabled}
+                        onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {notificationSettings.dndScheduleEnabled && (
+                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleStart || '22:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleEnd || '07:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Allow Exceptions */}
+                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
+                  <div className="text-left">
+                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
+                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!notificationSettings.dndAllowUrgent}
+                    onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
+                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                  />
+                </label>
+              </div>
+
+              {/* DND Duration Pause & Custom Schedules */}
+              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
+                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
+                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  Do Not Disturb Options (Tránh làm phiền)
+                </h4>
+
+                {/* 1. Temp Pause */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
+                    {notificationSettings.dndDurationUntil && (
+                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
+                        Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      { label: '30m', min: 30 },
+                      { label: '1h', min: 60 },
+                      { label: '2h', min: 120 },
+                      { label: '8h', min: 480 }
+                    ].map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
+                          setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        tomorrow.setHours(8, 0, 0, 0);
+                        setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                    >
+                      Đến ngày mai
+                    </button>
+                    {notificationSettings.dndDurationUntil && (
+                      <button
+                        type="button"
+                        onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
+                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
+                      >
+                        Hủy tạm dừng
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Schedule DND */}
+                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
+                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={!!notificationSettings.dndScheduleEnabled}
+                        onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {notificationSettings.dndScheduleEnabled && (
+                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleStart || '22:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
+                        <input
+                          type="time"
+                          value={notificationSettings.dndScheduleEnd || '07:00'}
+                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Allow Exceptions */}
+                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
+                  <div className="text-left">
+                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
+                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!notificationSettings.dndAllowUrgent}
+                    onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
+                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                  />
+                </label>
               </div>
 
               {/* Frequency limits */}
