@@ -913,138 +913,16 @@ export default function SpacePage({
                       {/* Lists nested under Space */}
                       {isExpanded && (
                         <div className="pl-4 space-y-0.5 border-l border-slate-200 dark:border-slate-800 ml-4.5 mt-0.5">
-                          {/* Render Views for the active Space */}
+                          {/* Quick Add List button at top of hierarchy */}
                           {activeSpaceId === space.id && (
-                            <div className="space-y-1.5 mb-4 select-none">
-                              <div className="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest px-2 mb-1.5">Giao diện</div>
-                              <div className="space-y-0.5">
-                                {staticTabs.map(tab => {
-                                  const TabIcon = tab.icon;
-                                  const isActive = activeTabId === tab.id;
-                                  const themeGradients: Record<string, string> = {
-                                    indigo: 'bg-indigo-50/70 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 border-indigo-500/20',
-                                    rose: 'bg-rose-50/70 dark:bg-rose-950/20 text-rose-650 dark:text-rose-400 border-rose-500/20',
-                                    sky: 'bg-sky-50/70 dark:bg-sky-950/20 text-sky-650 dark:text-sky-400 border-sky-500/20',
-                                    emerald: 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-650 dark:text-emerald-400 border-emerald-500/20',
-                                    amber: 'bg-amber-50/70 dark:bg-amber-950/20 text-amber-650 dark:text-amber-400 border-amber-500/20',
-                                    sunset: 'bg-orange-50/70 dark:bg-orange-950/20 text-orange-650 dark:text-orange-400 border-orange-500/20'
-                                  };
-                                  const activeGradient = themeGradients[activeSpace.themeColor || 'indigo'] || themeGradients.indigo;
-
-                                  return (
-                                    <button
-                                      key={tab.id}
-                                      onClick={() => {
-                                        setActiveTabId(tab.id);
-                                        setActiveView(tab.viewId);
-                                      }}
-                                      className={`w-full py-1.5 px-3.5 text-[11px] font-bold flex items-center gap-2 rounded-xl transition-all cursor-pointer border ${
-                                        isActive 
-                                          ? `${activeGradient} font-extrabold shadow-3xs text-white` 
-                                          : 'text-slate-500 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-805/10'
-                                      }`}
-                                    >
-                                      <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                                      <span>{tab.label}</span>
-                                    </button>
-                                  );
-                                })}
-
-                                {/* Add View Button inside Sidebar views list */}
-                                <div className="relative mt-1">
-                                  {isSearchViewOpen ? (
-                                    <div className="relative flex items-center">
-                                      <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                      <input 
-                                        type="text" 
-                                        autoFocus
-                                        placeholder="Tìm giao diện..."
-                                        value={searchViewQuery}
-                                        onChange={(e) => {
-                                          setSearchViewQuery(e.target.value);
-                                          setShowAddViewMenu(true);
-                                        }}
-                                        onFocus={() => setShowAddViewMenu(true)}
-                                        className="bg-white dark:bg-slate-950 border border-indigo-500 rounded-lg pl-7 pr-7 py-1 text-[10px] font-semibold outline-none text-slate-800 dark:text-slate-105 w-full transition-all shadow-xs"
-                                      />
-                                      <button 
-                                        onClick={() => {
-                                          setIsSearchViewOpen(false);
-                                          setShowAddViewMenu(false);
-                                          setSearchViewQuery('');
-                                        }} 
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 hover:text-slate-600"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button 
-                                      onClick={() => {
-                                        setIsSearchViewOpen(true);
-                                        setShowAddViewMenu(true);
-                                      }}
-                                      className="w-full py-1 px-3.5 text-[10px] font-bold text-slate-400 hover:text-indigo-655 dark:hover:text-indigo-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 rounded-xl flex items-center gap-2 transition-all cursor-pointer border border-transparent"
-                                    >
-                                      <Plus className="w-3 h-3 text-slate-455" />
-                                      <span>Thêm View</span>
-                                    </button>
-                                  )}
-
-                                  {showAddViewMenu && (
-                                    <>
-                                      <div 
-                                        className="fixed inset-0 z-40 bg-transparent" 
-                                        onClick={() => {
-                                          setShowAddViewMenu(false);
-                                          setIsSearchViewOpen(false);
-                                          setSearchViewQuery('');
-                                        }} 
-                                      />
-                                      <div className="absolute left-0 mt-2 w-[240px] max-h-[250px] flex flex-col bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-2xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden animate-fadeIn">
-                                        {/* Popular views list */}
-                                        <div className="p-1.5 overflow-y-auto space-y-1.5 flex-1 min-h-0 custom-scrollbar">
-                                          <div>
-                                            <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1.5 mb-1">Giao diện phổ biến</p>
-                                            <div className="grid grid-cols-1 gap-0.5">
-                                              {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
-                                                const ViewIcon = view.icon;
-                                                return (
-                                                  <button
-                                                    key={view.id}
-                                                    onClick={() => {
-                                                      handleSelectView(view);
-                                                      setShowAddViewMenu(false);
-                                                      setIsSearchViewOpen(false);
-                                                      setSearchViewQuery('');
-                                                    }}
-                                                    className="w-full flex items-center gap-2 p-1 rounded-lg border border-transparent hover:bg-indigo-50/50 dark:hover:bg-indigo-950/15 transition-all text-left cursor-pointer group"
-                                                  >
-                                                    <div 
-                                                      className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                                                      style={{ backgroundColor: view.bg }}
-                                                    >
-                                                      <ViewIcon className="w-3 h-3" style={{ color: view.color }} />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                      <p className="text-[10px] font-bold text-slate-855 dark:text-slate-100 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 truncate">{view.label}</p>
-                                                    </div>
-                                                  </button>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                            <button
+                              onClick={() => onAddListSpace?.(space.id)}
+                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-[10px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 transition-all cursor-pointer mb-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>New List</span>
+                            </button>
                           )}
-
-                          {/* Section: Folders & Lists */}
-                          <div className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 mt-2 mb-1.5">Phân cấp</div>
                           
                           {/* Render Folders */}
                           {space.folders?.map(folder => {
@@ -1760,6 +1638,88 @@ export default function SpacePage({
                   <ChevronDown className="w-3 h-3 text-white" />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Row 2: View Switcher Tabs */}
+          <div className="flex items-center px-5 gap-0.5 overflow-x-auto scrollbar-none relative">
+            {staticTabs.map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTabId === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTabId(tab.id);
+                    setActiveView(tab.viewId);
+                  }}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-slate-450 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-550'}`} />
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Add View */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => {
+                  setShowAddViewMenu(!showAddViewMenu);
+                  setIsSearchViewOpen(true);
+                }}
+                className="flex items-center gap-1 px-2 py-2 text-[11px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+
+              {showAddViewMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => { setShowAddViewMenu(false); setIsSearchViewOpen(false); setSearchViewQuery(''); }} />
+                  <div className="absolute right-0 top-full mt-1 w-[220px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-2 font-sans select-none">
+                    <div className="relative mb-2">
+                      <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search views..."
+                        value={searchViewQuery}
+                        onChange={(e) => setSearchViewQuery(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-indigo-500 transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+                      {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
+                        const ViewIcon = view.icon;
+                        return (
+                          <button
+                            key={view.id}
+                            onClick={() => {
+                              handleSelectView(view);
+                              setShowAddViewMenu(false);
+                              setIsSearchViewOpen(false);
+                              setSearchViewQuery('');
+                            }}
+                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-colors text-left cursor-pointer group"
+                          >
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: view.bg }}>
+                              <ViewIcon className="w-3.5 h-3.5" style={{ color: view.color }} />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{view.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
