@@ -14,6 +14,7 @@ import {
 import SignedImage from './SignedImage';
 import TeamDirectory from './TeamDirectory';
 import { useAuthStore } from '@/store/authStore';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface NotificationSettings {
   enableAll: boolean;
@@ -107,6 +108,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const [copied, setCopied] = useState(false);
   const currentUser = useAuthStore((s) => s.currentUser);
+  const { t, locale, setLocale } = useTranslation();
   
   // Tab Routing state (internal fallback or linked via prop)
   const [localActiveTab, setLocalActiveTab] = useState<string>('general');
@@ -221,6 +223,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
   const menuSections = [
     {
       title: 'Admin',
+      key: 'adminSection',
       items: [
         { id: 'general', label: 'General', icon: Briefcase },
         { id: 'people', label: 'People', icon: Users },
@@ -234,6 +237,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
     },
     {
       title: 'Features',
+      key: 'featuresSection',
       items: [
         { id: 'custom_fields', label: 'Custom Field Manager', icon: Layers },
         { id: 'tags', label: 'Tag Manager', icon: Tag },
@@ -248,6 +252,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
     },
     {
       title: 'Integrations & ClickApps',
+      key: 'integrationsSection',
       items: [
         { id: 'app_center', label: 'App Center', icon: Sliders },
         { id: 'import_export', label: 'Imports / Exports', icon: RefreshCw },
@@ -257,6 +262,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
     },
     {
       title: 'My Settings',
+      key: 'mySettingsSection',
       items: [
         { id: 'preferences', label: 'Preferences', icon: Sliders },
         { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -271,7 +277,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
         <div className="space-y-4">
           <div className="px-2 py-1">
             <h2 className="text-[14px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-display">
-              All settings
+              {t('settingsTitle') || 'All settings'}
             </h2>
           </div>
 
@@ -279,10 +285,10 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
             {menuSections.map((section, idx) => (
               <div key={idx} className="space-y-1">
                 <span className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block select-none">
-                  {section.title}
+                  {t(section.key) || section.title}
                 </span>
                 <div className="space-y-0.5">
-                  {section.items.map(item => {
+                  {menuSections[idx].items.map(item => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
                     return (
@@ -291,12 +297,12 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                         onClick={() => setActiveTab(item.id)}
                         className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left ${
                           isActive 
-                            ? 'bg-slate-200/80 dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' 
-                            : 'text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-200'
+                            ? 'bg-slate-200/80 dark:bg-slate-800 text-indigo-655 dark:text-indigo-400 shadow-xs' 
+                            : 'text-slate-655 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-450 dark:text-slate-500'}`} />
-                        <span>{item.label}</span>
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-455 dark:text-slate-500'}`} />
+                        <span>{t(item.id) || item.label}</span>
                       </button>
                     );
                   })}
@@ -312,10 +318,10 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
             onClick={() => {
               if (onLogout) onLogout();
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4 text-rose-500" />
-            <span>Log out</span>
+            <span>{t('logout') || 'Log out'}</span>
           </button>
         </div>
       </aside>
@@ -962,9 +968,9 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
             <div>
               <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-indigo-500" />
-                System Personalization
+                {t('settingsPersonal') || 'System Personalization'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Customize accent preset colors, sound effects, and glass panel blur strength</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('settingsDesc') || 'Customize accent preset colors, sound effects, and glass panel blur strength'}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -975,12 +981,12 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Pure Light Mode</h3>
-                    <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-0.5">UI locked to crystalline light theme</p>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('pureLightMode') || 'Pure Light Mode'}</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('lightModeDesc') || 'UI locked to crystalline light theme'}</p>
                   </div>
                 </div>
                 <div className="p-3 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  ✨ Dark mode and blur overlays are constrained to ensure high-fidelity styling across all list details.
+                  {t('minimizeDesc') || '✨ Dark mode and blur overlays are constrained to ensure high-fidelity styling across all list details.'}
                 </div>
               </div>
 
@@ -991,8 +997,8 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     <Palette className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Accent Theme Color</h3>
-                    <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-0.5">Choose highlight accent colors</p>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('accentColor') || 'Accent Theme Color'}</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('accentColorDesc') || 'Choose highlight accent colors'}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -1015,11 +1021,11 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
               <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
-                    {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500" /> : <VolumeX className="w-5 h-5 text-slate-450" />}
+                    {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500" /> : <VolumeX className="w-5 h-5 text-slate-455" />}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Interactive Sound Effects</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">Play subtle audio haptics when doing actions</p>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('soundEffects') || 'Interactive Sound Effects'}</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('soundEffectsDesc') || 'Play subtle audio haptics when doing actions'}</p>
                   </div>
                 </div>
                 <div className="flex bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
@@ -1027,13 +1033,13 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     onClick={() => setSoundEnabled(true)}
                     className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${soundEnabled ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
                   >
-                    Enable sound
+                    {t('soundOn') || 'Enable sound'}
                   </button>
                   <button
                     onClick={() => setSoundEnabled(false)}
                     className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${!soundEnabled ? 'bg-white shadow-xs text-slate-700 dark:bg-slate-800 dark:text-slate-400' : 'text-slate-500'}`}
                   >
-                    Mute
+                    {t('soundOff') || 'Mute'}
                   </button>
                 </div>
               </div>
@@ -1045,8 +1051,8 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     <Layers className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">Glassmorphism Blur Strength</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">Adjust blur depth levels on panel containers</p>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('blurStrength') || 'Glassmorphism Blur Strength'}</h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('blurStrengthDesc') || 'Adjust blur depth levels on panel containers'}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
@@ -1056,9 +1062,40 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                       onClick={() => setBlurIntensity(lvl as any)}
                       className={`py-1.5 text-[10px] font-extrabold capitalize rounded-lg ${blurIntensity === lvl ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
                     >
-                      {lvl}
+                      {lvl === 'soft' ? (t('blurSoft') || 'Soft (8px)') : lvl === 'default' ? (t('blurDefault') || 'Default (16px)') : (t('blurImmersive') || 'Immersive (28px)')}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Language choice */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                    <Globe className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">
+                      {t('language') || 'Language'}
+                    </h3>
+                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">
+                      {t('languageDesc') || 'Choose system display language'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
+                  <button
+                    onClick={() => setLocale('en')}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${locale === 'en' ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-505'}`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => setLocale('vi')}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${locale === 'vi' ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-505'}`}
+                  >
+                    Tiếng Việt
+                  </button>
                 </div>
               </div>
             </div>

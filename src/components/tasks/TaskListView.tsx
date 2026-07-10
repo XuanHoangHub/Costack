@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
-import { ChevronDown, Plus, GripVertical, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, Plus, GripVertical, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal, Play, Pause, Clock } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
@@ -54,12 +54,16 @@ interface TaskListViewProps {
   onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void;
   setViewType: (view: 'list' | 'board' | 'table' | 'gantt') => void;
   statuses?: { id: string; label: string; color: string; type: TaskStatus }[];
+  activeTimerTaskId?: string | null;
+  onStartGlobalTimer?: (id: string) => void;
+  onStopGlobalTimer?: () => void;
 }
 
 export default function TaskListView({
    filteredTasks, tasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
    onUpdateTask, onAddSyncLog, triggerToast, filterTag, setFilterTag, isSmartSort, isUrgentNearDueTask,
-   isMultiSelectMode, onAddTask, setViewType, statuses
+   isMultiSelectMode, onAddTask, setViewType, statuses,
+   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer
  }: TaskListViewProps) {
   const { t } = useTranslation();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -208,7 +212,7 @@ export default function TaskListView({
                                   <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
                                     style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
                                     <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                                      className={`flex items-center gap-3 px-4 py-2.5 border-l-[3px] border-b border-b-slate-100 dark:border-b-slate-800/60 ${PRIORITY_LEFT_BORDER[task.priority]} cursor-pointer transition-all group/row hover:bg-indigo-50/30 dark:hover:bg-indigo-950/10 ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : 'bg-white dark:bg-slate-900/60'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 rounded-lg z-50 opacity-95' : ''}`}>
+                                      className={`flex items-center gap-3 px-4 py-2 border-l-[3.5px] border-b border-b-slate-150/40 dark:border-b-slate-800/30 ${PRIORITY_LEFT_BORDER[task.priority]} cursor-pointer transition-all group/row hover:bg-slate-55/60 dark:hover:bg-slate-800/20 ${isSelected ? 'bg-slate-105 dark:bg-slate-800/35' : 'bg-white dark:bg-slate-900/60'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 rounded-xl z-50 opacity-95' : ''}`}>
 
                                      {/* Drag handle */}
                                      <div {...dragProvided.dragHandleProps} onClick={e => e.stopPropagation()}
@@ -269,10 +273,40 @@ export default function TaskListView({
                                                 {task.title}
                                               </span>
                                               {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
+                                              {activeTimerTaskId === task.id && (
+                                                <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-1.5 py-0.5 rounded border border-rose-200/40 dark:border-rose-900/30 animate-pulse select-none shrink-0 ml-1">
+                                                  <Clock className="w-2.5 h-2.5" /> Ticking
+                                                </span>
+                                              )}
                                             </div>
 
                                            {/* Hover Option Buttons (Image 3, 4) */}
                                            <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-1.5 transition-all ml-3 shrink-0">
+                                             {/* Time Tracking */}
+                                             {activeTimerTaskId === task.id ? (
+                                               <button 
+                                                 onClick={e => {
+                                                   e.stopPropagation();
+                                                   if (onStopGlobalTimer) onStopGlobalTimer();
+                                                 }}
+                                                 className="p-1 border border-rose-200 dark:border-rose-900/50 rounded bg-rose-50 dark:bg-rose-955/30 shadow-3xs text-rose-600 dark:text-rose-455 hover:bg-rose-100 transition-all cursor-pointer"
+                                                 title="Stop Timer"
+                                               >
+                                                 <Clock className="w-3 h-3 text-rose-500 animate-spin" />
+                                               </button>
+                                             ) : (
+                                               <button 
+                                                 onClick={e => {
+                                                   e.stopPropagation();
+                                                   if (onStartGlobalTimer) onStartGlobalTimer(task.id);
+                                                 }}
+                                                 className="p-1 border border-slate-250 dark:border-slate-800 rounded bg-white dark:bg-slate-905 shadow-3xs text-slate-400 hover:text-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                                                 title="Start Timer"
+                                               >
+                                                 <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                                               </button>
+                                             )}
+
                                              {/* Add Subtask */}
                                              <button 
                                                onClick={e => {
@@ -347,11 +381,15 @@ export default function TaskListView({
                                      {/* Assignee select dropdown */}
                                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
                                        <AssigneePillSelect 
-                                         value={task.assigneeId || null} 
+                                         value={task.assigneeIds || (task.assigneeId ? [task.assigneeId] : [])} 
                                          members={members} 
-                                         onChange={newA => {
-                                           onUpdateTask({ ...task, assigneeId: newA || undefined });
-                                           onAddSyncLog(`Assignee "${task.title}" → ${newA ? (members.find(m => m.id === newA)?.name || newA) : 'Unassigned'}`);
+                                         onChange={newIds => {
+                                           const nextIds = newIds || [];
+                                           onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
+                                           const label = nextIds.length > 0
+                                             ? nextIds.map(id => members.find(m => m.id === id)?.name || id).join(', ')
+                                             : 'Unassigned';
+                                           onAddSyncLog(`Assignees "${task.title}" → ${label}`);
                                          }} 
                                          compact={true} 
                                        />
@@ -381,7 +419,6 @@ export default function TaskListView({
                                          }} 
                                          label="—" 
                                          align="right" 
-                                         displayLabel={daysInfo?.text} 
                                          className={daysInfo ? `text-[10px] font-bold px-1.5 py-0.5 rounded border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-300 dark:text-slate-600 cursor-pointer border-0 bg-transparent"} 
                                        />
                                      </div>

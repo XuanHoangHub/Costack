@@ -29,6 +29,7 @@ import TeamDirectory from '../components/TeamDirectory';
 import AvaxaBrainAssistant from '../components/AvaxaBrainAssistant';
 import SettingsPanel, { WORKSPACE_COVERS } from '../components/SettingsPanel';
 import SignedImage from '../components/SignedImage';
+import { useTranslation } from '../contexts/TranslationContext';
 import ProfilePage from '../components/ProfilePage';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import ProductivityHub from '../components/ProductivityHub';
@@ -36,14 +37,15 @@ import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 import BaseHub from '../components/BaseHub';
 import InboxView from '../components/InboxView';
 import AnalyticsHub from '../components/AnalyticsHub';
+import GoalsHub from '../components/GoalsHub';
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
   Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown,
   Timer, Bell, Calendar, Settings, Plus,
-  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database,
-  GripVertical, BarChart3
+  Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
+  GripVertical, BarChart3, Target
 } from 'lucide-react';
 
 const checkIsDndActive = (settings: any) => {
@@ -79,6 +81,7 @@ const checkIsDndActive = (settings: any) => {
 };
 
 export default function App() {
+  const { t } = useTranslation();
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
@@ -104,6 +107,93 @@ export default function App() {
   const setBlurIntensity = useUiStore((s) => s.setBlurIntensity);
   const notificationSettings = useUiStore((s) => s.notificationSettings);
   const setNotificationSettings = useUiStore((s) => s.setNotificationSettings);
+
+  // Global Time Tracking States
+  const [activeTimerTaskId, setActiveTimerTaskId] = useState<string | null>(null);
+  const [activeTimerElapsed, setActiveTimerElapsed] = useState<number>(0);
+  const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (activeTimerTaskId && !isTimerPaused) {
+      timerIntervalRef.current = setInterval(() => {
+        setActiveTimerElapsed(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [activeTimerTaskId, isTimerPaused]);
+
+  const formatTimerDuration = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartGlobalTimer = (taskId: string) => {
+    // If a different task is being tracked, stop it and log it first
+    if (activeTimerTaskId && activeTimerTaskId !== taskId) {
+      const prevTask = tasks.find(t => t.id === activeTimerTaskId);
+      if (prevTask) {
+        const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
+        if (exactLogged > 0) {
+          const nextLogged = parseFloat(((prevTask.hoursLogged || 0) + exactLogged).toFixed(2));
+          const updated = { ...prevTask, hoursLogged: nextLogged };
+          setTasks(prev => prev.map(t => t.id === prevTask.id ? updated : t));
+          if (!isOffline) {
+            supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', prevTask.id).then(({ error }) => {
+              if (error) console.error('Error updating task hours:', error);
+            });
+          }
+          addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
+          triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${prevTask.title}".`);
+        }
+      }
+    }
+
+    setActiveTimerTaskId(taskId);
+    setActiveTimerElapsed(0);
+    setIsTimerPaused(false);
+  };
+
+  const handleStopGlobalTimer = () => {
+    if (!activeTimerTaskId) return;
+    const task = tasks.find(t => t.id === activeTimerTaskId);
+    if (task) {
+      const exactLogged = parseFloat((activeTimerElapsed / 3600).toFixed(2));
+      if (exactLogged > 0) {
+        const nextLogged = parseFloat(((task.hoursLogged || 0) + exactLogged).toFixed(2));
+        const updated = { ...task, hoursLogged: nextLogged };
+        setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
+        if (!isOffline) {
+          supabase.from('tasks').update({ hoursLogged: nextLogged }).eq('id', task.id).then(({ error }) => {
+            if (error) console.error('Error updating task hours:', error);
+          });
+        }
+        addSyncLog(`Logged ${exactLogged} hours of work via global timer`);
+        triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to "${task.title}".`);
+      } else {
+        triggerToast('info', 'Timer Stopped', 'No time was logged (less than 1 minute).');
+      }
+    }
+    setActiveTimerTaskId(null);
+    setActiveTimerElapsed(0);
+    setIsTimerPaused(false);
+  };
+
+  const handleTogglePauseGlobalTimer = () => {
+    setIsTimerPaused(prev => !prev);
+  };
 
   // Custom Dark Mode State - DEACTIVATED (Forced pure light white space theme)
   const isDarkMode = false;
@@ -864,7 +954,7 @@ export default function App() {
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
 
-  const sidebarOrder = useUiStore((s) => s.sidebarOrder) || ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+  const sidebarOrder = useUiStore((s) => s.sidebarOrder) || ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
   const setSidebarOrder = useUiStore((s) => s.setSidebarOrder);
 
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
@@ -892,7 +982,7 @@ export default function App() {
     e.preventDefault();
     if (!draggedItemId || draggedItemId === targetId) return;
 
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'];
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
     const currentOrder = [...sidebarOrder];
     
     // Ensure all default items are present
@@ -920,23 +1010,24 @@ export default function App() {
 
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number }>>(() => {
     return {
-      dashboard: { label: 'Home Overview', icon: LayoutDashboard },
+      dashboard: { label: t('homeOverview') || 'Home Overview', icon: LayoutDashboard },
       inbox: { 
-        label: 'Inbox', 
+        label: t('inbox') || 'Inbox', 
         icon: Bell, 
         count: notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length 
       },
-      calendar: { label: 'Calendar', icon: Calendar },
-      chat: { label: 'Chat', icon: MessageSquare },
-      docs: { label: 'Docs', icon: FileText },
-      base: { label: 'Avaxa Base', icon: Database },
-      tasks: { label: 'Space', icon: Briefcase },
-      analytics: { label: 'Analytics', icon: BarChart3 }
+      calendar: { label: t('calendarView') || 'Calendar', icon: Calendar },
+      chat: { label: t('chat') || 'Chat', icon: MessageSquare },
+      docs: { label: t('docs') || 'Docs', icon: FileText },
+      base: { label: t('base') || 'Avaxa Base', icon: Database },
+      tasks: { label: t('space') || 'Space', icon: Briefcase },
+      analytics: { label: t('analytics') || 'Analytics', icon: BarChart3 },
+      goals: { label: t('goals') || 'Goals (OKRs)', icon: Target }
     };
-  }, [notificationsList]);
+  }, [notificationsList, t]);
 
   const orderedItems = useMemo(() => {
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics'];
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics', 'goals'];
     const currentOrder = [...sidebarOrder];
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
@@ -957,6 +1048,7 @@ export default function App() {
   }, [sidebarOrder, sidebarItemsMeta]);
 
   // Filtered lists for the Global Search modal
+  /* eslint-disable react-hooks/preserve-manual-memoization */
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
@@ -966,6 +1058,7 @@ export default function App() {
       t.description.toLowerCase().includes(query)
     );
   }, [tasks, activeWorkspaceId, searchQuery]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const filteredDocs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1854,6 +1947,8 @@ export default function App() {
             priority: t.priority as any,
             status: t.status as any,
             assigneeId: t.assigneeId || undefined,
+            assigneeIds: getTaskAssigneeIds(t),
+            custom_fields: buildTaskCustomFields(t),
             startDate: t.startDate || undefined,
             dueDate: t.dueDate || undefined,
             subtasks: t.subtasks || [],
@@ -1869,7 +1964,6 @@ export default function App() {
             workspaceId: t.workspace_id || undefined,
             spaceId: t.space_id || undefined,
             listId: t.list_id || undefined,
-            custom_fields: t.custom_fields || {},
             recurrence: t.recurrence || undefined
           })));
         } else {
@@ -2117,6 +2211,8 @@ export default function App() {
                     priority: t.priority as any,
                     status: t.status as any,
                     assigneeId: t.assigneeId || undefined,
+                    assigneeIds: getTaskAssigneeIds(t),
+                    custom_fields: buildTaskCustomFields(t),
                     startDate: t.startDate || undefined,
                     dueDate: t.dueDate || undefined,
                     subtasks: t.subtasks || [],
@@ -2132,7 +2228,6 @@ export default function App() {
                     workspaceId: t.workspace_id || undefined,
                     spaceId: t.space_id || undefined,
                     listId: t.list_id || undefined,
-                    custom_fields: t.custom_fields || {},
                     recurrence: t.recurrence || undefined
                   };
                   setTasks(prev => {
@@ -2495,6 +2590,25 @@ export default function App() {
     triggerToast('success', 'Success', `Deleted workspace: ${targetWS.name}`);
   };
 
+  const getTaskAssigneeIds = (task: Partial<Task> | any) => {
+    const fromCustom = task?.custom_fields?.assigneeIds;
+    if (Array.isArray(fromCustom)) return fromCustom;
+    if (Array.isArray(task?.assigneeIds)) return task.assigneeIds;
+    if (Array.isArray(task?.assignee_ids)) return task.assignee_ids;
+    return task?.assigneeId ? [task.assigneeId] : [];
+  };
+
+  const buildTaskCustomFields = (task: Partial<Task> | any) => {
+    const base = task?.custom_fields && typeof task.custom_fields === 'object' ? { ...task.custom_fields } : {};
+    const assigneeIds = getTaskAssigneeIds(task);
+    if (assigneeIds.length > 0) {
+      base.assigneeIds = assigneeIds;
+    } else {
+      delete base.assigneeIds;
+    }
+    return base;
+  };
+
   const handleAddTask = async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
     const assignee = members.find(m => m.id === t.assigneeId);
     if (assignee) {
@@ -2552,15 +2666,15 @@ export default function App() {
             workspace_id: activeWorkspaceId,
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
-            custom_fields: newTask.custom_fields || {},
+            custom_fields: buildTaskCustomFields(newTask),
             recurrence: newTask.recurrence || null
           };
 
           const { error } = await supabase.from('tasks').insert([payload]);
           
           if (error) {
-            console.warn('First task insert attempt failed, retrying without workspace_id column:', error.message);
-            if (error.message && (error.message.includes('workspace_id') || error.message.includes('column') || error.message.includes('relation'))) {
+            console.warn('First task insert attempt failed, retrying without incompatible columns:', error.message);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('assigneeIds') || error.message.includes('assignee_ids') || error.message.includes('column') || error.message.includes('relation'))) {
               delete payload.workspace_id;
               const { error: retryError } = await supabase.from('tasks').insert([payload]);
               if (retryError) {
@@ -2649,7 +2763,7 @@ export default function App() {
             comments: updated.comments,
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
-            custom_fields: updated.custom_fields || {},
+            custom_fields: buildTaskCustomFields(updated),
             recurrence: updated.recurrence || null
           }).eq('id', updated.id).eq('user_id', session.user.id);
           if (error) console.error('Supabase Task Update Error:', error);
@@ -4250,6 +4364,17 @@ export default function App() {
                     />
                   )}
 
+                  {activeTab === 'goals' && (
+                    <GoalsHub
+                      tasks={tasks}
+                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      workspaceId={activeWorkspaceId}
+                      currentUser={currentUser}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+
                   {activeTab === 'inbox' && (
                     <InboxView
                       notificationsList={notificationsList}
@@ -4277,6 +4402,12 @@ export default function App() {
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
+                      globalActiveTaskId={activeTimerTaskId}
+                      globalActiveElapsed={activeTimerElapsed}
+                      globalIsPaused={isTimerPaused}
+                      onStartGlobalTimer={handleStartGlobalTimer}
+                      onStopGlobalTimer={handleStopGlobalTimer}
+                      onTogglePauseGlobalTimer={handleTogglePauseGlobalTimer}
                       initialSelectedTaskId={initialSelectedTaskId}
                       onClearInitialSelectedTaskId={() => setInitialSelectedTaskId(null)}
                       onUpdateTaskOrder={handleUpdateTaskOrder}
@@ -5497,6 +5628,58 @@ export default function App() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* ── Global Time Tracker Widget ── */}
+      <AnimatePresence>
+        {activeTimerTaskId && (() => {
+          const timedTask = tasks.find(t => t.id === activeTimerTaskId);
+          if (!timedTask) return null;
+          return (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              className="fixed bottom-6 right-6 z-[80] font-sans flex items-center gap-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 shadow-2xl px-4 py-2.5 rounded-2xl select-none pointer-events-auto"
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ${isTimerPaused ? '' : 'animate-ping'}`} />
+                <div className="flex flex-col text-left max-w-[140px] truncate">
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Tracking Time</span>
+                  <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={timedTask.title}>{timedTask.title}</span>
+                </div>
+              </div>
+
+              <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
+
+              <span className="text-xs font-mono font-bold text-slate-805 dark:text-slate-100 tabular-nums">
+                {formatTimerDuration(activeTimerElapsed)}
+              </span>
+
+              <div className="flex items-center gap-1">
+                {/* Pause/Resume Button */}
+                <button
+                  type="button"
+                  onClick={handleTogglePauseGlobalTimer}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-805 text-slate-550 dark:text-slate-400 rounded-lg cursor-pointer transition-colors"
+                  title={isTimerPaused ? 'Resume' : 'Pause'}
+                >
+                  {isTimerPaused ? <Play className="w-3.5 h-3.5 fill-current text-indigo-500" /> : <Pause className="w-3.5 h-3.5 fill-current text-indigo-500" />}
+                </button>
+
+                {/* Stop Button */}
+                <button
+                  type="button"
+                  onClick={handleStopGlobalTimer}
+                  className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-600 dark:text-rose-450 rounded-lg cursor-pointer transition-colors"
+                  title="Stop and Log Time"
+                >
+                  <Clock className="w-3.5 h-3.5 text-rose-500" />
+                </button>
+              </div>
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       </div>

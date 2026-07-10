@@ -194,7 +194,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 }
 
 // ── Assignee Pill Select ──
-export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | null; members: User[]; onChange: (v: string | null) => void; compact?: boolean }) {
+export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | string[] | null; members: User[]; onChange: (v: string[] | null) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -210,7 +210,16 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const assignee = members.find(m => m.id === value);
+  const valueIds = Array.isArray(value) ? value : value ? [value] : [];
+  const assignees = members.filter(m => valueIds.includes(m.id));
+  const primaryAssignee = assignees[0];
+
+  const toggleAssignee = (memberId: string) => {
+    const nextIds = valueIds.includes(memberId)
+      ? valueIds.filter(id => id !== memberId)
+      : [...valueIds, memberId];
+    onChange(nextIds.length > 0 ? nextIds : null);
+  };
 
   const dropdownContent = (
     <motion.div 
@@ -219,7 +228,7 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-56 overflow-y-auto custom-scrollbar"
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg w-56 max-h-56 overflow-y-auto custom-scrollbar"
       style={{
         position: 'fixed',
         zIndex: 9999,
@@ -232,25 +241,38 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
         <span>Unassign</span>
       </button>
       {members.map(m => (
-        <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === m.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+        <button key={m.id} type="button" onClick={() => toggleAssignee(m.id)}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${valueIds.includes(m.id) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
           <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
           <span className="truncate">{m.name}</span>
-          {value === m.id && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
+          {valueIds.includes(m.id) && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
         </button>
       ))}
     </motion.div>
   );
+
+  const displayLabel = valueIds.length > 1
+    ? `${valueIds.length} Assignees`
+    : primaryAssignee?.name || 'Unassigned';
 
   return (
     <div ref={ref} className="relative inline-block">
       {compact ? (
         <button type="button" onClick={() => setOpen(!open)}
           className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer select-none hover:scale-105 transition-all flex items-center justify-center shrink-0"
-          title={assignee ? `Assignee: ${assignee.name}` : 'Unassigned'}
+          title={displayLabel || 'Unassigned'}
         >
-          {assignee ? (
-            <SignedImage filePath={assignee.avatar} className="w-full h-full rounded-full object-cover" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
+          {valueIds.length > 1 ? (
+            <div className="relative w-full h-full">
+              {assignees.slice(0, 2).map((m, idx) => (
+                <SignedImage key={m.id} filePath={m.avatar} className={`absolute w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover ${idx === 0 ? 'left-0' : 'right-0'}`} alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+              ))}
+              {valueIds.length > 2 && (
+                <span className="absolute right-0 bottom-0 inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-[10px] text-white border border-white dark:border-slate-950">+{valueIds.length - 2}</span>
+              )}
+            </div>
+          ) : primaryAssignee ? (
+            <SignedImage filePath={primaryAssignee.avatar} className="w-full h-full rounded-full object-cover" alt={primaryAssignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(primaryAssignee.name)}`} />
           ) : (
             <div className="w-full h-full rounded-full bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">+</div>
           )}
@@ -259,10 +281,17 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
         <button type="button" onClick={() => setOpen(!open)}
           className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
           <div className="flex items-center gap-1.5 min-w-0">
-            {assignee ? (
+            {valueIds.length > 1 ? (
+              <div className="flex -space-x-1.5 items-center">
+                {assignees.slice(0, 2).map(m => (
+                  <SignedImage key={m.id} filePath={m.avatar} className="w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+                ))}
+                <span className="text-[11px] truncate">{displayLabel}</span>
+              </div>
+            ) : primaryAssignee ? (
               <>
-                <SignedImage filePath={assignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={assignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
-                <span className="truncate">{assignee.name}</span>
+                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={primaryAssignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(primaryAssignee.name)}`} />
+                <span className="truncate">{primaryAssignee.name}</span>
               </>
             ) : (
               <span className="text-slate-400 truncate">Unassigned</span>
@@ -404,7 +433,6 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
       
-      // Smart vertical check:
       setOpenUpward(spaceBelow < 450 && rect.top > spaceBelow);
       
       setCoords({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width });
@@ -421,7 +449,6 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
   const totalCells = adjustedFirstDay + daysInMonth;
   const trailingDays = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   const prevMonth = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
@@ -440,12 +467,18 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     }
   };
 
+  // Auto-switch: after picking start date, jump to due date tab
   const selectDate = (day: number) => {
     const mm = String(currentMonth + 1).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
     const newDate = `${currentYear}-${mm}-${dd}`;
     const activeTime = activeTab === 'start' ? localStartDateTime : localDueDateTime;
     saveDate(newDate, activeTime, activeTab);
+
+    // Auto-switch: when start date is picked, automatically jump to due date
+    if (activeTab === 'start') {
+      setTimeout(() => setActiveTab('due'), 180);
+    }
   };
 
   const selectPreset = (offsetDays: number, setTimeLabel?: string) => {
@@ -464,6 +497,11 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     saveDate(newDate, targetTime, activeTab);
     setCurrentMonth(d.getMonth());
     setCurrentYear(d.getFullYear());
+
+    // Auto-switch on preset too
+    if (activeTab === 'start') {
+      setTimeout(() => setActiveTab('due'), 180);
+    }
   };
 
   const clearActiveDate = (target: 'start' | 'due') => {
@@ -493,26 +531,41 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0].substring(2)}`;
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${monthNames[parseInt(parts[1]) - 1]} ${parseInt(parts[2])}, ${parts[0]}`;
     }
     return dateStr;
   };
 
-  const displayText = displayLabel || (dateValue ? (() => {
-    const parts = dateValue.split('T')[0].split('-');
-    if (parts.length === 3) {
-      const y = parseInt(parts[0]);
-      const m = parseInt(parts[1]) - 1;
-      const d = parseInt(parts[2]);
-      const ds = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      if (ds === todayStr) return 'Today';
-      const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
-      const tmrwStr = `${tmrw.getFullYear()}-${String(tmrw.getMonth() + 1).padStart(2, '0')}-${String(tmrw.getDate()).padStart(2, '0')}`;
-      if (ds === tmrwStr) return 'Tomorrow';
-      return `${monthNamesShort[m]} ${d}${y !== today.getFullYear() ? `, ${y}` : ''}`;
-    }
-    return dateValue;
-  })() : (label || 'Select Date'));
+  const formatDateLabel = (dateValue: string) => {
+    if (!dateValue) return '';
+    const parts = dateValue.split('T');
+    const datePart = parts[0];
+    const timePart = parts[1] ? parts[1].slice(0, 5) : '';
+    const dateParts = datePart.split('-');
+    if (dateParts.length !== 3) return dateValue;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const formatted = `${monthNames[parseInt(dateParts[1]) - 1]} ${parseInt(dateParts[2])}`;
+    return timePart ? `${formatted}, ${timePart}` : formatted;
+  };
+
+  // Calculate duration between start and due
+  const getDurationLabel = () => {
+    if (!localStartDate || !localDueDate) return null;
+    const start = new Date(localStartDate);
+    const end = new Date(localDueDate);
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return null;
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Same day';
+    if (diffDays === 1) return '1 day';
+    if (diffDays < 7) return `${diffDays} days`;
+    if (diffDays === 7) return '1 week';
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ${diffDays % 7}d`;
+    return `${Math.floor(diffDays / 30)}mo ${diffDays % 30}d`;
+  };
+
+  const displayText = displayLabel || (dateValue ? formatDateLabel(dateValue) : (label || 'Select Date'));
 
   const isOverdue = dateValue && dateValue.split('T')[0] < todayStr && label?.toLowerCase() === 'due';
 
@@ -523,17 +576,17 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: openUpward ? 8 : -8, scale: 0.96 }}
       transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-      className="select-none rounded-[24px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
+      className="select-none rounded-[20px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
       style={{
         position: 'fixed',
         zIndex: 9999,
-        width: 480,
+        width: 420,
         boxShadow: '0 25px 60px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
         ...(coords ? (() => {
-          let left = align === 'right' ? coords.right - 480 : coords.left;
+          let left = align === 'right' ? coords.right - 420 : coords.left;
           left = Math.max(8, left);
-          if (left + 480 > window.innerWidth) {
-            left = window.innerWidth - 480 - 8;
+          if (left + 420 > window.innerWidth) {
+            left = window.innerWidth - 420 - 8;
           }
           return openUpward
             ? { bottom: window.innerHeight - coords.top + 8, left }
@@ -541,251 +594,255 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         })() : {})
       }}
     >
-      {/* ── Top Start/Due Date Boxes ── */}
-      <div className="p-4 pb-2 flex items-center gap-2 border-b border-slate-100 dark:border-slate-850">
-        <div 
-          onClick={() => setActiveTab('start')}
-          className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
-            activeTab === 'start'
-              ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
-              : 'border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900'
-          }`}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-405 shrink-0" />
-            <span className={`text-sm font-semibold truncate ${localStartDate ? 'text-slate-850 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
-              {localStartDate ? formatDateForBox(localStartDate) : 'Start date'}
-            </span>
-          </div>
-          {localStartDate && (
-            <button 
-              type="button" 
-              onClick={(e) => { e.stopPropagation(); clearActiveDate('start'); }}
-              className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-
-        <div 
-          onClick={() => setActiveTab('due')}
-          className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-all cursor-pointer ${
-            activeTab === 'due'
-              ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
-              : 'border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900'
-          }`}
-        >
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <CalendarDays className="w-3.5 h-3.5 text-slate-405 shrink-0" />
-            <span className={`text-sm font-semibold truncate ${localDueDate ? 'text-slate-850 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
-              {localDueDate ? formatDateForBox(localDueDate) : 'Due date'}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-            {localDueDate && (
+      {/* ── Header: Start/Due Date Toggle Pills ── */}
+      <div className="px-3 pt-3 pb-2">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('start')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+              activeTab === 'start'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{localStartDate ? formatDateForBox(localStartDate) : 'Start date'}</span>
+            {localStartDate && (
               <button 
                 type="button" 
-                onClick={() => clearActiveDate('due')}
-                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); clearActiveDate('start'); }}
+                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors ml-auto"
               >
                 <X className="w-3 h-3" />
               </button>
             )}
-            
-            <button 
-              type="button"
-              onClick={() => setShowTimePicker(!showTimePicker)}
-              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-            >
-              {activeTab === 'start'
-                ? (localStartDateTime || 'Add time')
-                : (localDueDateTime || 'Add time')
-              }
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Side-by-Side Area ── */}
-      <div className="flex min-h-[320px]">
-        
-        {/* Left presets column */}
-        <div className="w-[160px] shrink-0 border-r border-slate-100 dark:border-slate-850 flex flex-col justify-between py-3">
-          <div className="space-y-0.5">
-            {[
-              { label: 'Today', sub: presets.today, offset: 0 },
-              { label: 'Later', sub: presets.later, offset: 0, isLater: true },
-              { label: 'Tomorrow', sub: presets.tomorrow, offset: 1 },
-              { label: 'This weekend', sub: presets.thisWeekend, offset: daysToSaturday === 0 ? 7 : daysToSaturday },
-              { label: 'Next week', sub: presets.nextWeek, offset: daysToMonday === 0 ? 7 : daysToMonday },
-              { label: 'Next weekend', sub: presets.nextWeekend, offset: (daysToSaturday === 0 ? 7 : daysToSaturday) + 7 },
-              { label: '2 weeks', sub: presets.twoWeeks, offset: 14 },
-              { label: '4 weeks', sub: presets.fourWeeks, offset: 28 },
-            ].map(item => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => selectPreset(item.offset, item.isLater ? item.sub : undefined)}
-                className="w-[144px] flex items-center justify-between px-3 py-2 text-left text-[13px] font-semibold text-slate-705 dark:text-slate-250 hover:bg-slate-55 dark:hover:bg-slate-900 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg mx-2 transition-colors cursor-pointer"
-              >
-                <span>{item.label}</span>
-                <span className="text-xs text-slate-455 dark:text-slate-500 font-semibold">{item.sub}</span>
-              </button>
-            ))}
           </div>
 
-          <div className="space-y-1 pt-1.5 border-t border-slate-100 dark:border-slate-850">
-            <button
-              type="button"
-              onClick={() => alert('Recurring options configuration is mocked.')}
-              className="w-[144px] flex items-center justify-between px-3 py-2 text-left text-[13px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-55 dark:hover:bg-slate-900 rounded-lg mx-2 transition-colors cursor-pointer group"
-            >
-              <span>Set Recurring</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
+          {/* Arrow connector */}
+          <div className="flex flex-col items-center shrink-0">
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
           </div>
-        </div>
 
-        {/* Right calendar column */}
-        <div className="flex-1 p-4 flex flex-col justify-between">
-          
-          <div className="flex items-center justify-between mb-3.5">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-wide">
-              {monthNamesFull[currentMonth]} {currentYear}
-            </h4>
-            <div className="flex items-center gap-2">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('due')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+              activeTab === 'due'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{localDueDate ? formatDateForBox(localDueDate) : 'Due date'}</span>
+            {localDueDate && (
               <button 
                 type="button" 
-                onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); selectDate(t.getDate()); }}
-                className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); clearActiveDate('due'); }}
+                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors ml-auto"
               >
-                Today
+                <X className="w-3 h-3" />
               </button>
-              <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
-                <button 
-                  type="button" 
-                  onClick={prevMonth}
-                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  type="button" 
-                  onClick={nextMonth}
-                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-7 gap-0 text-center mb-1.5">
-            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-              <div key={d}>
-                <span className="text-xs font-semibold text-slate-455 dark:text-slate-550">{d}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-0.5 flex-1 items-center">
-            {Array.from({ length: adjustedFirstDay }).map((_, i) => {
-              const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
-              return (
-                <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square opacity-20">
-                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{ghostDay}</span>
-                </div>
-              );
-            })}
-
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isSelected = dateStr === (activeTab === 'start' ? localStartDate : localDueDate);
-              const isToday = dateStr === todayStr;
-              const isPast = dateStr < todayStr;
-              const isWeekend = (() => {
-                const wd = new Date(currentYear, currentMonth, day);
-                return wd.getDay() === 0 || wd.getDay() === 6;
-              })();
-
-              return (
-                <div key={day} className="flex items-center justify-center w-full aspect-square p-[1px]">
-                  <button
-                    type="button"
-                    onClick={() => selectDate(day)}
-                    className={`relative w-full h-full rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 hover:scale-[1.08] active:scale-95 text-xs ${
-                      isSelected
-                        ? 'text-white font-black bg-indigo-650 shadow-md shadow-indigo-500/20'
-                        : isToday
-                          ? 'font-black text-indigo-650 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20'
-                          : isPast
-                            ? 'font-medium text-slate-305 dark:text-slate-655 hover:bg-slate-50 dark:hover:bg-slate-900'
-                            : isWeekend
-                              ? 'font-semibold text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900'
-                              : 'font-semibold text-slate-700 dark:text-slate-250 hover:bg-slate-50 dark:hover:bg-slate-900'
-                    }`}
-                  >
-                    {isToday && !isSelected && (
-                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
-                    )}
-                    <span className="relative z-10">{day}</span>
-                  </button>
-                </div>
-              );
-            })}
-
-            {Array.from({ length: trailingDays }).map((_, i) => (
-              <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square opacity-20">
-                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{i + 1}</span>
-              </div>
-            ))}
-          </div>
-
-          <AnimatePresence>
-            {showTimePicker && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="mt-2 border-t border-slate-100 dark:border-slate-850 pt-2 flex items-center gap-2"
-              >
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl px-2 py-1 flex-1">
-                  <Clock className="w-3 h-3 text-slate-455 shrink-0" />
-                  <input
-                    type="time"
-                    value={activeTab === 'start' ? localStartDateTime : localDueDateTime}
-                    onChange={e => applyTime(e.target.value)}
-                    className="w-full text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent border-none outline-none p-0 focus:ring-0"
-                  />
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => applyTime('')}
-                  className="px-2.5 py-1.5 rounded-xl text-[10px] font-black text-rose-500 bg-rose-55 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-955/40 transition-colors cursor-pointer"
-                >
-                  Clear Time
-                </button>
-              </motion.div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
 
+        {/* Duration badge */}
+        {getDurationLabel() && (
+          <div className="flex items-center justify-center mt-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-full border border-indigo-100 dark:border-indigo-900/40">
+              <Clock className="w-3 h-3" />
+              {getDurationLabel()}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* ── Bottom Close Bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-850 rounded-b-[24px]">
-        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-          Editing: {activeTab === 'start' ? 'Start date' : 'Due date'}
-        </span>
+      {/* ── Calendar + Presets Area ── */}
+      <div className="px-3 pb-1">
+        {/* Month Nav */}
+        <div className="flex items-center justify-between mb-2.5 px-1">
+          <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+            {monthNamesFull[currentMonth]} {currentYear}
+          </h4>
+          <div className="flex items-center gap-1.5">
+            <button 
+              type="button" 
+              onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); }}
+              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
+            >
+              Today
+            </button>
+            <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
+              <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-0 text-center mb-1 px-0.5">
+          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+            <div key={d} className="py-1">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">{d}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid with range highlighting */}
+        <div className="grid grid-cols-7 gap-0 px-0.5">
+          {/* Previous month ghost days */}
+          {Array.from({ length: adjustedFirstDay }).map((_, i) => {
+            const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
+            return (
+              <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square">
+                <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{ghostDay}</span>
+              </div>
+            );
+          })}
+
+          {/* Current month days with range visualization */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isStartDate = dateStr === localStartDate;
+            const isDueDate = dateStr === localDueDate;
+            const isSelected = isStartDate || isDueDate;
+            const isToday = dateStr === todayStr;
+            const isPast = dateStr < todayStr;
+
+            // Range highlighting logic
+            const inRange = localStartDate && localDueDate && dateStr > localStartDate && dateStr < localDueDate;
+            const isRangeStart = isStartDate && localDueDate && localStartDate < localDueDate;
+            const isRangeEnd = isDueDate && localStartDate && localStartDate < localDueDate;
+
+            return (
+              <div key={day} className="relative flex items-center justify-center w-full aspect-square">
+                {/* Range background band */}
+                {(inRange || isRangeStart || isRangeEnd) && (
+                  <div
+                    className={`absolute inset-y-[4px] bg-indigo-50 dark:bg-indigo-950/25 ${
+                      isRangeStart ? 'left-1/2 right-0 rounded-l-lg' :
+                      isRangeEnd ? 'left-0 right-1/2 rounded-r-lg' :
+                      'left-0 right-0'
+                    }`}
+                  />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => selectDate(day)}
+                  className={`relative z-10 w-[34px] h-[34px] rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 text-xs
+                    ${isStartDate
+                      ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/30'
+                      : isDueDate
+                        ? 'text-white font-black bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 ring-2 ring-violet-400/30'
+                        : inRange
+                          ? 'font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
+                          : isToday
+                            ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800'
+                            : isPast
+                              ? 'font-medium text-slate-300 dark:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-500'
+                              : 'font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 hover:scale-[1.08] active:scale-95'
+                    }`}
+                >
+                  {isToday && !isSelected && (
+                    <span className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
+                  )}
+                  {day}
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Next month ghost days */}
+          {Array.from({ length: trailingDays }).map((_, i) => (
+            <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square">
+              <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Time Picker (Expandable) ── */}
+      <AnimatePresence>
+        {showTimePicker && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mx-3 border-t border-slate-100 dark:border-slate-850 overflow-hidden"
+          >
+            <div className="flex items-center gap-2 py-2.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl px-2.5 py-1.5 flex-1">
+                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                <input
+                  type="time"
+                  value={activeTab === 'start' ? localStartDateTime : localDueDateTime}
+                  onChange={e => applyTime(e.target.value)}
+                  className="w-full text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent border-none outline-none p-0 focus:ring-0"
+                />
+              </div>
+              <button 
+                type="button" 
+                onClick={() => applyTime('')}
+                className="px-2.5 py-1.5 rounded-xl text-[10px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Footer: Presets + Time + Close ── */}
+      <div className="border-t border-slate-100 dark:border-slate-850 px-3 py-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 flex-wrap flex-1">
+          {[
+            { label: 'Today', offset: 0 },
+            { label: 'Tomorrow', offset: 1 },
+            { label: 'Sat', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
+            { label: '+1w', offset: daysToMonday === 0 ? 7 : daysToMonday },
+            { label: '+2w', offset: 14 },
+          ].map(item => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => selectPreset(item.offset)}
+              className="px-2 py-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors cursor-pointer"
+            >
+              {item.label}
+            </button>
+          ))}
+
+          <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+          <button 
+            type="button"
+            onClick={() => setShowTimePicker(!showTimePicker)}
+            className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+              showTimePicker
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
+                : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
+            }`}
+          >
+            <Clock className="w-3 h-3 inline mr-1" />
+            {activeTab === 'start' ? (localStartDateTime || 'Time') : (localDueDateTime || 'Time')}
+          </button>
+        </div>
+
         <button 
           type="button" 
           onClick={() => { setIsOpen(false); setShowTimePicker(false); }}
-          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer active:scale-[0.98]"
+          className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-xl shadow-sm transition-colors cursor-pointer active:scale-[0.97]"
         >
-          Close
+          Done
         </button>
       </div>
     </motion.div>

@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User } from '../types';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from '../contexts/TranslationContext';
 
 interface ProductivityHubProps {
   tasks: Task[];
@@ -49,6 +50,7 @@ export default function ProductivityHub({
   onAddSyncLog,
   triggerToast
 }: ProductivityHubProps) {
+  const { t, locale } = useTranslation();
   // Local storage keys
   const HABITS_STORAGE_KEY = 'avaxa_productivity_habits';
   const FOCUS_LOG_STORAGE_KEY = 'avaxa_productivity_focus_sessions';
@@ -62,10 +64,10 @@ export default function ProductivityHub({
       console.error(e);
     }
     return [
-      { id: 'h1', name: 'Đánh giá Code & Thảo luận', history: {}, createdAt: new Date().toISOString(), streak: 2 },
-      { id: 'h2', name: 'Đọc tài liệu kỹ thuật', history: {}, createdAt: new Date().toISOString(), streak: 3 },
-      { id: 'h3', name: 'Tập trung sâu 90 phút', history: {}, createdAt: new Date().toISOString(), streak: 0 },
-      { id: 'h4', name: 'Uống đủ 2L nước', history: {}, createdAt: new Date().toISOString(), streak: 5 },
+      { id: 'h1', name: locale === 'vi' ? 'Đánh giá Code & Thảo luận' : 'Code Review & Discussion', history: {}, createdAt: new Date().toISOString(), streak: 2 },
+      { id: 'h2', name: locale === 'vi' ? 'Đọc tài liệu kỹ thuật' : 'Read Technical Docs', history: {}, createdAt: new Date().toISOString(), streak: 3 },
+      { id: 'h3', name: locale === 'vi' ? 'Tập trung sâu 90 phút' : '90-min Deep Focus', history: {}, createdAt: new Date().toISOString(), streak: 0 },
+      { id: 'h4', name: locale === 'vi' ? 'Uống đủ 2L nước' : 'Drink 2L Water', history: {}, createdAt: new Date().toISOString(), streak: 5 }
     ];
   });
 
@@ -488,13 +490,21 @@ export default function ProductivityHub({
     }
 
     if (onAddSyncLog) {
-      onAddSyncLog(`Bản ghi Pomodoro hoàn thành: ${pomoMode.toUpperCase()} trong ${minutes} phút.`);
+      onAddSyncLog(
+        locale === 'vi'
+          ? `Bản ghi Pomodoro hoàn thành: ${pomoMode.toUpperCase()} trong ${minutes} phút.`
+          : `Pomodoro session completed: ${pomoMode.toUpperCase()} for ${minutes} mins.`
+      );
     }
 
     if (triggerToast) {
-      triggerToast('success', 'Pomodoro Hoàn Thành! 🎯', `Bạn đã hoàn tất xuất sắc phiên ${
-        pomoMode === 'work' ? 'Làm Việc Gấp Rút' : pomoMode === 'short' ? 'Nghỉ Ngơi Ngắn' : 'Nghỉ Ngơi Dài'
-      } kéo dài ${minutes} phút.`);
+      triggerToast(
+        'success',
+        locale === 'vi' ? 'Pomodoro Hoàn Thành! 🎯' : 'Pomodoro Completed! 🎯',
+        locale === 'vi' 
+          ? `Bạn đã hoàn tất xuất sắc phiên ${pomoMode === 'work' ? 'Làm Việc Gấp Rút' : pomoMode === 'short' ? 'Nghỉ Ngơi Ngắn' : 'Nghỉ Ngơi Dài'} kéo dài ${minutes} phút.`
+          : `You have successfully completed a ${pomoMode === 'work' ? 'Deep Work' : pomoMode === 'short' ? 'Short Break' : 'Long Break'} session of ${minutes} minutes.`
+      );
     }
 
     // Auto toggle modes
@@ -514,7 +524,11 @@ export default function ProductivityHub({
     setPomoActive(true);
     playSynthesizedSound('spark');
     if (onAddSyncLog) {
-      onAddSyncLog(`Khởi động đồng hồ Pomodoro (${pomoMode.toUpperCase()})`);
+      onAddSyncLog(
+        locale === 'vi'
+          ? `Khởi động đồng hồ Pomodoro (${pomoMode.toUpperCase()})`
+          : `Started Pomodoro timer (${pomoMode.toUpperCase()})`
+      );
     }
   };
 
@@ -634,10 +648,14 @@ export default function ProductivityHub({
     }
 
     if (onAddSyncLog) {
-      onAddSyncLog(`Thêm thói quen mới: ${newHabit.name}`);
+      onAddSyncLog(locale === 'vi' ? `Thêm thói quen mới: ${newHabit.name}` : `Added new habit: ${newHabit.name}`);
     }
     if (triggerToast) {
-      triggerToast('success', 'Thành Công', `Đã thêm thói quen theo dõi mới: "${newHabit.name}"`);
+      triggerToast(
+        'success',
+        locale === 'vi' ? 'Thành Công' : 'Success',
+        locale === 'vi' ? `Đã thêm thói quen theo dõi mới: "${newHabit.name}"` : `Added new tracking habit: "${newHabit.name}"`
+      );
     }
   };
 
@@ -656,7 +674,7 @@ export default function ProductivityHub({
     }
 
     if (onAddSyncLog) {
-      onAddSyncLog(`Xóa thói quen: ${name}`);
+      onAddSyncLog(locale === 'vi' ? `Xóa thói quen: ${name}` : `Removed habit: ${name}`);
     }
   };
 
@@ -664,7 +682,13 @@ export default function ProductivityHub({
   const generateWeeklyProductivityReport = async () => {
     if (isOffline) {
       if (triggerToast) {
-        triggerToast('message', 'Ngoại tuyến', 'Không thể kết xuất báo cáo hiệu năng AI khi ở chế độ ngoại tuyến.');
+        triggerToast(
+          'message',
+          locale === 'vi' ? 'Ngoại tuyến' : 'Offline',
+          locale === 'vi'
+            ? 'Không thể kết xuất báo cáo hiệu năng AI khi ở chế độ ngoại tuyến.'
+            : 'Cannot generate AI productivity report while offline.'
+        );
       }
       return;
     }
@@ -686,14 +710,22 @@ export default function ProductivityHub({
       if (data.success) {
         setReportText(data.text);
         if (triggerToast) {
-          triggerToast('success', 'Kết Xuất Thành Công 📊', 'Báo cáo năng suất tuần và phân tích điểm nghẽn đội ngũ đã hoàn tất.');
+          triggerToast(
+            'success',
+            locale === 'vi' ? 'Kết Xuất Thành Công 📊' : 'Export Successful 📊',
+            locale === 'vi'
+              ? 'Báo cáo năng suất tuần và phân tích điểm nghẽn đội ngũ đã hoàn tất.'
+              : 'Weekly productivity report and team bottleneck analysis are complete.'
+          );
         }
       } else {
         throw new Error(data.error || 'Unknown error');
       }
     } catch (err: any) {
       console.error(err);
-      setReportText(`### Báo Cáo Hiệu Năng Vận Hành
+      setReportText(
+        locale === 'vi'
+          ? `### Báo Cáo Hiệu Năng Vận Hành
 Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini. Vui lòng kiểm tra lại API Key hoặc kết nối mạng của bạn.
 
 **Các thông số ghi nhận nhanh:**
@@ -701,10 +733,26 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
 - **Đã hoàn thành**: ${tasks.filter(t => t.status === 'completed').length} việc
 - **Số thành viên đội ngũ**: ${members.length} người
 - **Đồng hồ ước tính**: ${tasks.reduce((acc, t) => acc + (t.hoursEstimate || 0), 0)} giờ
-- **Thời gian đã thực hiện**: ${tasks.reduce((acc, t) => acc + (t.hoursLogged || 0), 0)} giờ.`);
+- **Thời gian đã thực hiện**: ${tasks.reduce((acc, t) => acc + (t.hoursLogged || 0), 0)} giờ.`
+          : `### Operations Performance Report
+Error contacting Gemini AI center. Please check your API Key or network connection.
+
+**Metrics overview:**
+- **Total active tasks**: ${tasks.length}
+- **Completed**: ${tasks.filter(t => t.status === 'completed').length} tasks
+- **Team members**: ${members.length} members
+- **Estimated hours**: ${tasks.reduce((acc, t) => acc + (t.hoursEstimate || 0), 0)} hours
+- **Logged hours**: ${tasks.reduce((acc, t) => acc + (t.hoursLogged || 0), 0)} hours.`
+      );
       
       if (triggerToast) {
-        triggerToast('comment', 'Sự cố kết nối AI', 'Gợi ý báo cáo chuyển sang cấu trúc mẫu ngoại bang.');
+        triggerToast(
+          'comment',
+          locale === 'vi' ? 'Sự cố kết nối AI' : 'AI Connection Issue',
+          locale === 'vi'
+            ? 'Gợi ý báo cáo chuyển sang cấu trúc mẫu ngoại bang.'
+            : 'Report suggestions switched to fallback schema.'
+        );
       }
     } finally {
       setGeneratingReport(false);
@@ -879,11 +927,11 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                 <Zap className="w-5 h-5 fill-indigo-500" />
               </span>
               <h1 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 font-sans tracking-tight">
-                Không Gian Quản Trị Năng Suất
+                {locale === 'vi' ? 'Không Gian Quản Trị Năng Suất' : 'Productivity Management Workspace'}
               </h1>
             </div>
             <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">
-              Thiết lập nhịp độ làm việc thông thái thông qua Pomodoro, thói quen cốt lõi và báo cáo Trí Tuệ Nhân Tạo.
+              {locale === 'vi' ? 'Thiết lập nhịp độ làm việc thông thái thông qua Pomodoro, thói quen cốt lõi và báo cáo Trí Tuệ Nhân Tạo.' : 'Establish a smart work rhythm through Pomodoro, core habits, and AI reporting.'}
             </p>
           </div>
           
@@ -899,12 +947,12 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
               {generatingReport ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Đang phân tích...
+                  {t('dashboardGeneratingReport') || 'Đang phân tích...'}
                 </>
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 fill-white" />
-                  Báo cáo Năng suất AI
+                  {locale === 'vi' ? 'Báo cáo Năng suất AI' : 'AI Productivity Report'}
                 </>
               )}
             </button>
@@ -917,8 +965,8 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">Biểu đồ Tập Trung Tuần</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Thống kê tổng số phút chạy Pomodoro 7 ngày gần đây</p>
+                <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">{locale === 'vi' ? 'Biểu đồ Tập Trung Tuần' : 'Weekly Focus Chart'}</h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Thống kê tổng số phút chạy Pomodoro 7 ngày gần đây' : 'Statistics of total Pomodoro focus minutes in the past 7 days'}</p>
               </div>
               <BarChart2 className="w-4 h-4 text-slate-400" />
             </div>
@@ -936,7 +984,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                   <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="#94a3b8" tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" tickLine={false} />
                   <Tooltip contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '10px', fontSize: '11px', color: '#fff' }} />
-                  <Area type="monotone" dataKey="Phút Tập Trung" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#pomoMinutesGrad)" />
+                  <Area name={locale === 'vi' ? 'Phút Tập Trung' : 'Focus Minutes'} type="monotone" dataKey="Phút Tập Trung" stroke="#4f46e5" strokeWidth={2} fillOpacity={1} fill="url(#pomoMinutesGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -1068,7 +1116,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                   <div className="space-y-1 pt-1 border-t border-slate-100/50 dark:border-slate-800/40">
                     <div className="flex items-center justify-between text-[10px] font-mono">
                       <span className={badge.isUnlocked ? 'text-emerald-500 font-bold' : 'text-slate-400 dark:text-slate-500'}>
-                        {badge.isUnlocked ? '✓ Đã Chinh Phục' : 'Đang Thực Hiện'}
+                        {badge.isUnlocked ? (locale === 'vi' ? '✓ Đã Chinh Phục' : '✓ Unlocked') : (locale === 'vi' ? 'Đang Thực Hiện' : 'In Progress')}
                       </span>
                       <span className="text-slate-400 dark:text-slate-500">{badge.progressText}</span>
                     </div>
@@ -1093,16 +1141,16 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
             <div className="space-y-0.5">
               <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Award className="w-4.5 h-4.5 text-yellow-500" />
-                Bộ Theo Dõi Kỷ Luật Bản Thân (Habits Grid)
+                {locale === 'vi' ? 'Bộ Theo Dõi Kỷ Luật Bản Thân (Habits Grid)' : 'Self-Discipline Tracker (Habits Grid)'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Đánh giá quá trình huấn luyện rèn luyện thói quen vàng trong tuần này</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Đánh giá quá trình huấn luyện rèn luyện thói quen vàng trong tuần này' : 'Evaluate golden habit coaching and training progress this week'}</p>
             </div>
 
             {/* Habit creation form */}
             <form onSubmit={handleAddHabit} className="flex items-center gap-2">
               <input 
                 type="text"
-                placeholder="Thêm thói quen mới..."
+                placeholder={locale === 'vi' ? 'Thêm thói quen mới...' : 'Add new habit...'}
                 value={newHabitName}
                 onChange={(e) => setNewHabitName(e.target.value)}
                 className="text-xs w-56 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
@@ -1121,7 +1169,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
             <table className="w-full text-left border-collapse space-y-4">
               <thead>
                 <tr className="border-b border-slate-50 dark:border-slate-900">
-                  <th className="py-2.5 text-xs font-semibold text-slate-400 dark:text-slate-500 pl-2">Thói Quen Vàng</th>
+                  <th className="py-2.5 text-xs font-semibold text-slate-400 dark:text-slate-500 pl-2">{locale === 'vi' ? 'Thói Quen Vàng' : 'Golden Habit'}</th>
                   {weekDays.map(day => (
                     <th key={day.dateStr} className="text-center py-2.5">
                       <div className={`p-1.5 rounded-lg flex flex-col items-center justify-center min-w-10 ${
@@ -1132,7 +1180,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                       </div>
                     </th>
                   ))}
-                  <th className="py-2.5 text-center text-xs font-semibold text-slate-400 dark:text-slate-500 pr-2">Chuỗi</th>
+                  <th className="py-2.5 text-center text-xs font-semibold text-slate-400 dark:text-slate-500 pr-2">{locale === 'vi' ? 'Chuỗi' : 'Streak'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/50 dark:divide-slate-800/40">
@@ -1144,7 +1192,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                         <button 
                           onClick={() => handleDeleteHabit(habit.id, habit.name)}
                           className="opacity-0 group-hover/habit:opacity-100 transition-opacity p-1 text-slate-300 hover:text-rose-500 cursor-pointer"
-                          title="Gỡ bỏ thói quen"
+                          title={locale === 'vi' ? 'Gỡ bỏ thói quen' : 'Remove habit'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1187,9 +1235,9 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
           <div className="space-y-0.5 border-b border-slate-100 dark:border-slate-800 pb-3">
             <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Compass className="w-4.5 h-4.5 text-indigo-500" />
-              Sắp Xếp Ma Trận Ưu Tiên (Eisenhower Strategy)
+              {locale === 'vi' ? 'Sắp Xếp Ma Trận Ưu Tiên (Eisenhower Strategy)' : 'Prioritize Matrix (Eisenhower Strategy)'}
             </h2>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Xác định rõ việc quan trọng cấp bách để hạn chế quá tải tư duy</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Xác định rõ việc quan trọng cấp bách để hạn chế quá tải tư duy' : 'Define urgent/important tasks to reduce cognitive overload'}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1286,9 +1334,9 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
           <div className="space-y-1 w-full text-left">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-500" />
-              Đồng Hồ Cực Hạn Tập Trung (Pomodoro Sandbox)
+              {locale === 'vi' ? 'Đồng Hồ Cực Hạn Tập Trung (Pomodoro Sandbox)' : 'Pomodoro Focus Timer (Pomodoro Sandbox)'}
             </h2>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">Mô phỏng chu trình nạp năng lượng liên hoàn</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Mô phỏng chu trình nạp năng lượng liên hoàn' : 'Simulate continuous energy reload cycle'}</p>
           </div>
 
           {/* Mode switch selectors */}
@@ -1299,7 +1347,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                 pomoMode === 'work' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              Làm Việc (25m)
+              {locale === 'vi' ? 'Làm Việc (25m)' : 'Deep Work (25m)'}
             </button>
             <button 
               onClick={() => handleSetMode('short')}
@@ -1307,7 +1355,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                 pomoMode === 'short' ? 'bg-white dark:bg-slate-800 text-emerald-500 shadow-xs' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              Nghỉ Ngắn (5m)
+              {locale === 'vi' ? 'Nghỉ Ngắn (5m)' : 'Short Break (5m)'}
             </button>
             <button 
               onClick={() => handleSetMode('long')}
@@ -1315,7 +1363,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
                 pomoMode === 'long' ? 'bg-white dark:bg-slate-800 text-amber-500 shadow-xs' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
-              Nghỉ Dài (15m)
+              {locale === 'vi' ? 'Nghỉ Dài (15m)' : 'Long Break (15m)'}
             </button>
           </div>
 

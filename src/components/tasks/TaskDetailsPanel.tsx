@@ -112,12 +112,20 @@ interface TaskDetailsPanelProps {
   allTasks?: Task[];
   allDocs?: Document[];
   onOpenFieldsPanel?: () => void;
+  globalActiveTaskId?: string | null;
+  globalActiveElapsed?: number;
+  globalIsPaused?: boolean;
+  onStartGlobalTimer?: (id: string) => void;
+  onStopGlobalTimer?: () => void;
+  onTogglePauseGlobalTimer?: () => void;
 }
 
 export default function TaskDetailsPanel({
    task, members, workspaces = [], spaces = [], onClose, onUpdateTask, onDeleteTask, onAddSyncLog, triggerToast,
    onAttachmentUpload, onAttachmentDelete, onAiSubtasks, aiGenerating,
-   onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel
+   onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel,
+   globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
+   onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer
  }: TaskDetailsPanelProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
@@ -159,14 +167,14 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/45 backdrop-blur-xs transition-all duration-305' :
-    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-black/25 transition-all duration-305' :
-    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-black/10 backdrop-blur-0 pointer-events-none transition-all duration-305';
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-955/40 dark:bg-black/60 backdrop-blur-sm transition-all duration-305' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-black/30 transition-all duration-305' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-black/15 backdrop-blur-none pointer-events-none transition-all duration-305';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full max-w-5xl h-[88vh] bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-slate-950 flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white dark:bg-slate-955 border-l border-slate-200/80 dark:border-slate-800 rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+    modalLayout === 'modal' ? 'relative w-full max-w-5xl h-[88vh] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800 rounded-3xl flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row overflow-hidden shadow-2xl pointer-events-auto' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200/60 dark:border-slate-800 rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -195,6 +203,11 @@ export default function TaskDetailsPanel({
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isGlobalTrackingThisTask = task.id === globalActiveTaskId;
+  const currentTimerActive = isGlobalTrackingThisTask ? true : isTimerActive;
+  const currentElapsedSeconds = isGlobalTrackingThisTask ? globalActiveElapsed : elapsedSeconds;
+  const currentTimerPaused = isGlobalTrackingThisTask ? globalIsPaused : false;
 
   React.useEffect(() => {
     if (isTimerActive) {
@@ -229,6 +242,22 @@ export default function TaskDetailsPanel({
       if (triggerToast) triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to task.`);
     }
     setElapsedSeconds(0);
+  };
+
+  const handleStopTimer = () => {
+    if (isGlobalTrackingThisTask) {
+      if (onStopGlobalTimer) onStopGlobalTimer();
+    } else {
+      stopTimerAndLog();
+    }
+  };
+
+  const handleStartTimer = () => {
+    if (onStartGlobalTimer) {
+      onStartGlobalTimer(task.id);
+    } else {
+      setIsTimerActive(true);
+    }
   };
 
   React.useEffect(() => {
@@ -731,17 +760,28 @@ export default function TaskDetailsPanel({
                     <Clock className="w-3.5 h-3.5" /> Track time
                   </span>
                   <div className="flex items-center gap-2">
-                    {isTimerActive ? (
+                    {currentTimerActive ? (
                       <>
-                        <span className="text-[11px] font-mono font-bold text-rose-500 animate-pulse tabular-nums">{formatTimerTime(elapsedSeconds)}</span>
-                        <button type="button" onClick={stopTimerAndLog}
-                          className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-md text-[10px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
+                        <span className={`text-[11px] font-mono font-bold text-rose-500 tabular-nums ${currentTimerPaused ? '' : 'animate-pulse'}`}>
+                          {formatTimerTime(currentElapsedSeconds)}
+                        </span>
+                        {isGlobalTrackingThisTask && (
+                          <button
+                            type="button"
+                            onClick={onTogglePauseGlobalTimer}
+                            className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50/50 dark:bg-indigo-955/20 text-indigo-655 dark:text-indigo-400 rounded-md text-[10px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors border border-indigo-200/30"
+                          >
+                            {currentTimerPaused ? 'Resume' : 'Pause'}
+                          </button>
+                        )}
+                        <button type="button" onClick={handleStopTimer}
+                          className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-455 rounded-md text-[10px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
                           <Square className="w-2.5 h-2.5 fill-current" /> Stop
                         </button>
                       </>
                     ) : (
-                      <button type="button" onClick={() => setIsTimerActive(true)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 p-1 px-2 rounded-lg transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50">
+                      <button type="button" onClick={handleStartTimer}
+                        className="flex items-center gap-1.5 text-xs font-medium text-slate-505 dark:text-slate-400 hover:text-slate-700 p-1 px-2 rounded-lg transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50">
                         <Play className="w-3 h-3 fill-slate-400 text-slate-400 shrink-0" /> Start
                       </button>
                     )}

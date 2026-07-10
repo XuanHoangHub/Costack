@@ -12,6 +12,7 @@ import {
   Eye, EyeOff, Check, CheckCircle2, Fingerprint, X
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from '../contexts/TranslationContext';
 import LandingPage from './landing/LandingPage';
 
 interface LoginScreenProps {
@@ -56,6 +57,7 @@ function GlowInputField({
 }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+  const { t, locale } = useTranslation();
   const [isAuthActive, setIsAuthActive] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
@@ -84,12 +86,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   const getStrengthTextAndColor = () => {
     switch (strengthScore) {
-      case 0: return { text: 'Không an toàn', color: 'bg-red-400', textClass: 'text-red-500' };
-      case 1: return { text: 'Yếu', color: 'bg-rose-400', textClass: 'text-rose-500' };
-      case 2: return { text: 'Trung bình', color: 'bg-amber-400', textClass: 'text-amber-500' };
-      case 3: return { text: 'Khá mạnh', color: 'bg-indigo-400', textClass: 'text-indigo-500' };
-      case 4: return { text: 'Tuyệt vời!', color: 'bg-emerald-400', textClass: 'text-emerald-500' };
-      default: return { text: 'Yếu', color: 'bg-slate-200', textClass: 'text-slate-400' };
+      case 0: return { text: locale === 'vi' ? 'Không an toàn' : 'Insecure', color: 'bg-red-400', textClass: 'text-red-500' };
+      case 1: return { text: locale === 'vi' ? 'Yếu' : 'Weak', color: 'bg-rose-400', textClass: 'text-rose-500' };
+      case 2: return { text: locale === 'vi' ? 'Trung bình' : 'Medium', color: 'bg-amber-400', textClass: 'text-amber-500' };
+      case 3: return { text: locale === 'vi' ? 'Khá mạnh' : 'Strong', color: 'bg-indigo-400', textClass: 'text-indigo-500' };
+      case 4: return { text: locale === 'vi' ? 'Tuyệt vời!' : 'Excellent!', color: 'bg-emerald-400', textClass: 'text-emerald-500' };
+      default: return { text: locale === 'vi' ? 'Yếu' : 'Weak', color: 'bg-slate-200', textClass: 'text-slate-400' };
     }
   };
 
@@ -112,15 +114,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setSuccess('');
 
     if (!email || !password) {
-      setError('Vui lòng điền đầy đủ email và mật khẩu.');
+      setError(t('enterCredentials') || 'Vui lòng điền đầy đủ email và mật khẩu.');
       return;
     }
     if (isSignUp && !name) {
-      setError('Vui lòng điền họ tên của bạn.');
+      setError(t('enterFullName') || 'Vui lòng điền họ tên của bạn.');
       return;
     }
     if (isSignUp && strengthScore < 3) {
-      setError('Mật khẩu chưa đủ an toàn (cần đạt ít nhất 3/4 điều kiện).');
+      setError(t('passwordStrength') || 'Mật khẩu phải đạt mức bảo mật khuyến nghị (ít nhất Khá - 3/4 tiêu chí).');
       return;
     }
 
@@ -134,13 +136,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         });
         if (signUpError) throw signUpError;
 
-        setSuccess('Đăng ký thành công! Đang tự động kết nối...');
+        setSuccess(t('signupSuccess') || 'Đăng ký thành công! Đang tự động kết nối...');
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (signInError) {
-          setSuccess('Đăng ký thành công! Vui lòng xác thực email để tiếp tục.');
+          setSuccess(t('verificationCheck') || 'Đăng ký thành công! Vui lòng xác thực email để tiếp tục.');
           setLoading(false);
           setIsSignUp(false);
           return;
@@ -162,7 +164,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         const sessionUser = data.user;
         const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Avaxa Champion';
 
-        setSuccess('Xác thực thành công! Đang vào hệ thống...');
+        setSuccess(t('signinSuccess') || 'Đăng nhập thành công! Đang kết nối vào Avaxa OS...');
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         const userRole = sessionUser?.email?.includes('admin') || sessionUser?.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member';
@@ -176,11 +178,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      let errorMessage = err.message || 'Lỗi kết nối máy chủ xác thực.';
+      let errorMessage = err.message || (locale === 'vi' ? 'Lỗi kết nối máy chủ xác thực.' : 'Authentication server connection error.');
       if (err.message?.toLowerCase().includes('invalid login credentials')) {
-        errorMessage = 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
+        errorMessage = t('invalidCredentials') || 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
       } else if (err.message?.toLowerCase().includes('user already registered')) {
-        errorMessage = 'Địa chỉ email này đã tồn tại trên hệ thống.';
+        errorMessage = t('emailAlreadyRegistered') || 'Địa chỉ email này đã tồn tại trên hệ thống.';
       }
       setError(errorMessage);
     } finally {
@@ -207,7 +209,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         facebook: { name: 'Mai Phương', email: 'maiphuong.fb@avaxa.io', role: 'member' }
       };
       const selected = mockupUsers[provider];
-      setSuccess(`Phiên SSO cục bộ đã được kích hoạt cho ${selected.name}`);
+      setSuccess(locale === 'vi' ? `Phiên SSO cục bộ đã được kích hoạt cho ${selected.name}` : `Local SSO session activated for ${selected.name}`);
       await new Promise(resolve => setTimeout(resolve, 800));
       onLoginSuccess({
         name: selected.name,
@@ -261,11 +263,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 </button>
 
                 <div className="space-y-1 pr-8">
-                  <h2 className="text-xl font-black text-slate-900 font-display">
-                    {isSignUp ? 'Bắt đầu dùng Avaxa miễn phí' : 'Chào mừng trở lại'}
+                  <h2 className="text-xl font-black text-slate-900 font-display text-left">
+                    {isSignUp ? (locale === 'vi' ? 'Bắt đầu dùng Avaxa miễn phí' : 'Start using Avaxa for free') : (t('welcome') || 'Chào mừng trở lại')}
                   </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {isSignUp ? 'Tạo tài khoản và hợp nhất quy trình làm việc của bạn.' : 'Kết nối hệ thống và tiếp tục hành trình hiệu suất.'}
+                  <p className="text-xs text-slate-550 font-medium text-left">
+                    {isSignUp ? (locale === 'vi' ? 'Tạo tài khoản và hợp nhất quy trình làm việc của bạn.' : 'Create account and unify your workflow.') : (locale === 'vi' ? 'Kết nối hệ thống và tiếp tục hành trình hiệu suất.' : 'Connect to the system and continue your productivity journey.')}
                   </p>
                 </div>
 
@@ -273,16 +275,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <button
                     type="button"
                     onClick={() => { setIsSignUp(false); setError(''); }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${!isSignUp ? 'bg-white text-indigo-650 shadow-xs border border-slate-100' : 'text-slate-450 hover:text-slate-600'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${!isSignUp ? 'bg-white text-indigo-650 shadow-xs border border-slate-105' : 'text-slate-455 hover:text-slate-600'}`}
                   >
-                    Đăng nhập
+                    {t('login') || 'Đăng nhập'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setIsSignUp(true); setError(''); }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${isSignUp ? 'bg-white text-indigo-650 shadow-xs border border-slate-100' : 'text-slate-450 hover:text-slate-600'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${isSignUp ? 'bg-white text-indigo-655 shadow-xs border border-slate-105' : 'text-slate-455 hover:text-slate-600'}`}
                   >
-                    Đăng ký mới
+                    {locale === 'vi' ? 'Đăng ký mới' : 'Sign Up'}
                   </button>
                 </div>
 
@@ -300,7 +302,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                           id="input_signup_name"
                           icon={User}
                           type="text"
-                          placeholder="Họ và tên của bạn"
+                          placeholder={t('fullName') || 'Họ và tên của bạn'}
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           required={isSignUp}
@@ -313,7 +315,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     id="input_login_email"
                     icon={Mail}
                     type="email"
-                    placeholder="Địa chỉ email cá nhân/công việc"
+                    placeholder={t('email') || 'Địa chỉ email cá nhân/công việc'}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -324,7 +326,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       id="input_login_password"
                       icon={Lock}
                       type={showPassword ? "text" : "password"}
-                      placeholder="Mật khẩu của bạn"
+                      placeholder={t('password') || 'Mật khẩu của bạn'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -332,7 +334,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="text-slate-400 hover:text-indigo-600 transition-colors p-1 rounded cursor-pointer"
+                          className="text-slate-400 hover:text-indigo-650 transition-colors p-1 rounded cursor-pointer"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -340,7 +342,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     />
                     {!isSignUp && (
                       <div className="text-right pt-0.5">
-                        <a href="#" className="text-[11px] text-indigo-600 font-bold hover:underline">Quên mật khẩu?</a>
+                        <a href="#" className="text-[11px] text-indigo-650 font-bold hover:underline">{t('forgotPassword') || 'Quên mật khẩu?'}</a>
                       </div>
                     )}
                   </div>
@@ -354,7 +356,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         className="bg-slate-50 border border-slate-100 p-3 rounded-xl space-y-2 overflow-hidden text-left"
                       >
                         <div className="flex items-center justify-between text-[10px] font-bold">
-                          <span className="text-slate-400">Độ mạnh mật khẩu:</span>
+                          <span className="text-slate-400">{locale === 'vi' ? 'Độ mạnh mật khẩu:' : 'Password strength:'}</span>
                           <span className={`font-black ${getStrengthTextAndColor().textClass}`}>{getStrengthTextAndColor().text}</span>
                         </div>
                         <div className="grid grid-cols-4 gap-1 h-1 bg-slate-200 rounded-full overflow-hidden">
@@ -363,10 +365,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                           ))}
                         </div>
                         <div className="grid grid-cols-2 gap-1 text-[9px] font-bold text-slate-400">
-                          <span className={hasMinLength ? 'text-emerald-500' : ''}>✓ Ít nhất 8 ký tự</span>
-                          <span className={hasLetter ? 'text-emerald-500' : ''}>✓ Có chữ cái (a-z)</span>
-                          <span className={hasNumber ? 'text-emerald-500' : ''}>✓ Có chữ số (0-9)</span>
-                          <span className={hasSpecial ? 'text-emerald-500' : ''}>✓ Kí tự đặc biệt</span>
+                          <span className={hasMinLength ? 'text-emerald-500' : ''}>{locale === 'vi' ? '✓ Ít nhất 8 ký tự' : '✓ At least 8 characters'}</span>
+                          <span className={hasLetter ? 'text-emerald-500' : ''}>{locale === 'vi' ? '✓ Có chữ cái (a-z)' : '✓ Contains letters (a-z)'}</span>
+                          <span className={hasNumber ? 'text-emerald-500' : ''}>{locale === 'vi' ? '✓ Có chữ số (0-9)' : '✓ Contains numbers (0-9)'}</span>
+                          <span className={hasSpecial ? 'text-emerald-500' : ''}>{locale === 'vi' ? '✓ Kí tự đặc biệt' : '✓ Special characters'}</span>
                         </div>
                       </motion.div>
                     )}
@@ -380,7 +382,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <div className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${rememberMe ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white group-hover:border-indigo-400'}`}>
                       {rememberMe && <Check className="w-2.5 h-2.5 stroke-[3px]" />}
                     </div>
-                    <span>Ghi nhớ 30 ngày</span>
+                    <span>{locale === 'vi' ? 'Ghi nhớ 30 ngày' : 'Remember 30 days'}</span>
                   </button>
 
                   {error && (
@@ -407,7 +409,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     ) : (
                       <>
                         <Fingerprint className="w-4 h-4 opacity-80" />
-                        <span>{isSignUp ? 'Tạo tài khoản Avaxa' : 'Đăng nhập hệ thống'}</span>
+                        <span>{isSignUp ? (locale === 'vi' ? 'Tạo tài khoản Avaxa' : 'Create Avaxa Account') : (locale === 'vi' ? 'Đăng nhập hệ thống' : 'Login System')}</span>
                       </>
                     )}
                   </button>
@@ -415,7 +417,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
                 <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div className="text-center">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiếp tục bằng</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{locale === 'vi' ? 'Tiếp tục bằng' : 'Or continue with'}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <button

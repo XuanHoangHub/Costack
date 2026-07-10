@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { TranslationProvider } from "@/contexts/TranslationContext";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -75,7 +76,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col font-sans`}>{children}</body>
+      <body className={`${inter.className} min-h-full flex flex-col font-sans`}>
+        <TranslationProvider>
+          {children}
+        </TranslationProvider>
+      </body>
     </html>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 function Portal({ children }: { children: React.ReactNode }) {
@@ -44,15 +44,29 @@ interface TaskTableViewProps {
   setVisibleFields?: React.Dispatch<React.SetStateAction<string[]>>;
   setCustomFields?: React.Dispatch<React.SetStateAction<any[]>>;
   openDialog?: (config: any) => void;
+  activeTimerTaskId?: string | null;
+  onStartGlobalTimer?: (id: string) => void;
+  onStopGlobalTimer?: () => void;
 }
 
 export default function TaskTableView({
   filteredTasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
   onUpdateTask, onAddTask, onAddSyncLog,
   visibleFields, customFields = [], onOpenFieldsPanel, onStartFocus,
-  setVisibleFields, setCustomFields, openDialog, triggerToast
+  setVisibleFields, setCustomFields, openDialog, triggerToast,
+  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer
 }: TaskTableViewProps) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [inlineEditTaskId, setInlineEditTaskId] = useState<string | null>(null);
+  const [inlineEditTitle, setInlineEditTitle] = useState('');
+
+  const submitInlineEdit = (task: Task) => {
+    if (inlineEditTitle.trim() && inlineEditTitle.trim() !== task.title) {
+      onUpdateTask({ ...task, title: inlineEditTitle.trim() });
+      if (onAddSyncLog) onAddSyncLog(`Renamed task: "${inlineEditTitle.trim()}"`);
+    }
+    setInlineEditTaskId(null);
+  };
   const [activeMenu, setActiveMenu] = useState<{
     fieldId: string;
     fieldName: string;
@@ -66,7 +80,7 @@ export default function TaskTableView({
   const [draftTitle, setDraftTitle] = useState('');
   const [draftStatus, setDraftStatus] = useState<TaskStatus>('todo');
   const [draftPriority, setDraftPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
-  const [draftAssigneeId, setDraftAssigneeId] = useState<string | null>(null);
+  const [draftAssigneeIds, setDraftAssigneeIds] = useState<string[]>([]);
   const [draftStartDate, setDraftStartDate] = useState<string>('');
   const [draftDueDate, setDraftDueDate] = useState<string>('');
   const [draftTags, setDraftTags] = useState<string[]>([]);
@@ -76,7 +90,7 @@ export default function TaskTableView({
     setDraftTitle('');
     setDraftStatus('todo');
     setDraftPriority('medium');
-    setDraftAssigneeId(null);
+    setDraftAssigneeIds([]);
     setDraftStartDate('');
     setDraftDueDate('');
     setDraftTags([]);
@@ -137,7 +151,8 @@ export default function TaskTableView({
       description: '',
       priority: draftPriority,
       status: draftStatus,
-      assigneeId: draftAssigneeId || undefined,
+      assigneeIds: draftAssigneeIds,
+      assigneeId: draftAssigneeIds[0] || undefined,
       startDate: draftStartDate || undefined,
       dueDate: draftDueDate || undefined,
       tags: draftTags,
@@ -251,9 +266,59 @@ export default function TaskTableView({
                 <td className="px-4 py-3 border-r border-b border-slate-150 dark:border-slate-800/60">
                   <div className="flex items-center gap-2">
                     {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-                    <span className={`text-[13px] font-semibold truncate max-w-[280px] ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>
-                      {task.title}
-                    </span>
+
+                    {/* Table Row Timer Action */}
+                    {activeTimerTaskId === task.id ? (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (onStopGlobalTimer) onStopGlobalTimer();
+                        }}
+                        className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/30"
+                        title="Stop Timer"
+                      >
+                        <Clock className="w-3 h-3 text-rose-500 animate-spin" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (onStartGlobalTimer) onStartGlobalTimer(task.id);
+                        }}
+                        className="p-0.5 rounded opacity-0 group-hover/row:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-600 cursor-pointer transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                        title="Start Timer"
+                      >
+                        <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                      </button>
+                    )}
+                    {inlineEditTaskId === task.id ? (
+                      <input 
+                        autoFocus 
+                        value={inlineEditTitle}
+                        onChange={e => setInlineEditTitle(e.target.value)}
+                        onKeyDown={e => { 
+                          if (e.key === 'Enter') submitInlineEdit(task); 
+                          if (e.key === 'Escape') setInlineEditTaskId(null); 
+                        }}
+                        onBlur={() => submitInlineEdit(task)}
+                        onClick={e => e.stopPropagation()}
+                        className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full max-w-[280px]" 
+                      />
+                    ) : (
+                      <span 
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setInlineEditTaskId(task.id);
+                          setInlineEditTitle(task.title);
+                        }}
+                        className={`text-[13px] font-semibold truncate max-w-[280px] cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
+                        title="Double click to rename task"
+                      >
+                        {task.title}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1 shrink-0 text-slate-400">
                       {(task.comments?.length || 0) > 0 && <span className="flex items-center gap-0.5 text-[9px] font-bold"><MessageSquare className="w-2.5 h-2.5" />{task.comments?.length}</span>}
                       {(task.attachments?.length || 0) > 0 && <Paperclip className="w-2.5 h-2.5" />}
@@ -282,11 +347,12 @@ export default function TaskTableView({
                 {activeFields.includes('assignee') && (
                   <td className="px-4 py-3 border-r border-b border-slate-150 dark:border-slate-800/60" onClick={e => e.stopPropagation()}>
                     <AssigneePillSelect
-                      value={task.assigneeId || null}
+                      value={task.assigneeIds || (task.assigneeId ? [task.assigneeId] : [])}
                       members={members}
-                      onChange={newA => {
-                        onUpdateTask({ ...task, assigneeId: newA || undefined });
-                        onAddSyncLog?.(`Assignee "${task.title}" → ${newA ? (members.find(m => m.id === newA)?.name || newA) : 'Unassigned'}`);
+                      onChange={newIds => {
+                        const nextIds = newIds || [];
+                        onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
+                        onAddSyncLog?.(`Assignees "${task.title}" → ${nextIds.length > 0 ? nextIds.map(id => members.find(m => m.id === id)?.name || id).join(', ') : 'Unassigned'}`);
                       }}
                     />
                   </td>
@@ -332,7 +398,6 @@ export default function TaskTableView({
                       }}
                       label="—"
                       align="left"
-                      displayLabel={daysInfo?.text}
                       className={daysInfo ? `text-[11px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"}
                     />
                   </td>
@@ -422,9 +487,9 @@ export default function TaskTableView({
               {activeFields.includes('assignee') && (
                 <td className="px-4 py-3 border-r border-b border-slate-150 dark:border-slate-800/60">
                   <AssigneePillSelect
-                    value={draftAssigneeId}
+                    value={draftAssigneeIds}
                     members={members}
-                    onChange={setDraftAssigneeId}
+                    onChange={(val) => setDraftAssigneeIds(val || [])}
                   />
                 </td>
               )}

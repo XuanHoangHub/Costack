@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChatMessage, ChatChannel, User, Space } from '../types';
+import { ChatMessage, ChatChannel, User, Space, Priority } from '../types';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -11,7 +11,7 @@ import {
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff,
-  Forward, AtSign, Check, Settings, ChevronDown, Clock
+  Forward, AtSign, Check, Settings, ChevronDown, Clock, CheckSquare, Calendar
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -144,6 +144,8 @@ interface ChatRoomProps {
   forcedChannelName?: string;
   spaces?: Space[];
   onSaveSpaces?: (spaces: Space[]) => void;
+  onAddTask?: (task: any) => void;
+  setViewType?: (view: any) => void;
 }
 
 // Minimal markdown formatter
@@ -196,7 +198,9 @@ export default function ChatRoom({
   forcedChannelId,
   forcedChannelName,
   spaces = [],
-  onSaveSpaces
+  onSaveSpaces,
+  onAddTask,
+  setViewType
 }: ChatRoomProps) {
   const { t } = useTranslation();
   // Navigation & Channels
@@ -224,6 +228,8 @@ export default function ChatRoom({
   const [renamingChannelId, setRenamingChannelId] = useState<string | null>(null);
   const [renameChannelName, setRenameChannelName] = useState('');
   const [renameChannelDesc, setRenameChannelDesc] = useState('');
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const channelSubscriptionRef = useRef<any>(null);
 
   // Emoji Picker Popover state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -279,6 +285,19 @@ export default function ChatRoom({
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const utteranceRef = useRef<any>(null);
   const [searchWeb, setSearchWeb] = useState(false);
+
+  // Convert Message to Task States
+  const [convertTaskMessage, setConvertTaskMessage] = useState<ChatMessage | null>(null);
+  const [convertTaskTitle, setConvertTaskTitle] = useState('');
+  const [convertTaskSpaceId, setConvertTaskSpaceId] = useState('');
+  const [convertTaskListId, setConvertTaskListId] = useState('');
+  const [convertTaskPriority, setConvertTaskPriority] = useState<Priority>('medium');
+  const [convertTaskAssigneeId, setConvertTaskAssigneeId] = useState('');
+
+  // Slash Commands Dropdown States
+  const [showCommandDropdown, setShowCommandDropdown] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+  const [activeCommandIndex, setActiveCommandIndex] = useState(0);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -585,7 +604,7 @@ export default function ChatRoom({
 
     const newReply: ChatMessage = {
       id: msgId,
-      senderId: 'user',
+      senderId: currentUser.id || 'user',
       senderName: currentUser.name,
       senderAvatar: currentUser.avatar,
       content: userReplyText,
@@ -601,7 +620,7 @@ export default function ChatRoom({
         const userId = session?.user?.id;
         await supabase.from('chat_messages').insert({
           id: msgId,
-          sender_id: 'user',
+          sender_id: currentUser.id || 'user',
           sender_name: currentUser.name,
           sender_avatar: currentUser.avatar,
           content: userReplyText,
@@ -773,21 +792,22 @@ export default function ChatRoom({
     loadMessages();
 
     // Set up Supabase Realtime channel subscription
-    let channelSubscription: any = null;
     if (!isOffline) {
-      channelSubscription = supabase.channel(`realtime-chat-${activeChannelId}`)
+      const sub = supabase.channel(`realtime-chat-${activeChannelId}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'chat_messages',
-            filter: `channel_id=eq.${activeChannelId}`
+            filter: `channel_id=eq."${activeChannelId}"`
           },
           (payload) => {
             const eventType = payload.eventType;
+            const m = (payload.new || payload.old) as any;
+            if (!m || m.channel_id !== activeChannelId) return;
+
             if (eventType === 'INSERT') {
-              const m = payload.new;
               const newMsg: ChatMessage = {
                 id: m.id,
                 senderId: m.sender_id,
@@ -806,7 +826,6 @@ export default function ChatRoom({
               });
               scrollToBottom();
             } else if (eventType === 'UPDATE') {
-              const m = payload.new;
               setMessages(prev => prev.map(x => x.id === m.id ? { 
                 ...x, 
                 content: m.content, 
@@ -814,20 +833,43 @@ export default function ChatRoom({
                 isPinned: m.is_pinned || false
               } : x));
             } else if (eventType === 'DELETE') {
-              const m = payload.old;
               setMessages(prev => prev.filter(x => x.id !== m.id));
             }
           }
         )
+        .on(
+          'broadcast',
+          { event: 'typing' },
+          (payload) => {
+            const { userId, name } = payload.payload;
+            if (userId === currentUser.id) return;
+            
+            setTypingUsers(prev => {
+              if (prev.includes(name)) return prev;
+              return [...prev, name];
+            });
+            
+            const timeoutKey = `typing-timeout-${userId}`;
+            if ((window as any)[timeoutKey]) {
+              clearTimeout((window as any)[timeoutKey]);
+            }
+            (window as any)[timeoutKey] = setTimeout(() => {
+              setTypingUsers(prev => prev.filter(n => n !== name));
+            }, 3000);
+          }
+        )
         .subscribe();
+      
+      channelSubscriptionRef.current = sub;
     }
 
     return () => {
-      if (channelSubscription) {
-        supabase.removeChannel(channelSubscription);
+      if (channelSubscriptionRef.current) {
+        supabase.removeChannel(channelSubscriptionRef.current);
+        channelSubscriptionRef.current = null;
       }
     };
-  }, [activeChannelId, forcedChannelId, forcedChannelName, isOffline]);
+  }, [activeChannelId, forcedChannelId, forcedChannelName, isOffline, currentUser.id, currentUser.name]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -884,6 +926,17 @@ export default function ChatRoom({
       setMentionQuery('');
     }
 
+    const isSlash = val.startsWith('/');
+    if (isSlash) {
+      setShowCommandDropdown(true);
+      const typedCmd = val.split(' ')[0].toLowerCase();
+      setCommandQuery(typedCmd);
+      setActiveCommandIndex(0);
+    } else {
+      setShowCommandDropdown(false);
+      setCommandQuery('');
+    }
+
     // Broadcast typing indicator
     broadcastTyping();
   };
@@ -908,7 +961,14 @@ export default function ChatRoom({
   const broadcastTyping = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
-    // Simulate other users seeing us type
+    if (!isOffline && channelSubscriptionRef.current) {
+      channelSubscriptionRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, name: currentUser.name }
+      });
+    }
+
     typingTimeoutRef.current = setTimeout(() => {
       // Clear after 3 seconds of no typing
     }, 3000);
@@ -931,6 +991,8 @@ export default function ChatRoom({
   useEffect(() => {
     if (activeChannelId) {
       markChannelAsRead(activeChannelId);
+      setShowHeaderMenu(false);
+      setActiveChannelMenuId(null);
     }
   }, [activeChannelId]);
 
@@ -1077,12 +1139,198 @@ export default function ChatRoom({
     }
   };
 
+  // Task Converter & Slash Commands Logic
+  const handleOpenConvertModal = (msg: ChatMessage) => {
+    setConvertTaskMessage(msg);
+    setConvertTaskTitle(msg.content);
+    setConvertTaskPriority('medium');
+    
+    const firstSpace = spaces.find(s => s.workspaceId === workspaceId) || spaces[0];
+    if (firstSpace) {
+      setConvertTaskSpaceId(firstSpace.id);
+      const firstList = firstSpace.lists?.[0];
+      if (firstList) {
+        setConvertTaskListId(firstList.id);
+      } else {
+        setConvertTaskListId('');
+      }
+    } else {
+      setConvertTaskSpaceId('');
+      setConvertTaskListId('');
+    }
+    setConvertTaskAssigneeId('');
+  };
+
+  const handleSpaceChange = (spaceId: string) => {
+    setConvertTaskSpaceId(spaceId);
+    const targetSpace = spaces.find(s => s.id === spaceId);
+    const firstList = targetSpace?.lists?.[0];
+    if (firstList) {
+      setConvertTaskListId(firstList.id);
+    } else {
+      setConvertTaskListId('');
+    }
+  };
+
+  const handleCreateTaskFromMsg = () => {
+    if (!convertTaskTitle.trim() || !onAddTask) return;
+
+    onAddTask({
+      title: convertTaskTitle.trim(),
+      description: `Được tạo từ tin nhắn chat: "${convertTaskMessage?.content}"`,
+      status: 'todo',
+      priority: convertTaskPriority,
+      dueDate: '',
+      startDate: '',
+      assigneeId: convertTaskAssigneeId || undefined,
+      assigneeIds: convertTaskAssigneeId ? [convertTaskAssigneeId] : [],
+      subtasks: [],
+      tags: [],
+      spaceId: convertTaskSpaceId,
+      listId: convertTaskListId,
+      workspaceId: workspaceId
+    });
+
+    onAddSyncLog(`Created task from chat: "${convertTaskTitle.trim()}"`);
+    if (triggerToast) {
+      triggerToast('success', 'Task Created 🚀', `Đã thêm công việc "${convertTaskTitle.trim()}" thành công.`);
+    }
+
+    setConvertTaskMessage(null);
+  };
+
+  const COMMANDS = [
+    { name: '/summary', desc: 'Tóm tắt các công việc hiện tại bằng AI', action: 'summary' },
+    { name: '/addtask', desc: 'Tạo nhanh công việc (VD: /addtask Họp báo cáo)', action: 'addtask' },
+    { name: '/gantt', desc: 'Chuyển sang xem dạng Gantt Chart', action: 'gantt' },
+    { name: '/board', desc: 'Chuyển sang xem dạng Kanban Board', action: 'board' },
+    { name: '/table', desc: 'Chuyển sang xem dạng Table dữ liệu', action: 'table' },
+    { name: '/list', desc: 'Chuyển sang xem dạng List danh sách', action: 'list' }
+  ];
+
+  const filteredCommands = COMMANDS.filter(cmd =>
+    cmd.name.toLowerCase().startsWith(commandQuery)
+  );
+
+  const handleSelectCommand = (cmd: typeof COMMANDS[0]) => {
+    setShowCommandDropdown(false);
+    if (cmd.action === 'addtask') {
+      setInputVal('/addtask ');
+      inputRef.current?.focus();
+    } else {
+      executeSlashCommand(cmd.name);
+      setInputVal('');
+    }
+  };
+
+  const executeSlashCommand = async (text: string) => {
+    const parts = text.split(' ');
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).join(' ');
+
+    if (cmd === '/gantt' || cmd === '/board' || cmd === '/table' || cmd === '/list') {
+      const view = cmd.substring(1);
+      if (setViewType) {
+        setViewType(view);
+        if (triggerToast) triggerToast('success', 'View Changed 🚀', `Switched to ${view.toUpperCase()} view.`);
+        onAddSyncLog(`Switched view to ${view} via chat command`);
+      } else {
+        if (triggerToast) triggerToast('error', 'Action Failed', 'Navigate action is not available.');
+      }
+      return;
+    }
+
+    if (cmd === '/addtask') {
+      if (!args.trim()) {
+        if (triggerToast) triggerToast('warning', 'Invalid Syntax', 'Please specify a task title: /addtask [title]');
+        return;
+      }
+      if (onAddTask) {
+        const firstSpace = spaces.find(s => s.workspaceId === workspaceId) || spaces[0];
+        const spaceId = firstSpace?.id;
+        const listId = firstSpace?.lists?.[0]?.id;
+
+        onAddTask({
+          title: args.trim(),
+          description: 'Tạo nhanh từ chat command',
+          status: 'todo',
+          priority: 'medium',
+          dueDate: '',
+          startDate: '',
+          subtasks: [],
+          tags: [],
+          spaceId,
+          listId,
+          workspaceId
+        });
+        onAddSyncLog(`Created task via chat command: "${args.trim()}"`);
+        if (triggerToast) triggerToast('success', 'Task Created 🚀', `Added task "${args.trim()}".`);
+      }
+      return;
+    }
+
+    if (cmd === '/summary') {
+      setIsAiTyping(true);
+      try {
+        const response = await callAiApi('/api/ai/chat', { 
+          message: 'Hãy tóm tắt ngắn gọn trạng thái các công việc hiện tại của tôi trong dự án này.',
+          history: [],
+          googleSearch: false
+        });
+        const data = await response.json();
+        
+        if (data.success && data.text) {
+          const aiMsgId = `ai-msg-${Date.now()}`;
+          const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          const aiResponseMsg: ChatMessage = {
+            id: aiMsgId,
+            senderId: 'avaxa-ai',
+            senderName: 'Avaxa Brain AI',
+            senderAvatar: '',
+            content: data.text,
+            timestamp: aiMsgTime,
+            isAi: true
+          };
+          setMessages(prev => [...prev, aiResponseMsg]);
+          
+          if (!isOffline) {
+            await supabase.from('chat_messages').insert({
+              id: aiMsgId,
+              sender_id: 'avaxa-ai',
+              sender_name: 'Avaxa Brain AI',
+              sender_avatar: '',
+              content: data.text,
+              timestamp: aiMsgTime,
+              channel_id: activeChannelId,
+              is_ai_response: true,
+              workspace_id: workspaceId,
+              user_id: currentUser?.id,
+              attachment: null
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error executing summary command:', err);
+      } finally {
+        setIsAiTyping(false);
+        scrollToBottom();
+      }
+      return;
+    }
+  };
+
   // Send new message handler
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!inputVal.trim() && !selectedFile) || isSending) return;
 
     const userMsgText = inputVal.trim();
+    if (userMsgText.startsWith('/') && !selectedFile) {
+      executeSlashCommand(userMsgText);
+      setInputVal('');
+      return;
+    }
+
     setInputVal('');
     
     const msgId = `msg-${Date.now()}`;
@@ -1099,7 +1347,7 @@ export default function ChatRoom({
 
     const newMsg: ChatMessage = {
       id: msgId,
-      senderId: 'user',
+      senderId: currentUser.id || 'user',
       senderName: currentUser.name,
       senderAvatar: currentUser.avatar,
       content: userMsgText,
@@ -1119,7 +1367,7 @@ export default function ChatRoom({
         userId = session?.user?.id || null;
         await supabase.from('chat_messages').insert({
           id: msgId,
-          sender_id: 'user',
+          sender_id: currentUser.id || 'user',
           sender_name: currentUser.name,
           sender_avatar: currentUser.avatar,
           content: userMsgText,
@@ -1256,6 +1504,19 @@ export default function ChatRoom({
 
   // Resolve Space channel if activeChannelId is a Space Channel
   const isSpaceChan = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
+
+  const isEditableChannel = useMemo(() => {
+    if (!activeChannelId) return false;
+    if (activeChannelId.includes(':dm-')) return false;
+    if (activeChannelId.endsWith('avaxa-brain-ai')) return false;
+    if (activeChannelId.includes(':folder-') || activeChannelId.includes(':list-')) return false;
+    
+    const localId = activeChannelId.split(':').pop() || '';
+    if (['general', 'project-planning', 'design-review'].includes(localId)) return false;
+    if (activeChannelId.includes(':space-') && activeChannelId.endsWith('-general')) return false;
+    
+    return true;
+  }, [activeChannelId]);
   let spaceChanName = '';
   let spaceChanDesc = '';
   if (isSpaceChan) {
@@ -1393,7 +1654,9 @@ export default function ChatRoom({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActiveChannelMenuId(null);
-                                  handleDeleteChannel(c.id, c.name);
+                                  if (confirm(`Are you sure you want to delete the channel #${c.name}? This action cannot be undone.`)) {
+                                    handleDeleteChannel(c.id, c.name);
+                                  }
                                 }}
                                 className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                               >
@@ -1424,7 +1687,9 @@ export default function ChatRoom({
                         .filter((c: any) => c.id !== 'general' && !c.id.startsWith('workspace-'))
                         .map((c: any) => ({
                           id: `${workspaceId}:space-${space.id}-${c.id}`,
-                          name: c.name
+                          name: c.name,
+                          description: c.description || '',
+                          isCustomSpaceChan: true
                         })),
                       ...(space.folders || []).map(f => ({
                         id: `${workspaceId}:folder-${space.id}-${f.id}`,
@@ -1449,20 +1714,75 @@ export default function ChatRoom({
                           {spaceChannels.map(chan => {
                             const chanId = chan.id;
                             const isActive = activeChannelId === chanId;
-                            
+                            const isCustomSpaceChan = (chan as any).isCustomSpaceChan;
                             return (
-                              <button
+                              <div 
                                 key={chan.id}
-                                onClick={() => setActiveChannelId(chanId)}
-                                className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                                className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent ${
                                   isActive 
                                     ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
                                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                                 }`}
                               >
-                                <Hash className="w-3.5 h-3.5 text-slate-400" />
-                                <span className="truncate">{chan.name}</span>
-                              </button>
+                                <button
+                                  onClick={() => setActiveChannelId(chanId)}
+                                  className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold cursor-pointer text-left truncate"
+                                >
+                                  <Hash className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <span className="truncate">{chan.name}</span>
+                                  {(unreadCounts[chanId] || 0) > 0 && (
+                                    <span className="ml-auto px-1.5 py-0.5 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-sm animate-bounce">
+                                      {unreadCounts[chanId] > 99 ? '99+' : unreadCounts[chanId]}
+                                    </span>
+                                  )}
+                                </button>
+                                
+                                {isCustomSpaceChan && (
+                                  <div className="relative shrink-0 flex items-center">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveChannelMenuId(activeChannelMenuId === chan.id ? null : chan.id);
+                                      }}
+                                      className="p-1 mr-1.5 rounded-lg text-slate-450 hover:text-indigo-650 hover:bg-slate-100 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
+                                      title="Channel options"
+                                    >
+                                      <MoreVertical className="w-3.5 h-3.5" />
+                                    </button>
+                                    {activeChannelMenuId === chan.id && (
+                                      <div className="absolute right-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveChannelMenuId(null);
+                                            setRenamingChannelId(chan.id);
+                                            setRenameChannelName(chan.name);
+                                            setRenameChannelDesc((chan as any).description || '');
+                                            setShowRenameModal(true);
+                                          }}
+                                          className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                        >
+                                          <Edit2 className="w-3 h-3 text-slate-450" />
+                                          Rename
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveChannelMenuId(null);
+                                            if (confirm(`Are you sure you want to delete the channel #${chan.name}? This action cannot be undone.`)) {
+                                              handleDeleteChannel(chan.id, chan.name);
+                                            }
+                                          }}
+                                          className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                        >
+                                          <Trash2 className="w-3 h-3 text-rose-450" />
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -1601,7 +1921,53 @@ export default function ChatRoom({
                 <h2 className="text-sm font-black text-slate-800 leading-none truncate">
                   {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
                 </h2>
-                <button className="text-slate-400 hover:text-slate-650 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50"><MoreVertical className="w-3.5 h-3.5" /></button>
+                {isEditableChannel && (
+                  <div className="relative flex items-center">
+                    <button 
+                      onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                      className={`text-slate-400 hover:text-slate-650 cursor-pointer transition-colors p-0.5 rounded-lg hover:bg-slate-50 ${showHeaderMenu ? 'bg-slate-100 text-indigo-650' : ''}`}
+                      title="Channel options"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5" />
+                    </button>
+                    {showHeaderMenu && (
+                      <div className="absolute left-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-35 min-w-[120px] text-left">
+                        <button
+                          onClick={() => {
+                            setShowHeaderMenu(false);
+                            if (isSpaceChan) {
+                              setRenamingChannelId(activeChannelId);
+                              setRenameChannelName(spaceChanName);
+                              setRenameChannelDesc(spaceChanDesc || '');
+                            } else if (activeChannel) {
+                              setRenamingChannelId(activeChannel.id);
+                              setRenameChannelName(activeChannel.name);
+                              setRenameChannelDesc(activeChannel.description || '');
+                            }
+                            setShowRenameModal(true);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Edit2 className="w-3 h-3 text-slate-450" />
+                          Rename Channel
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowHeaderMenu(false);
+                            const nameToDelete = isSpaceChan ? spaceChanName : (activeChannel?.name || 'this-channel');
+                            if (confirm(`Are you sure you want to delete the channel #${nameToDelete}? This action cannot be undone.`)) {
+                              handleDeleteChannel(activeChannelId, nameToDelete);
+                            }
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-450" />
+                          Delete Channel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button className="text-slate-355 hover:text-amber-500 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50">★</button>
               </div>
             </div>
@@ -1690,7 +2056,7 @@ export default function ChatRoom({
           )}
 
           {messages.filter(m => !m.parentId).map((msg, idx, filtered) => {
-            const isMe = msg.senderId === 'user';
+            const isMe = msg.senderId === currentUser.id || msg.senderId === 'user';
             const isEditing = editingMsgId === msg.id;
 
             // Date separator logic
@@ -1718,8 +2084,10 @@ export default function ChatRoom({
 
               <div 
                 id={`msg-${msg.id}`}
-                className={`flex gap-3 items-start group relative rounded-xl p-2 transition-all ${
-                  isMe ? 'hover:bg-slate-50/50' : 'hover:bg-slate-50/50'
+                className={`flex gap-3 items-start group relative rounded-xl p-3 transition-all ${
+                  msg.isAi 
+                    ? 'bg-gradient-to-r from-amber-500/5 via-orange-500/3 to-transparent border-l-2 border-l-amber-500 dark:from-amber-950/10 dark:via-orange-950/5 dark:to-transparent' 
+                    : 'hover:bg-slate-55/40 dark:hover:bg-slate-800/10'
                 }`}
               >
                 {/* Sender Avatar */}
@@ -1902,6 +2270,17 @@ export default function ChatRoom({
                   >
                     <Forward className="w-3.5 h-3.5" />
                   </button>
+
+                  {/* Convert to Task */}
+                  {onAddTask && (
+                    <button 
+                      onClick={() => handleOpenConvertModal(msg)}
+                      className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-emerald-600 transition-colors"
+                      title="Convert to Task"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   
                   {isMe && (
                     <>
@@ -1942,6 +2321,21 @@ export default function ChatRoom({
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
+            </div>
+          )}
+
+          {typingUsers.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold px-2 py-1 select-none animate-pulse">
+              <span className="flex gap-0.5">
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              <span>
+                {typingUsers.length === 1 
+                  ? `${typingUsers[0]} đang nhập...` 
+                  : `${typingUsers.join(', ')} đang nhập...`}
+              </span>
             </div>
           )}
 
@@ -1995,7 +2389,7 @@ export default function ChatRoom({
 
                 {/* Mockup-style unified rich editor box card */}
         <div className="p-4 bg-white border-t border-slate-150 shrink-0">
-          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/10 rounded-2xl p-3 bg-white transition-all shadow-xs flex flex-col gap-2">
+          <form onSubmit={handleSendMessage} className="relative border border-slate-200 dark:border-slate-800 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl p-3 bg-white dark:bg-slate-900 transition-all shadow-xs flex flex-col gap-2 select-text">
             
             {/* Selected file preview widget */}
             {selectedFile && (
@@ -2040,6 +2434,29 @@ export default function ChatRoom({
                   }
                   className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 text-slate-800 resize-none min-h-[48px] custom-scrollbar focus:ring-0 p-0"
                   onKeyDown={e => {
+                    if (showCommandDropdown && filteredCommands.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setActiveCommandIndex(prev => (prev + 1) % filteredCommands.length);
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setActiveCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSelectCommand(filteredCommands[activeCommandIndex]);
+                        return;
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setShowCommandDropdown(false);
+                        return;
+                      }
+                    }
+
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage(e);
@@ -2063,6 +2480,26 @@ export default function ChatRoom({
                         <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
                         <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
                         <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Slash Commands Dropdown */}
+                {showCommandDropdown && filteredCommands.length > 0 && (
+                  <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
+                    <div className="px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-405">Quick Commands</span>
+                    </div>
+                    {filteredCommands.map((cmd, idx) => (
+                      <button
+                        key={cmd.name}
+                        type="button"
+                        onClick={() => handleSelectCommand(cmd)}
+                        className={`w-full flex flex-col gap-0.5 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors cursor-pointer text-left ${idx === activeCommandIndex ? 'bg-indigo-50 dark:bg-indigo-950/20 font-bold' : ''}`}
+                      >
+                        <span className="text-[10.5px] font-black text-indigo-600 dark:text-indigo-400">{cmd.name}</span>
+                        <span className="text-[9px] font-bold text-slate-405 dark:text-slate-500">{cmd.desc}</span>
                       </button>
                     ))}
                   </div>
@@ -2592,6 +3029,129 @@ export default function ChatRoom({
           </motion.div>
         </div>
       )}
+
+      {/* Convert Message to Task Modal */}
+      <AnimatePresence>
+        {convertTaskMessage && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-md rounded-3xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/60 dark:border-slate-800 shadow-2xl p-6 overflow-hidden backdrop-blur-xl space-y-4 text-left"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                  <CheckSquare className="w-4.5 h-4.5 text-indigo-500" />
+                  Convert Message to Task
+                </h3>
+                <button 
+                  onClick={() => setConvertTaskMessage(null)}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Message Source Preview */}
+              <div className="px-3 py-2 bg-indigo-50/30 dark:bg-indigo-950/10 border border-indigo-100/40 dark:border-indigo-900/30 rounded-2xl text-[10px] text-slate-505 italic max-h-[80px] overflow-y-auto">
+                <span className="font-bold text-slate-600 dark:text-slate-400 not-italic block mb-0.5">{convertTaskMessage.senderName}:</span>
+                "{convertTaskMessage.content}"
+              </div>
+
+              {/* Task Title Form */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Task Title</label>
+                <input 
+                  type="text" 
+                  value={convertTaskTitle} 
+                  onChange={e => setConvertTaskTitle(e.target.value)}
+                  className="w-full text-xs font-semibold text-slate-805 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition-colors" 
+                  placeholder="Task title"
+                />
+              </div>
+
+              {/* Space & List selectors */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target Space</label>
+                  <select 
+                    value={convertTaskSpaceId}
+                    onChange={e => handleSpaceChange(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                  >
+                    {spaces.filter(s => s.workspaceId === workspaceId || !s.workspaceId).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target List</label>
+                  <select 
+                    value={convertTaskListId}
+                    onChange={e => setConvertTaskListId(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-355 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                  >
+                    {spaces.find(s => s.id === convertTaskSpaceId)?.lists?.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    )) || <option value="">— No lists —</option>}
+                  </select>
+                </div>
+              </div>
+
+              {/* Priority & Assignee selectors */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Priority</label>
+                  <select 
+                    value={convertTaskPriority}
+                    onChange={e => setConvertTaskPriority(e.target.value as Priority)}
+                    className="w-full text-xs font-semibold text-slate-705 dark:text-slate-350 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assignee</label>
+                  <select 
+                    value={convertTaskAssigneeId}
+                    onChange={e => setConvertTaskAssigneeId(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-705 dark:text-slate-350 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button 
+                  type="button" 
+                  onClick={() => setConvertTaskMessage(null)}
+                  className="flex-1 py-2 rounded-xl border border-slate-250 dark:border-slate-750 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs font-bold text-slate-550 dark:text-slate-400 cursor-pointer text-center transition-colors"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleCreateTaskFromMsg}
+                  disabled={!convertTaskTitle.trim() || !convertTaskListId}
+                  className="flex-1 py-2 rounded-xl text-xs font-black text-white shadow-md hover:shadow-indigo-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center disabled:opacity-50 disabled:pointer-events-none"
+                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                >
+                  Tạo công việc
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

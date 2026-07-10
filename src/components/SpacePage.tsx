@@ -85,6 +85,14 @@ interface SpacePageProps {
   syncLogs?: SyncLog[];
   onNavigate?: (tab: string) => void;
   onToggleOffline?: () => void;
+
+  // Global Timer Props
+  globalActiveTaskId?: string | null;
+  globalActiveElapsed?: number;
+  globalIsPaused?: boolean;
+  onStartGlobalTimer?: (taskId: string) => void;
+  onStopGlobalTimer?: () => void;
+  onTogglePauseGlobalTimer?: () => void;
 }
 
 export default function SpacePage({
@@ -96,7 +104,9 @@ export default function SpacePage({
   myTasksOnly = false, onOpenSpaceSettings, onAddListSpace, onAddSpace,
   syncLogs = [], onNavigate, onToggleOffline,
   onAddFolderToSpace, onAddDocToSpace, onAddWhiteboardToSpace, onAddListToFolder,
-  onAddDoc, onUpdateDoc, onDeleteDoc
+  onAddDoc, onUpdateDoc, onDeleteDoc,
+  globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
+  onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer
 }: SpacePageProps) {
 
 // Local handler to insert space/list context
@@ -903,6 +913,139 @@ export default function SpacePage({
                       {/* Lists nested under Space */}
                       {isExpanded && (
                         <div className="pl-4 space-y-0.5 border-l border-slate-200 dark:border-slate-800 ml-4.5 mt-0.5">
+                          {/* Render Views for the active Space */}
+                          {activeSpaceId === space.id && (
+                            <div className="space-y-1.5 mb-4 select-none">
+                              <div className="text-[9px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest px-2 mb-1.5">Giao diện</div>
+                              <div className="space-y-0.5">
+                                {staticTabs.map(tab => {
+                                  const TabIcon = tab.icon;
+                                  const isActive = activeTabId === tab.id;
+                                  const themeGradients: Record<string, string> = {
+                                    indigo: 'bg-indigo-50/70 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 border-indigo-500/20',
+                                    rose: 'bg-rose-50/70 dark:bg-rose-950/20 text-rose-650 dark:text-rose-400 border-rose-500/20',
+                                    sky: 'bg-sky-50/70 dark:bg-sky-950/20 text-sky-650 dark:text-sky-400 border-sky-500/20',
+                                    emerald: 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-650 dark:text-emerald-400 border-emerald-500/20',
+                                    amber: 'bg-amber-50/70 dark:bg-amber-950/20 text-amber-650 dark:text-amber-400 border-amber-500/20',
+                                    sunset: 'bg-orange-50/70 dark:bg-orange-950/20 text-orange-650 dark:text-orange-400 border-orange-500/20'
+                                  };
+                                  const activeGradient = themeGradients[activeSpace.themeColor || 'indigo'] || themeGradients.indigo;
+
+                                  return (
+                                    <button
+                                      key={tab.id}
+                                      onClick={() => {
+                                        setActiveTabId(tab.id);
+                                        setActiveView(tab.viewId);
+                                      }}
+                                      className={`w-full py-1.5 px-3.5 text-[11px] font-bold flex items-center gap-2 rounded-xl transition-all cursor-pointer border ${
+                                        isActive 
+                                          ? `${activeGradient} font-extrabold shadow-3xs text-white` 
+                                          : 'text-slate-500 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-805/10'
+                                      }`}
+                                    >
+                                      <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                                      <span>{tab.label}</span>
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Add View Button inside Sidebar views list */}
+                                <div className="relative mt-1">
+                                  {isSearchViewOpen ? (
+                                    <div className="relative flex items-center">
+                                      <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                      <input 
+                                        type="text" 
+                                        autoFocus
+                                        placeholder="Tìm giao diện..."
+                                        value={searchViewQuery}
+                                        onChange={(e) => {
+                                          setSearchViewQuery(e.target.value);
+                                          setShowAddViewMenu(true);
+                                        }}
+                                        onFocus={() => setShowAddViewMenu(true)}
+                                        className="bg-white dark:bg-slate-950 border border-indigo-500 rounded-lg pl-7 pr-7 py-1 text-[10px] font-semibold outline-none text-slate-800 dark:text-slate-105 w-full transition-all shadow-xs"
+                                      />
+                                      <button 
+                                        onClick={() => {
+                                          setIsSearchViewOpen(false);
+                                          setShowAddViewMenu(false);
+                                          setSearchViewQuery('');
+                                        }} 
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-slate-400 hover:text-slate-600"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      onClick={() => {
+                                        setIsSearchViewOpen(true);
+                                        setShowAddViewMenu(true);
+                                      }}
+                                      className="w-full py-1 px-3.5 text-[10px] font-bold text-slate-400 hover:text-indigo-655 dark:hover:text-indigo-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 rounded-xl flex items-center gap-2 transition-all cursor-pointer border border-transparent"
+                                    >
+                                      <Plus className="w-3 h-3 text-slate-455" />
+                                      <span>Thêm View</span>
+                                    </button>
+                                  )}
+
+                                  {showAddViewMenu && (
+                                    <>
+                                      <div 
+                                        className="fixed inset-0 z-40 bg-transparent" 
+                                        onClick={() => {
+                                          setShowAddViewMenu(false);
+                                          setIsSearchViewOpen(false);
+                                          setSearchViewQuery('');
+                                        }} 
+                                      />
+                                      <div className="absolute left-0 mt-2 w-[240px] max-h-[250px] flex flex-col bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-2xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden animate-fadeIn">
+                                        {/* Popular views list */}
+                                        <div className="p-1.5 overflow-y-auto space-y-1.5 flex-1 min-h-0 custom-scrollbar">
+                                          <div>
+                                            <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1.5 mb-1">Giao diện phổ biến</p>
+                                            <div className="grid grid-cols-1 gap-0.5">
+                                              {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
+                                                const ViewIcon = view.icon;
+                                                return (
+                                                  <button
+                                                    key={view.id}
+                                                    onClick={() => {
+                                                      handleSelectView(view);
+                                                      setShowAddViewMenu(false);
+                                                      setIsSearchViewOpen(false);
+                                                      setSearchViewQuery('');
+                                                    }}
+                                                    className="w-full flex items-center gap-2 p-1 rounded-lg border border-transparent hover:bg-indigo-50/50 dark:hover:bg-indigo-950/15 transition-all text-left cursor-pointer group"
+                                                  >
+                                                    <div 
+                                                      className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                                                      style={{ backgroundColor: view.bg }}
+                                                    >
+                                                      <ViewIcon className="w-3 h-3" style={{ color: view.color }} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                      <p className="text-[10px] font-bold text-slate-855 dark:text-slate-100 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 truncate">{view.label}</p>
+                                                    </div>
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Section: Folders & Lists */}
+                          <div className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 mt-2 mb-1.5">Phân cấp</div>
+                          
                           {/* Render Folders */}
                           {space.folders?.map(folder => {
                             const isFolderOpen = expandedFolders[folder.id];
@@ -1525,277 +1668,94 @@ export default function SpacePage({
               </div>
             </div>
 
-            {/* Right Side Actions (Row 1): Call, Agents, Automate, Brain, Share */}
-            <div className="flex items-center gap-1 flex-wrap">
-              <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
-                <Phone className="w-3.5 h-3.5 text-slate-450" />
-                <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
-              </button>
-              <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
-                <Bot className="w-3.5 h-3.5 text-slate-455" />
-                <span>Agents</span>
-              </button>
-              <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-455" />
-                <span>Automate</span>
-              </button>
-              <button className="py-1 px-2 text-slate-550 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Brain²</span>
-              </button>
-              <button className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 dark:border-slate-800 dark:bg-slate-950 hover:text-slate-800 dark:hover:text-white text-[11px] font-black rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ml-1 text-slate-655 shadow-3xs">
-                <Users className="w-3.5 h-3.5 text-slate-455" />
-                <span>Share</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Row 2: View Tabs & View Controls (Image 2 Bottom Row) */}
-          <div className="flex items-center justify-between px-5 py-1 flex-wrap gap-2.5">
-            {/* Left Side: View Tab Selector Bar */}
-            <div className="flex items-center gap-4 flex-wrap">
-              {activeSpaceId && (
-                <button
-                  onClick={() => {
-                    const scope = activeListId ? 'list' : activeFolderId ? 'folder' : 'space';
-                    const activeName = activeListId 
-                      ? (activeSpace.lists.find(l => l.id === activeListId)?.name || 'list')
-                      : activeFolderId
-                        ? (activeSpace.folders?.find(f => f.id === activeFolderId)?.name || 'folder')
-                        : activeSpace.name;
-                    setNewChanScope(scope);
-                    setNewChanName(activeName.toLowerCase().replace(/\s+/g, '-'));
-                    setNewChanDesc(`Phòng chat trao đổi cho ${scope === 'list' ? 'List' : scope === 'folder' ? 'Folder' : 'Space'} "${activeName}"`);
-                    setShowAddChannelModal(true);
-                  }}
-                  className="py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-905 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-250 font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-3xs cursor-pointer"
-                  title="Add chat channel for work discussion"
-                >
-                  <Hash className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Add Channel</span>
+            {/* Consolidated Controls Row 1 Right */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Call, Agents, Automate, Brain, Share (Glass pills) */}
+              <div className="flex items-center gap-0.5">
+                <button className="py-1 px-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
+                  <Phone className="w-3.5 h-3.5 text-slate-450" />
                 </button>
-              )}
-              {staticTabs.map(tab => {
-                const TabIcon = tab.icon;
-                const isActive = activeTabId === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTabId(tab.id);
-                      setActiveView(tab.viewId);
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setViewContextMenu({
-                        show: true,
-                        x: e.clientX,
-                        y: e.clientY,
-                        tabId: tab.id
-                      });
-                    }}
-                    className={`py-2 px-0.5 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer relative border-b-2 ${
-                      isActive 
-                        ? 'text-slate-900 dark:text-white border-indigo-500 font-extrabold' 
-                        : 'text-slate-500 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-
-              {/* View options */}
-              <div className="relative">
-                {isSearchViewOpen ? (
-                  <div className="relative flex items-center">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input 
-                      type="text" 
-                      autoFocus
-                      placeholder="Search views..."
-                      value={searchViewQuery}
-                      onChange={(e) => {
-                        setSearchViewQuery(e.target.value);
-                        setShowAddViewMenu(true);
-                      }}
-                      onFocus={() => setShowAddViewMenu(true)}
-                      className="bg-white dark:bg-slate-950 border border-indigo-500 rounded-lg pl-8 pr-7 py-1 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-100 w-44 transition-all shadow-xs"
-                    />
-                    <button 
-                      onClick={() => {
-                        setIsSearchViewOpen(false);
-                        setShowAddViewMenu(false);
-                        setSearchViewQuery('');
-                      }} 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-650"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      setIsSearchViewOpen(true);
-                      setShowAddViewMenu(true);
-                    }}
-                    className="py-1 px-2.5 text-xs font-bold text-slate-500 hover:text-indigo-650 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-slate-100"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-slate-455" />
-                    <span>View</span>
-                  </button>
-                )}
-
-                {showAddViewMenu && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40 bg-transparent" 
-                      onClick={() => {
-                        setShowAddViewMenu(false);
-                        setIsSearchViewOpen(false);
-                        setSearchViewQuery('');
-                      }} 
-                    />
-                    <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 w-[calc(100vw-32px)] sm:w-[460px] max-h-[calc(100vh-220px)] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 text-left font-sans select-none overflow-hidden animate-fadeIn">
-                      {/* Search box inside dropdown */}
-                      <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 shrink-0">
-                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                        <input 
-                          type="text"
-                          placeholder="Search or describe a view to create"
-                          value={searchViewQuery}
-                          onChange={(e) => setSearchViewQuery(e.target.value)}
-                          className="w-full bg-transparent text-xs font-bold outline-none border-none text-slate-800 dark:text-slate-100 placeholder-slate-400"
-                          autoFocus
-                        />
-                        <button 
-                          onClick={() => {
-                            if (searchViewQuery.trim()) {
-                              const found = POPULAR_VIEWS.find(v => v.label.toLowerCase().includes(searchViewQuery.toLowerCase()));
-                              if (found) handleSelectView(found);
-                            }
-                          }}
-                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-450 hover:text-indigo-600 transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      {/* Popular views grid */}
-                      <div className="p-3 overflow-y-auto space-y-3 flex-1 min-h-0 custom-scrollbar">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-550 uppercase tracking-widest px-1.5 mb-2">Popular</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
-                              const ViewIcon = view.icon;
-                              return (
-                                <button
-                                  key={view.id}
-                                  onClick={() => handleSelectView(view)}
-                                  className="w-full flex items-center gap-3 p-2 rounded-xl border border-slate-150/60 dark:border-slate-800/80 bg-slate-50/20 dark:bg-slate-950/10 hover:border-indigo-500/40 hover:bg-indigo-50/10 dark:hover:bg-indigo-950/10 hover:shadow-xs transition-all text-left cursor-pointer group"
-                                >
-                                  <div 
-                                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ backgroundColor: view.bg }}
-                                  >
-                                    <ViewIcon className="w-4 h-4" style={{ color: view.color }} />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{view.label}</p>
-                                    <p className="text-[9px] text-slate-400 truncate mt-0.5">{view.desc}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Footer checkboxes */}
-                      <div className="px-3.5 py-2.5 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-4 text-[10px] font-black text-slate-500 dark:text-slate-400 shrink-0">
-                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                          <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 w-3 h-3 bg-transparent" />
-                          <span>Private view</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                          <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 w-3 h-3 bg-transparent" defaultChecked />
-                          <span>Pin view</span>
-                        </label>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
+                  <Bot className="w-3.5 h-3.5 text-slate-455" />
+                  <span>Agents</span>
+                </button>
+                <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-455" />
+                  <span>Automate</span>
+                </button>
+                <button className="py-1 px-2 text-slate-550 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Brain²</span>
+                </button>
+                <button className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[11px] font-black rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ml-1 text-slate-655 shadow-3xs">
+                  <Users className="w-3.5 h-3.5 text-slate-455" />
+                  <span>Share</span>
+                </button>
               </div>
-            </div>
 
-            {/* Right Side: View Controls (Filter, Checkmark, Search, Settings, +Task) */}
-            <div className="flex items-center gap-3">
-              {/* Extra view tools */}
-              <div className="flex items-center gap-1.5">
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+              {/* View Controls (Filter, Checkmark, Search, Settings) */}
+              <div className="flex items-center gap-1">
                 <button 
                   onClick={() => alert("Filters applied.")}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
                   title="Filter"
                 >
-                  <SlidersHorizontal className="w-4 h-4" />
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
                 </button>
                 <button 
                   onClick={() => alert("Show completed tasks toggled.")}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
                   title="Show Closed Tasks"
                 >
-                  <CheckSquare className="w-4 h-4" />
+                  <CheckSquare className="w-3.5 h-3.5" />
                 </button>
                 <button 
                   onClick={() => alert("Search task list.")}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
                   title="Search Tasks"
                 >
-                  <Search className="w-4 h-4" />
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    if (activeSpaceSettings?.id === activeSpace.id) {
+                      setActiveSpaceSettings(null);
+                    } else {
+                      setActiveSpaceSettings({
+                        id: activeSpace.id,
+                        x: rect.left - 200,
+                        y: rect.bottom + 4
+                      });
+                    }
+                    setActiveSpaceMenu(null);
+                    setActiveListMenu(null);
+                  }}
+                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer relative"
+                  title="Space Settings"
+                >
+                  <Cog className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
-
-              {/* Space settings cog */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  if (activeSpaceSettings?.id === activeSpace.id) {
-                    setActiveSpaceSettings(null);
-                  } else {
-                    setActiveSpaceSettings({
-                      id: activeSpace.id,
-                      x: rect.left - 200,
-                      y: rect.bottom + 4
-                    });
-                  }
-                  setActiveSpaceMenu(null);
-                  setActiveListMenu(null);
-                }}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer relative"
-                title="Space Settings"
-              >
-                <Cog className="w-4 h-4" />
-              </button>
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
 
               {/* Blue "+ Task" button */}
               <div className="flex items-center rounded-xl overflow-hidden shadow-sm shadow-blue-500/20 bg-[#007fff] hover:bg-blue-600 transition-colors shrink-0">
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="pl-3.5 pr-2 py-1.5 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer"
+                  className="pl-3 py-1.5 pr-1.5 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5 text-white stroke-[2.5px]" />
+                  <Plus className="w-3 h-3 text-white stroke-[2.5px]" />
                   <span>Task</span>
                 </button>
-                <div className="w-px h-4 bg-white/20" />
+                <div className="w-px h-3 bg-white/20" />
                 <button
                   onClick={() => alert("More Task creation options.")}
-                  className="px-2 py-1.5 text-white cursor-pointer hover:bg-white/10"
+                  className="px-1.5 py-1.5 text-white cursor-pointer hover:bg-white/10"
                 >
                   <ChevronDown className="w-3 h-3 text-white" />
                 </button>
@@ -2411,7 +2371,7 @@ export default function SpacePage({
                   <AssigneePillSelect 
                     members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))} 
                     value={newAssignee || null} 
-                    onChange={(val) => setNewAssignee(val || '')} 
+                    onChange={(val) => setNewAssignee(Array.isArray(val) ? (val[0] || '') : (val || ''))} 
                   />
                 </div>
               </div>
