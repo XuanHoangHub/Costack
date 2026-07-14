@@ -48,6 +48,18 @@ import {
   GripVertical, BarChart3, Target
 } from 'lucide-react';
 
+import {
+  House as PhHouse,
+  Tray as PhTray,
+  CalendarDots as PhCalendar,
+  ChatCircleDots as PhChat,
+  FileText as PhFileText,
+  Database as PhDatabase,
+  Briefcase as PhBriefcase,
+  ChartBar as PhChartBar,
+  Target as PhTarget
+} from '@phosphor-icons/react';
+
 const checkIsDndActive = (settings: any) => {
   if (!settings) return false;
   if (settings.dndActive) return true;
@@ -1024,19 +1036,19 @@ export default function App() {
 
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number }>>(() => {
     return {
-      dashboard: { label: t('homeOverview') || 'Home Overview', icon: LayoutDashboard },
+      dashboard: { label: t('homeOverview') || 'Home Overview', icon: PhHouse },
       inbox: { 
         label: t('inbox') || 'Inbox', 
-        icon: Bell, 
+        icon: PhTray, 
         count: notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length 
       },
-      calendar: { label: t('calendarView') || 'Calendar', icon: Calendar },
-      chat: { label: t('chat') || 'Chat', icon: MessageSquare },
-      docs: { label: t('docs') || 'Docs', icon: FileText },
-      base: { label: t('base') || 'Avaxa Base', icon: Database },
-      tasks: { label: t('space') || 'Space', icon: Briefcase },
-      analytics: { label: t('analytics') || 'Analytics', icon: BarChart3 },
-      goals: { label: t('goals') || 'Goals (OKRs)', icon: Target }
+      calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
+      chat: { label: t('chat') || 'Chat', icon: PhChat },
+      docs: { label: t('docs') || 'Docs', icon: PhFileText },
+      base: { label: t('base') || 'Avaxa Base', icon: PhDatabase },
+      tasks: { label: t('space') || 'Space', icon: PhBriefcase },
+      analytics: { label: t('analytics') || 'Analytics', icon: PhChartBar },
+      goals: { label: t('goals') || 'Goals (OKRs)', icon: PhTarget }
     };
   }, [notificationsList, t]);
 
@@ -4069,9 +4081,17 @@ export default function App() {
                             <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           </div>
                         )}
-                        <Icon className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${
-                          !isMainSidebarCollapsed ? 'group-hover:translate-x-1.5' : 'group-hover:scale-110'
-                        }`} />
+                        <Icon
+                          size={isMainSidebarCollapsed ? 22 : 20}
+                          weight={isActive ? 'duotone' : 'regular'}
+                          className={`shrink-0 transition-all duration-200 ${
+                            isActive
+                              ? 'text-indigo-550 dark:text-indigo-400'
+                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                          } ${
+                            !isMainSidebarCollapsed ? 'group-hover:translate-x-1.5' : 'group-hover:scale-110'
+                          }`}
+                        />
                         <span className={`truncate w-full block text-center ${
                           isMainSidebarCollapsed 
                             ? 'text-[9.5px] leading-tight max-w-full font-medium' 

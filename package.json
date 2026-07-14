@@ -14,6 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "^2.10.0",
     "@hello-pangea/dnd": "^18.0.1",
+    "@phosphor-icons/react": "^2.1.10",
     "@supabase/supabase-js": "^2.108.2",
     "lucide-react": "^1.21.0",
     "motion": "^12.42.0",
