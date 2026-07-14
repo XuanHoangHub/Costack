@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Document } from '../types';
 import { 
-  FileText, Folder, Plus, Bot, Sparkles, Star, Lock, Unlock,
+  FileText, Folder, FolderOpen, Plus, Bot, Sparkles, Star, Lock, Unlock,
   Clock, Trash2, Edit, Check, Eye, HelpCircle, LayoutGrid, ChevronRight, ChevronDown, Award,
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Download, Printer, Code, ChevronUp
@@ -34,9 +34,15 @@ export default function DocumentHub({
   onClearInitialSelectedDocId
 }: DocumentHubProps) {
   const [activeDocId, setActiveDocId] = useState<string>(docs[0]?.id || '');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showAddDocModal, setShowAddDocModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Automatically close mobile sidebar when the active document changes
+  React.useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [activeDocId]);
   
   // Custom ClickUp Docs states
   const [expandedDocIds, setExpandedDocIds] = useState<string[]>([]);
@@ -550,8 +556,20 @@ export default function DocumentHub({
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm flex h-full min-h-[400px] font-sans">
       
+      {/* Backdrop overlay for mobile Docs sidebar */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="md:hidden fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 cursor-pointer"
+        />
+      )}
+
       {/* Sidebar repository browser (Left column) */}
-      <div className="w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950 flex flex-col justify-between hidden md:flex shrink-0 p-4 select-none">
+      <div className={`bg-slate-50/50 dark:bg-slate-950 flex flex-col justify-between shrink-0 p-4 select-none transition-all duration-200 ${
+        isMobileSidebarOpen
+          ? 'fixed inset-y-0 left-0 w-[270px] max-w-[80vw] z-50 shadow-2xl flex border-r border-slate-200 dark:border-slate-800'
+          : 'hidden md:flex w-64 border-r border-slate-200/60 dark:border-slate-800/80'
+      }`}>
         <div className="space-y-4 overflow-y-auto max-h-[calc(100%-40px)] pr-1 scrollbar-none">
           
           <div className="flex items-center justify-between px-1 shrink-0">
@@ -688,6 +706,14 @@ export default function DocumentHub({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-6 select-none">
                 <div>
                   <div className="flex items-center gap-2">
+                    {/* Mobile explorer trigger menu icon */}
+                    <button
+                      onClick={() => setIsMobileSidebarOpen(true)}
+                      className="md:hidden p-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200/60 dark:border-slate-700/80 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-350 cursor-pointer shrink-0 transition-colors mr-1"
+                      title="Mở thư mục Docs"
+                    >
+                      <FolderOpen className="w-4 h-4 text-indigo-500" />
+                    </button>
                     <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-extrabold text-[9px] px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-900/30">
                       {currentDoc.category === 'Dự án' ? 'PROJECT' : currentDoc.category === 'Quy trình' ? 'PROCESS' : currentDoc.category === 'Ghi chú họp' ? 'MEETING NOTES' : currentDoc.category === 'Cá nhân' ? 'PERSONAL' : currentDoc.category.toUpperCase()}
                     </span>

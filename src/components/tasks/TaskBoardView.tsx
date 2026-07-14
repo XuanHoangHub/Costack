@@ -208,32 +208,57 @@ function KanbanCard({
                 </div>
               </div>
 
-              {inlineEditTaskId === task.id ? (
-                <input 
-                  autoFocus 
-                  value={inlineEditTitle}
-                  onChange={e => setInlineEditTitle(e.target.value)}
-                  onKeyDown={e => { 
-                    if (e.key === 'Enter') submitInlineEdit(task); 
-                    if (e.key === 'Escape') setInlineEditTaskId(null); 
-                  }}
-                  onBlur={() => submitInlineEdit(task)}
-                  onClick={e => e.stopPropagation()}
-                  className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
-                />
-              ) : (
-                <h4 
-                  onDoubleClick={(e) => {
+              <div className="flex items-start gap-2.5 mt-2">
+                {/* Complete toggle circle button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
                     e.stopPropagation();
-                    setInlineEditTaskId(task.id);
-                    setInlineEditTitle(task.title);
+                    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+                    onUpdateTask({ ...task, status: newStatus as TaskStatus });
+                    if (onAddSyncLog) onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
+                    if (typeof window !== 'undefined') {
+                      (window as any).playSystemSound?.('toggle');
+                    }
                   }}
-                  className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
-                  title="Double click to rename task"
+                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 ${
+                    task.status === 'completed'
+                      ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
+                      : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                  }`}
                 >
-                  {task.title}
-                </h4>
-              )}
+                  <Check className="w-2.5 h-2.5 text-white dark:text-slate-100" strokeWidth={3} />
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  {inlineEditTaskId === task.id ? (
+                    <input 
+                      autoFocus 
+                      value={inlineEditTitle}
+                      onChange={e => setInlineEditTitle(e.target.value)}
+                      onKeyDown={e => { 
+                        if (e.key === 'Enter') submitInlineEdit(task); 
+                        if (e.key === 'Escape') setInlineEditTaskId(null); 
+                      }}
+                      onBlur={() => submitInlineEdit(task)}
+                      onClick={e => e.stopPropagation()}
+                      className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
+                    />
+                  ) : (
+                    <h4 
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setInlineEditTaskId(task.id);
+                        setInlineEditTitle(task.title);
+                      }}
+                      className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
+                      title="Double click to rename task"
+                    >
+                      {task.title}
+                    </h4>
+                  )}
+                </div>
+              </div>
 
               {task.description && (
                 <p className={descCls}>{task.description}</p>

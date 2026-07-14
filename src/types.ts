@@ -7,7 +7,11 @@ export interface User {
   email: string;
   avatar: string;
   role: 'admin' | 'member' | 'guest';
-  status: 'online' | 'busy' | 'offline';
+  status: 'online' | 'busy' | 'offline' | 'away';
+  customStatus?: 'online' | 'busy' | 'offline' | 'away';
+  statusMessage?: string;
+  statusEmoji?: string;
+  lastSeenAt?: string;
   workspaceIds?: string[];
   phone?: string;
   department?: string;
@@ -71,6 +75,7 @@ export interface Space {
     subtasks?: boolean;
     priorities?: boolean;
   };
+  customFields?: CustomFieldDefinition[];
 }
 
 export interface Task {

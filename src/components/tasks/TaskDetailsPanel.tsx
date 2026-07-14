@@ -190,9 +190,9 @@ export default function TaskDetailsPanel({
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-black/15 backdrop-blur-none pointer-events-none transition-all duration-305';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-[92vw] max-w-[1240px] h-[90vh] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white dark:bg-slate-900 border-none sm:border border-slate-200/80 dark:border-slate-800 rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
     modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-slate-900 flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200/60 dark:border-slate-800 rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200/60 dark:border-slate-800 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -1645,10 +1645,10 @@ export default function TaskDetailsPanel({
             {/* ── Content Body Render ── */}
             {isTwoColumn ? (
               // ── Two Column Layout (Linear/Notion style) ──
-              <div className="flex-1 flex flex-row min-w-0 overflow-hidden">
+              <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden">
                 
                 {/* Left: Main details (Scrollable) */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:px-7 space-y-6">
+                <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-5 md:p-6 lg:px-7 space-y-6">
                   
                   {/* Blocked Warning Banner */}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
@@ -1676,19 +1676,42 @@ export default function TaskDetailsPanel({
                   {renderAiAssistantPanel()}
 
                   {/* Title */}
-                  <div className="text-left">
-                    {editingTitle ? (
-                      <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
-                        onBlur={saveTitle}
-                        className="w-full text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
-                    ) : (
-                      <h2 onClick={() => setEditingTitle(true)}
-                        className="text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
-                        <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-500' : ''}`}>{task.title}</span>
-                        <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-405 transition-opacity mt-2 shrink-0" />
-                      </h2>
-                    )}
+                  <div className="text-left flex items-start gap-3">
+                    {/* Complete toggle circle button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+                        onUpdateTask({ ...task, status: newStatus as TaskStatus });
+                        onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
+                        if (typeof window !== 'undefined') {
+                          (window as any).playSystemSound?.('toggle');
+                        }
+                      }}
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-1 ${
+                        task.status === 'completed'
+                          ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
+                          : 'border-slate-300 dark:border-slate-655 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                      }`}
+                    >
+                      <Check className="w-4 h-4 text-white dark:text-slate-100" strokeWidth={3} />
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      {editingTitle ? (
+                        <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                          onBlur={saveTitle}
+                          className="w-full text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
+                      ) : (
+                        <h2 onClick={() => setEditingTitle(true)}
+                          className="text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
+                          <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-500' : ''}`}>{task.title}</span>
+                          <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-405 transition-opacity mt-2 shrink-0" />
+                        </h2>
+                      )}
+                    </div>
                   </div>
 
                   {/* Quick Actions Row */}
@@ -2122,7 +2145,7 @@ export default function TaskDetailsPanel({
                 </div>
 
                 {/* Right: Sidebar properties panel (Scrollable) */}
-                <div className="w-[360px] shrink-0 border-l border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 overflow-y-auto custom-scrollbar p-5 space-y-5 text-left relative z-10">
+                <div className="w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 lg:overflow-y-auto p-5 space-y-5 text-left relative z-10">
                   <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-455 dark:text-slate-505 mb-1 select-none">Task Properties</h3>
                   {renderPropertiesTable()}
                   <div className="pt-2">

@@ -12,6 +12,7 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Workspace, Space, BaseApp } from '@/types';
+import { useUserPresence } from '@/hooks/useUserPresence';
 
 export function useSupabaseSync() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -23,6 +24,9 @@ export function useSupabaseSync() {
   const setSpaces = useSpaceStore((s) => s.setSpaces);
   const addSyncLog = useSyncStore((s) => s.addSyncLog);
   const setDataLoaded = useRef(false);
+
+  // Enable Presence and Inactivity Tracker
+  useUserPresence();
 
   useEffect(() => {
     let active = true;
@@ -149,7 +153,11 @@ export function useSupabaseSync() {
               email: m.email,
               avatar: m.avatar,
               role: m.role as any,
-              status: m.status as any,
+              status: isMe ? (m.status as any) : 'offline',
+              customStatus: m.custom_status || 'online',
+              statusMessage: m.status_message || '',
+              statusEmoji: m.status_emoji || '',
+              lastSeenAt: m.last_seen_at || m.created_at || new Date().toISOString(),
               workspaceIds,
               phone: m.phone || '',
               department: m.department || '',
@@ -286,7 +294,8 @@ export function useSupabaseSync() {
                 whiteboards: s.whiteboards || [],
                 channels: s.channels || [],
                 statuses: s.statuses || [],
-                clickApps: s.click_apps || {}
+                clickApps: s.click_apps || {},
+                customFields: s.custom_fields_config || []
               }));
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
@@ -371,6 +380,7 @@ export function useSupabaseSync() {
                 channels: space.channels || [],
                 statuses: space.statuses || [],
                 click_apps: space.clickApps || {},
+                custom_fields_config: space.customFields || [],
                 user_id: userId
               });
               
@@ -491,6 +501,10 @@ export function useSupabaseSync() {
                   avatar: m.avatar,
                   role: m.role as any,
                   status: m.status as any,
+                  customStatus: m.custom_status || 'online',
+                  statusMessage: m.status_message || '',
+                  statusEmoji: m.status_emoji || '',
+                  lastSeenAt: m.last_seen_at || m.created_at || new Date().toISOString(),
                   workspaceIds: m.workspace_ids || [],
                   phone: m.phone || '',
                   department: m.department || '',
@@ -500,9 +514,17 @@ export function useSupabaseSync() {
                 setMembers(prev => {
                   const exists = prev.some(item => item.id === mappedMember.id);
                   if (exists) {
-                    return prev.map(item => item.id === mappedMember.id ? mappedMember : item);
+                    return prev.map(item => {
+                      if (item.id === mappedMember.id) {
+                        return {
+                          ...mappedMember,
+                          status: item.status, // Preserve active presence status
+                        };
+                      }
+                      return item;
+                    });
                   } else {
-                    return [...prev, mappedMember];
+                    return [...prev, { ...mappedMember, status: 'offline' }];
                   }
                 });
               } else if (eventType === 'DELETE') {

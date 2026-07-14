@@ -57,7 +57,9 @@ import {
   Database as PhDatabase,
   Briefcase as PhBriefcase,
   ChartBar as PhChartBar,
-  Target as PhTarget
+  Target as PhTarget,
+  Table as PhTable,
+  Users as PhUsers
 } from '@phosphor-icons/react';
 
 const checkIsDndActive = (settings: any) => {
@@ -483,6 +485,7 @@ export default function App() {
               channels: space.channels || [],
               statuses: space.statuses || [],
               click_apps: space.clickApps || {},
+              custom_fields_config: space.customFields || [],
               user_id: userId
             });
 
@@ -1008,7 +1011,7 @@ export default function App() {
     e.preventDefault();
     if (!draggedItemId || draggedItemId === targetId) return;
 
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals', 'team'];
     const currentOrder = [...sidebarOrder];
     
     // Ensure all default items are present
@@ -1045,15 +1048,16 @@ export default function App() {
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
       chat: { label: t('chat') || 'Chat', icon: PhChat },
       docs: { label: t('docs') || 'Docs', icon: PhFileText },
-      base: { label: t('base') || 'Avaxa Base', icon: PhDatabase },
+      base: { label: t('base') || 'Avaxa Base', icon: PhTable },
       tasks: { label: t('space') || 'Space', icon: PhBriefcase },
       analytics: { label: t('analytics') || 'Analytics', icon: PhChartBar },
-      goals: { label: t('goals') || 'Goals (OKRs)', icon: PhTarget }
+      goals: { label: t('goals') || 'Goals (OKRs)', icon: PhTarget },
+      team: { label: 'Team OS', icon: PhUsers }
     };
   }, [notificationsList, t]);
 
   const orderedItems = useMemo(() => {
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics', 'goals'];
+    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics', 'goals', 'team'];
     const currentOrder = [...sidebarOrder];
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
@@ -3407,21 +3411,21 @@ export default function App() {
                       <div 
                         className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[13px] shadow-sm shrink-0 select-none overflow-hidden"
                         style={!currentWorkspace?.logoUrl ? {
-                          background: 'linear-gradient(135deg, #FF3366, #e11d48)'
+                          background: 'linear-gradient(135deg, #7B61FF, #a78bfa)'
                         } : undefined}
                       >
                         {currentWorkspace?.logoUrl ? (
                           <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                         ) : (
-                          <span>{currentWorkspace?.initial || 'A'}</span>
+                          <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'W'}</span>
                         )}
                       </div>
-                      <div className="leading-tight min-w-0">
+                      <div className="leading-tight min-w-0 flex-1">
                         <div className="font-bold text-slate-800 dark:text-slate-105 text-[13px] truncate">
                           {currentWorkspace?.name || 'Loading...'}
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
-                          {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'} • <button onClick={() => { setShowWorkspaceMenu(false); setActiveTab('settings'); setActiveSettingsTab('upgrade'); }} className="text-indigo-500 hover:text-indigo-600 font-semibold cursor-pointer">Upgrade</button>
+                          {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}
                         </div>
                       </div>
                     </div>
@@ -3434,7 +3438,7 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('general');
                         }}
-                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-855 cursor-pointer transition-colors"
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-305 hover:bg-slate-55 dark:hover:bg-slate-855 cursor-pointer transition-colors"
                       >
                         <Settings className="w-3.5 h-3.5 text-slate-400" />
                         Settings
@@ -3445,79 +3449,10 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('people');
                         }}
-                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-855 cursor-pointer transition-colors"
+                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-855 text-xs font-bold text-slate-700 dark:text-slate-305 hover:bg-slate-55 dark:hover:bg-slate-855 cursor-pointer transition-colors"
                       >
                         <Users className="w-3.5 h-3.5 text-slate-400" />
                         People
-                      </button>
-                    </div>
-
-                    <div className="border-t border-slate-100 dark:border-slate-850" />
-
-                    {/* Manage list */}
-                    <div className="space-y-0.5">
-                      <div className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        Manage
-                      </div>
-                      
-                      <button
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('app_center');
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
-                      >
-                        <Grid className="w-4 h-4 text-indigo-500" />
-                        <span>Apps</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('templates');
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
-                      >
-                        <Briefcase className="w-4 h-4 text-emerald-500" />
-                        <span>Templates</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('custom_fields');
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
-                      >
-                        <Edit3 className="w-4 h-4 text-sky-500" />
-                        <span>Custom Fields</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('automations');
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
-                      >
-                        <Zap className="w-4 h-4 text-amber-505" />
-                        <span>Automations</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowWorkspaceMenu(false);
-                          setActiveTab('settings');
-                          setActiveSettingsTab('tags');
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-850/80 cursor-pointer transition-colors text-left"
-                      >
-                        <Hash className="w-4 h-4 text-rose-500" />
-                        <span>Tag Manager</span>
                       </button>
                     </div>
 

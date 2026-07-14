@@ -11,7 +11,7 @@ import {
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff,
-  Forward, AtSign, Check, Settings, ChevronDown, Clock, CheckSquare, Calendar
+  Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -206,6 +206,7 @@ export default function ChatRoom({
   // Navigation & Channels
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
+  const [isMobileChatActive, setIsMobileChatActive] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
 
@@ -996,6 +997,17 @@ export default function ChatRoom({
     }
   }, [activeChannelId]);
 
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (activeChannelId) {
+      setIsMobileChatActive(true);
+    }
+  }, [activeChannelId]);
+
   // Forward message handler
   const handleForwardMessage = async (targetChannelId: string) => {
     if (!forwardingMessage) return;
@@ -1566,7 +1578,9 @@ export default function ChatRoom({
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
       {!forcedChannelId && (
-        <div className="w-64 border-r border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left">
+        <div className={`w-full md:w-64 border-r border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left ${
+          isMobileChatActive ? 'hidden md:flex' : 'flex'
+        }`}>
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
           {/* Header area */}
           <div className="flex items-center justify-between px-2 py-1 select-none shrink-0">
@@ -1878,7 +1892,9 @@ export default function ChatRoom({
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
-        className={`flex-1 flex flex-col justify-between relative bg-white ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''}`}
+        className={`flex-1 flex flex-col justify-between relative bg-white ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
+          isMobileChatActive ? 'flex' : 'hidden md:flex'
+        }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -1900,7 +1916,15 @@ export default function ChatRoom({
         <header className="border-b border-slate-200/80 bg-white flex flex-col shrink-0">
           {/* Top row */}
           <div className="px-5 py-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Mobile Back Button to Channels List */}
+              <button
+                onClick={() => setIsMobileChatActive(false)}
+                className="md:hidden p-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200/60 dark:border-slate-700/80 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-350 cursor-pointer shrink-0 transition-colors mr-1"
+                title="Quay lại danh sách chat"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
               {isSelfDm ? (
                 <div className="relative shrink-0 flex">
                   <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />

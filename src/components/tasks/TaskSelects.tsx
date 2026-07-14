@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp } from 'lucide-react';
+import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption } from '../../utils/fieldConfig';
@@ -1323,3 +1323,224 @@ export function LabelsFieldSelect({ value, options = [], onChange }: { value: st
     </div>
   );
 }
+
+// ── Bulk Status Select ──
+export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 160, 160);
+  const [statuses, setStatuses] = useState<OptionConfig[]>([]);
+
+  React.useEffect(() => {
+    setStatuses(getStoredStatuses());
+  }, [open]);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const metaList: OptionConfig[] = statuses.length > 0 ? statuses : [
+    { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', color: 'slate' },
+    { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900', color: 'amber' },
+    { id: 'review', label: 'REVIEW', dot: 'bg-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900', color: 'cyan' },
+    { id: 'completed', label: 'DONE', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900', color: 'emerald' },
+  ];
+
+  const dropdownContent = (
+    <motion.div 
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-44"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
+      }}
+    >
+      <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
+        Change Status To
+      </div>
+      {metaList.map(s => (
+        <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-bold rounded-lg cursor-pointer transition-colors uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
+          <span>{s.label}</span>
+        </button>
+      ))}
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+        <span>Status</span>
+        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && coords && createPortal(
+        <AnimatePresence>
+          {open && dropdownContent}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ── Bulk Priority Select ──
+export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | undefined) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
+  const [priorities, setPriorities] = useState<OptionConfig[]>([]);
+
+  React.useEffect(() => {
+    setPriorities(getStoredPriorities());
+  }, [open]);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const metaList = priorities.length > 0 ? priorities : [
+    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: '🔴' },
+    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: '🟠' },
+    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: '🟡' },
+    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: '⚪' }
+  ];
+
+  const dropdownContent = (
+    <motion.div 
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-xl shadow-xl w-40"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
+      }}
+    >
+      <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
+        Change Priority To
+      </div>
+      <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+        <span className="text-[10px]">⚪</span>
+        <span>None (Empty)</span>
+      </button>
+      {metaList.map(p => (
+        <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-705 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          <span>{p.icon || '⚪'}</span>
+          <span>{p.label}</span>
+        </button>
+      ))}
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-805 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
+        <Flag className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+        <span>Priority</span>
+        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && coords && createPortal(
+        <AnimatePresence>
+          {open && dropdownContent}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ── Bulk Assignee Select ──
+export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onChange: (v: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220, 208);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const dropdownContent = (
+    <motion.div 
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-xl shadow-xl w-56 max-h-56 overflow-y-auto custom-scrollbar"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
+      }}
+    >
+      <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
+        Assign Tasks To
+      </div>
+      <button type="button" onClick={() => { onChange(null); setOpen(false); }}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
+        <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
+        <span>Unassign All</span>
+      </button>
+      {members.map(m => (
+        <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+          <span className="truncate">{m.name}</span>
+        </button>
+      ))}
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
+        <span className="text-[11px]">👤</span>
+        <span>Assignee</span>
+        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && coords && createPortal(
+        <AnimatePresence>
+          {open && dropdownContent}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+}
+

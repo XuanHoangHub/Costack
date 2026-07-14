@@ -761,6 +761,27 @@ export default function TaskTableView({
                         <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
                       </button>
                     )}
+                    {/* Complete toggle circle button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+                        onUpdateTask({ ...task, status: newStatus as TaskStatus });
+                        if (onAddSyncLog) onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
+                        if (typeof window !== 'undefined') {
+                          (window as any).playSystemSound?.('toggle');
+                        }
+                      }}
+                      className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 ${
+                        task.status === 'completed'
+                          ? 'border-emerald-500 bg-emerald-500 text-white'
+                          : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                      }`}
+                    >
+                      <Check className="w-3 h-3 text-white dark:text-slate-100" strokeWidth={3} />
+                    </button>
+
                     {inlineEditTaskId === task.id ? (
                       <input 
                         autoFocus 

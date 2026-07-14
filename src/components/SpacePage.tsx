@@ -21,13 +21,14 @@ import {
   Folder, FolderOpen, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone
 , Flag } from 'lucide-react';
-import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect } from './tasks/TaskSelects';
+import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect, BulkStatusSelect, BulkAssigneeSelect, BulkPrioritySelect } from './tasks/TaskSelects';
 import TaskListView from './tasks/TaskListView';
 import TaskBoardView from './tasks/TaskBoardView';
 import TaskTableView from './tasks/TaskTableView';
 import TaskGanttView from './tasks/TaskGanttView';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SpaceOverviewTab from './SpaceOverviewTab';
+import ConfirmModal from './ConfirmModal';
 
 // Import other workspace view modules
 import CalendarView from './CalendarView';
@@ -142,6 +143,7 @@ export default function SpacePage({
   const [isSpacesExpanded, setIsSpacesExpanded] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState<number>(240);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Handle mouse drag sidebar resizing
   const startResizing = (e: React.MouseEvent) => {
@@ -211,6 +213,60 @@ export default function SpacePage({
     { id: 'cf-complexity', name: 'Complexity', type: 'rating' },
     { id: 'cf-active', name: 'Active', type: 'checkbox' }
   ]);
+
+  // Synchronize custom fields config from activeSpace
+  useEffect(() => {
+    if (activeSpace && activeSpace.customFields && activeSpace.customFields.length > 0) {
+      setCustomFields(activeSpace.customFields);
+    } else if (activeSpace) {
+      setCustomFields([
+        { id: 'cf-objective', name: 'Objective', type: 'text' },
+        { id: 'cf-owner', name: 'Owner', type: 'text' },
+        { id: 'cf-cost', name: 'Cost', type: 'number' },
+        { id: 'cf-phase', name: 'Phase', type: 'dropdown', options: ['Planning', 'Design', 'Development', 'QA', 'Release'] },
+        { id: 'cf-complexity', name: 'Complexity', type: 'rating' },
+        { id: 'cf-active', name: 'Active', type: 'checkbox' }
+      ]);
+    }
+  }, [activeSpace?.id, activeSpace?.customFields]);
+  // Confirm Modal state and helper
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    cancelText?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {}
+  });
+
+  const triggerConfirm = (config: {
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: config.title,
+      description: config.description,
+      confirmText: config.confirmText,
+      cancelText: config.cancelText,
+      isDestructive: config.isDestructive ?? true,
+      onConfirm: () => {
+        config.onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
   const [showBreadcrumbNav, setShowBreadcrumbNav] = useState(false);
   const [listNameInput, setListNameInput] = useState('');
   const [spacesAddDropdownOpen, setSpacesAddDropdownOpen] = useState(false);
@@ -263,6 +319,11 @@ export default function SpacePage({
   };
   const [breadcrumbSearch, setBreadcrumbSearch] = useState('');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+
+  // Automatically close mobile sidebar when the active list, folder, or space changes
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [activeListId, activeSpaceId, activeFolderId]);
   const [viewContextMenu, setViewContextMenu] = useState<{
     show: boolean;
     x: number;
@@ -377,20 +438,42 @@ export default function SpacePage({
     }, 5000);
   };
 
-  const handleBulkDelete = () => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) return;
+  const handleBulkPriorityChange = (newPriority: Priority | undefined) => {
     const prev = [...tasks];
     setUndoAction({ previousTasks: prev });
     selectedTaskIds.forEach(id => {
-      onDeleteTask(id);
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        onUpdateTask({ ...task, priority: newPriority || 'low' });
+      }
     });
     if (triggerToast) {
-      triggerToast('warning', 'Bulk Tasks Deleted', `Deleted ${selectedTaskIds.length} tasks.`);
+      triggerToast('success', 'Bulk Priority Updated', `Updated priority for ${selectedTaskIds.length} tasks.`);
     }
-    setSelectedTaskIds([]);
     setTimeout(() => {
       setUndoAction(null);
     }, 5000);
+  };
+
+  const handleBulkDelete = () => {
+    triggerConfirm({
+      title: 'Xóa công việc hàng loạt',
+      description: `Bạn có chắc chắn muốn xóa ${selectedTaskIds.length} công việc đã chọn? Hành động này không thể hoàn tác.`,
+      onConfirm: () => {
+        const prev = [...tasks];
+        setUndoAction({ previousTasks: prev });
+        selectedTaskIds.forEach(id => {
+          onDeleteTask(id);
+        });
+        if (triggerToast) {
+          triggerToast('warning', 'Bulk Tasks Deleted', `Deleted ${selectedTaskIds.length} tasks.`);
+        }
+        setSelectedTaskIds([]);
+        setTimeout(() => {
+          setUndoAction(null);
+        }, 5000);
+      }
+    });
   };
 
   const handleUndoBulkAction = () => {
@@ -869,15 +952,35 @@ export default function SpacePage({
   return (
     <div className="flex-grow flex h-full bg-white dark:bg-slate-950/20 font-sans overflow-hidden relative">
       
+      {/* Backdrop overlay for mobile Spaces sidebar */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="md:hidden fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 cursor-pointer"
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Sub-sidebar for Spaces (Left side, matching ClickUp) ── */}
       <AnimatePresence initial={false}>
-        {!isSubSidebarCollapsed && (
+        {(!isSubSidebarCollapsed || isMobileSidebarOpen) && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: sidebarWidth, opacity: 1 }}
+            animate={{ 
+              width: typeof window !== 'undefined' && window.innerWidth < 768 ? 280 : sidebarWidth, 
+              opacity: 1 
+            }}
             exit={{ width: 0, opacity: 0 }}
             transition={isResizing ? { duration: 0 } : { duration: 0.2, ease: 'easeInOut' }}
-            className="h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden hidden md:flex"
+            className={`h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col overflow-hidden shrink-0 ${
+              isMobileSidebarOpen
+                ? 'fixed inset-y-0 left-0 z-50 shadow-2xl w-[280px] max-w-[85vw] flex'
+                : 'hidden md:flex'
+            }`}
           >
             {/* Header: Spaces */}
             <div className="p-4 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between shrink-0">
@@ -1441,8 +1544,16 @@ export default function SpacePage({
           <div className="flex items-center justify-between px-5 py-2 relative flex-wrap gap-3 min-h-[48px]">
             
             {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Scrollable & Unified) */}
-            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 pr-2">
-              
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 pr-2">
+              {/* Mobile Spaces sub-sidebar trigger drawer button */}
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-200 transition-colors cursor-pointer shrink-0"
+                title="Mở thanh danh mục Space"
+              >
+                <FolderOpen className="w-4 h-4 text-indigo-500" />
+              </button>
+
               {/* Space Selector Breadcrumbs */}
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
                 {/* Space Icon & Name */}
@@ -1550,10 +1661,14 @@ export default function SpacePage({
                                     </button>
                                     <button 
                                       onClick={() => {
-                                        if (confirm(`Are you sure you want to delete the list "${currentList.name}"?`)) {
-                                          handleDeleteList(currentList.id);
-                                          setShowBreadcrumbNav(false);
-                                        }
+                                        triggerConfirm({
+                                          title: 'Xóa danh sách',
+                                          description: `Bạn có chắc chắn muốn xóa danh sách "${currentList.name}"? Tất cả các công việc trong danh sách này cũng sẽ bị xóa.`,
+                                          onConfirm: () => {
+                                            handleDeleteList(currentList.id);
+                                            setShowBreadcrumbNav(false);
+                                          }
+                                        });
                                       }}
                                       className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                                       title="Delete list"
@@ -2261,6 +2376,7 @@ export default function SpacePage({
             onOpenFieldsPanel={() => setShowFieldsPanel(true)}
             setVisibleFields={setVisibleFields}
             setCustomFields={setCustomFields}
+            openDialog={triggerConfirm}
           />
         )}
 
@@ -2558,54 +2674,34 @@ export default function SpacePage({
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3.5 px-5 py-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md shadow-2xl max-w-full overflow-x-auto scrollbar-none select-none"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3.5 px-4.5 py-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md shadow-2xl max-w-[95vw] sm:max-w-full overflow-x-auto scrollbar-none select-none ring-1 ring-indigo-500/10 dark:ring-indigo-400/5"
           >
             {/* Selection Count Badge */}
-            <div className="flex items-center gap-2 pr-3.5 border-r border-slate-150 dark:border-slate-800 shrink-0">
-              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">
-                {selectedTaskIds.length}
-              </span>
-              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-350">Selected</span>
+            <div className="flex items-center gap-2.5 pr-4 border-r border-slate-150 dark:border-slate-800 shrink-0">
+              <div className="relative">
+                <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-violet-600 text-white text-[11px] font-black flex items-center justify-center shadow-md shadow-indigo-500/10">
+                  {selectedTaskIds.length}
+                </span>
+              </div>
+              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">Selected</span>
             </div>
 
-            {/* Mass Status Picker */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-505">Status</span>
-              {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(status => (
-                <button
-                  key={status}
-                  onClick={() => handleBulkStatusChange(status)}
-                  className="px-2.5 py-1 text-[9.5px] font-extrabold rounded-lg border border-slate-100 hover:border-indigo-400 bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-350 cursor-pointer hover:bg-indigo-50/20 hover:text-indigo-650 transition-all"
-                >
-                  {status === 'todo' ? 'To Do' : status === 'inprogress' ? 'In Progress' : status === 'review' ? 'Review' : 'Done'}
-                </button>
-              ))}
+            {/* Actions Group */}
+            <div className="flex items-center gap-2 shrink-0">
+              <BulkStatusSelect onChange={handleBulkStatusChange} />
+              <BulkAssigneeSelect 
+                members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))}
+                onChange={handleBulkAssigneeChange} 
+              />
+              <BulkPrioritySelect onChange={handleBulkPriorityChange} />
             </div>
 
-            <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 shrink-0" />
-
-            {/* Mass Assignee Dropdown */}
-            <div className="flex items-center gap-2 shrink-0 relative">
-              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-505">Assignee</span>
-              <select
-                onChange={e => handleBulkAssigneeChange(e.target.value || null)}
-                defaultValue=""
-                className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-slate-805 bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-350 cursor-pointer outline-none"
-              >
-                <option value="" disabled>Select member...</option>
-                <option value="unassigned">Unassigned</option>
-                {members.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 shrink-0" />
+            <div className="w-[1px] h-5 bg-slate-200/85 dark:bg-slate-800/85 shrink-0" />
 
             {/* Bulk Delete with confirmation */}
             <button
               onClick={handleBulkDelete}
-              className="px-3 py-1 text-[10px] font-black rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-955/20 border border-rose-200/30 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors flex items-center gap-1 shrink-0"
+              className="px-3.5 py-1.5 text-[11px] font-extrabold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/20 border border-rose-200/40 dark:border-rose-900/30 text-rose-600 dark:text-rose-450 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0"
               title="Delete all selected tasks"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -2615,7 +2711,7 @@ export default function SpacePage({
             {/* Clear Selection */}
             <button
               onClick={() => setSelectedTaskIds([])}
-              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 cursor-pointer transition-colors shrink-0"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/85 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer transition-colors shrink-0 active:scale-95"
               title="Clear selection"
             >
               <X className="w-3.5 h-3.5" />
@@ -2962,9 +3058,13 @@ export default function SpacePage({
                   alert("You must keep at least one view!");
                   return;
                 }
-                if (confirm("Are you sure you want to delete this view?")) {
-                  setStaticTabs(prev => prev.filter(t => t.id !== viewContextMenu.tabId));
-                }
+                triggerConfirm({
+                  title: 'Xóa chế độ xem',
+                  description: 'Bạn có chắc chắn muốn xóa chế độ xem này? Hành động này không thể hoàn tác.',
+                  onConfirm: () => {
+                    setStaticTabs(prev => prev.filter(t => t.id !== viewContextMenu.tabId));
+                  }
+                });
               }}
               className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-red-600"
             >
@@ -3522,21 +3622,24 @@ export default function SpacePage({
                 <span className="font-bold">Archive</span>
               </button>
 
-              {/* Delete */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveSpaceSettings(null);
-                  if (confirm(`Are you sure you want to delete Space "${space.name}"?`)) {
-                    const updated = spaces.filter(s => s.id !== space.id);
-                    onSaveSpaces?.(updated);
-                    if (activeSpaceId === space.id) {
-                      if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
-                      if (setActiveListId) setActiveListId(null);
+                  triggerConfirm({
+                    title: 'Xóa không gian làm việc',
+                    description: `Bạn có chắc chắn muốn xóa Space "${space.name}"? Tất cả các thư mục, danh sách và công việc trong Space này cũng sẽ bị xóa vĩnh viễn.`,
+                    onConfirm: () => {
+                      const updated = spaces.filter(s => s.id !== space.id);
+                      onSaveSpaces?.(updated);
+                      if (activeSpaceId === space.id) {
+                        if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
+                        if (setActiveListId) setActiveListId(null);
+                      }
+                      onAddSyncLog(`Deleted Space "${space.name}"`);
                     }
-                    onAddSyncLog(`Deleted Space "${space.name}"`);
-                  }
+                  });
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
               >
@@ -3847,15 +3950,19 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveListSettings(null);
-                  if (confirm(`Are you sure you want to delete List "${list.name}"?`)) {
-                    const updatedLists = space.lists.filter(l => l.id !== list.id);
-                    const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                    onSaveSpaces?.(updated);
-                    if (activeListId === list.id) {
-                      if (setActiveListId) setActiveListId(null);
+                  triggerConfirm({
+                    title: 'Xóa danh sách',
+                    description: `Bạn có chắc chắn muốn xóa danh sách "${list.name}"? Tất cả các công việc trong danh sách này cũng sẽ bị xóa vĩnh viễn.`,
+                    onConfirm: () => {
+                      const updatedLists = space.lists.filter(l => l.id !== list.id);
+                      const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
+                      onSaveSpaces?.(updated);
+                      if (activeListId === list.id) {
+                        if (setActiveListId) setActiveListId(null);
+                      }
+                      onAddSyncLog(`Deleted List "${list.name}"`);
                     }
-                    onAddSyncLog(`Deleted List "${list.name}"`);
-                  }
+                  });
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
               >
@@ -4135,16 +4242,20 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveFolderSettings(null);
-                  if (confirm(`Are you sure you want to delete Folder "${folder.name}" and all its lists?`)) {
-                    const updatedFolders = space.folders?.filter(f => f.id !== folder.id) || [];
-                    const updatedLists = space.lists?.filter(l => l.folderId !== folder.id) || [];
-                    const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists } : s);
-                    onSaveSpaces?.(updated);
-                    if (activeFolderId === folder.id) {
-                      setActiveFolderId(null);
+                  triggerConfirm({
+                    title: 'Xóa thư mục',
+                    description: `Bạn có chắc chắn muốn xóa thư mục "${folder.name}" cùng tất cả danh sách bên trong? Tất cả các công việc trong thư mục này cũng sẽ bị xóa vĩnh viễn.`,
+                    onConfirm: () => {
+                      const updatedFolders = space.folders?.filter(f => f.id !== folder.id) || [];
+                      const updatedLists = space.lists?.filter(l => l.folderId !== folder.id) || [];
+                      const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists } : s);
+                      onSaveSpaces?.(updated);
+                      if (activeFolderId === folder.id) {
+                        setActiveFolderId(null);
+                      }
+                      onAddSyncLog(`Deleted Folder "${folder.name}"`);
                     }
-                    onAddSyncLog(`Deleted Folder "${folder.name}"`);
-                  }
+                  });
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-red-655 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer transition-colors"
               >
@@ -4201,10 +4312,25 @@ export default function SpacePage({
               setCustomFields={setCustomFields}
               tasks={tasks}
               onUpdateTask={onUpdateTask}
+              activeSpace={activeSpace}
+              spaces={spaces}
+              onSaveSpaces={onSaveSpaces}
+              openDialog={triggerConfirm}
             />
           </div>
         </Portal>
       )}
+
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        isDestructive={confirmModal.isDestructive}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
 
       </div> {/* Closing tag for Main Page Workspace Content Container */}
     </div>
@@ -4212,7 +4338,8 @@ export default function SpacePage({
 }
 
 function CustomFieldsTabs({ 
-  visibleFields, setVisibleFields, customFields, setCustomFields, tasks, onUpdateTask 
+  visibleFields, setVisibleFields, customFields, setCustomFields, tasks, onUpdateTask,
+  activeSpace, spaces, onSaveSpaces, openDialog
 }: { 
   visibleFields: string[]; 
   setVisibleFields: (f: string[]) => void; 
@@ -4220,6 +4347,10 @@ function CustomFieldsTabs({
   setCustomFields: (cf: any[]) => void; 
   tasks: Task[]; 
   onUpdateTask: (task: Task) => void;
+  activeSpace: any;
+  spaces: any[];
+  onSaveSpaces?: (newSpaces: any[]) => void;
+  openDialog?: (config: { title: string; description: string; onConfirm: () => void; isDestructive?: boolean; confirmText?: string; cancelText?: string }) => void;
 }) {
   const [tab, setTab] = useState<'create' | 'add'>('create');
   const [search, setSearch] = useState('');
@@ -4265,8 +4396,18 @@ function CustomFieldsTabs({
       type,
       ...(options ? { options } : {})
     };
-    setCustomFields([...customFields, newField]);
+    const updatedCustomFields = [...customFields, newField];
+    setCustomFields(updatedCustomFields);
     setVisibleFields([...visibleFields, cleanName]);
+
+    // Save to Supabase (backend)
+    if (onSaveSpaces && spaces) {
+      const updatedSpace = {
+        ...activeSpace,
+        customFields: updatedCustomFields
+      };
+      onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
+    }
 
     // Add empty field to all tasks
     tasks.forEach(t => {
@@ -4278,6 +4419,51 @@ function CustomFieldsTabs({
         }
       });
     });
+  };
+
+  const handleDeleteField = (fieldName: string) => {
+    const performDelete = () => {
+      const updatedCustomFields = customFields.filter(f => f.name !== fieldName);
+      setCustomFields(updatedCustomFields);
+
+      if (visibleFields.includes(fieldName)) {
+        setVisibleFields(visibleFields.filter(f => f !== fieldName));
+      }
+
+      // Save to Supabase (backend)
+      if (onSaveSpaces && spaces) {
+        const updatedSpace = {
+          ...activeSpace,
+          customFields: updatedCustomFields
+        };
+        onSaveSpaces(spaces.map(s => s.id === activeSpace.id ? updatedSpace : s));
+      }
+
+      // Update tasks in backend (Remove field key from tasks)
+      tasks.forEach(t => {
+        if (t.spaceId === activeSpace.id && t.custom_fields && fieldName in t.custom_fields) {
+          const nextCustomFields = { ...t.custom_fields };
+          delete nextCustomFields[fieldName];
+
+          onUpdateTask({
+            ...t,
+            custom_fields: nextCustomFields
+          });
+        }
+      });
+    };
+
+    if (openDialog) {
+      openDialog({
+        title: 'Xóa trường tùy chỉnh',
+        description: `Bạn có chắc chắn muốn xóa trường tùy chỉnh "${fieldName}"? Hành động này sẽ xóa trường này và toàn bộ dữ liệu của nó khỏi tất cả các công việc trong Space này vĩnh viễn.`,
+        onConfirm: performDelete,
+        isDestructive: true,
+        confirmText: 'Xóa trường'
+      });
+    } else if (confirm(`Are you sure you want to delete the custom field "${fieldName}"? This will remove this field and all its values from all tasks in this space.`)) {
+      performDelete();
+    }
   };
 
   const toggleFieldVisibility = (fieldKey: string) => {
@@ -4376,8 +4562,23 @@ function CustomFieldsTabs({
               {filteredProperties
                 .filter(p => visibleFields.includes(p.key))
                 .map(p => (
-                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{p.label}</span>
+                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg group">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{p.label}</span>
+                      {!p.isStandard && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteField(p.key);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-rose-500/10 text-rose-500 rounded transition-all cursor-pointer shrink-0"
+                          title="Delete Field"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" 
@@ -4400,8 +4601,23 @@ function CustomFieldsTabs({
               {filteredProperties
                 .filter(p => !visibleFields.includes(p.key))
                 .map(p => (
-                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{p.label}</span>
+                  <div key={p.key} className="flex items-center justify-between py-1.5 px-2 hover:bg-slate-50 dark:hover:bg-slate-805/40 rounded-lg group">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">{p.label}</span>
+                      {!p.isStandard && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteField(p.key);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-rose-500/10 text-rose-500 rounded transition-all cursor-pointer shrink-0"
+                          title="Delete Field"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" 

@@ -252,7 +252,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
             >
               <div
-                className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-900/10 p-7 sm:p-8 space-y-5 pointer-events-auto max-h-[90vh] overflow-y-auto"
+                className="relative w-full max-w-md h-full sm:h-auto max-h-full sm:max-h-[90vh] bg-white sm:border border-slate-200/60 rounded-none sm:rounded-2xl shadow-none sm:shadow-2xl p-7 sm:p-8 space-y-5 pointer-events-auto overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button

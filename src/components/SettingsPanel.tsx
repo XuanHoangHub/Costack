@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Moon, Sun, Palette, Settings, Database, Copy, Check, Volume2, VolumeX, 
   Layers, Sparkles, Bell, BellOff, Info, Clock, Sliders, ShieldCheck,
-  Briefcase, Trash2, Edit2, Plus, X, ChevronRight, AlertTriangle,
+  Briefcase, Trash2, Edit2, Plus, X, ChevronRight, ChevronLeft, AlertTriangle,
   Globe, Eye, EyeOff, Brain, Bot, Users, FolderOpen, Zap, Tag, Code, Mail, LogOut,
   ChevronDown, Calendar, Search, Users as UsersIcon, ShieldAlert, CheckCircle,
-  HelpCircle, FileClock, Globe2, RefreshCw
+  HelpCircle, FileClock, Globe2, RefreshCw, Upload
 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 import SignedImage from './SignedImage';
 import TeamDirectory from './TeamDirectory';
@@ -109,10 +110,14 @@ export default function SettingsPanel({
   const [copied, setCopied] = useState(false);
   const currentUser = useAuthStore((s) => s.currentUser);
   const { t, locale, setLocale } = useTranslation();
+  const [isSidebarVisibleOnMobile, setIsSidebarVisibleOnMobile] = useState(true);
   
   // Tab Routing state (internal fallback or linked via prop)
   const [localActiveTab, setLocalActiveTab] = useState<string>('general');
-  const activeTab = activeSettingsTab || localActiveTab;
+  const validTabs = ['general', 'people', 'ai_usage', 'audit_logs', 'preferences', 'notifications'];
+  const activeTab = validTabs.includes(activeSettingsTab || localActiveTab) 
+    ? (activeSettingsTab || localActiveTab) 
+    : 'general';
   const setActiveTab = setActiveSettingsTab || setLocalActiveTab;
 
   // Local state variables
@@ -225,39 +230,10 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
       title: 'Admin',
       key: 'adminSection',
       items: [
-        { id: 'general', label: 'General', icon: Briefcase },
-        { id: 'people', label: 'People', icon: Users },
-        { id: 'teams', label: 'Teams', icon: UsersIcon },
-        { id: 'upgrade', label: 'Upgrade', icon: Sparkles },
-        { id: 'ai_usage', label: 'AI Usage', icon: Brain },
-        { id: 'security', label: 'Security & Permissions', icon: ShieldCheck },
-        { id: 'audit_logs', label: 'Audit Logs', icon: FileClock },
-        { id: 'trash', label: 'Trash', icon: Trash2 },
-      ]
-    },
-    {
-      title: 'Features',
-      key: 'featuresSection',
-      items: [
-        { id: 'custom_fields', label: 'Custom Field Manager', icon: Layers },
-        { id: 'tags', label: 'Tag Manager', icon: Tag },
-        { id: 'templates', label: 'Template Center', icon: FolderOpen },
-        { id: 'automations', label: 'Automations Manager', icon: Zap },
-        { id: 'ai_notetaker', label: 'AI Notetaker', icon: Bot },
-        { id: 'emojis', label: 'Emojis', icon: CheckCircle },
-        { id: 'spaces', label: 'Spaces', icon: Database },
-        { id: 'task_types', label: 'Task Types', icon: Info },
-        { id: 'work_schedule', label: 'Work Schedule', icon: Clock },
-      ]
-    },
-    {
-      title: 'Integrations & ClickApps',
-      key: 'integrationsSection',
-      items: [
-        { id: 'app_center', label: 'App Center', icon: Sliders },
-        { id: 'import_export', label: 'Imports / Exports', icon: RefreshCw },
-        { id: 'clickup_api', label: 'ClickUp API', icon: Code },
-        { id: 'email_integration', label: 'Email Integration', icon: Mail },
+        { id: 'general', label: 'General Settings', icon: Briefcase },
+        { id: 'people', label: 'Member Directory', icon: Users },
+        { id: 'ai_usage', label: 'AI Configuration', icon: Brain },
+        { id: 'audit_logs', label: 'System Logs', icon: FileClock },
       ]
     },
     {
@@ -273,7 +249,9 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
   return (
     <div className="flex h-[calc(100vh-140px)] w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs relative">
       {/* 1. Left Navigation Sidebar */}
-      <aside className="w-[230px] border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex flex-col justify-between shrink-0 overflow-y-auto scrollbar-none p-3.5 space-y-4">
+      <aside className={`w-[230px] border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex flex-col justify-between shrink-0 overflow-y-auto scrollbar-none p-3.5 space-y-4 transition-all duration-200 ${
+        isSidebarVisibleOnMobile ? 'flex w-full absolute inset-0 z-20 md:relative md:w-[230px]' : 'hidden md:flex'
+      }`}>
         <div className="space-y-4">
           <div className="px-2 py-1">
             <h2 className="text-[14px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-display">
@@ -294,7 +272,10 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     return (
                       <button
                         key={item.id}
-                        onClick={() => setActiveTab(item.id)}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setIsSidebarVisibleOnMobile(false);
+                        }}
                         className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left ${
                           isActive 
                             ? 'bg-slate-200/80 dark:bg-slate-800 text-indigo-655 dark:text-indigo-400 shadow-xs' 
@@ -328,6 +309,14 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
 
       {/* 2. Right Detail Content area */}
       <main className="flex-1 overflow-y-auto bg-white dark:bg-slate-905 p-6 md:p-8">
+        {/* Mobile menu toggle back button */}
+        <button
+          onClick={() => setIsSidebarVisibleOnMobile(true)}
+          className="md:hidden flex items-center gap-1.5 text-xs text-slate-650 dark:text-slate-300 font-bold mb-5 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>{locale === 'vi' ? 'Quay lại Cài đặt' : 'Back to Settings'}</span>
+        </button>
         
         {/* TAB: GENERAL WORKSPACE INFO */}
         {activeTab === 'general' && (
@@ -347,29 +336,94 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
               return (
                 <div className="space-y-6">
                   {/* Name and logo */}
-                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Workspace Name</label>
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-6">
+                    <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                      {/* Workspace Logo Upload (Left/Top) */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-500 block">Workspace Logo</label>
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm shrink-0 overflow-hidden relative border border-slate-200 dark:border-slate-800"
+                            style={{
+                              background: `linear-gradient(135deg, ${presets.find(p => p.id === activeWS.theme)?.hex || '#7B61FF'}, #a78bfa)`
+                            }}
+                          >
+                            {activeWS.logoUrl ? (
+                              <img src={activeWS.logoUrl} alt={activeWS.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="uppercase">{activeWS.name ? activeWS.name.charAt(0).toUpperCase() : 'W'}</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex gap-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const userId = session?.user?.id || 'anonymous';
+                                    const fileExt = file.name.split('.').pop() || 'png';
+                                    const fileName = `${userId}/workspaces/${activeWS.id}_avatar_${Date.now()}.${fileExt}`;
+                                    
+                                    const { error: uploadError } = await supabase.storage
+                                      .from('avatars')
+                                      .upload(fileName, file, { cacheControl: '3600', upsert: true });
+                                      
+                                    if (uploadError) throw uploadError;
+                                    
+                                    const { data: { publicUrl } } = supabase.storage
+                                      .from('avatars')
+                                      .getPublicUrl(fileName);
+                                      
+                                    onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, publicUrl, activeWS.settings);
+                                    if (triggerToast) triggerToast('success', 'Logo Uploaded', 'Workspace logo updated successfully.');
+                                  } catch (err) {
+                                    console.error(err);
+                                    if (triggerToast) triggerToast('error', 'Upload Failed', 'Unable to upload workspace logo.');
+                                  }
+                                }}
+                                className="hidden"
+                                id="settings-panel-logo-file-input"
+                              />
+                              <label
+                                htmlFor="settings-panel-logo-file-input"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 dark:bg-slate-805 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-indigo-505" />
+                                <span>Upload Logo</span>
+                              </label>
+                              {activeWS.logoUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, '', activeWS.settings);
+                                    if (triggerToast) triggerToast('success', 'Logo Removed', 'Workspace logo has been reset.');
+                                  }}
+                                  className="px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-955/20 border border-rose-250/20 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Supported formats: PNG, JPG, SVG. Maximum 2MB.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Workspace Name (Right/Bottom) */}
+                      <div className="space-y-2 flex-1 max-w-md">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-500">Workspace Name</label>
                         <input
                           type="text"
                           value={activeWS.name}
                           onChange={e => {
                             onUpdateWorkspace?.(activeWS.id, e.target.value, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
                           }}
-                          className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">Logo URL</label>
-                        <input
-                          type="text"
-                          value={activeWS.logoUrl || ''}
-                          onChange={e => {
-                            onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, e.target.value, activeWS.settings);
-                          }}
-                          placeholder="e.g. https://domain.com/logo.png"
-                          className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         />
                       </div>
                     </div>
@@ -397,98 +451,6 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                           </button>
                         );
                       })}
-                    </div>
-                  </div>
-
-                  {/* Covers */}
-                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Background Cover</h4>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Select cover artwork for workspace header backgrounds</p>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, '', activeWS.logoUrl, activeWS.settings);
-                        }}
-                        className={`relative shrink-0 w-16 h-11 rounded-lg border flex flex-col items-center justify-center transition-all cursor-pointer ${!activeWS.coverUrl ? 'border-indigo-500 bg-white dark:bg-slate-900 shadow-sm' : 'border-dashed border-slate-200 dark:border-slate-800'}`}
-                      >
-                        <span className="text-[8px] font-bold text-slate-400">Default</span>
-                      </button>
-                      {WORKSPACE_COVERS.map(cover => (
-                        <button
-                          key={cover.id}
-                          type="button"
-                          onClick={() => {
-                            onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, cover.url, activeWS.logoUrl, activeWS.settings);
-                          }}
-                          className={`relative shrink-0 w-16 h-11 rounded-lg border overflow-hidden transition-all group cursor-pointer ${activeWS.coverUrl === cover.url ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100'}`}
-                        >
-                          <img src={cover.url} alt={cover.name} className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* ClickApps */}
-                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350">Workspace Features (ClickApps)</h4>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Toggle active collaborative productivity modules</p>
-                    </div>
-                    {(() => {
-                      const clickApps = activeWS.settings?.defaultClickApps || {
-                        timeTracking: true,
-                        multipleAssignees: true,
-                        customFields: true,
-                        relationships: true,
-                        subtasks: true,
-                        priorities: true
-                      };
-                      return (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {[
-                            { key: 'timeTracking', label: 'Time Tracking' },
-                            { key: 'multipleAssignees', label: 'Multiple Assignees' },
-                            { key: 'customFields', label: 'Custom Fields' },
-                            { key: 'relationships', label: 'Relationships' },
-                            { key: 'subtasks', label: 'Subtasks' },
-                            { key: 'priorities', label: 'Priorities' }
-                          ].map(app => (
-                            <label key={app.key} className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700/60 cursor-pointer transition-colors text-xs font-bold text-slate-700 dark:text-slate-300">
-                              <span>{app.label}</span>
-                              <input
-                                type="checkbox"
-                                checked={!!clickApps[app.key]}
-                                onChange={e => {
-                                  const updatedClickApps = { ...clickApps, [app.key]: e.target.checked };
-                                  const updatedSettings = { ...activeWS.settings, defaultClickApps: updatedClickApps };
-                                  onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, updatedSettings);
-                                }}
-                                className="rounded text-indigo-650 w-4 h-4 cursor-pointer"
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* SQL copy */}
-                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-300">Database Schema SQL Integration</h4>
-                      <button
-                        onClick={handleCopy}
-                        className="flex items-center gap-1 py-1 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-655 dark:text-slate-300 cursor-pointer"
-                      >
-                        {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                        <span>{copied ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                    <div className="relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 font-mono text-[10px] max-h-[140px] overflow-y-auto p-3 text-slate-655 dark:text-slate-400">
-                      <pre className="whitespace-pre-wrap">{sqlCode}</pre>
                     </div>
                   </div>
 
@@ -544,75 +506,6 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                 onDeleteMember={onDeleteMember}
                 onAddSyncLog={onAddSyncLog}
               />
-            </div>
-          </div>
-        )}
-
-        {/* TAB: TEAMS MANAGEMENT PLACEHOLDER */}
-        {activeTab === 'teams' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <UsersIcon className="w-5 h-5 text-indigo-500" />
-                Teams Directory
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Group members into department divisions (e.g. Design, Devs, Sales)</p>
-            </div>
-
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mx-auto text-lg">
-                👥
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h4 className="text-sm font-bold text-slate-805 dark:text-slate-200">Organize with Teams</h4>
-                <p className="text-xs text-slate-455 dark:text-slate-500 leading-relaxed">
-                  Avoid typing individual names continuously. Create functional cohorts to assign tasks, documents, or mention in chats instantly.
-                </p>
-              </div>
-              <button className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer">
-                Create Team
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: UPGRADE BILLING */}
-        {activeTab === 'upgrade' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-500" />
-                Upgrade Workspace Plan
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Scale productivity with unlimited features and advanced haptic sync engine</p>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl text-amber-500">
-                  <Sparkles className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-805 dark:text-slate-200">Avaxa Premium Pro Tier</h4>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Unlimited workspaces, real-time shared co-working, and custom fields manager</p>
-                </div>
-              </div>
-              <div className="border-t border-slate-200/40 dark:border-slate-800/80 pt-3">
-                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                  <li className="flex items-center gap-2">✓ Unlimited collaborative workspace shares</li>
-                  <li className="flex items-center gap-2">✓ Realtime cloud sync with low-latency Supabase channels</li>
-                  <li className="flex items-center gap-2">✓ Advanced Gemini 3.5 Flash artificial intelligence capabilities</li>
-                  <li className="flex items-center gap-2">✓ Unlimited custom fields and automated workflows manager</li>
-                </ul>
-              </div>
-              <button 
-                onClick={() => {
-                  if (triggerToast) triggerToast('success', 'Plan Activated! 🎉', 'You have unlocked Avaxa Premium Pro.');
-                }}
-                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
-              >
-                Activate Premium Pro
-              </button>
             </div>
           </div>
         )}
@@ -721,30 +614,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
           </div>
         )}
 
-        {/* TAB: SECURITY & PERMISSIONS */}
-        {activeTab === 'security' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-indigo-500" />
-                Security & Permissions
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Establish database security constraints and member authorization settings</p>
-            </div>
 
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center mx-auto text-lg">
-                🛡️
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h4 className="text-sm font-bold text-slate-805 dark:text-slate-200">Row Level Security Activated</h4>
-                <p className="text-xs text-slate-455 dark:text-slate-500 leading-relaxed font-semibold">
-                  Every workspace operates under explicit Supabase RLS policies. Teammates can view, update, and manage tasks only inside shared spaces, leaving other databases fully isolated.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* TAB: AUDIT LOGS */}
         {activeTab === 'audit_logs' && (
@@ -774,190 +644,6 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: TRASH */}
-        {activeTab === 'trash' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Trash2 className="w-5 h-5 text-indigo-500" />
-                Trash Bin
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Recover deleted tasks, documents, or lists from this workspace</p>
-            </div>
-
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-3">
-              <div className="text-2xl">🗑️</div>
-              <h4 className="text-xs font-bold text-slate-805 dark:text-slate-200">Trash Bin is Empty</h4>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-xs mx-auto">Deleted items are permanently removed from database tables after 30 days.</p>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: FEATURES - CUSTOM FIELD MANAGER */}
-        {activeTab === 'custom_fields' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-indigo-500" />
-                Custom Field Manager
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Create custom metadata attributes (e.g. Budget, Phase, Department) for tasks</p>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-250">Active Custom Fields</h4>
-                <button className="flex items-center gap-1 py-1.5 px-3 bg-indigo-500 hover:bg-indigo-650 text-white rounded-lg text-[10px] font-black cursor-pointer shadow-xs">
-                  + Add Custom Field
-                </button>
-              </div>
-              <div className="text-xs text-slate-455 dark:text-slate-500 italic">No custom fields created yet. Click above to define metadata properties.</div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: FEATURES - TAG MANAGER */}
-        {activeTab === 'tags' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-indigo-500" />
-                Workspace Tag Manager
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Manage and organize task index tags across the workspace</p>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <h4 className="text-xs font-bold text-slate-805 dark:text-slate-250">All Tags</h4>
-              <div className="flex flex-wrap gap-2">
-                {['#bug', '#feature', '#docs', '#design', '#sprint1', '#refactor'].map(tag => (
-                  <div key={tag} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <span>{tag}</span>
-                    <button className="text-slate-450 hover:text-rose-500 font-bold shrink-0">×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: FEATURES - TEMPLATE CENTER */}
-        {activeTab === 'templates' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <FolderOpen className="w-5 h-5 text-indigo-500" />
-                Workspace Template Center
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Save space lists or board layouts as reusable templates</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { title: 'Software Scrum Sprint', desc: 'Pre-configured To Do, In Progress, QA, and Done lists with custom status mappings.' },
-                { title: 'Marketing Campaign Launch', desc: 'Pre-populated tag tags, custom fields, and task template guides for media tracking.' },
-                { title: 'Personal OKR Tracker', desc: 'Simple goal layout featuring priority trackers and progress bars.' },
-                { title: 'Weekly Team Sync', desc: 'Meeting agenda template configured inside space channels.' }
-              ].map((template, idx) => (
-                <div key={idx} className="p-5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-2.5">
-                  <h4 className="text-xs font-black text-slate-805 dark:text-slate-200">{template.title}</h4>
-                  <p className="text-[11px] text-slate-455 dark:text-slate-500 leading-relaxed">{template.desc}</p>
-                  <button className="text-[10px] font-black text-indigo-500 hover:underline cursor-pointer">Use Template →</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: FEATURES - AUTOMATIONS */}
-        {activeTab === 'automations' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-indigo-500" />
-                Workspace Automations
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Automate routines (e.g. Assign to Me when status changes to Doing)</p>
-            </div>
-
-            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-255">Active Automations</h4>
-                <button className="flex items-center gap-1 py-1.5 px-3 bg-indigo-500 hover:bg-indigo-650 text-white rounded-lg text-[10px] font-black cursor-pointer shadow-xs">
-                  + Create Automation
-                </button>
-              </div>
-              <div className="text-xs text-slate-455 dark:text-slate-500 italic">No automated triggers configured yet.</div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: FEATURES - OTHER */}
-        {['ai_notetaker', 'emojis', 'spaces', 'task_types', 'work_schedule'].includes(activeTab) && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2 capitalize">
-                <Settings className="w-5 h-5 text-indigo-500" />
-                {activeTab.replace('_', ' ')} Settings
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure advanced workspace features to fine-tune operations</p>
-            </div>
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl text-xs text-slate-455 italic">
-              Configure workspace features. These settings will automatically adapt to your active workspace constraints.
-            </div>
-          </div>
-        )}
-
-        {/* TAB: INTEGRATIONS - APP CENTER */}
-        {activeTab === 'app_center' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-indigo-500" />
-                Integrations App Center
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Connect external developer tools to your productivity workspace</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { name: 'Slack', desc: 'Post task updates, status alerts, or comments directly to Slack channels.', logo: '💬' },
-                { name: 'GitHub', desc: 'Link commits, pull requests, and issues directly inside task panels.', logo: '🐙' },
-                { name: 'Figma', desc: 'Embed design files and prototypes into whiteboards or task descriptions.', logo: '🎨' },
-                { name: 'Google Calendar', desc: 'Sync work deadlines and focus events with Google Calendar.', logo: '📅' },
-                { name: 'Zoom Meetings', desc: 'Spawn and join video conference links from chat channels.', logo: '📹' }
-              ].map((app, idx) => (
-                <div key={idx} className="p-5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-2xl">{app.logo}</div>
-                    <h4 className="text-xs font-black text-slate-805 dark:text-slate-100">{app.name}</h4>
-                    <p className="text-[10px] text-slate-455 dark:text-slate-505 leading-relaxed">{app.desc}</p>
-                  </div>
-                  <button className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer">
-                    Connect
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: INTEGRATIONS - OTHER */}
-        {['import_export', 'clickup_api', 'email_integration'].includes(activeTab) && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2 capitalize">
-                <Code className="w-5 h-5 text-indigo-500" />
-                {activeTab.replace('_', ' ')}
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Manage external developer tokens, import pipelines, and webhook triggers</p>
-            </div>
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl text-xs text-slate-455 italic">
-              Integrations setup. Connect third-party API webhooks to automate data migration pipelines.
             </div>
           </div>
         )}
@@ -1155,240 +841,6 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     Do Not Disturb (DND)
                   </button>
                 </div>
-              </div>
-
-              {/* DND Duration Pause & Custom Schedules */}
-              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
-                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
-                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                  Do Not Disturb Options (Tránh làm phiền)
-                </h4>
-
-                {/* 1. Temp Pause */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
-                    {notificationSettings.dndDurationUntil && (
-                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
-                        Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {[
-                      { label: '30m', min: 30 },
-                      { label: '1h', min: 60 },
-                      { label: '2h', min: 120 },
-                      { label: '8h', min: 480 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => {
-                          const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
-                          setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
-                        }}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        tomorrow.setHours(8, 0, 0, 0);
-                        setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
-                      }}
-                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
-                    >
-                      Đến ngày mai
-                    </button>
-                    {notificationSettings.dndDurationUntil && (
-                      <button
-                        type="button"
-                        onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
-                      >
-                        Hủy tạm dừng
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Schedule DND */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
-                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={!!notificationSettings.dndScheduleEnabled}
-                        onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-
-                  {notificationSettings.dndScheduleEnabled && (
-                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
-                        <input
-                          type="time"
-                          value={notificationSettings.dndScheduleStart || '22:00'}
-                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
-                        <input
-                          type="time"
-                          value={notificationSettings.dndScheduleEnd || '07:00'}
-                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Allow Exceptions */}
-                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
-                  <div className="text-left">
-                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
-                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={!!notificationSettings.dndAllowUrgent}
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
-                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
-                  />
-                </label>
-              </div>
-
-              {/* DND Duration Pause & Custom Schedules */}
-              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
-                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
-                  <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                  Do Not Disturb Options (Tránh làm phiền)
-                </h4>
-
-                {/* 1. Temp Pause */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
-                    {notificationSettings.dndDurationUntil && (
-                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
-                        Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {[
-                      { label: '30m', min: 30 },
-                      { label: '1h', min: 60 },
-                      { label: '2h', min: 120 },
-                      { label: '8h', min: 480 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => {
-                          const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
-                          setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
-                        }}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        tomorrow.setHours(8, 0, 0, 0);
-                        setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
-                      }}
-                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
-                    >
-                      Đến ngày mai
-                    </button>
-                    {notificationSettings.dndDurationUntil && (
-                      <button
-                        type="button"
-                        onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
-                      >
-                        Hủy tạm dừng
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Schedule DND */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
-                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={!!notificationSettings.dndScheduleEnabled}
-                        onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
-                        className="sr-only peer"
-                      />
-                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-
-                  {notificationSettings.dndScheduleEnabled && (
-                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
-                        <input
-                          type="time"
-                          value={notificationSettings.dndScheduleStart || '22:00'}
-                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
-                        <input
-                          type="time"
-                          value={notificationSettings.dndScheduleEnd || '07:00'}
-                          onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Allow Exceptions */}
-                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
-                  <div className="text-left">
-                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
-                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={!!notificationSettings.dndAllowUrgent}
-                    onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
-                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
-                  />
-                </label>
               </div>
 
               {/* DND Duration Pause & Custom Schedules */}

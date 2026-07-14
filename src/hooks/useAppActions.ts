@@ -682,6 +682,7 @@ export function useAppActions() {
               channels: space.channels || [],
               statuses: space.statuses || [],
               click_apps: space.clickApps || {},
+              custom_fields_config: space.customFields || [],
               user_id: userId
             });
 
