@@ -974,19 +974,43 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Theme light lock info */}
+              {/* Theme Mode Toggle (Light / Dark) */}
               <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
-                    <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl shadow-3xs">
+                      {isDarkMode ? (
+                        <Moon className="w-5 h-5 text-indigo-500 animate-pulse" />
+                      ) : (
+                        <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">
+                        {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+                      </h3>
+                      <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">
+                        {isDarkMode ? 'Immersive space dark theme' : 'Crystalline space light theme'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('pureLightMode') || 'Pure Light Mode'}</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('lightModeDesc') || 'UI locked to crystalline light theme'}</p>
-                  </div>
+                  
+                  {/* Switch toggle control */}
+                  <button
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                      isDarkMode ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isDarkMode ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
-                <div className="p-3 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {t('minimizeDesc') || '✨ Dark mode and blur overlays are constrained to ensure high-fidelity styling across all list details.'}
+                <div className="p-3 bg-white dark:bg-slate-850 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Toggle between the signature crystalline light mode and the immersive deep dark mode layout.
                 </div>
               </div>
 

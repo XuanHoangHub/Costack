@@ -140,6 +140,11 @@ html, body, #root {
   filter: blur(100px);
   z-index: 0;
   pointer-events: none;
+  display: none;
+}
+
+.dark .liquid-blob {
+  display: block;
 }
 
 .blob-1 {
@@ -179,7 +184,7 @@ html, body, #root {
 .glass-liquid-bg {
   position: relative;
   overflow: hidden;
-  background-color: #f8fafc;
+  background-color: #ffffff;
 }
 .dark .glass-liquid-bg {
   background-color: #0b0f19;

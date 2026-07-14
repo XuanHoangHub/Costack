@@ -6,22 +6,302 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
+import { createPortal } from 'react-dom';
+import { supabase } from '../../lib/supabaseClient';
+import { 
+  DndContext, 
+  DragOverlay, 
+  useSensor, 
+  useSensors, 
+  PointerSensor, 
+  TouchSensor, 
+  KeyboardSensor,
+  closestCorners
+} from '@dnd-kit/core';
+import { 
+  SortableContext, 
+  useSortable, 
+  verticalListSortingStrategy 
+} from '@dnd-kit/sortable';
 import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
 
-const DraggableCast = Draggable as typeof Draggable;
-
-function StrictModeDroppable({ children, ...props }: { children: (provided: DroppableProvided, snapshot?: any) => React.ReactNode; droppableId: string; type: string }) {
-  const [enabled, setEnabled] = useState(false);
+// Simple Portal wrapper
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const animation = requestAnimationFrame(() => setEnabled(true));
-    return () => { cancelAnimationFrame(animation); };
+    setMounted(true);
   }, []);
-  if (!enabled) return null;
-  return <Droppable {...props}>{children}</Droppable>;
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
+
+import { useDroppable } from '@dnd-kit/core';
+
+function KanbanColumn({ id, children, isOver }: { id: string; children: React.ReactNode; isOver?: boolean }) {
+  const { setNodeRef } = useDroppable({ id });
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`flex-1 space-y-2 min-h-[150px] transition-colors duration-200 rounded-xl p-1.5 overflow-y-auto max-h-[calc(100vh-280px)] ${
+        isOver ? 'bg-indigo-500/[0.04] dark:bg-indigo-500/[0.02]' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function KanbanCard({ 
+  task, 
+  index, 
+  members, 
+  workspaces = [], 
+  localCardSize, 
+  localCardCover, 
+  selectedTaskIds, 
+  setSelectedTaskIds, 
+  setSelectedTask, 
+  activeTimerTaskId, 
+  onStartGlobalTimer, 
+  onStopGlobalTimer, 
+  onUpdateTask, 
+  onAddSyncLog, 
+  triggerToast, 
+  filterTag, 
+  setFilterTag, 
+  dynamicPriorityColors, 
+  PRIORITY_COLORS, 
+  dynamicPriorityMeta, 
+  inlineEditTaskId, 
+  setInlineEditTaskId, 
+  inlineEditTitle, 
+  setInlineEditTitle, 
+  submitInlineEdit, 
+  isDraggingRef 
+}: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    opacity: isDragging ? 0.35 : undefined,
+  };
+
+  const assigneeIds = task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []);
+  const assignees = members.filter((m: any) => assigneeIds.includes(m.id === 'user' ? 'user' : m.id) || assigneeIds.includes(m.id));
+  const daysInfo = getDaysText(task.dueDate);
+  const imageAttachment = localCardCover ? task.attachments?.find((a: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(a.name)) : null;
+  
+  const paddingCls = localCardSize === 'small' ? 'p-2' : localCardSize === 'large' ? 'p-4.5' : 'p-3.5';
+  const titleCls = localCardSize === 'small' ? 'text-xs font-semibold' : localCardSize === 'large' ? 'text-sm font-bold' : 'text-[12.5px] font-bold';
+  const descCls = localCardSize === 'small' ? 'hidden' : 'text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed';
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className="outline-none"
+    >
+      <div 
+        onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
+        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-slate-200/50 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-pointer shadow-[0_2px_8px_rgba(15,23,42,0.01)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:border-indigo-300/60 dark:hover:border-indigo-900/60 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-400/30' : ''} overflow-hidden`}
+      >
+        {imageAttachment && (
+          <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
+            <SignedImage filePath={imageAttachment.filePath} className="w-full h-full object-cover" alt={task.title} fallback={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300`} />
+          </div>
+        )}
+
+        <div className={paddingCls}>
+          {localCardSize === 'small' ? (
+            <div className="flex items-center gap-2">
+              {/* Dedicated Grip Drag Handle */}
+              <div 
+                {...attributes}
+                {...listeners}
+                onClick={e => e.stopPropagation()}
+                className="text-slate-350 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+              </div>
+              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-101'}`}>
+                {task.title}
+              </h4>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                  {/* Dedicated Grip Drag Handle */}
+                  <div 
+                    {...attributes}
+                    {...listeners}
+                    onClick={e => e.stopPropagation()}
+                    className="text-slate-355 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  >
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </div>
+
+                  <input type="checkbox" checked={selectedTaskIds.includes(task.id)}
+                    onChange={e => { e.stopPropagation(); setSelectedTaskIds((prev: any) => e.target.checked ? [...prev, task.id] : prev.filter((id: any) => id !== task.id)); }}
+                    onClick={e => e.stopPropagation()}
+                    className="w-3.5 h-3.5 rounded border-slate-355 text-indigo-655 focus:ring-indigo-505/20 cursor-pointer shrink-0 accent-indigo-600" />
+                  
+                  {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
+
+                  {activeTimerTaskId === task.id ? (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (onStopGlobalTimer) onStopGlobalTimer();
+                      }}
+                      className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-105 border border-rose-200/30"
+                      title="Stop Timer"
+                    >
+                      <Clock className="w-3 h-3 text-rose-500 animate-spin" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (onStartGlobalTimer) onStartGlobalTimer(task.id);
+                      }}
+                      className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-650 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
+                      title="Start Timer"
+                    >
+                      <Play className="w-3 h-3 text-emerald-505 fill-emerald-505" />
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  {workspaces.find((w: any) => w.id === (task.workspaceId || 'w2')) && (() => {
+                    const ws = workspaces.find((w: any) => w.id === (task.workspaceId || 'w2'));
+                    return (
+                      <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none bg-indigo-55 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100/10 dark:border-indigo-900/10">
+                        {ws?.name}
+                      </span>
+                    );
+                  })()}
+                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none border ${
+                    task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-955/20 dark:border-rose-900/30 dark:text-rose-400' :
+                    task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-955/20 dark:border-orange-900/30 dark:text-orange-400' :
+                    task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-955/20 dark:border-yellow-900/30 dark:text-yellow-400' :
+                    'bg-slate-50 border-slate-200 text-slate-550 dark:bg-slate-800/40 dark:border-slate-705 dark:text-slate-400'
+                  }`}>
+                    {dynamicPriorityMeta[task.priority]?.label || task.priority}
+                  </span>
+                </div>
+              </div>
+
+              {inlineEditTaskId === task.id ? (
+                <input 
+                  autoFocus 
+                  value={inlineEditTitle}
+                  onChange={e => setInlineEditTitle(e.target.value)}
+                  onKeyDown={e => { 
+                    if (e.key === 'Enter') submitInlineEdit(task); 
+                    if (e.key === 'Escape') setInlineEditTaskId(null); 
+                  }}
+                  onBlur={() => submitInlineEdit(task)}
+                  onClick={e => e.stopPropagation()}
+                  className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
+                />
+              ) : (
+                <h4 
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    setInlineEditTaskId(task.id);
+                    setInlineEditTitle(task.title);
+                  }}
+                  className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
+                  title="Double click to rename task"
+                >
+                  {task.title}
+                </h4>
+              )}
+
+              {task.description && (
+                <p className={descCls}>{task.description}</p>
+              )}
+
+              {task.tags && task.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2.5 mb-1">
+                  {task.tags.slice(0, 3).map((tag: any) => (
+                    <span key={tag} onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
+                      className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                        filterTag === tag 
+                          ? 'bg-indigo-600 border-indigo-600 text-white' 
+                          : 'bg-indigo-50/20 dark:bg-indigo-955/25 border-indigo-100/10 dark:border-indigo-900/10 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-55 dark:hover:bg-indigo-900/40'
+                      }`}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold select-none">
+                <div className="flex items-center gap-1.5">
+                  {assignees.length > 0 ? (
+                    <div className="flex -space-x-1.5 overflow-hidden">
+                      {assignees.map((member: any) => (
+                        <div key={member.id} className="relative group/avatar">
+                          {member.avatar ? (
+                            <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border border-white dark:border-slate-900">
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-[9px] dark:bg-slate-800/40 dark:border-slate-800/80">👤</div>
+                  )}
+                  {task.commentsCount > 0 && (
+                    <span className="flex items-center gap-0.5 ml-1">
+                      <MessageSquare className="w-3 h-3 text-slate-350" />
+                      {task.commentsCount}
+                    </span>
+                  )}
+                  {task.attachments && task.attachments.length > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <Paperclip className="w-3 h-3 text-slate-350" />
+                      {task.attachments.length}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {daysInfo && (
+                    <span className={`px-1.5 py-0.5 rounded flex items-center gap-1 text-[8.5px] font-black border border-transparent ${daysInfo.cls}`}>
+                      <Calendar className="w-2.5 h-2.5" />
+                      {daysInfo.text}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const STATUS_META: Record<TaskStatus, { label: string; dot: string; headerBg: string; headerText: string; headerBorder: string; badgeBg: string; badgeText: string }> = {
@@ -164,8 +444,83 @@ export default function TaskBoardView({
 }: TaskBoardViewProps) {
 
   const { t, locale } = useTranslation();
+  const [statusConfigs, setStatusConfigs] = useState<OptionConfig[]>([]);
+  const [priorityConfigs, setPriorityConfigs] = useState<OptionConfig[]>([]);
+
+  const reloadMeta = () => {
+    setStatusConfigs(getStoredStatuses());
+    setPriorityConfigs(getStoredPriorities());
+  };
+
+  useEffect(() => {
+    reloadMeta();
+    window.addEventListener('avaxa-field-config-changed', reloadMeta);
+    return () => window.removeEventListener('avaxa-field-config-changed', reloadMeta);
+  }, []);
+
+  const dynamicStatusMeta = useMemo(() => {
+    const meta: Record<string, any> = {};
+    const baseList = statusConfigs.length > 0 ? statusConfigs : [
+      { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', color: 'slate-500' },
+      { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-505', color: 'amber-500' },
+      { id: 'review', label: 'REVIEW', dot: 'bg-cyan-505', color: 'cyan-500' },
+      { id: 'completed', label: 'COMPLETE', dot: 'bg-emerald-505', color: 'emerald-505' }
+    ];
+    baseList.forEach(s => {
+      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
+      meta[s.id] = {
+        label: s.label,
+        dot: s.dot || `bg-${c}-500`,
+        headerBg: 'bg-transparent',
+        headerText: `text-${c}-600`,
+        headerBorder: 'border-transparent',
+        badgeBg: `bg-${c}-100/70 dark:bg-${c}-950/40`,
+        badgeText: `text-${c}-755 dark:text-${c}-400 font-extrabold`
+      };
+    });
+    return meta;
+  }, [statusConfigs]);
+
+  const dynamicPriorityMeta = useMemo(() => {
+    const meta: Record<string, any> = {};
+    const baseList = priorityConfigs.length > 0 ? priorityConfigs : [
+      { id: 'urgent', label: 'URGENT', color: 'red-600' },
+      { id: 'high', label: 'HIGH', color: 'orange-600' },
+      { id: 'medium', label: 'MEDIUM', color: 'yellow-600' },
+      { id: 'low', label: 'LOW', color: 'slate-500' }
+    ];
+    baseList.forEach(p => {
+      const c = (p.color || 'slate-500').replace('text-', '').replace('-500', '').replace('-600', '');
+      meta[p.id] = {
+        label: p.label.toUpperCase(),
+        dot: `bg-${c}-500`,
+        bg: `bg-${c}-50/50 dark:bg-${c}-955/20`,
+        text: `text-${c}-600`,
+        badgeBg: `bg-${c}-100/70 dark:bg-${c}-955/40`,
+        badgeText: `text-${c}-700 dark:text-${c}-400 font-extrabold`
+      };
+    });
+    return meta;
+  }, [priorityConfigs]);
+
+  const dynamicPriorityColors = useMemo(() => {
+    const colors: Record<string, string> = {};
+    const baseList = priorityConfigs.length > 0 ? priorityConfigs : [
+      { id: 'urgent', color: 'red-600' },
+      { id: 'high', color: 'orange-600' },
+      { id: 'medium', color: 'yellow-600' },
+      { id: 'low', color: 'slate-500' }
+    ];
+    baseList.forEach(p => {
+      const c = (p.color || 'slate-500').replace('text-', '').replace('-500', '').replace('-600', '');
+      colors[p.id] = `border-l-${c}-500`;
+    });
+    return colors;
+  }, [priorityConfigs]);
+
   const [isReady, setIsReady] = useState(false);
   const [localActiveDragId, setLocalActiveDragId] = useState<string | null>(null);
+  const [localActiveOverDropId, setLocalActiveOverDropId] = useState<string | null>(null);
   const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<string[]>([]);
   const [inlineAddCell, setInlineAddCell] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
@@ -205,30 +560,55 @@ export default function TaskBoardView({
     }
   }, [localActiveDragId]);
 
-  const handleDragStart = (start: DragStart) => {
-    setLocalActiveDragId(start.draggableId);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
+  const findColumnOfTask = (taskId: string) => {
+    if (!boardState) return null;
+    for (const colId of Object.keys(boardState.columns)) {
+      if (boardState.columns[colId].taskIds.includes(taskId)) {
+        return colId;
+      }
+    }
+    return null;
+  };
+
+  const handleDragStart = (event: any) => {
+    setLocalActiveDragId(event.active.id.toString());
   };
 
   const columns: string[] = useMemo(() => {
     if (boardGroupBy === 'status') {
-      return ['todo', 'inprogress', 'review', 'completed'];
+      return statusConfigs.length > 0 ? statusConfigs.map(s => s.id) : ['todo', 'inprogress', 'review', 'completed'];
     }
     if (boardGroupBy === 'priority') {
-      return ['urgent', 'high', 'medium', 'low'];
+      return priorityConfigs.length > 0 ? priorityConfigs.map(p => p.id) : ['urgent', 'high', 'medium', 'low'];
     }
     return [...members.map(m => m.id), 'unassigned'];
-  }, [boardGroupBy, members]);
+  }, [boardGroupBy, members, statusConfigs, priorityConfigs]);
 
   const swimlaneRows: string[] = useMemo(() => {
     if (boardSwimlaneBy === 'none') return [];
     if (boardSwimlaneBy === 'status') {
-      return ['todo', 'inprogress', 'review', 'completed'];
+      return statusConfigs.length > 0 ? statusConfigs.map(s => s.id) : ['todo', 'inprogress', 'review', 'completed'];
     }
     if (boardSwimlaneBy === 'priority') {
-      return ['urgent', 'high', 'medium', 'low'];
+      return priorityConfigs.length > 0 ? priorityConfigs.map(p => p.id) : ['urgent', 'high', 'medium', 'low'];
     }
     return [...members.map(m => m.id), 'unassigned'];
-  }, [boardSwimlaneBy, members]);
+  }, [boardSwimlaneBy, members, statusConfigs, priorityConfigs]);
 
   const toggleSwimlaneCollapse = (rowKey: string) => {
     setCollapsedSwimlanes(prev => 
@@ -245,13 +625,13 @@ export default function TaskBoardView({
 
   const getColumnMeta = (colKey: string): BoardColumnMeta => {
     if (boardGroupBy === 'status') {
-      const meta = STATUS_META[colKey as TaskStatus];
+      const meta = dynamicStatusMeta[colKey];
       return meta 
         ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } 
         : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-105 dark:bg-slate-800', badgeText: 'text-slate-655 dark:text-slate-350' };
     }
     if (boardGroupBy === 'priority') {
-      const meta = PRIORITY_META[colKey as Priority];
+      const meta = dynamicPriorityMeta[colKey];
       return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-105', badgeText: 'text-slate-500' };
     }
     if (colKey === 'unassigned') {
@@ -268,13 +648,13 @@ export default function TaskBoardView({
 
   const getSwimlaneMeta = (rowKey: string): BoardColumnMeta => {
     if (boardSwimlaneBy === 'status') {
-      const meta = STATUS_META[rowKey as TaskStatus];
+      const meta = dynamicStatusMeta[rowKey];
       return meta 
         ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } 
         : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-105 dark:bg-slate-800', badgeText: 'text-slate-655 dark:text-slate-350' };
     }
     if (boardSwimlaneBy === 'priority') {
-      const meta = PRIORITY_META[rowKey as Priority];
+      const meta = dynamicPriorityMeta[rowKey];
       return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-105', badgeText: 'text-slate-500' };
     }
     if (rowKey === 'unassigned') {
@@ -421,129 +801,246 @@ export default function TaskBoardView({
     setInlineAddCell(null);
   };
 
-  // ── Drag & Drop Event Handler with Optimistic UI updates ──
-  const handleDragEnd = (result: DropResult) => {
-    setLocalActiveDragId(null);
-    const { destination, source, draggableId } = result;
-
-    if (!destination) return;
-
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
+  const handleDragOver = (event: any) => {
+    const { active, over } = event;
+    if (!over || !boardState) {
+      setLocalActiveOverDropId(null);
       return;
     }
 
-    const startColId = source.droppableId;
-    const finishColId = destination.droppableId;
-    const taskId = draggableId.replace('kanban_card_', '');
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
 
-    // 1. Optimistic Update Local Board State
-    if (boardState) {
-      const newBoardState = { ...boardState };
+    if (activeId === overId) return;
 
-      // Case A: Dragged within the same column
-      if (startColId === finishColId) {
-        const column = newBoardState.columns[startColId];
-        if (column) {
-          const newTaskIds = Array.from(column.taskIds);
-          newTaskIds.splice(source.index, 1);
-          newTaskIds.splice(destination.index, 0, taskId);
-          newBoardState.columns[startColId] = {
-            ...column,
-            taskIds: newTaskIds
-          };
-          setBoardState(newBoardState);
-        }
-      } 
-      // Case B: Dragged across columns
-      else {
-        const startColumn = newBoardState.columns[startColId];
-        const finishColumn = newBoardState.columns[finishColId];
-        if (startColumn && finishColumn) {
-          const startTaskIds = Array.from(startColumn.taskIds);
-          startTaskIds.splice(source.index, 1);
+    // Find the columns/cells
+    const activeCol = findColumnOfTask(activeId);
+    let overCol = findColumnOfTask(overId);
 
-          const finishTaskIds = Array.from(finishColumn.taskIds);
-          finishTaskIds.splice(destination.index, 0, taskId);
-
-          newBoardState.columns[startColId] = {
-            ...startColumn,
-            taskIds: startTaskIds
-          };
-          newBoardState.columns[finishColId] = {
-            ...finishColumn,
-            taskIds: finishTaskIds
-          };
-
-          setBoardState(newBoardState);
-        }
-      }
+    if (!overCol && boardState.columns[overId]) {
+      overCol = overId;
     }
 
-    // 2. Perform background async call to trigger parent update
-    const taskToUpdate = filteredTasks.find(t => t.id === taskId);
-    if (!taskToUpdate) return;
+    if (overCol) {
+      setLocalActiveOverDropId(overCol);
+    } else {
+      setLocalActiveOverDropId(null);
+    }
 
-    let targetColumn = finishColId;
+    if (!activeCol || !overCol || activeCol === overCol) return;
+
+    // Move task to new column in state optimistically
+    setBoardState(prev => {
+      if (!prev) return prev;
+      const startCol = prev.columns[activeCol];
+      const endCol = prev.columns[overCol];
+      if (!startCol || !endCol) return prev;
+
+      const activeIndex = startCol.taskIds.indexOf(activeId);
+      let overIndex = endCol.taskIds.indexOf(overId);
+
+      if (overIndex === -1) {
+        overIndex = endCol.taskIds.length;
+      }
+
+      const newStartIds = startCol.taskIds.filter(id => id !== activeId);
+      const newEndIds = [...endCol.taskIds];
+      if (!newEndIds.includes(activeId)) {
+        newEndIds.splice(overIndex, 0, activeId);
+      }
+
+      return {
+        ...prev,
+        columns: {
+          ...prev.columns,
+          [activeCol]: { ...startCol, taskIds: newStartIds },
+          [overCol]: { ...endCol, taskIds: newEndIds }
+        }
+      };
+    });
+  };
+
+  const handleDragEnd = async (event: any) => {
+    setLocalActiveDragId(null);
+    setLocalActiveOverDropId(null);
+    const { active, over } = event;
+
+    if (!over || !boardState) return;
+
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
+
+    const activeCol = findColumnOfTask(activeId);
+    let overCol = findColumnOfTask(overId);
+
+    if (!overCol && boardState.columns[overId]) {
+      overCol = overId;
+    }
+
+    if (!activeCol || !overCol) return;
+
+    const startCol = boardState.columns[activeCol];
+    const endCol = boardState.columns[overCol];
+
+    let nextBoardState = { ...boardState };
+
+    // Case A: Dragged within the same column
+    if (activeCol === overCol) {
+      const activeIndex = startCol.taskIds.indexOf(activeId);
+      const overIndex = startCol.taskIds.indexOf(overId);
+
+      if (activeIndex !== overIndex && activeIndex !== -1 && overIndex !== -1) {
+        const newTaskIds = [...startCol.taskIds];
+        newTaskIds.splice(activeIndex, 1);
+        newTaskIds.splice(overIndex, 0, activeId);
+
+        nextBoardState.columns[activeCol] = {
+          ...startCol,
+          taskIds: newTaskIds
+        };
+        setBoardState(nextBoardState);
+      }
+    } 
+    // Case B: Dragged across columns
+    else {
+      const activeIndex = startCol.taskIds.indexOf(activeId);
+      let overIndex = endCol.taskIds.indexOf(overId);
+      if (overIndex === -1) {
+        overIndex = endCol.taskIds.length;
+      }
+
+      const newStartIds = startCol.taskIds.filter(id => id !== activeId);
+      const newEndIds = [...endCol.taskIds];
+      if (!newEndIds.includes(activeId)) {
+        newEndIds.splice(overIndex, 0, activeId);
+      }
+
+      nextBoardState.columns[activeCol] = {
+        ...startCol,
+        taskIds: newStartIds
+      };
+      nextBoardState.columns[overCol] = {
+        ...endCol,
+        taskIds: newEndIds
+      };
+      setBoardState(nextBoardState);
+    }
+
+    // Determine target column and swimlane
+    let targetColumn = overCol;
     let targetSwimlane = '';
 
-    if (finishColId.includes('__')) {
-      const parts = finishColId.split('__');
+    if (overCol.includes('__')) {
+      const parts = overCol.split('__');
       targetSwimlane = parts[0];
       targetColumn = parts[1];
     }
 
-    const updatedFields: Partial<Task> = {};
+    const taskToUpdate = filteredTasks.find(t => t.id === activeId);
+    if (!taskToUpdate) return;
+
+    const position = nextBoardState.columns[overCol].taskIds.indexOf(activeId);
+
+    // Save previous state for rollback in case of DB update failure
+    const prevBoardState = { ...boardState };
+
+    const updatedFields: Partial<Task> = {
+      position
+    };
 
     if (boardGroupBy === 'status') {
-      if (taskToUpdate.status !== targetColumn) {
-        updatedFields.status = targetColumn as TaskStatus;
-      }
+      updatedFields.status = targetColumn as TaskStatus;
     } else if (boardGroupBy === 'priority') {
-      if (taskToUpdate.priority !== targetColumn) {
-        updatedFields.priority = targetColumn as Priority;
-      }
+      updatedFields.priority = targetColumn as Priority;
     } else if (boardGroupBy === 'assignee') {
-      const newAssigneeId = targetColumn === 'unassigned' ? undefined : targetColumn;
-      if (taskToUpdate.assigneeId !== newAssigneeId) {
-        updatedFields.assigneeId = newAssigneeId;
-      }
+      updatedFields.assigneeId = targetColumn === 'unassigned' ? undefined : targetColumn;
     }
 
     if (boardSwimlaneBy !== 'none' && targetSwimlane) {
       if (boardSwimlaneBy === 'status') {
-        if (taskToUpdate.status !== targetSwimlane) {
-          updatedFields.status = targetSwimlane as TaskStatus;
-        }
+        updatedFields.status = targetSwimlane as TaskStatus;
       } else if (boardSwimlaneBy === 'priority') {
-        if (taskToUpdate.priority !== targetSwimlane) {
-          updatedFields.priority = targetSwimlane as Priority;
-        }
+        updatedFields.priority = targetSwimlane as Priority;
       } else if (boardSwimlaneBy === 'assignee') {
-        const newAssigneeId = targetSwimlane === 'unassigned' ? undefined : targetSwimlane;
-        if (taskToUpdate.assigneeId !== newAssigneeId) {
-          updatedFields.assigneeId = newAssigneeId;
-        }
+        updatedFields.assigneeId = targetSwimlane === 'unassigned' ? undefined : targetSwimlane;
       }
     }
 
-    if (Object.keys(updatedFields).length > 0) {
-      const updatedTask = { ...taskToUpdate, ...updatedFields };
-      onUpdateTask(updatedTask);
-      
-      const changeDesc = Object.entries(updatedFields)
-        .map(([k, v]) => `${k} sang "${v}"`)
-        .join(', ');
-      onAddSyncLog(`Di chuyển công việc "${taskToUpdate.title}": ${changeDesc}`);
+    const updatedTask = { ...taskToUpdate, ...updatedFields };
+
+    try {
+      const payload: any = {
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+        assigneeId: updatedTask.assigneeId || null,
+        position
+      };
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(payload)
+        .eq('id', activeId);
+
+      if (error) {
+        console.error('Supabase Board Drag Update Error:', error);
+        setBoardState(prevBoardState);
+        if (triggerToast) {
+          triggerToast('error', locale === 'vi' ? 'Lỗi cập nhật' : 'Sync Error', locale === 'vi' ? 'Không thể lưu vị trí công việc mới: ' + error.message : 'Could not save new task position: ' + error.message);
+        }
+      } else {
+        onUpdateTask(updatedTask);
+        const changeDesc = Object.entries(updatedFields)
+          .map(([k, v]) => `${k} sang "${v}"`)
+          .join(', ');
+        onAddSyncLog(`Di chuyển công việc "${taskToUpdate.title}": ${changeDesc}`);
+        if (triggerToast) {
+          triggerToast('success', locale === 'vi' ? 'Bảng Kanban' : 'Kanban Board', locale === 'vi' ? 'Đã cập nhật vị trí công việc.' : 'Task position updated.');
+        }
+      }
+    } catch (err: any) {
+      console.error('Exception during drag sync:', err);
+      setBoardState(prevBoardState);
       if (triggerToast) {
-        triggerToast('success', 'Bảng Kanban', `Đã cập nhật: ${changeDesc}`);
+        triggerToast('error', locale === 'vi' ? 'Lỗi kết nối' : 'Connection Error', locale === 'vi' ? 'Không thể kết nối đến máy chủ.' : 'Could not connect to server.');
       }
     }
   };
 
   const renderCard = (task: Task, index: number) => {
+    return (
+      <KanbanCard
+        key={task.id}
+        task={task}
+        index={index}
+        members={members}
+        workspaces={workspaces}
+        localCardSize={localCardSize}
+        localCardCover={localCardCover}
+        selectedTaskIds={selectedTaskIds}
+        setSelectedTaskIds={setSelectedTaskIds}
+        setSelectedTask={setSelectedTask}
+        activeTimerTaskId={activeTimerTaskId}
+        onStartGlobalTimer={onStartGlobalTimer}
+        onStopGlobalTimer={onStopGlobalTimer}
+        onUpdateTask={onUpdateTask}
+        onAddSyncLog={onAddSyncLog}
+        triggerToast={triggerToast}
+        filterTag={filterTag}
+        setFilterTag={setFilterTag}
+        dynamicPriorityColors={dynamicPriorityColors}
+        PRIORITY_COLORS={PRIORITY_COLORS}
+        dynamicPriorityMeta={dynamicPriorityMeta}
+        inlineEditTaskId={inlineEditTaskId}
+        setInlineEditTaskId={setInlineEditTaskId}
+        inlineEditTitle={inlineEditTitle}
+        setInlineEditTitle={setInlineEditTitle}
+        submitInlineEdit={submitInlineEdit}
+        isDraggingRef={isDraggingRef}
+      />
+    );
+  };
+
+  const renderOverlayCard = (task: Task) => {
     const assigneeIds = task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []);
     const assignees = members.filter(m => assigneeIds.includes(m.id === 'user' ? 'user' : m.id) || assigneeIds.includes(m.id));
     const daysInfo = getDaysText(task.dueDate);
@@ -554,205 +1051,111 @@ export default function TaskBoardView({
     const descCls = localCardSize === 'small' ? 'hidden' : 'text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed';
 
     return (
-      <DraggableCast key={task.id} draggableId={`kanban_card_${task.id}`} index={index}>
-        {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => {
-          const cardStyle = {
-            ...dragProvided.draggableProps.style,
-            transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps.style?.transition
-          };
-          
-          return (
-            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} style={cardStyle}>
-              <div 
-                onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                className={`rounded-2xl border-l-[3.5px] ${PRIORITY_COLORS[task.priority]} border-y border-r border-slate-200/50 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-pointer shadow-[0_2px_8px_rgba(15,23,42,0.01)] transition-all duration-200 ${
-                  dragSnapshot.isDragging 
-                    ? 'shadow-2xl scale-[1.03] rotate-[1.5deg] border-indigo-500 dark:border-indigo-500/80 ring-4 ring-indigo-500/10 z-50' 
-                    : 'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:border-indigo-300/60 dark:hover:border-indigo-900/60'
-                } ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-400/30' : ''} overflow-hidden`}
-              >
-              
-              {imageAttachment && (
-                <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
-                  <SignedImage filePath={imageAttachment.filePath} className="w-full h-full object-cover" alt={task.title} fallback={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300`} />
+      <div 
+        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-slate-205 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-grabbing shadow-2xl scale-[1.02] rotate-[1deg] border-indigo-505 dark:border-indigo-500/80 ring-4 ring-indigo-500/10 overflow-hidden opacity-95`}
+      >
+        {imageAttachment && (
+          <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
+            <SignedImage filePath={imageAttachment.filePath} className="w-full h-full object-cover" alt={task.title} fallback={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300`} />
+          </div>
+        )}
+
+        <div className={paddingCls}>
+          {localCardSize === 'small' ? (
+            <div className="flex items-center gap-2">
+              <div className="text-slate-350 dark:text-slate-600 p-1 rounded shrink-0">
+                <GripVertical className="w-3.5 h-3.5" />
+              </div>
+              <h4 className={`${titleCls} leading-snug truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-101'}`}>
+                {task.title}
+              </h4>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="text-slate-355 dark:text-slate-600 p-1 rounded shrink-0">
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </div>
+                  <input type="checkbox" checked={selectedTaskIds.includes(task.id)} readOnly className="w-3.5 h-3.5 rounded border-slate-355 text-indigo-655 focus:ring-indigo-505/20 accent-indigo-600" />
+                  {task.isPinned && <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none border ${
+                    task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-955/20 dark:border-rose-900/30 dark:text-rose-400' :
+                    task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-955/20 dark:border-orange-900/30 dark:text-orange-400' :
+                    task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-955/20 dark:border-yellow-900/30 dark:text-yellow-400' :
+                    'bg-slate-50 border-slate-200 text-slate-550 dark:bg-slate-800/40 dark:border-slate-705 dark:text-slate-400'
+                  }`}>
+                    {dynamicPriorityMeta[task.priority]?.label || task.priority}
+                  </span>
+                </div>
+              </div>
+
+              <h4 className={`${titleCls} leading-snug ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}>
+                {task.title}
+              </h4>
+
+              {task.description && (
+                <p className={descCls}>{task.description}</p>
+              )}
+
+              {task.tags && task.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2.5 mb-1">
+                  {task.tags.slice(0, 3).map(tag => (
+                    <span key={tag} className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-lg border bg-indigo-50/20 dark:bg-indigo-955/25 border-indigo-100/10 dark:border-indigo-900/10 text-indigo-650 dark:text-indigo-400">
+                      #{tag}
+                    </span>
+                  ))}
                 </div>
               )}
 
-              <div className={paddingCls}>
-                {localCardSize === 'small' ? (
-                  <div className="flex items-center gap-2">
-                    {/* Dedicated Grip Drag Handle */}
-                    <div 
-                      {...dragProvided.dragHandleProps} 
-                      className="text-slate-350 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
-                    >
-                      <GripVertical className="w-3.5 h-3.5" />
-                    </div>
-                    <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-100'}`}>
-                      {task.title}
-                    </h4>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        {/* Dedicated Grip Drag Handle */}
-                        <div 
-                          {...dragProvided.dragHandleProps} 
-                          className="text-slate-355 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
-                        >
-                          <GripVertical className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold select-none">
+                <div className="flex items-center gap-1.5">
+                  {assignees.length > 0 ? (
+                    <div className="flex -space-x-1.5 overflow-hidden">
+                      {assignees.map(member => (
+                        <div key={member.id} className="relative">
+                          {member.avatar ? (
+                            <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border border-white dark:border-slate-900">
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
                         </div>
-
-                        <input type="checkbox" checked={selectedTaskIds.includes(task.id)}
-                          onChange={e => { e.stopPropagation(); setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }}
-                          onClick={e => e.stopPropagation()}
-                          className="w-3.5 h-3.5 rounded border-slate-355 text-indigo-650 focus:ring-indigo-505/20 cursor-pointer shrink-0 accent-indigo-600" />
-                        
-                        {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-
-                        {activeTimerTaskId === task.id ? (
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (onStopGlobalTimer) onStopGlobalTimer();
-                            }}
-                            className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-105 border border-rose-200/30"
-                            title="Stop Timer"
-                          >
-                            <Clock className="w-3 h-3 text-rose-500 animate-spin" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (onStartGlobalTimer) onStartGlobalTimer(task.id);
-                            }}
-                            className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-650 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
-                            title="Start Timer"
-                          >
-                            <Play className="w-3 h-3 text-emerald-505 fill-emerald-505" />
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        {workspaces.find(w => w.id === (task.workspaceId || 'w2')) && (() => {
-                          const ws = workspaces.find(w => w.id === (task.workspaceId || 'w2'));
-                          return (
-                            <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none bg-indigo-55 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100/10 dark:border-indigo-900/10">
-                              {ws?.name}
-                            </span>
-                          );
-                        })()}
-                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none border ${
-                          task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-955/20 dark:border-rose-900/30 dark:text-rose-400' :
-                          task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-955/20 dark:border-orange-900/30 dark:text-orange-400' :
-                          task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-955/20 dark:border-yellow-900/30 dark:text-yellow-400' :
-                          'bg-slate-50 border-slate-200 text-slate-550 dark:bg-slate-800/40 dark:border-slate-705 dark:text-slate-400'
-                        }`}>
-                          {task.priority}
-                        </span>
-                      </div>
+                      ))}
                     </div>
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-[9px] dark:bg-slate-800/40 dark:border-slate-800/80">👤</div>
+                  )}
+                  {task.commentsCount > 0 && (
+                    <span className="flex items-center gap-0.5 ml-1">
+                      <MessageSquare className="w-3 h-3 text-slate-350" />
+                      {task.commentsCount}
+                    </span>
+                  )}
+                  {task.attachments && task.attachments.length > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <Paperclip className="w-3 h-3 text-slate-355" />
+                      {task.attachments.length}
+                    </span>
+                  )}
+                </div>
 
-                    {inlineEditTaskId === task.id ? (
-                      <input 
-                        autoFocus 
-                        value={inlineEditTitle}
-                        onChange={e => setInlineEditTitle(e.target.value)}
-                        onKeyDown={e => { 
-                          if (e.key === 'Enter') submitInlineEdit(task); 
-                          if (e.key === 'Escape') setInlineEditTaskId(null); 
-                        }}
-                        onBlur={() => submitInlineEdit(task)}
-                        onClick={e => e.stopPropagation()}
-                        className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
-                      />
-                    ) : (
-                      <h4 
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          setInlineEditTaskId(task.id);
-                          setInlineEditTitle(task.title);
-                        }}
-                        className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
-                        title="Double click to rename task"
-                      >
-                        {task.title}
-                      </h4>
-                    )}
-
-                    {task.description && (
-                      <p className={descCls}>{task.description}</p>
-                    )}
-
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2.5 mb-1">
-                        {task.tags.slice(0, 3).map(tag => (
-                          <span key={tag} onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                            className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
-                              filterTag === tag 
-                                ? 'bg-indigo-600 border-indigo-600 text-white' 
-                                : 'bg-indigo-50/20 dark:bg-indigo-955/25 border-indigo-100/10 dark:border-indigo-900/10 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-55 dark:hover:bg-indigo-900/40'
-                            }`}>
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {localCardSize === 'large' && task.subtasks && task.subtasks.length > 0 && (
-                      <div className="mt-2.5 mb-1">
-                        <div className="flex items-center justify-between text-[9px] font-bold text-slate-455 mb-1">
-                          <span><Check className="w-3 h-3 inline mr-0.5 text-emerald-600" />{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}</span>
-                          <span>{task.progress}%</span>
-                        </div>
-                        <div className="w-full h-1 rounded-full bg-slate-100 dark:bg-slate-805 overflow-hidden">
-                          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-505 to-pink-500 transition-all duration-300" style={{ width: `${task.progress}%` }} />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/60">
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                        {daysInfo && (
-                          <span className={`font-bold px-1.5 py-0.5 rounded-lg text-[9px] flex items-center gap-0.5 border ${daysInfo.cls}`}>
-                            <Calendar className="w-2.5 h-2.5" />{daysInfo.text}
-                          </span>
-                        )}
-                        {(task.comments?.length || 0) > 0 && (
-                          <span className="flex items-center gap-0.5 font-bold"><MessageSquare className="w-2.5 h-2.5" />{task.comments?.length}</span>
-                        )}
-                        {(task.attachments?.length || 0) > 0 && <Paperclip className="w-2.5 h-2.5" />}
-                      </div>
-                      <div className="shrink-0 flex -space-x-1.5 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        {assignees.slice(0, 3).map((asg) => (
-                          <SignedImage 
-                            key={asg.id}
-                            filePath={asg.avatar} 
-                            className="w-5 h-5 rounded-full border border-white dark:border-slate-900 object-cover shadow-3xs shrink-0" 
-                            alt={asg.name} 
-                            fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(asg.name)}`} 
-                          />
-                        ))}
-                        {assignees.length > 3 && (
-                          <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 border border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-slate-505 shadow-3xs shrink-0 select-none">
-                            +{assignees.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="flex items-center gap-1">
+                  {daysInfo && (
+                    <span className={`px-1.5 py-0.5 rounded flex items-center gap-1 text-[8.5px] font-black border border-transparent ${daysInfo.cls}`}>
+                      <Calendar className="w-2.5 h-2.5" />
+                      {daysInfo.text}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        );
-      }}
-    </DraggableCast>
+            </>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -778,7 +1181,13 @@ export default function TaskBoardView({
   }
 
   return (
-    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
       <div className="flex flex-col h-full w-full">
         
         {/* Kanban Board Controls Panel */}
@@ -858,7 +1267,7 @@ export default function TaskBoardView({
             {columns.map(col => {
               const colMeta = getColumnMeta(col);
               const colTasks = boardState.columns[col]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
-              const isOverColumn = activeOverDropId === col;
+              const isOverColumn = localActiveOverDropId === col;
               
               return (
                 <div 
@@ -893,62 +1302,50 @@ export default function TaskBoardView({
                   </div>
 
                   {/* Column Droppable Area with drop highlights */}
-                  <StrictModeDroppable droppableId={col} type="task">
-                    {(provided: DroppableProvided, snapshot: any) => {
-                      const isDraggingOver = snapshot.isDraggingOver;
-                      return (
-                        <div 
-                          ref={provided.innerRef} 
-                          {...provided.droppableProps}
-                          className={`flex-1 space-y-2 min-h-[150px] transition-colors duration-200 rounded-xl p-1.5 ${
-                            isDraggingOver ? 'bg-indigo-500/[0.04] dark:bg-indigo-500/[0.02]' : ''
-                          }`}
-                        >
-                          {colTasks.map((task, index) => renderCard(task, index))}
-                          {provided.placeholder}
+                  <KanbanColumn id={col} isOver={isOverColumn}>
+                    <SortableContext items={colTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      {colTasks.map((task, index) => renderCard(task, index))}
+                    </SortableContext>
 
-                          {/* Inline Add Task Form */}
-                          {inlineAddCell === col ? (
-                            <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-500 shadow-xs space-y-2 select-text">
-                              <input
-                                type="text"
-                                value={inlineTitle}
-                                onChange={(e) => setInlineTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleInlineAddSubmit(col);
-                                  else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
-                                }}
-                                placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
-                                className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-100 outline-none"
-                                autoFocus
-                              />
-                              <div className="flex justify-end gap-1.5 text-[9px] font-bold">
-                                <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
-                                <button onClick={() => handleInlineAddSubmit(col)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                              className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
-                            >
-                              <Plus className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
-                            </button>
-                          )}
-
-                          {colTasks.length === 0 && !inlineAddCell && (
-                            <div className="text-center py-6 text-[11px] text-slate-400 dark:text-slate-505 font-medium">
-                              {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
-                            </div>
-                          )}
+                    {/* Inline Add Task Form */}
+                    {inlineAddCell === col ? (
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-500 shadow-xs space-y-2 select-text">
+                        <input
+                          type="text"
+                          value={inlineTitle}
+                          onChange={(e) => setInlineTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleInlineAddSubmit(col);
+                            else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
+                          }}
+                          placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
+                          className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-101 outline-none"
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-1.5 text-[9px] font-bold">
+                          <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
+                          <button onClick={() => handleInlineAddSubmit(col)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                         </div>
-                      );
-                    }}
-                  </StrictModeDroppable>
-                  </div>
-                );
-              })}
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
+                        className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
+                      </button>
+                    )}
+
+                    {colTasks.length === 0 && inlineAddCell !== col && (
+                      <div className="text-center py-6 text-[11px] text-slate-400 dark:text-slate-505 font-medium border border-dashed border-slate-200/60 dark:border-slate-800/50 rounded-xl">
+                        {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
+                      </div>
+                    )}
+                  </KanbanColumn>
+                </div>
+              );
+            })}
             
             {/* Add group placeholder */}
             <div className="min-w-[200px] w-[200px] flex-shrink-0 flex items-start pt-2 px-1">
@@ -1044,7 +1441,7 @@ export default function TaskBoardView({
                           {columns.map(col => {
                             const cellId = `${row}__${col}`;
                             const cellTasks = boardState.columns[cellId]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
-                            const isOverCell = activeOverDropId === cellId;
+                            const isOverCell = localActiveOverDropId === cellId;
 
                             return (
                               <div 
@@ -1053,73 +1450,71 @@ export default function TaskBoardView({
                                   isOverCell ? 'ring-2 ring-indigo-400/50 bg-indigo-50/20 dark:bg-indigo-955/10' : ''
                                 }`}
                               >
-                                <StrictModeDroppable droppableId={cellId} type="task">
-                                  {(provided: DroppableProvided, snapshot: any) => {
-                                    const isDraggingOver = snapshot.isDraggingOver;
-                                    return (
-                                      <div 
-                                        ref={provided.innerRef} 
-                                        {...provided.droppableProps}
-                                        className={`flex-1 space-y-2 transition-colors duration-200 rounded-xl p-1.5 ${
-                                          isDraggingOver ? 'bg-indigo-500/[0.04] dark:bg-indigo-500/[0.02]' : ''
-                                        }`}
-                                      >
-                                        {cellTasks.map((task, index) => renderCard(task, index))}
-                                        {provided.placeholder}
+                                <KanbanColumn id={cellId} isOver={isOverCell}>
+                                  <SortableContext items={cellTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                                    {cellTasks.map((task, index) => renderCard(task, index))}
+                                  </SortableContext>
 
-                                        {/* Inline Add Task Form */}
-                                        {inlineAddCell === cellId ? (
-                                          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-500 shadow-xs space-y-2 select-text">
-                                            <input
-                                              type="text"
-                                              value={inlineTitle}
-                                              onChange={(e) => setInlineTitle(e.target.value)}
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleInlineAddSubmit(col, row);
-                                                else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
-                                              }}
-                                              placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
-                                              className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-100 outline-none"
-                                              autoFocus
-                                            />
-                                            <div className="flex justify-end gap-1.5 text-[9px] font-bold">
-                                              <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
-                                              <button onClick={() => handleInlineAddSubmit(col, row)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <button 
-                                            onClick={() => { setInlineAddCell(cellId); setInlineTitle(''); }}
-                                            className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
-                                          >
-                                            <Plus className="w-3.5 h-3.5 text-slate-400" />
-                                            <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
-                                          </button>
-                                        )}
-
-                                        {cellTasks.length === 0 && inlineAddCell !== cellId && (
-                                          <div className="text-center py-4 text-[10.5px] text-slate-400 dark:text-slate-505 font-medium italic border border-dashed border-slate-200/60 dark:border-slate-800/50 rounded-xl">
-                                            {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
-                                          </div>
-                                        )}
+                                  {/* Inline Add Task Form */}
+                                  {inlineAddCell === cellId ? (
+                                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-500 shadow-xs space-y-2 select-text">
+                                      <input
+                                        type="text"
+                                        value={inlineTitle}
+                                        onChange={(e) => setInlineTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleInlineAddSubmit(col, row);
+                                          else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
+                                        }}
+                                        placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
+                                        className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-101 outline-none"
+                                        autoFocus
+                                      />
+                                      <div className="flex justify-end gap-1.5 text-[9px] font-bold">
+                                        <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
+                                        <button onClick={() => handleInlineAddSubmit(col, row)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                                       </div>
-                                    );
-                                  }}
-                                </StrictModeDroppable>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      onClick={() => { setInlineAddCell(cellId); setInlineTitle(''); }}
+                                      className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
+                                    >
+                                      <Plus className="w-3.5 h-3.5 text-slate-400" />
+                                      <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
+                                    </button>
+                                  )}
 
+                                  {cellTasks.length === 0 && inlineAddCell !== cellId && (
+                                    <div className="text-center py-4 text-[10.5px] text-slate-400 dark:text-slate-505 font-medium italic border border-dashed border-slate-200/60 dark:border-slate-800/50 rounded-xl">
+                                      {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
+                                    </div>
+                                  )}
+                                </KanbanColumn>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+
             </div>
+          </div>
         )}
       </div>
-    </DragDropContext>
+
+      <Portal>
+        <DragOverlay dropAnimation={null}>
+          {localActiveDragId && boardState?.tasks[localActiveDragId] ? (
+            <div className="w-[280px]">
+              {renderOverlayCard(boardState.tasks[localActiveDragId])}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </Portal>
+    </DndContext>
   );
 }

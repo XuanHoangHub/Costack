@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
+import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption } from '../../utils/fieldConfig';
 
 // ── Custom Hook for Portal Positioning ──
-function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
+export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
   const [coords, setCoords] = useState<{ top: number; bottom: number; left: number; right: number; width: number; safeLeft: number } | null>(null);
   const [openUpward, setOpenUpward] = useState(false);
 
@@ -50,6 +51,11 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
+  const [priorities, setPriorities] = useState<OptionConfig[]>([]);
+
+  React.useEffect(() => {
+    setPriorities(getStoredPriorities());
+  }, [open]);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -61,15 +67,14 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const meta: Record<Priority, { label: string; color: string; bg: string; icon: string }> = {
-    urgent: { label: 'Urgent', color: 'text-red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900/50', icon: '🔴' },
-    high: { label: 'High', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900/50', icon: '🟠' },
-    medium: { label: 'Normal', color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900/50', icon: '🟡' },
-    low: { label: 'Low', color: 'text-slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: '⚪' },
-  };
-  const cur = value ? meta[value] : null;
+  const metaList = priorities.length > 0 ? priorities : [
+    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: '🔴' },
+    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: '🟠' },
+    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: '🟡' },
+    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: '⚪' }
+  ];
 
-  console.log('PriorityPillSelect render, open:', open, 'coords:', JSON.stringify(coords), 'openUpward:', openUpward);
+  const cur = value ? metaList.find(p => p.id === value) : null;
 
   const dropdownContent = (
     <motion.div 
@@ -91,25 +96,27 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
         <span>None (Empty)</span>
         {!value && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
       </button>
-      {(['urgent', 'high', 'medium', 'low'] as Priority[]).map(p => (
-        <button key={p} type="button" onClick={() => { onChange(p); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <span>{meta[p].icon}</span>
-          <span>{meta[p].label}</span>
-          {value === p && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+      {metaList.map(p => (
+        <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span>{p.icon || '⚪'}</span>
+          <span>{p.label}</span>
+          {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
         </button>
       ))}
     </motion.div>
   );
 
+  const curColorClass = cur ? (cur.color.startsWith('text-') ? cur.color : `text-${cur.color}`) : '';
+
   return (
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
-        className={cur ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${cur.bg} ${cur.color}`
+        className={cur ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${cur.bg} ${curColorClass}`
                        : `inline-flex items-center gap-1.5 px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-all border-0 bg-transparent`}>
         {cur ? (
           <>
-            <span>{cur.icon}</span>
+            <span>{cur.icon || '⚪'}</span>
             <span>{cur.label}</span>
           </>
         ) : (
@@ -131,6 +138,11 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const { coords, openUpward } = useDropdownPosition(open, ref, 150, 160);
+  const [statuses, setStatuses] = useState<OptionConfig[]>([]);
+
+  React.useEffect(() => {
+    setStatuses(getStoredStatuses());
+  }, [open]);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -142,13 +154,14 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const meta: Record<TaskStatus, { label: string; dot: string; bg: string }> = {
-    todo: { label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
-    inprogress: { label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900' },
-    review: { label: 'REVIEW', dot: 'bg-cyan-505', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900' },
-    completed: { label: 'DONE', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900' },
-  };
-  const cur = meta[value];
+  const metaList: OptionConfig[] = statuses.length > 0 ? statuses : [
+    { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', color: 'slate' },
+    { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900', color: 'amber' },
+    { id: 'review', label: 'REVIEW', dot: 'bg-cyan-555', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900', color: 'cyan' },
+    { id: 'completed', label: 'DONE', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900', color: 'emerald' },
+  ];
+
+  const cur = metaList.find(s => s.id === value) || metaList[0];
 
   const dropdownContent = (
     <motion.div 
@@ -164,12 +177,12 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(s => (
-        <button key={s} type="button" onClick={() => { onChange(s); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <span className={`w-2 h-2 rounded-full ${meta[s].dot}`} />
-          <span>{meta[s].label}</span>
-          {value === s && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+      {metaList.map(s => (
+        <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
+          <span>{s.label}</span>
+          {value === s.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
         </button>
       ))}
     </motion.div>
@@ -179,7 +192,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${cur.bg}`}>
-        <span className={`w-2 h-2 rounded-full ${cur.dot}`} />
+        <span className={`w-2 h-2 rounded-full ${cur.dot || `bg-${cur.color}`}`} style={!cur.dot && cur.color ? { backgroundColor: cur.color } : undefined} />
         <span>{cur.label}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -368,6 +381,16 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const [dateFormat, setDateFormat] = useState<DateFormatOption>(() => getStoredDateFormat());
+
+  React.useEffect(() => {
+    const handleFormatChange = () => {
+      setDateFormat(getStoredDateFormat());
+    };
+    window.addEventListener('avaxa-field-config-changed', handleFormatChange);
+    return () => window.removeEventListener('avaxa-field-config-changed', handleFormatChange);
+  }, []);
   
   const [activeTab, setActiveTab] = useState<'start' | 'due'>(() => {
     if (label?.toLowerCase() === 'start') return 'start';
@@ -380,6 +403,8 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const [localDueDateTime, setLocalDueDateTime] = useState('');
 
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerView, setPickerView] = useState<'calendar' | 'monthyear' | 'weekly' | 'presets'>('calendar');
+  const [weekOffset, setWeekOffset] = useState(0);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -392,6 +417,8 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       setLocalDueDateTime(dueParts[1] || '');
       
       setActiveTab(label?.toLowerCase() === 'start' ? 'start' : 'due');
+      setPickerView('calendar');
+      setWeekOffset(0);
     }
   }, [isOpen, startDateValue, dateValue, label]);
 
@@ -538,15 +565,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   };
 
   const formatDateLabel = (dateValue: string) => {
-    if (!dateValue) return '';
-    const parts = dateValue.split('T');
-    const datePart = parts[0];
-    const timePart = parts[1] ? parts[1].slice(0, 5) : '';
-    const dateParts = datePart.split('-');
-    if (dateParts.length !== 3) return dateValue;
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const formatted = `${monthNames[parseInt(dateParts[1]) - 1]} ${parseInt(dateParts[2])}`;
-    return timePart ? `${formatted}, ${timePart}` : formatted;
+    return formatCustomDate(dateValue, dateFormat);
   };
 
   // Calculate duration between start and due
@@ -565,9 +584,30 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     return `${Math.floor(diffDays / 30)}mo ${diffDays % 30}d`;
   };
 
-  const displayText = displayLabel || (dateValue ? formatDateLabel(dateValue) : (label || 'Select Date'));
+  const isStart = label?.toLowerCase() === 'start';
+  const activeDateValue = isStart ? (startDateValue || dateValue) : dateValue;
+  const displayText = displayLabel || (activeDateValue ? formatDateLabel(activeDateValue) : (label || 'Select Date'));
 
   const isOverdue = dateValue && dateValue.split('T')[0] < todayStr && label?.toLowerCase() === 'due';
+
+  const startOfWeek = useMemo(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff + (weekOffset * 7));
+    d.setHours(0,0,0,0);
+    return d;
+  }, [weekOffset]);
+
+  const weeklyDays = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      list.push(d);
+    }
+    return list;
+  }, [startOfWeek]);
 
   const calendarContent = (
     <motion.div
@@ -660,114 +700,303 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         )}
       </div>
 
-      {/* ── Calendar + Presets Area ── */}
-      <div className="px-3 pb-1">
-        {/* Month Nav */}
-        <div className="flex items-center justify-between mb-2.5 px-1">
-          <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-            {monthNamesFull[currentMonth]} {currentYear}
-          </h4>
-          <div className="flex items-center gap-1.5">
-            <button 
-              type="button" 
-              onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); }}
-              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
+      {/* ── View switcher segmented control ── */}
+      <div className="px-3 pb-2.5 pt-0.5">
+        <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/35 dark:border-slate-800/40 rounded-xl">
+          {[
+            { id: 'calendar', label: 'Calendar', icon: '📅' },
+            { id: 'monthyear', label: 'Month/Year', icon: '🗓️' },
+            { id: 'weekly', label: 'Weekly', icon: '📊' },
+            { id: 'presets', label: 'Presets', icon: '⚡' },
+          ].map(v => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => setPickerView(v.id as any)}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-extrabold cursor-pointer transition-all duration-150 flex items-center justify-center gap-1 ${
+                pickerView === v.id
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
             >
-              Today
+              <span>{v.icon}</span>
+              <span>{v.label}</span>
             </button>
-            <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
-              <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Views Container ── */}
+      <div className="px-3 pb-1.5 flex-1 min-h-[260px]">
+        {pickerView === 'calendar' && (
+          <div>
+            {/* Month Nav */}
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+                {monthNamesFull[currentMonth]} {currentYear}
+              </h4>
+              <div className="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); }}
+                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
+                >
+                  Today
+                </button>
+                <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
+                  <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 gap-0 text-center mb-1 px-0.5">
+              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                <div key={d} className="py-1">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">{d}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid with range highlighting */}
+            <div className="grid grid-cols-7 gap-0 px-0.5">
+              {/* Previous month ghost days */}
+              {Array.from({ length: adjustedFirstDay }).map((_, i) => {
+                const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
+                return (
+                  <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square">
+                    <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{ghostDay}</span>
+                  </div>
+                );
+              })}
+
+              {/* Current month days with range visualization */}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isStartDate = dateStr === localStartDate;
+                const isDueDate = dateStr === localDueDate;
+                const isSelected = isStartDate || isDueDate;
+                const isToday = dateStr === todayStr;
+                const isPast = dateStr < todayStr;
+
+                // Range highlighting logic
+                const inRange = localStartDate && localDueDate && dateStr > localStartDate && dateStr < localDueDate;
+                const isRangeStart = isStartDate && localDueDate && localStartDate < localDueDate;
+                const isRangeEnd = isDueDate && localStartDate && localStartDate < localDueDate;
+
+                return (
+                  <div key={day} className="relative flex items-center justify-center w-full aspect-square">
+                    {/* Range background band */}
+                    {(inRange || isRangeStart || isRangeEnd) && (
+                      <div
+                        className={`absolute inset-y-[4px] bg-indigo-50 dark:bg-indigo-950/25 ${
+                          isRangeStart ? 'left-1/2 right-0 rounded-l-lg' :
+                          isRangeEnd ? 'left-0 right-1/2 rounded-r-lg' :
+                          'left-0 right-0'
+                        }`}
+                      />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => selectDate(day)}
+                      className={`relative z-10 w-[34px] h-[34px] rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 text-xs
+                        ${isStartDate
+                          ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/30'
+                          : isDueDate
+                            ? 'text-white font-black bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 ring-2 ring-violet-400/30'
+                            : inRange
+                              ? 'font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
+                              : isToday
+                                ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800'
+                                : isPast
+                                  ? 'font-medium text-slate-350 dark:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-500'
+                                  : 'font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 hover:scale-[1.08] active:scale-95'
+                        }`}
+                    >
+                      {isToday && !isSelected && (
+                        <span className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
+                      )}
+                      {day}
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* Next month ghost days */}
+              {Array.from({ length: trailingDays }).map((_, i) => (
+                <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square">
+                  <span className="text-[11px] font-medium text-slate-355 dark:text-slate-700">{i + 1}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-0 text-center mb-1 px-0.5">
-          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-            <div key={d} className="py-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">{d}</span>
+        {pickerView === 'monthyear' && (
+          <div className="flex flex-col pt-1">
+            {/* Year Selector */}
+            <div className="flex items-center justify-between mb-3 px-2">
+              <button 
+                type="button" 
+                onClick={() => setCurrentYear(y => y - 1)} 
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-black text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-200/50 dark:border-slate-800">
+                {currentYear}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setCurrentYear(y => y + 1)} 
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-          ))}
-        </div>
 
-        {/* Calendar grid with range highlighting */}
-        <div className="grid grid-cols-7 gap-0 px-0.5">
-          {/* Previous month ghost days */}
-          {Array.from({ length: adjustedFirstDay }).map((_, i) => {
-            const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
-            return (
-              <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square">
-                <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{ghostDay}</span>
-              </div>
-            );
-          })}
-
-          {/* Current month days with range visualization */}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isStartDate = dateStr === localStartDate;
-            const isDueDate = dateStr === localDueDate;
-            const isSelected = isStartDate || isDueDate;
-            const isToday = dateStr === todayStr;
-            const isPast = dateStr < todayStr;
-
-            // Range highlighting logic
-            const inRange = localStartDate && localDueDate && dateStr > localStartDate && dateStr < localDueDate;
-            const isRangeStart = isStartDate && localDueDate && localStartDate < localDueDate;
-            const isRangeEnd = isDueDate && localStartDate && localStartDate < localDueDate;
-
-            return (
-              <div key={day} className="relative flex items-center justify-center w-full aspect-square">
-                {/* Range background band */}
-                {(inRange || isRangeStart || isRangeEnd) && (
-                  <div
-                    className={`absolute inset-y-[4px] bg-indigo-50 dark:bg-indigo-950/25 ${
-                      isRangeStart ? 'left-1/2 right-0 rounded-l-lg' :
-                      isRangeEnd ? 'left-0 right-1/2 rounded-r-lg' :
-                      'left-0 right-0'
-                    }`}
-                  />
-                )}
-
+            {/* Months 3x4 Grid */}
+            <div className="grid grid-cols-3 gap-2 px-1 pb-1">
+              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => (
                 <button
+                  key={m}
                   type="button"
-                  onClick={() => selectDate(day)}
-                  className={`relative z-10 w-[34px] h-[34px] rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 text-xs
-                    ${isStartDate
-                      ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/30'
-                      : isDueDate
-                        ? 'text-white font-black bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 ring-2 ring-violet-400/30'
-                        : inRange
-                          ? 'font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
-                          : isToday
-                            ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800'
-                            : isPast
-                              ? 'font-medium text-slate-300 dark:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-500'
-                              : 'font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 hover:scale-[1.08] active:scale-95'
-                    }`}
+                  onClick={() => {
+                    setCurrentMonth(idx);
+                    setPickerView('calendar');
+                  }}
+                  className={`py-3.5 text-[11px] font-bold rounded-xl cursor-pointer transition-all border ${
+                    currentMonth === idx 
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' 
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300'
+                  }`}
                 >
-                  {isToday && !isSelected && (
-                    <span className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />
-                  )}
-                  {day}
+                  {m}
                 </button>
-              </div>
-            );
-          })}
-
-          {/* Next month ghost days */}
-          {Array.from({ length: trailingDays }).map((_, i) => (
-            <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square">
-              <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{i + 1}</span>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        {pickerView === 'weekly' && (
+          <div className="flex flex-col pt-1">
+            {/* Week Offset Nav */}
+            <div className="flex items-center justify-between mb-3 px-2">
+              <button 
+                type="button" 
+                onClick={() => setWeekOffset(w => w - 1)} 
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                Week of {startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setWeekOffset(w => w + 1)} 
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Week Days Header */}
+            <div className="grid grid-cols-7 gap-1 text-center mb-2 px-1">
+              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                <span key={i} className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest">{d}</span>
+              ))}
+            </div>
+
+            {/* Week Days Buttons */}
+            <div className="grid grid-cols-7 gap-1 px-1">
+              {weeklyDays.map((d: Date, i: number) => {
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const isSelected = dateStr === (activeTab === 'start' ? localStartDate : localDueDate);
+                const isToday = dateStr === todayStr;
+
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      saveDate(dateStr, activeTab === 'start' ? localStartDateTime : localDueDateTime, activeTab);
+                      if (activeTab === 'start') {
+                        setTimeout(() => setActiveTab('due'), 180);
+                      }
+                    }}
+                    className={`py-3 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all border ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                        : isToday
+                          ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                          : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/50 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className="text-[9px] font-medium opacity-65">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                    <span className="text-xs font-black">{d.getDate()}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {pickerView === 'presets' && (
+          <div className="flex flex-col gap-1.5 px-1 pb-1 max-h-[250px] overflow-y-auto custom-scrollbar">
+            {[
+              { label: 'Today', desc: 'Set date to today', icon: '📅', offset: 0 },
+              { label: 'Tomorrow', desc: 'Set date to tomorrow', icon: '🌅', offset: 1 },
+              { label: 'This Weekend (Sat)', desc: 'Set date to Saturday', icon: '🎉', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
+              { label: 'Next Week (Mon)', desc: 'Set date to next Monday', icon: '💼', offset: daysToMonday === 0 ? 7 : daysToMonday },
+              { label: 'In 2 Weeks', desc: 'Set date in 14 days', icon: '⏳', offset: 14 },
+              { label: 'In 1 Month', desc: 'Set date in 28 days', icon: '📅', offset: 28 },
+              { label: 'No Date (Clear)', desc: 'Clear date selection', icon: '❌', offset: null },
+            ].map(item => {
+              let calcStr = '';
+              if (item.offset !== null) {
+                const d = new Date();
+                d.setDate(d.getDate() + item.offset);
+                calcStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
+
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    if (item.offset === null) {
+                      clearActiveDate(activeTab);
+                    } else {
+                      selectPreset(item.offset);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-900/40 transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm shrink-0">{item.icon}</span>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-805 dark:text-slate-200">{item.label}</div>
+                      <div className="text-[9px] text-slate-400">{item.desc}</div>
+                    </div>
+                  </div>
+                  {calcStr && (
+                    <span className="text-[9px] font-black text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md border border-indigo-100/50 dark:border-indigo-900/30">
+                      {calcStr}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Time Picker (Expandable) ── */}
@@ -851,7 +1080,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   return (
     <div ref={containerRef} className="relative inline-block">
       <button type="button" onClick={() => setIsOpen(!isOpen)}
-        className={className || `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${dateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+        className={className || `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${activeDateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
         <CalendarDays className={`w-3.5 h-3.5 shrink-0 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`} />
         <span className={isOverdue ? 'text-rose-500' : ''}>{displayText}</span>
       </button>
@@ -898,6 +1127,14 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
+      <button type="button" onClick={() => { onChange(null); setOpen(false); }}
+        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${!value ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+        <span className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">
+          —
+        </span>
+        <span className="truncate">No Space</span>
+        {!value && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
+      </button>
       {workspaces.map(w => (
         <button key={w.id} type="button" onClick={() => { onChange(w.id); setOpen(false); }}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === w.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
@@ -925,6 +1162,154 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
             </>
           ) : (
             <span className="text-slate-400 truncate">Select Space</span>
+          )}
+        </div>
+        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && coords && createPortal(
+        <AnimatePresence>
+          {open && dropdownContent}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+export function DropdownFieldSelect({ value, options = [], onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 200, 160);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const safeOptions = options.length > 0 ? options : ['Option 1', 'Option 2', 'Option 3'];
+
+  const dropdownContent = (
+    <motion.div 
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40 max-h-48 overflow-y-auto custom-scrollbar"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
+      }}
+    >
+      <button type="button" onClick={() => { onChange(''); setOpen(false); }}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+        <span>— Clear —</span>
+      </button>
+      {safeOptions.map(opt => (
+        <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === opt ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <span className="truncate">{opt}</span>
+          {value === opt && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
+        </button>
+      ))}
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block w-full">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+        <span className="truncate">{value || <span className="text-slate-400">Select...</span>}</span>
+        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && coords && createPortal(
+        <AnimatePresence>
+          {open && dropdownContent}
+        </AnimatePresence>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+export function LabelsFieldSelect({ value, options = [], onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 200, 180);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const safeOptions = options.length > 0 ? options : ['Tag 1', 'Tag 2', 'Tag 3'];
+  const selectedList = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const toggleOption = (opt: string) => {
+    const nextList = selectedList.includes(opt)
+      ? selectedList.filter(s => s !== opt)
+      : [...selectedList, opt];
+    onChange(nextList.join(', '));
+  };
+
+  const dropdownContent = (
+    <motion.div 
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      transition={{ duration: 0.12 }}
+      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-44 max-h-48 overflow-y-auto custom-scrollbar"
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
+      }}
+    >
+      {safeOptions.map(opt => {
+        const isSelected = selectedList.includes(opt);
+        return (
+          <button key={opt} type="button" onClick={() => toggleOption(opt)}
+            className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              readOnly
+              className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-550 w-3 h-3 shrink-0"
+            />
+            <span className="truncate">{opt}</span>
+          </button>
+        );
+      })}
+    </motion.div>
+  );
+
+  return (
+    <div ref={ref} className="relative inline-block w-full">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+        <div className="flex flex-wrap gap-1 min-w-0 max-w-[120px]">
+          {selectedList.length > 0 ? (
+            selectedList.map(s => (
+              <span key={s} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400">
+                {s}
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-400">Labels...</span>
           )}
         </div>
         <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />

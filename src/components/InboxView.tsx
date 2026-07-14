@@ -43,11 +43,12 @@ export default function InboxView({
   onAcceptInvite,
   onDeclineInvite
 }: InboxViewProps) {
-  // Tabs: 'important' | 'other' | 'snoozed' | 'cleared'
-  const [activeTab, setActiveTab] = useState<'important' | 'other' | 'snoozed' | 'cleared'>('important');
+  // Tabs: 'all' | 'assigned' | 'mentions' | 'saved' | 'unread'
+  const [activeTab, setActiveTab] = useState<'all' | 'assigned' | 'mentions' | 'saved' | 'unread'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
+  const [expandedGroupTaskIds, setExpandedGroupTaskIds] = useState<string[]>([]);
   
   // Local states for TaskDetailsPanel
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -60,18 +61,16 @@ export default function InboxView({
     const now = Date.now();
     setNotificationsList(prev => prev.map(n => {
       if (n.snoozedUntil && n.snoozedUntil <= now) {
-        // Remove snooze parameters
         return { ...n, snoozedUntil: undefined };
       }
       return n;
     }));
   }, [setNotificationsList]);
 
-  // Extract task ID from title or message using regex (matching double quoted strings)
+  // Extract task ID from title or message using regex
   const getAssociatedTaskId = (notif: any): string | undefined => {
     if (notif.taskId) return notif.taskId;
     
-    // Try matching task title in quotes e.g. Task "Design Landing" has been assigned
     const quoteMatch = notif.message?.match(/"([^"]+)"/) || notif.title?.match(/"([^"]+)"/);
     if (quoteMatch) {
       const matchedText = quoteMatch[1];
@@ -79,7 +78,6 @@ export default function InboxView({
       if (task) return task.id;
     }
     
-    // If no quotes, search if any task title is a substring of the message/title
     const taskSub = tasks.find(t => 
       notif.message?.toLowerCase().includes(t.title.toLowerCase()) || 
       notif.title?.toLowerCase().includes(t.title.toLowerCase())
@@ -117,29 +115,99 @@ export default function InboxView({
         if (filterType === 'updates' && !['success', 'info', 'message'].includes(n.type)) return false;
       }
 
-      // 3. Tab Filter
+      // 3. New Triage Tab Filters
       const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
       const isCleared = n.cleared === true;
 
-      if (activeTab === 'snoozed') return isSnoozed && !isCleared;
-      if (activeTab === 'cleared') return isCleared;
-      
-      // If snoozed or cleared, hide from active tabs
+      // Unread: only show non-cleared, non-snoozed unread items
+      if (activeTab === 'unread') {
+        return !n.read && !isCleared && !isSnoozed;
+      }
+
+      // Saved for Later: show pinned or snoozed items
+      if (activeTab === 'saved') {
+        return (n.pinned || isSnoozed) && !isCleared;
+      }
+
+      // If snoozed or cleared, hide from standard active streams ('all', 'assigned', 'mentions')
       if (isSnoozed || isCleared) return false;
 
-      // Split active into Important vs Other
-      const isImportantType = ['assignment', 'deadline', 'comment'].includes(n.type);
-      if (activeTab === 'important') return isImportantType;
-      if (activeTab === 'other') return !isImportantType;
+      // Mentions: filter items where type is comment or message contains '@'
+      if (activeTab === 'mentions') {
+        const containsMention = n.title?.includes('@') || n.message?.includes('@') || n.type === 'comment';
+        return containsMention;
+      }
 
+      // Assigned to Me
+      if (activeTab === 'assigned') {
+        const taskId = getAssociatedTaskId(n);
+        const task = tasks.find(t => t.id === taskId);
+        const isAssigned = task?.assigneeId === currentUser?.id || task?.assigneeIds?.includes(currentUser?.id);
+        return isAssigned;
+      }
+
+      // 'all': just return standard non-cleared non-snoozed notifications
       return true;
     }).sort((a, b) => {
-      // Pinned notifications sit at the very top
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
-      return 0; // Chronological order preserved otherwise
+      return 0;
     });
-  }, [notificationsList, activeTab, searchQuery, filterType]);
+  }, [notificationsList, activeTab, searchQuery, filterType, tasks, currentUser]);
+
+  // Grouping updates on the same task into a single collapsible card thread
+  const groupedNotifications = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    const standalone: any[] = [];
+
+    filteredNotifications.forEach(n => {
+      const taskId = getAssociatedTaskId(n);
+      if (taskId) {
+        if (!groups[taskId]) {
+          groups[taskId] = [];
+        }
+        groups[taskId].push(n);
+      } else {
+        standalone.push(n);
+      }
+    });
+
+    const result: any[] = [];
+
+    // Add standalone notifications
+    standalone.forEach(n => {
+      result.push({ isGroup: false, key: n.id, notif: n });
+    });
+
+    // Add grouped notifications
+    Object.keys(groups).forEach(taskId => {
+      const list = groups[taskId];
+      if (list.length === 1) {
+        result.push({ isGroup: false, key: list[0].id, notif: list[0] });
+      } else {
+        const hasUnread = list.some(n => !n.read);
+        const isPinned = list.some(n => n.pinned);
+        const representative = list[0]; 
+        result.push({ 
+          isGroup: true, 
+          key: `group-${taskId}`, 
+          taskId, 
+          notifs: list, 
+          representative,
+          read: !hasUnread,
+          pinned: isPinned
+        });
+      }
+    });
+
+    return result.sort((a, b) => {
+      const aPinned = a.isGroup ? a.pinned : a.notif.pinned;
+      const bPinned = b.isGroup ? b.pinned : b.notif.pinned;
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
+    });
+  }, [filteredNotifications, tasks]);
 
   // Actions
   const handleToggleRead = (id: string) => {
@@ -192,7 +260,6 @@ export default function InboxView({
 
   const handleMarkAllRead = () => {
     setNotificationsList(prev => prev.map(n => {
-      // Only read notifications in the current active tab
       const isInCurrentTab = filteredNotifications.some(fn => fn.id === n.id);
       return isInCurrentTab ? { ...n, read: true } : n;
     }));
@@ -207,6 +274,52 @@ export default function InboxView({
     setSelectedNotificationId(null);
     if (triggerToast) triggerToast('success', 'Success', 'Cleared all notifications in this view.');
   };
+
+  // Keyboard navigation shortcuts
+  const activeKeys = useMemo(() => {
+    return groupedNotifications.map(g => g.isGroup ? g.representative.id : g.notif.id);
+  }, [groupedNotifications]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        return;
+      }
+      
+      const currentIdx = activeKeys.indexOf(selectedNotificationId || '');
+      if (e.key === 'j') {
+        e.preventDefault();
+        const nextIdx = currentIdx < activeKeys.length - 1 ? currentIdx + 1 : currentIdx;
+        if (nextIdx >= 0 && activeKeys[nextIdx]) {
+          setSelectedNotificationId(activeKeys[nextIdx]);
+        }
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        const prevIdx = currentIdx > 0 ? currentIdx - 1 : 0;
+        if (prevIdx >= 0 && activeKeys[prevIdx]) {
+          setSelectedNotificationId(activeKeys[prevIdx]);
+        }
+      } else if (e.key === 'e') {
+        if (selectedNotificationId) {
+          e.preventDefault();
+          handleClear(selectedNotificationId);
+        }
+      } else if (e.key === 'r') {
+        if (selectedNotificationId) {
+          e.preventDefault();
+          handleToggleRead(selectedNotificationId);
+        }
+      } else if (e.key === 's') {
+        if (selectedNotificationId) {
+          e.preventDefault();
+          handleSnooze(selectedNotificationId, 24);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeKeys, selectedNotificationId]);
 
   // Local Task Attachment & AI utilities for details panel
   const handleAttachmentUpload = async (task: Task, e: React.ChangeEvent<HTMLInputElement> | File) => {
@@ -375,12 +488,13 @@ export default function InboxView({
           </div>
 
           {/* Notification Tabs */}
-          <div className="flex bg-slate-105/75 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/10 select-none">
+          <div className="flex bg-slate-105/75 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/10 select-none overflow-x-auto scrollbar-none">
             {[
-              { id: 'important', label: 'Important' },
-              { id: 'other', label: 'Other' },
-              { id: 'snoozed', label: 'Snoozed' },
-              { id: 'cleared', label: 'Cleared' },
+              { id: 'all', label: 'All' },
+              { id: 'assigned', label: 'Assigned' },
+              { id: 'mentions', label: 'Mentions' },
+              { id: 'saved', label: 'Saved' },
+              { id: 'unread', label: 'Unread' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -388,23 +502,37 @@ export default function InboxView({
                   setActiveTab(tab.id as any);
                   setSelectedNotificationId(null);
                 }}
-                className={`flex-1 text-[10.5px] font-bold py-1.5 rounded-lg transition-all cursor-pointer text-center relative ${
+                className={`flex-1 text-[10.5px] font-bold py-1.5 px-2 rounded-lg transition-all cursor-pointer text-center relative whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-slate-100 shadow-xs font-black'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-205'
                 }`}
               >
                 {tab.label}
-                {/* Badge count for unread in important/other */}
-                {['important', 'other'].includes(tab.id) && (() => {
+                {(() => {
                   const now = Date.now();
                   const count = notificationsList.filter(n => {
-                    const isImportantType = ['assignment', 'deadline', 'comment'].includes(n.type);
-                    const matchTab = tab.id === 'important' ? isImportantType : !isImportantType;
-                    return matchTab && !n.read && !n.cleared && !(n.snoozedUntil && n.snoozedUntil > now);
+                    const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
+                    const isCleared = n.cleared === true;
+
+                    if (tab.id === 'unread') return !n.read && !isCleared && !isSnoozed;
+                    if (tab.id === 'saved') return (n.pinned || isSnoozed) && !isCleared;
+                    if (isSnoozed || isCleared) return false;
+
+                    if (tab.id === 'mentions') {
+                      return !n.read && (n.title?.includes('@') || n.message?.includes('@') || n.type === 'comment');
+                    }
+                    if (tab.id === 'assigned') {
+                      const tId = getAssociatedTaskId(n);
+                      const t = tasks.find(x => x.id === tId);
+                      return !n.read && (t?.assigneeId === currentUser?.id || t?.assigneeIds?.includes(currentUser?.id));
+                    }
+                    // 'all': unread count
+                    return !n.read;
                   }).length;
+
                   return count > 0 ? (
-                    <span className="absolute -top-1 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-pink-500 text-white text-[7.5px] font-black flex items-center justify-center border border-white dark:border-slate-800 animate-pulse">
+                    <span className="absolute -top-1 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-indigo-500 text-white text-[7.5px] font-black flex items-center justify-center border border-white dark:border-slate-800">
                       {count}
                     </span>
                   ) : null;
@@ -458,24 +586,157 @@ export default function InboxView({
             </div>
           )}
 
-          {filteredNotifications.map(notif => {
-            const hasTaskLink = !!getAssociatedTaskId(notif);
-            const isSelected = selectedNotificationId === notif.id;
+          {groupedNotifications.map(item => {
+            if (item.isGroup) {
+              const isExpanded = expandedGroupTaskIds.includes(item.taskId);
+              const totalUpdates = item.notifs.length;
+              const hasTaskLink = !!getAssociatedTaskId(item.representative);
+              const isSelected = selectedNotificationId === item.representative.id;
 
+              return (
+                <div key={item.key} className="space-y-1.5 border border-transparent p-0.5 rounded-2xl relative">
+                  {/* Master Group Card (Representative) */}
+                  <div 
+                    onClick={() => setSelectedNotificationId(item.representative.id)}
+                    className={`group p-3 rounded-2xl border transition-all flex items-start gap-2.5 cursor-pointer relative z-10 ${
+                      isSelected
+                        ? 'bg-indigo-50/40 dark:bg-indigo-950/15 border-indigo-200 dark:border-indigo-905 shadow-3xs'
+                        : item.read 
+                          ? 'bg-slate-50/30 dark:bg-slate-955/10 border-slate-150/40 dark:border-slate-800/40 opacity-70 hover:opacity-100 hover:bg-slate-50/60' 
+                          : 'bg-indigo-50/10 dark:bg-indigo-955/5 border-indigo-100/40 dark:border-indigo-900/15 hover:bg-indigo-50/30 hover:border-indigo-200/50 shadow-3xs'
+                    } ${
+                      item.representative.type === 'comment' || item.representative.type === 'assignment' ? 'border-l-[3.5px] border-l-indigo-500' :
+                      item.representative.type === 'deadline' ? 'border-l-[3.5px] border-l-rose-500' :
+                      'border-l-[3.5px] border-l-slate-400 dark:border-l-slate-600'
+                    }`}
+                  >
+                    {/* Unread indicator */}
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-opacity ${item.read ? 'opacity-0' : 'bg-indigo-500'}`} />
+                      <div className="p-1.5 rounded-lg shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500">
+                        <Bell className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0 pr-5">
+                      <div className="flex items-baseline justify-between gap-2.5">
+                        <h4 className={`text-[11.5px] truncate ${item.read ? 'font-semibold text-slate-655 dark:text-slate-350' : 'font-extrabold text-slate-850 dark:text-slate-100'}`}>
+                          {item.representative.title}
+                        </h4>
+                      </div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-normal mt-0.5 line-clamp-2">
+                        {item.representative.message}
+                      </p>
+                      
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">{item.representative.timestamp}</span>
+                        {hasTaskLink && (
+                          <span className="text-[8px] bg-slate-105 dark:bg-slate-800 text-slate-550 dark:text-slate-400 font-black px-1.5 py-0.5 rounded tracking-wide uppercase">Linked Task</span>
+                        )}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedGroupTaskIds(prev => 
+                              isExpanded ? prev.filter(id => id !== item.taskId) : [...prev, item.taskId]
+                            );
+                          }}
+                          className="text-[8px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 font-extrabold px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors"
+                        >
+                          {isExpanded ? 'Collapse' : `+${totalUpdates} updates`}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Hover Actions */}
+                    <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 rounded-lg p-0.5 shadow-xs border border-slate-100 dark:border-slate-800/80" onClick={e => e.stopPropagation()}>
+                      <button 
+                        onClick={() => handleTogglePin(item.representative.id)}
+                        className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${item.pinned ? 'text-amber-500' : 'text-slate-400'}`}
+                        title={item.pinned ? "Unpin" : "Pin"}
+                      >
+                        <Pin className="w-3 h-3 fill-current" />
+                      </button>
+                      <button 
+                        onClick={() => handleToggleRead(item.representative.id)}
+                        className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-202 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-805"
+                        title="Toggle Read"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
+                      <button 
+                        onClick={() => handleClear(item.representative.id)}
+                        className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-805"
+                        title="Archive"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Collapsed Stack Effect */}
+                  {!isExpanded && (
+                    <div className="relative mx-3 -mt-1 h-1.5 border-x border-b border-slate-200 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/60 rounded-b-2xl shadow-3xs scale-95 opacity-80" />
+                  )}
+
+                  {/* Expanded Nested Children List */}
+                  {isExpanded && (
+                    <div className="pl-4 space-y-1.5 border-l border-slate-200 dark:border-slate-800 ml-3.5 py-1">
+                      {item.notifs.slice(1).map((childNotif: any) => {
+                        const isChildSelected = selectedNotificationId === childNotif.id;
+                        return (
+                          <div 
+                            key={childNotif.id}
+                            onClick={() => setSelectedNotificationId(childNotif.id)}
+                            className={`group p-2.5 rounded-xl border transition-all flex items-start gap-2.5 cursor-pointer relative ${
+                              isChildSelected
+                                ? 'bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-200 dark:border-indigo-905'
+                                : childNotif.read 
+                                  ? 'bg-slate-50/10 dark:bg-slate-955/5 border-slate-100 dark:border-slate-850 opacity-60' 
+                                  : 'bg-white dark:bg-slate-900 border-slate-150'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                              <div className={`w-1 h-1 rounded-full shrink-0 ${childNotif.read ? 'opacity-0' : 'bg-indigo-500'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0 pr-5">
+                              <p className="text-[10px] text-slate-700 dark:text-slate-300 leading-normal">{childNotif.message}</p>
+                              <span className="text-[8px] text-slate-400 dark:text-slate-500 font-bold block mt-1">{childNotif.timestamp}</span>
+                            </div>
+                            {/* Hover Actions */}
+                            <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 rounded p-0.5 border border-slate-100/50" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => handleToggleRead(childNotif.id)} className="p-0.5 text-slate-400 hover:text-slate-600"><Eye className="w-2.5 h-2.5" /></button>
+                              <button onClick={() => handleClear(childNotif.id)} className="p-0.5 text-slate-400 hover:text-rose-500"><Check className="w-2.5 h-2.5" /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Standalone Card
+            const hasTaskLink = !!getAssociatedTaskId(item.notif);
+            const isSelected = selectedNotificationId === item.notif.id;
             return (
               <div 
-                key={notif.id}
-                onClick={() => setSelectedNotificationId(notif.id)}
+                key={item.key}
+                onClick={() => setSelectedNotificationId(item.notif.id)}
                 className={`group p-3 rounded-2xl border transition-all flex items-start gap-2.5 cursor-pointer relative ${
                   isSelected
                     ? 'bg-indigo-50/40 dark:bg-indigo-950/15 border-indigo-200 dark:border-indigo-905 shadow-3xs'
-                    : notif.read 
-                      ? 'bg-slate-50/30 dark:bg-slate-950/10 border-slate-150/40 dark:border-slate-800/40 opacity-70 hover:opacity-100 hover:bg-slate-50/60' 
-                      : 'bg-pink-50/20 dark:bg-pink-955/5 border-pink-100/40 dark:border-pink-900/15 hover:bg-pink-50/40 hover:border-pink-200/50 shadow-3xs'
+                    : item.notif.read 
+                      ? 'bg-slate-50/30 dark:bg-slate-955/10 border-slate-150/40 dark:border-slate-800/40 opacity-70 hover:opacity-100 hover:bg-slate-50/60' 
+                      : 'bg-indigo-50/10 dark:bg-indigo-955/5 border-indigo-100/40 dark:border-indigo-900/15 hover:bg-indigo-50/30 hover:border-indigo-200/50 shadow-3xs'
+                } ${
+                  item.notif.type === 'comment' || item.notif.type === 'assignment' ? 'border-l-[3.5px] border-l-indigo-500' :
+                  item.notif.type === 'deadline' ? 'border-l-[3.5px] border-l-rose-500' :
+                  'border-l-[3.5px] border-l-slate-400 dark:border-l-slate-600'
                 }`}
               >
                 {/* Pin indicator */}
-                {notif.pinned && (
+                {item.notif.pinned && (
                   <div className="absolute top-2.5 right-2.5 text-amber-500 fill-amber-400">
                     <Pin className="w-2.5 h-2.5 fill-current rotate-45" />
                   </div>
@@ -483,13 +744,8 @@ export default function InboxView({
 
                 {/* Left Side: Unread dot & Icon */}
                 <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-opacity ${notif.read ? 'opacity-0' : 'bg-pink-500'}`} />
-                  <div className={`p-1.5 rounded-lg shrink-0 ${
-                    notif.type === 'assignment' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' :
-                    notif.type === 'deadline' ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-455' :
-                    notif.type === 'comment' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450' :
-                    'bg-slate-105 dark:bg-slate-800 text-slate-500'
-                  }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-opacity ${item.notif.read ? 'opacity-0' : 'bg-indigo-500'}`} />
+                  <div className="p-1.5 rounded-lg shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500">
                     <Bell className="w-3.5 h-3.5" />
                   </div>
                 </div>
@@ -497,16 +753,16 @@ export default function InboxView({
                 {/* Content */}
                 <div className="flex-1 min-w-0 pr-5">
                   <div className="flex items-baseline justify-between gap-2.5">
-                    <h4 className={`text-[11.5px] truncate ${notif.read ? 'font-semibold text-slate-655 dark:text-slate-350' : 'font-extrabold text-slate-850 dark:text-slate-100'}`}>
-                      {notif.title}
+                    <h4 className={`text-[11.5px] truncate ${item.notif.read ? 'font-semibold text-slate-655 dark:text-slate-350' : 'font-extrabold text-slate-850 dark:text-slate-100'}`}>
+                      {item.notif.title}
                     </h4>
                   </div>
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-normal mt-0.5 line-clamp-2">{notif.message}</p>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-normal mt-0.5 line-clamp-2">{item.notif.message}</p>
                   
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">{notif.timestamp}</span>
+                    <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold">{item.notif.timestamp}</span>
                     {hasTaskLink && (
-                      <span className="text-[8px] bg-slate-105 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-black px-1 py-0.5 rounded tracking-wide uppercase">Linked Task</span>
+                      <span className="text-[8px] bg-slate-105 dark:bg-slate-800 text-slate-550 dark:text-slate-400 font-black px-1.5 py-0.5 rounded tracking-wide uppercase">Linked Task</span>
                     )}
                   </div>
                 </div>
@@ -514,56 +770,56 @@ export default function InboxView({
                 {/* Right Side Hover Actions */}
                 <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 rounded-lg p-0.5 shadow-xs border border-slate-100 dark:border-slate-800/80" onClick={e => e.stopPropagation()}>
                   <button 
-                    onClick={() => handleTogglePin(notif.id)}
-                    className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.pinned ? 'text-amber-500' : 'text-slate-400'}`}
-                    title={notif.pinned ? "Unpin notification" : "Pin notification"}
+                    onClick={() => handleTogglePin(item.notif.id)}
+                    className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${item.notif.pinned ? 'text-amber-500' : 'text-slate-400'}`}
+                    title={item.notif.pinned ? "Unpin" : "Pin"}
                   >
                     <Pin className="w-3 h-3 fill-current" />
                   </button>
 
                   <button 
-                    onClick={() => handleToggleRead(notif.id)}
-                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                    title={notif.read ? "Mark as unread" : "Mark as read"}
+                    onClick={() => handleToggleRead(item.notif.id)}
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-202 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title={item.notif.read ? "Mark as unread" : "Mark as read"}
                   >
-                    {notif.read ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    <Eye className="w-3 h-3" />
                   </button>
 
                   {/* Snooze Toggle Button */}
                   <div className="relative">
                     <button 
-                      onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === notif.id ? null : notif.id)}
-                      className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.snoozedUntil ? 'text-indigo-650' : 'text-slate-400'}`}
-                      title="Snooze notification"
+                      onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === item.notif.id ? null : item.notif.id)}
+                      className={`p-1 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${item.notif.snoozedUntil ? 'text-indigo-650' : 'text-slate-400'}`}
+                      title="Snooze"
                     >
                       <Clock className="w-3 h-3" />
                     </button>
 
-                    {showSnoozeDropdownId === notif.id && (
+                    {showSnoozeDropdownId === item.notif.id && (
                       <div className="absolute bottom-full right-0 mb-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-md p-1 z-30 flex flex-col gap-0.5 text-[9.5px] min-w-[90px]">
-                        <button onClick={() => handleSnooze(notif.id, 2)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">2 Hours</button>
-                        <button onClick={() => handleSnooze(notif.id, 24)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">Tomorrow</button>
-                        <button onClick={() => handleSnooze(notif.id, 168)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">Next Week</button>
-                        {notif.snoozedUntil && (
-                          <button onClick={() => handleClearSnooze(notif.id)} className="px-2 py-1 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 rounded font-semibold text-left border-t border-slate-100/50">Clear Snooze</button>
+                        <button onClick={() => handleSnooze(item.notif.id, 2)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">2 Hours</button>
+                        <button onClick={() => handleSnooze(item.notif.id, 24)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">Tomorrow</button>
+                        <button onClick={() => handleSnooze(item.notif.id, 168)} className="px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-semibold text-left">Next Week</button>
+                        {item.notif.snoozedUntil && (
+                          <button onClick={() => handleClearSnooze(item.notif.id)} className="px-2 py-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-500 rounded font-semibold text-left border-t border-slate-100/50">Clear Snooze</button>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {activeTab === 'cleared' ? (
+                  {activeTab === 'saved' && item.notif.cleared ? (
                     <button 
-                      onClick={() => handleRestore(notif.id)}
+                      onClick={() => handleRestore(item.notif.id)}
                       className="p-1 text-slate-400 hover:text-indigo-600 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Restore from archive"
+                      title="Restore"
                     >
                       <ArchiveRestore className="w-3 h-3" />
                     </button>
                   ) : (
                     <button 
-                      onClick={() => handleClear(notif.id)}
+                      onClick={() => handleClear(item.notif.id)}
                       className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Clear / Archive"
+                      title="Archive / Clear"
                     >
                       <Check className="w-3 h-3" />
                     </button>
@@ -574,14 +830,14 @@ export default function InboxView({
           })}
 
           {/* Empty States */}
-          {filteredNotifications.length === 0 && (
+          {groupedNotifications.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center space-y-2.5 select-none">
               <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-105 flex items-center justify-center text-slate-400 dark:text-slate-600 shadow-3xs">
                 <Inbox className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Inbox empty</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">No notifications in this view.</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-505 mt-0.5">No notifications in this view.</p>
               </div>
             </div>
           )}
@@ -604,7 +860,7 @@ export default function InboxView({
               </div>
               <div className="flex items-center gap-1.5">
                 {/* Clear notification shortcut */}
-                {selectedNotif && activeTab !== 'cleared' && (
+                {selectedNotif && !selectedNotif.cleared && (
                   <button 
                     onClick={() => handleClear(selectedNotif.id)}
                     className="flex items-center gap-1 py-1 px-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 text-[10px] font-bold hover:scale-103 transition-transform cursor-pointer"

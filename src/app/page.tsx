@@ -80,6 +80,20 @@ const checkIsDndActive = (settings: any) => {
   return false;
 };
 
+const getShortLabel = (label: string) => {
+  if (!label) return '';
+  if (label === 'Home Overview') return 'Home';
+  if (label === 'Tổng quan trang chủ') return 'Tổng quan';
+  if (label === 'Avaxa Base') return 'Base';
+  if (label === 'Không gian làm việc') return 'Không gian';
+  if (label === 'Hộp thư đến') return 'Hộp thư';
+  if (label === 'Mục tiêu (OKRs)') return 'Mục tiêu';
+  if (label.includes('(')) {
+    return label.split('(')[0].trim();
+  }
+  return label;
+};
+
 export default function App() {
   const { t } = useTranslation();
   const isLoaded = useRef(false);
@@ -3298,52 +3312,71 @@ export default function App() {
       {/* Dynamic Glass Top Header Status Strip (Spans 100% width across the top) */}
       <header className="liquid-glass relative z-40 flex items-center border-b border-slate-200/50 dark:border-slate-800 min-h-[57px] shrink-0">
         {/* Left header switcher section */}
-        <div className={`flex items-center justify-between px-4 py-2 shrink-0 border-r border-slate-200/50 dark:border-slate-800/50 transition-all duration-350 ease-in-out ${
-          isMainSidebarCollapsed ? 'w-0 px-0 overflow-hidden border-r-0' : 'w-[260px]'
+        <div className={`hidden md:flex items-center justify-between py-2 shrink-0 border-r border-slate-200/50 dark:border-slate-800/50 transition-all duration-350 ease-in-out relative ${
+          isMainSidebarCollapsed ? 'w-[80px] px-1 justify-center' : 'w-[260px] px-4'
         }`}>
-          <div className="flex items-center gap-2 px-1 relative flex-1 min-w-0">
-            {/* Sidebar toggle button (collapse when expanded) */}
-            <button 
-              onClick={() => setIsMainSidebarCollapsed(true)} 
-              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50"
-              title="Collapse Sidebar"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {/* Compact Switcher Pill Button */}
-            <div 
-              className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-105/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-all duration-200 cursor-pointer select-none group shadow-xs min-w-0"
-              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div 
-                  className="w-5 h-5 rounded-md flex items-center justify-center text-white font-black text-[9px] shadow-xs shrink-0 select-none overflow-hidden"
-                  style={!currentWorkspace?.logoUrl ? {
-                    background: 'linear-gradient(135deg, #FF3366, #e11d48)'
-                  } : undefined}
-                >
-                  {currentWorkspace?.logoUrl ? (
-                    <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                  ) : (
-                    <span>{currentWorkspace?.initial || 'A'}</span>
-                  )}
-                </div>
-                <span className="font-sans font-bold text-slate-800 dark:text-slate-105 text-[12.5px] tracking-tight truncate flex-1">
-                  {currentWorkspace?.name || 'Loading...'}
-                </span>
+          <div className={`flex items-center relative flex-1 min-w-0 ${isMainSidebarCollapsed ? 'justify-center' : 'gap-2 px-1'}`}>
+            {isMainSidebarCollapsed ? (
+              <div 
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-3xs shrink-0 select-none overflow-hidden cursor-pointer hover:scale-105 hover:opacity-95 transition-all animate-fade-in"
+                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                style={!currentWorkspace?.logoUrl ? {
+                  background: 'linear-gradient(135deg, #FF3366, #e11d48)'
+                } : undefined}
+                title={currentWorkspace?.name || 'Workspace'}
+              >
+                {currentWorkspace?.logoUrl ? (
+                  <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                ) : (
+                  <span>{currentWorkspace?.initial || 'A'}</span>
+                )}
               </div>
-              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-650 dark:group-hover:text-slate-350 transition-colors ml-1" />
-            </div>
+            ) : (
+              <>
+                {/* Sidebar toggle button (collapse when expanded) */}
+                <button 
+                  onClick={() => setIsMainSidebarCollapsed(true)} 
+                  className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-105 dark:hover:bg-slate-805 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50"
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+ 
+                {/* Compact Switcher Pill Button */}
+                <div 
+                  className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all duration-200 cursor-pointer select-none group shadow-3xs min-w-0"
+                  onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div 
+                      className="w-5 h-5 rounded-lg flex items-center justify-center text-white font-black text-[9px] shadow-3xs shrink-0 select-none overflow-hidden"
+                      style={!currentWorkspace?.logoUrl ? {
+                        background: 'linear-gradient(135deg, #FF3366, #e11d48)'
+                      } : undefined}
+                    >
+                      {currentWorkspace?.logoUrl ? (
+                        <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                      ) : (
+                        <span>{currentWorkspace?.initial || 'A'}</span>
+                      )}
+                    </div>
+                    <span className="font-sans font-bold text-slate-805 dark:text-slate-105 text-[12.5px] tracking-tight truncate flex-1">
+                      {currentWorkspace?.name || 'Loading...'}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-650 dark:group-hover:text-slate-350 transition-colors ml-1" />
+                </div>
 
-            {/* Calendar Shortcut Button */}
-            <button 
-              onClick={() => setActiveTab('calendar')} 
-              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50" 
-              title="Calendar"
-            >
-              <Calendar className="w-4 h-4" />
-            </button>
+                {/* Calendar Shortcut Button */}
+                <button 
+                  onClick={() => setActiveTab('calendar')} 
+                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50" 
+                  title="Calendar"
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+              </>
+            )}
 
             {/* Workspace Dropdown Menu */}
             <AnimatePresence>
@@ -3355,7 +3388,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.97 }}
                     transition={{ duration: 0.2, type: "spring", stiffness: 350, damping: 25 }}
-                    className="absolute left-4 top-full mt-2 w-[240px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)] z-30 space-y-2 text-left origin-top"
+                    className={`absolute top-full mt-2 w-[240px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)] z-30 space-y-2 text-left origin-top ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
                   >
                     {/* Active Workspace Header Card */}
                     <div className="flex items-center gap-2.5 px-1 py-0.5">
@@ -3563,9 +3596,9 @@ export default function App() {
                 ActiveIcon = Briefcase;
               }
               return (
-                <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1 rounded-xl border border-slate-200/10 dark:border-slate-800/10">
-                  {ActiveIcon && <ActiveIcon className="w-4 h-4 shrink-0 transition-transform group-hover:scale-105" style={{ color: 'var(--avaxa-text)' }} />}
-                  <h1 className="text-xs font-black font-sans text-slate-800 dark:text-slate-105 tracking-wide capitalize">
+                <div className="flex items-center gap-1.5 bg-slate-50/60 dark:bg-slate-900/50 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-800/50 shadow-3xs">
+                  {ActiveIcon && <ActiveIcon className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--avaxa-primary)' }} />}
+                  <h1 className="text-[11.5px] font-extrabold font-sans text-slate-805 dark:text-slate-105 tracking-tight capitalize">
                     {label}
                   </h1>
                 </div>
@@ -3592,13 +3625,13 @@ export default function App() {
                 setIsSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
-              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-slate-105/75 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-150/90 hover:border-slate-300 dark:hover:bg-slate-900/90 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/50 text-slate-400 dark:text-slate-500 hover:bg-slate-100/70 hover:border-slate-300/80 dark:hover:bg-slate-800/50 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-3xs"
             >
               <div className="flex items-center gap-2 truncate">
-                <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                <span className="truncate">Quick search tasks, docs, teammates...</span>
+                <Search className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
+                <span className="truncate font-medium">Quick search tasks, docs, teammates...</span>
               </div>
-              <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-white dark:bg-slate-950 text-slate-400 dark:text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-800/80 shadow-xs shrink-0">
+              <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200/55 dark:border-slate-700/55 shadow-3xs shrink-0 select-none">
                 <span>⌘</span>
                 <span>K</span>
               </div>
@@ -3790,34 +3823,31 @@ export default function App() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className="cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100/90 border border-slate-205 rounded-xl transition-all select-none shadow-xs"
+                className="cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-all select-none shadow-3xs"
               >
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={currentUser.avatar} className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/50 shadow-xs transition-all" alt={currentUser.name} />
+                  <SignedImage filePath={currentUser.avatar} className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/50 shadow-3xs transition-all" alt={currentUser.name} />
                   {/* Status indicator absolute dot on avatar */}
                   <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${
-                    userStatus === 'online' ? 'bg-emerald-500' :
+                    userStatus === 'online' ? 'bg-emerald-500 animate-pulse' :
                     userStatus === 'focused' ? 'bg-indigo-500' : 'bg-amber-400'
                   }`} />
                 </div>
                 
-                <div className="text-left hidden sm:flex flex-col select-none pr-1">
+                <div className="text-left hidden sm:flex flex-col select-none justify-center pr-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-[12px] text-slate-805 leading-none truncate max-w-[90px]">
+                    <span className="font-extrabold text-[12px] text-slate-805 dark:text-slate-105 leading-none truncate max-w-[90px]">
                       {currentUser.name}
                     </span>
                     {currentUser.isPremium ? (
-                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90">PRO</span>
+                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase">PRO</span>
                     ) : (
-                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase scale-90 font-mono">FREE</span>
+                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase font-mono">FREE</span>
                     )}
                   </div>
-                  <span className="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase mt-1 leading-none">
-                    {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
-                  </span>
                 </div>
 
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0" />
+                <ChevronDown className="w-3 h-3 text-slate-450 dark:text-slate-400 transition-transform duration-200 shrink-0" />
               </motion.div>
               
               {/* Dropdown status content menu */}
@@ -3980,64 +4010,87 @@ export default function App() {
 
       {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
       <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 border-r border-slate-200 dark:border-slate-800 transition-all duration-350 ease-in-out ${
-        isMainSidebarCollapsed ? 'w-0 px-0 py-0 overflow-hidden border-r-0' : 'w-[260px] bg-white dark:bg-slate-900 px-4 py-5 space-y-4'
+        isMainSidebarCollapsed 
+          ? 'w-[80px] bg-white dark:bg-slate-900 px-2 py-4 space-y-3' 
+          : 'w-[260px] bg-white dark:bg-slate-900 px-4 py-5 space-y-4'
       }`}>
         
-        <div className="space-y-6 h-full flex flex-col justify-between">
-          <div className="space-y-4">
+        <div className={`h-full flex flex-col justify-between ${isMainSidebarCollapsed ? 'space-y-3' : 'space-y-6'}`}>
+          <div className={isMainSidebarCollapsed ? 'space-y-3' : 'space-y-4'}>
             
-<div className="space-y-4 overflow-y-auto max-h-[calc(100vh-220px)] scrollbar-none pb-4">
-            {/* ClickUp Sidebar Hierarchy */}
-            <div className="space-y-3 relative px-1 flex flex-col pt-1">
-              
-              <div className="space-y-0.5">
-                 {orderedItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.id === 'tasks'
-                    ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
-                    : (activeTab === item.id);
-                  return (
-                    <button
-                      key={item.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id)}
-                      onDragOver={(e) => handleDragOver(e, item.id)}
-                      onDragEnd={handleDragEnd}
-                      onDrop={(e) => handleDrop(e, item.id)}
-                      onClick={() => {
-                        if (item.id === 'tasks') {
-                          setActiveTab('tasks');
-                          setActiveSpaceId(null);
-                          setActiveListId(null);
-                        } else {
-                          setActiveTab(item.id);
-                          setActiveSpaceId(null);
-                          setActiveListId(null);
-                        }
-                        addSyncLog(`Switched to: ${item.label}`);
-                      }}
-                      className={`group w-full py-1.5 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all cursor-pointer relative ${
-                        isActive 
-                          ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
-                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
-                      } ${
-                        dragOverItemId === item.id 
-                          ? 'border border-dashed border-indigo-500 dark:border-indigo-400 bg-indigo-50/30' 
-                          : 'border border-transparent'
-                      }`}
-                      style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
-                    >
-                      <div className="absolute left-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-                        <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                      </div>
-                      <Icon className="w-4 h-4 shrink-0 text-slate-400 group-hover:translate-x-1.5 transition-transform" />
-                      <span className="truncate group-hover:translate-x-1.5 transition-transform">{item.label}</span>
-                      {item.count !== undefined && item.count > 0 && (
-                        <span className="ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce">{item.count}</span>
-                      )}
-                    </button>
-                  );
-                })}
+            <div className={`overflow-y-auto max-h-[calc(100vh-220px)] scrollbar-none pb-4 ${isMainSidebarCollapsed ? 'space-y-2' : 'space-y-4'}`}>
+              {/* ClickUp Sidebar Hierarchy */}
+              <div className={`relative flex flex-col pt-1 ${isMainSidebarCollapsed ? 'space-y-2 px-0.5' : 'space-y-3 px-1'}`}>
+                
+                <div className={isMainSidebarCollapsed ? 'space-y-1.5' : 'space-y-0.5'}>
+                  {orderedItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.id === 'tasks'
+                      ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
+                      : (activeTab === item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragOver={(e) => handleDragOver(e, item.id)}
+                        onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, item.id)}
+                        onClick={() => {
+                          if (item.id === 'tasks') {
+                            setActiveTab('tasks');
+                            setActiveSpaceId(null);
+                            setActiveListId(null);
+                          } else {
+                            setActiveTab(item.id);
+                            setActiveSpaceId(null);
+                            setActiveListId(null);
+                          }
+                          addSyncLog(`Switched to: ${item.label}`);
+                        }}
+                        title={isMainSidebarCollapsed ? item.label : undefined}
+                        className={`group w-full transition-all cursor-pointer relative flex ${
+                          isMainSidebarCollapsed 
+                            ? 'flex-col items-center justify-center py-2 px-1 rounded-xl gap-1 text-[9.5px] font-bold text-center' 
+                            : 'py-1.5 px-3 rounded-xl text-xs font-bold items-center gap-2.5'
+                        } ${
+                          isActive 
+                            ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
+                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
+                        } ${
+                          dragOverItemId === item.id 
+                            ? 'border border-dashed border-indigo-500 dark:border-indigo-400 bg-indigo-50/30' 
+                            : 'border border-transparent'
+                        }`}
+                        style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
+                      >
+                        {!isMainSidebarCollapsed && (
+                          <div className="absolute left-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
+                            <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                          </div>
+                        )}
+                        <Icon className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${
+                          !isMainSidebarCollapsed ? 'group-hover:translate-x-1.5' : 'group-hover:scale-110'
+                        }`} />
+                        <span className={`truncate w-full block text-center ${
+                          isMainSidebarCollapsed 
+                            ? 'text-[9.5px] leading-tight max-w-full font-medium' 
+                            : 'group-hover:translate-x-1.5 transition-transform text-left'
+                        }`}>
+                          {isMainSidebarCollapsed ? getShortLabel(item.label) : item.label}
+                        </span>
+                        {item.count !== undefined && item.count > 0 && (
+                          <span className={
+                            isMainSidebarCollapsed 
+                              ? "absolute top-1 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-sm"
+                              : "ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce"
+                          }>
+                            {item.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
               </div>
 
               {/* Removed Sidebar App Links as requested */}
@@ -4046,246 +4099,319 @@ export default function App() {
           </div>
 
             {/* Widget Area: Pomodoro & Sprint Compact */}
-            <div className="space-y-3 px-1 pt-2 border-t border-slate-200/20 dark:border-slate-800/20">
-              <div className="group rounded-2xl border border-slate-200/50 bg-slate-50 dark:bg-slate-950/20 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-                {/* Visual Accent */}
-                {pomodoroActive && (
-                  <motion.div 
-                    layoutId="pomodoroActiveBorder"
-                    className="absolute top-0 left-0 w-1 h-full animate-pulse"
-                    style={{ background: 'var(--avaxa-primary)' }}
-                  />
-                )}
-
-                {/* Mode Selector Segmented Control grid */}
-                <div className="grid grid-cols-3 gap-0.5 bg-slate-105/85 p-0.5 rounded-lg border border-slate-200/30 select-none mb-2.5">
-                  {[
-                    { id: 'work', label: 'Work' },
-                    { id: 'short', label: 'Short Break' },
-                    { id: 'long', label: 'Long Break' }
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => handleSwitchPomodoroMode(m.id as any)}
-                      className={`text-[9px] font-bold py-1 rounded-md transition-all cursor-pointer text-center ${
-                        pomodoroMode === m.id
-                          ? 'bg-white text-slate-850 shadow-xs border border-slate-200/20'
-                          : 'text-slate-455 hover:text-slate-700 hover:bg-white/40'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-xl flex items-center justify-center transition-all ${
+            <div className={`border-t border-slate-200/20 dark:border-slate-800/20 ${
+              isMainSidebarCollapsed ? 'space-y-2 px-0.5 pt-2' : 'space-y-3 px-1 pt-2'
+            }`}>
+              {isMainSidebarCollapsed ? (
+                <>
+                  {/* Collapsed Pomodoro Timer */}
+                  <div className="group rounded-xl bg-slate-50 dark:bg-slate-950/20 p-1.5 flex flex-col items-center justify-center gap-1 border border-slate-200/50 dark:border-slate-805/50 relative">
+                    <div className={`p-1 rounded-lg flex items-center justify-center transition-all ${
                       pomodoroMode === 'work' ? 'bg-indigo-50 text-[var(--avaxa-text)] ' + (pomodoroActive ? 'animate-pulse' : '') :
                       pomodoroMode === 'short' ? 'bg-emerald-50 text-emerald-600' :
                       'bg-sky-50 text-sky-600'
                     }`}>
-                      <Timer className="w-4 h-4" />
+                      <Timer className="w-3.5 h-3.5" />
                     </div>
-                    <div>
-                      <span className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">
-                        {pomodoroMode === 'work' ? 'TẬP TRUNG' : pomodoroMode === 'short' ? 'NGHỈ NGẮN' : 'NGHỈ DÀI'}
-                      </span>
-                      <span className="font-mono text-base font-black text-slate-805 tracking-tight leading-none block">
-                        {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
-                      </span>
+                    <span className="font-mono text-[9px] font-black text-slate-805 dark:text-slate-105 leading-none block">
+                      {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
+                    </span>
+                    <div className="flex gap-1 items-center mt-0.5">
+                      {pomodoroActive ? (
+                        <button 
+                          onClick={handlePausePomodoro} 
+                          className="p-1 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-md cursor-pointer transition-all border border-amber-200" 
+                          title="Pause"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={handleStartPomodoro} 
+                          className="p-1 hover:scale-105 rounded-md cursor-pointer text-white"
+                          style={{ background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))' }}
+                          title="Start"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Controls */}
-                  <div className="flex gap-1 items-center">
-                    <button 
-                      onClick={() => setShowPomoSettings(!showPomoSettings)} 
-                      className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                        showPomoSettings 
-                          ? 'bg-slate-100 text-indigo-650 border-slate-200' 
-                          : 'text-slate-400 hover:bg-slate-50 border-transparent hover:border-slate-100'
-                      }`}
-                      title="Cấu hình khoảng thời gian"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </button>
 
-                    {pomodoroActive ? (
-                      <button 
-                        onClick={handlePausePomodoro} 
-                        className="p-1.5 bg-amber-55 hover:bg-amber-100 text-amber-600 rounded-lg transition-all cursor-pointer border border-amber-200/50 shadow-xs flex items-center justify-center animate-pulse" 
-                        title="Dừng"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={handleStartPomodoro} 
-                        className="p-1.5 hover:scale-105 rounded-lg transition-all cursor-pointer text-white shadow-sm flex items-center justify-center border border-transparent"
-                        style={{ 
-                          background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))',
-                          boxShadow: '0 4px 10px rgba(var(--avaxa-primary-rgb), 0.2)'
-                        }} 
-                        title="Start"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                      </button>
+                  {/* Collapsed Sprint Progress */}
+                  <div className="py-2 rounded-xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 flex flex-col items-center justify-center gap-1" title="Sprint Progress">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                    <span className="text-slate-800 dark:text-slate-200 font-extrabold text-[9px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200/50 shadow-xs">
+                      {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
+                    </span>
+                  </div>
+
+                  {/* Collapsed Themes Grid */}
+                  <div className="p-1.5 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl gap-1" title="Theme Color">
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { id: 'indigo', color: 'bg-indigo-500' },
+                        { id: 'ocean', color: 'bg-sky-500' },
+                        { id: 'forest', color: 'bg-emerald-500' },
+                        { id: 'sunset', color: 'bg-orange-500' }
+                      ].map(theme => (
+                        <button
+                          key={theme.id}
+                          onClick={() => setAccentPreset(theme.id as any)}
+                          className={`w-2.5 h-2.5 rounded-full transition-all outline outline-offset-1 cursor-pointer ${
+                            accentPreset === theme.id 
+                              ? 'scale-110 outline-slate-450 shadow-xs' 
+                              : 'outline-transparent hover:scale-110 hover:outline-slate-200'
+                          } ${theme.color}`}
+                          title={theme.id}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="group rounded-2xl border border-slate-200/50 bg-slate-50 dark:bg-slate-950/20 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+                    {/* Visual Accent */}
+                    {pomodoroActive && (
+                      <motion.div 
+                        layoutId="pomodoroActiveBorder"
+                        className="absolute top-0 left-0 w-1 h-full animate-pulse"
+                        style={{ background: 'var(--avaxa-primary)' }}
+                      />
                     )}
-                    <button 
-                      onClick={handleStopPomodoro} 
-                      className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-100" 
-                      title="Cancel"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
 
-                {/* Inline Collapsible Pomodoro Settings Popover Panel */}
-                <AnimatePresence>
-                  {showPomoSettings && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden mt-2 border-t border-slate-100 dark:border-slate-800/20 pt-2.5 space-y-2.5"
-                      id="pomodoro_inner_settings_popover"
-                    >
-                      <div className="text-[9px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                        <span>Duration (Minutes)</span>
-                        <span className="text-[8px] text-indigo-500 lowercase font-semibold">Auto Synced</span>
+                    {/* Mode Selector Segmented Control grid */}
+                    <div className="grid grid-cols-3 gap-0.5 bg-slate-105/85 p-0.5 rounded-lg border border-slate-200/30 select-none mb-2.5">
+                      {[
+                        { id: 'work', label: 'Work' },
+                        { id: 'short', label: 'Short Break' },
+                        { id: 'long', label: 'Long Break' }
+                      ].map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => handleSwitchPomodoroMode(m.id as any)}
+                          className={`text-[9px] font-bold py-1 rounded-md transition-all cursor-pointer text-center ${
+                            pomodoroMode === m.id
+                              ? 'bg-white text-slate-850 shadow-xs border border-slate-200/20'
+                              : 'text-slate-455 hover:text-slate-700 hover:bg-white/40'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-xl flex items-center justify-center transition-all ${
+                          pomodoroMode === 'work' ? 'bg-indigo-50 text-[var(--avaxa-text)] ' + (pomodoroActive ? 'animate-pulse' : '') :
+                          pomodoroMode === 'short' ? 'bg-emerald-50 text-emerald-600' :
+                          'bg-sky-50 text-sky-600'
+                        }`}>
+                          <Timer className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">
+                            {pomodoroMode === 'work' ? 'TẬP TRUNG' : pomodoroMode === 'short' ? 'NGHỈ NGẮN' : 'NGHỈ DÀI'}
+                          </span>
+                          <span className="font-mono text-base font-black text-slate-805 tracking-tight leading-none block">
+                            {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <div className="space-y-0.5">
-                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Focus</label>
-                          <input 
-                            type="number"
-                            min="1"
-                            max="180"
-                            value={workDuration}
-                            onChange={(e) => {
-                              const v = Math.max(1, Math.min(180, Number(e.target.value) || 25));
-                              handleUpdatePomoDurations(v, shortBreakDuration, longBreakDuration);
-                            }}
-                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                          />
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Short Break</label>
-                          <input 
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={shortBreakDuration}
-                            onChange={(e) => {
-                              const v = Math.max(1, Math.min(60, Number(e.target.value) || 5));
-                              handleUpdatePomoDurations(workDuration, v, longBreakDuration);
-                            }}
-                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                          />
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Long Break</label>
-                          <input 
-                            type="number"
-                            min="1"
-                            max="120"
-                            value={longBreakDuration}
-                            onChange={(e) => {
-                              const v = Math.max(1, Math.min(120, Number(e.target.value) || 15));
-                              handleUpdatePomoDurations(workDuration, shortBreakDuration, v);
-                            }}
-                            className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Presets Quick Actions */}
-                      <div className="flex gap-1 pt-0.5 justify-end">
-                        <button
-                          onClick={() => handleUpdatePomoDurations(25, 5, 15)}
-                          className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+                      {/* Controls */}
+                      <div className="flex gap-1 items-center">
+                        <button 
+                          onClick={() => setShowPomoSettings(!showPomoSettings)} 
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                            showPomoSettings 
+                              ? 'bg-slate-100 text-indigo-650 border-slate-200' 
+                              : 'text-slate-400 hover:bg-slate-50 border-transparent hover:border-slate-100'
+                          }`}
+                          title="Cấu hình khoảng thời gian"
                         >
-                          Default (25/5/15)
+                          <Settings className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => handleUpdatePomoDurations(50, 10, 20)}
-                          className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+
+                        {pomodoroActive ? (
+                          <button 
+                            onClick={handlePausePomodoro} 
+                            className="p-1.5 bg-amber-55 hover:bg-amber-100 text-amber-600 rounded-lg transition-all cursor-pointer border border-amber-200/50 shadow-xs flex items-center justify-center animate-pulse" 
+                            title="Dừng"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={handleStartPomodoro} 
+                            className="p-1.5 hover:scale-105 rounded-lg transition-all cursor-pointer text-white shadow-sm flex items-center justify-center border border-transparent"
+                            style={{ 
+                              background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))',
+                              boxShadow: '0 4px 10px rgba(var(--avaxa-primary-rgb), 0.2)'
+                            }} 
+                            title="Start"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                          </button>
+                        )}
+                        <button 
+                          onClick={handleStopPomodoro} 
+                          className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-100" 
+                          title="Cancel"
                         >
-                          High (50/10/20)
+                          <RotateCcw className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                    </div>
 
-              {/* Sprint Compact */}
-              <div className="px-2.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold text-slate-455">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Sprint Progress
-                  </span>
-                  <span className="text-slate-800 font-extrabold text-[10px] bg-white px-1.5 py-0.5 rounded-md border border-slate-200/50 shadow-xs">
-                    {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
-                  </span>
-                </div>
-                
-                <div className="relative">
-                  <div className="h-2 bg-slate-200/70 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className="h-full rounded-full"
-                      style={{ background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))' }}
-                    />
-                  </div>
-                  {/* Glowing layer */}
-                  <div 
-                    className="absolute inset-0 h-2 blur-md opacity-25 rounded-full overflow-hidden"
-                    style={{ 
-                      background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))',
-                      width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%`
-                    }} 
-                  />
-                </div>
-              </div>
+                    {/* Inline Collapsible Pomodoro Settings Popover Panel */}
+                    <AnimatePresence>
+                      {showPomoSettings && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden mt-2 border-t border-slate-100 dark:border-slate-800/20 pt-2.5 space-y-2.5"
+                          id="pomodoro_inner_settings_popover"
+                        >
+                          <div className="text-[9px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                            <span>Duration (Minutes)</span>
+                            <span className="text-[8px] text-indigo-500 lowercase font-semibold">Auto Synced</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Focus</label>
+                              <input 
+                                type="number"
+                                min="1"
+                                max="180"
+                                value={workDuration}
+                                onChange={(e) => {
+                                  const v = Math.max(1, Math.min(180, Number(e.target.value) || 25));
+                                  handleUpdatePomoDurations(v, shortBreakDuration, longBreakDuration);
+                                }}
+                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                              />
+                            </div>
 
-              {/* Compact Themes & Accent Selectors */}
-              <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Theme Color</span>
-                <div className="flex gap-2">
-                  {[
-                    { id: 'indigo', color: 'bg-indigo-500', glow: 'shadow-indigo-500/20' },
-                    { id: 'ocean', color: 'bg-sky-500', glow: 'shadow-sky-500/20' },
-                    { id: 'forest', color: 'bg-emerald-500', glow: 'shadow-emerald-500/20' },
-                    { id: 'sunset', color: 'bg-orange-500', glow: 'shadow-orange-500/20' }
-                  ].map(theme => (
-                    <button
-                      key={theme.id}
-                      onClick={() => setAccentPreset(theme.id as any)}
-                      className={`w-4 h-4 rounded-full transition-all outline outline-offset-2 relative cursor-pointer ${
-                        accentPreset === theme.id 
-                          ? 'scale-110 outline-slate-400 shadow-md ' + theme.glow 
-                          : 'outline-transparent hover:scale-110 hover:outline-slate-200'
-                      } ${theme.color}`}
-                      title={theme.id}
-                    >
-                      {accentPreset === theme.id && (
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <span className="w-1 h-1 rounded-full bg-white animate-ping" />
-                        </span>
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Short Break</label>
+                              <input 
+                                type="number"
+                                min="1"
+                                max="60"
+                                value={shortBreakDuration}
+                                onChange={(e) => {
+                                  const v = Math.max(1, Math.min(60, Number(e.target.value) || 5));
+                                  handleUpdatePomoDurations(workDuration, v, longBreakDuration);
+                                }}
+                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                              />
+                            </div>
+
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Long Break</label>
+                              <input 
+                                type="number"
+                                min="1"
+                                max="120"
+                                value={longBreakDuration}
+                                onChange={(e) => {
+                                  const v = Math.max(1, Math.min(120, Number(e.target.value) || 15));
+                                  handleUpdatePomoDurations(workDuration, shortBreakDuration, v);
+                                }}
+                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Presets Quick Actions */}
+                          <div className="flex gap-1 pt-0.5 justify-end">
+                            <button
+                              onClick={() => handleUpdatePomoDurations(25, 5, 15)}
+                              className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+                            >
+                              Default (25/5/15)
+                            </button>
+                            <button
+                              onClick={() => handleUpdatePomoDurations(50, 10, 20)}
+                              className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
+                            >
+                              High (50/10/20)
+                            </button>
+                          </div>
+                        </motion.div>
                       )}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Sprint Progress Compact */}
+                  <div className="px-2.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 space-y-2">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-455">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Sprint Progress
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-200 font-extrabold text-[10px] bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200/50 shadow-xs">
+                        {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
+                      </span>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{ background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))' }}
+                        />
+                      </div>
+                      {/* Glowing layer */}
+                      <div 
+                        className="absolute inset-0 h-2 blur-md opacity-25 rounded-full overflow-hidden"
+                        style={{ 
+                          background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))',
+                          width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%`
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Compact Themes & Accent Selectors */}
+                  <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Theme Color</span>
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'indigo', color: 'bg-indigo-500', glow: 'shadow-indigo-500/20' },
+                        { id: 'ocean', color: 'bg-sky-500', glow: 'shadow-sky-500/20' },
+                        { id: 'forest', color: 'bg-emerald-500', glow: 'shadow-emerald-500/20' },
+                        { id: 'sunset', color: 'bg-orange-500', glow: 'shadow-orange-500/20' }
+                      ].map(theme => (
+                        <button
+                          key={theme.id}
+                          onClick={() => setAccentPreset(theme.id as any)}
+                          className={`w-4 h-4 rounded-full transition-all outline outline-offset-2 relative cursor-pointer ${
+                            accentPreset === theme.id 
+                              ? 'scale-110 outline-slate-400 shadow-md ' + theme.glow 
+                              : 'outline-transparent hover:scale-110 hover:outline-slate-200'
+                          } ${theme.color}`}
+                          title={theme.id}
+                        >
+                          {accentPreset === theme.id && (
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="w-1 h-1 rounded-full bg-white animate-ping" />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
           </div>
@@ -4293,20 +4419,32 @@ export default function App() {
 
         {/* Sync panel actions block */}
         <div className="space-y-2 pt-3 border-t border-slate-200/10">
-          <div className="flex items-center justify-between text-[10px] px-2.5 font-bold">
-            <span className="text-slate-400 uppercase tracking-widest text-[9px]">Live Sync</span>
-            <button 
-              onClick={handleToggleOffline} 
-              className={`hover:scale-105 transition-all flex items-center gap-1.5 py-1 px-2.5 rounded-full border text-[8px] font-black uppercase shadow-xs ${
-                isOffline ? 'bg-amber-50 text-amber-600 border-amber-200/50' : 'bg-emerald-50 text-emerald-600 border-emerald-200/50'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-              {isOffline ? 'Offline' : 'Synced'}
-            </button>
-          </div>
-          
-          
+          {isMainSidebarCollapsed ? (
+            <div className="flex items-center justify-center py-1">
+              <button 
+                onClick={handleToggleOffline} 
+                className={`hover:scale-105 transition-all flex items-center justify-center p-1.5 rounded-full border shadow-xs ${
+                  isOffline ? 'bg-amber-50 border-amber-200 text-amber-500' : 'bg-emerald-50 border-emerald-200 text-emerald-500'
+                }`}
+                title={isOffline ? 'Offline - Click to Sync' : 'Synced'}
+              >
+                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-[10px] px-2.5 font-bold">
+              <span className="text-slate-400 uppercase tracking-widest text-[9px]">Live Sync</span>
+              <button 
+                onClick={handleToggleOffline} 
+                className={`hover:scale-105 transition-all flex items-center gap-1.5 py-1 px-2.5 rounded-full border text-[8px] font-black uppercase shadow-xs ${
+                  isOffline ? 'bg-amber-50 text-amber-600 border-amber-200/50' : 'bg-emerald-50 text-emerald-600 border-emerald-200/50'
+                }`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+                {isOffline ? 'Offline' : 'Synced'}
+              </button>
+            </div>
+          )}
         </div>
 
       </div>

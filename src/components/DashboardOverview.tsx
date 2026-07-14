@@ -317,7 +317,7 @@ export default function DashboardOverview({
       <motion.div 
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-6 md:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+        className="p-6 md:p-8 rounded-3xl glass-panel relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm"
       >
         <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="space-y-2 relative z-10 text-left">
@@ -362,7 +362,7 @@ export default function DashboardOverview({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
-            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow duration-300 text-left"
+            className="p-5 rounded-2xl glass-panel flex flex-col justify-between hover:scale-[1.02] hover:shadow-md transition-all duration-300 text-left shadow-sm"
           >
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-500">{card.label}</span>
@@ -401,7 +401,7 @@ export default function DashboardOverview({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Chart Panel (Area or Bar) */}
-          <div className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="lg:col-span-8 p-6 rounded-3xl glass-panel flex flex-col justify-between shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4 text-left">
               <div>
                 <h3 className="font-display font-bold text-slate-850 dark:text-slate-50 text-base flex items-center gap-1.5">
@@ -469,7 +469,7 @@ export default function DashboardOverview({
           </div>
 
           {/* Right Chart Panel - Donut Task Statuses */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between text-left">
+          <div className="lg:col-span-4 p-6 rounded-3xl glass-panel flex flex-col justify-between text-left shadow-sm">
             <div>
               <h3 className="font-display font-bold text-slate-855 dark:text-slate-55 text-base flex items-center gap-1.5">
                 <PieIcon className="w-4 h-4 text-indigo-500" />
@@ -527,7 +527,7 @@ export default function DashboardOverview({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 }}
-            className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-4 text-left"
+            className="lg:col-span-8 p-6 rounded-3xl glass-panel space-y-4 text-left shadow-sm"
           >
             <div>
               <h3 className="font-display font-extrabold text-slate-855 dark:text-slate-55 text-base flex items-center gap-1.5">
@@ -566,7 +566,7 @@ export default function DashboardOverview({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="lg:col-span-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between text-left"
+            className="lg:col-span-4 p-6 rounded-3xl glass-panel flex flex-col justify-between text-left shadow-sm"
           >
             <div>
               <h3 className="font-display font-bold text-slate-855 dark:text-slate-50 text-base flex items-center gap-1.5">
@@ -623,7 +623,7 @@ export default function DashboardOverview({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.12 }}
-        className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm space-y-5 text-left"
+        className="p-6 rounded-3xl glass-panel space-y-5 text-left shadow-sm"
         id="weekly_productivity_insight_report_widget"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">

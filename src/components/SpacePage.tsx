@@ -132,6 +132,7 @@ export default function SpacePage({
 
   // Favorite star state
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showQuickTools, setShowQuickTools] = useState(false);
 
   // Active View Tab State (Overview, List, Board, Table, Gantt, etc.)
   const [activeView, setActiveView] = useState<string>('list');
@@ -199,12 +200,16 @@ export default function SpacePage({
   // Custom Fields and visibility states
   const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
   const [visibleFields, setVisibleFields] = useState<string[]>([
-    'title', 'status', 'priority', 'assignee', 'space', 'dueDate', 'progress', 'tags'
+    'title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags',
+    'Objective', 'Owner', 'Cost', 'Phase', 'Complexity', 'Active'
   ]);
   const [customFields, setCustomFields] = useState<any[]>([
     { id: 'cf-objective', name: 'Objective', type: 'text' },
     { id: 'cf-owner', name: 'Owner', type: 'text' },
-    { id: 'cf-cost', name: 'Cost', type: 'number' }
+    { id: 'cf-cost', name: 'Cost', type: 'number' },
+    { id: 'cf-phase', name: 'Phase', type: 'dropdown', options: ['Planning', 'Design', 'Development', 'QA', 'Release'] },
+    { id: 'cf-complexity', name: 'Complexity', type: 'rating' },
+    { id: 'cf-active', name: 'Active', type: 'checkbox' }
   ]);
   const [showBreadcrumbNav, setShowBreadcrumbNav] = useState(false);
   const [listNameInput, setListNameInput] = useState('');
@@ -315,10 +320,91 @@ export default function SpacePage({
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('manual');
+
+  // Advanced Filter Builder State
+  const [filterConjunction, setFilterConjunction] = useState<'AND' | 'OR'>('AND');
+  const [filterConditions, setFilterConditions] = useState<{
+    id: string;
+    field: 'status' | 'priority' | 'assignee' | 'title';
+    operator: 'is' | 'isNot' | 'contains' | 'isEmpty';
+    value: string;
+  }[]>([]);
+  const [filterPresets, setFilterPresets] = useState<{ name: string; conjunction: 'AND' | 'OR'; conditions: any[] }[]>([]);
+  const [newPresetName, setNewPresetName] = useState('');
   // Selection and Sorting states
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSmartSort, setIsSmartSort] = useState(false);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  
+  // Bulk Actions State & Handlers
+  const [undoAction, setUndoAction] = useState<{ previousTasks: Task[] } | null>(null);
+
+  const handleBulkStatusChange = (newStatus: TaskStatus) => {
+    const prev = [...tasks];
+    setUndoAction({ previousTasks: prev });
+    selectedTaskIds.forEach(id => {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        onUpdateTask({ ...task, status: newStatus });
+      }
+    });
+    if (triggerToast) {
+      triggerToast('success', 'Bulk Status Updated', `Updated status for ${selectedTaskIds.length} tasks.`);
+    }
+    setTimeout(() => {
+      setUndoAction(null);
+    }, 5000);
+  };
+
+  const handleBulkAssigneeChange = (assigneeId: string | null) => {
+    const prev = [...tasks];
+    setUndoAction({ previousTasks: prev });
+    selectedTaskIds.forEach(id => {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        onUpdateTask({ 
+          ...task, 
+          assigneeId: assigneeId === 'unassigned' ? undefined : (assigneeId || undefined), 
+          assigneeIds: assigneeId === 'unassigned' || !assigneeId ? [] : [assigneeId] 
+        });
+      }
+    });
+    if (triggerToast) {
+      triggerToast('success', 'Bulk Assignees Updated', `Updated assignees for ${selectedTaskIds.length} tasks.`);
+    }
+    setTimeout(() => {
+      setUndoAction(null);
+    }, 5000);
+  };
+
+  const handleBulkDelete = () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) return;
+    const prev = [...tasks];
+    setUndoAction({ previousTasks: prev });
+    selectedTaskIds.forEach(id => {
+      onDeleteTask(id);
+    });
+    if (triggerToast) {
+      triggerToast('warning', 'Bulk Tasks Deleted', `Deleted ${selectedTaskIds.length} tasks.`);
+    }
+    setSelectedTaskIds([]);
+    setTimeout(() => {
+      setUndoAction(null);
+    }, 5000);
+  };
+
+  const handleUndoBulkAction = () => {
+    if (undoAction) {
+      undoAction.previousTasks.forEach(pt => {
+        onUpdateTask(pt);
+      });
+      setUndoAction(null);
+      if (triggerToast) {
+        triggerToast('info', 'Undo Successful', 'Restored previous state.');
+      }
+    }
+  };
+
   const [boardGroupBy, setBoardGroupBy] = useState<'status' | 'priority' | 'assignee'>('status');
   const [boardSwimlaneBy, setBoardSwimlaneBy] = useState<'none' | 'status' | 'priority' | 'assignee'>('none');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -527,6 +613,34 @@ export default function SpacePage({
       result = result.filter(t => t.tags && t.tags.includes(filterTag));
     }
 
+    // Evaluate advanced conditions
+    if (filterConditions.length > 0) {
+      result = result.filter(t => {
+        const matches = filterConditions.map(cond => {
+          let fieldVal = '';
+          if (cond.field === 'status') fieldVal = t.status;
+          else if (cond.field === 'priority') fieldVal = t.priority;
+          else if (cond.field === 'assignee') fieldVal = t.assigneeId || '';
+          else if (cond.field === 'title') fieldVal = t.title;
+
+          const queryVal = cond.value.toLowerCase();
+          const targetVal = fieldVal.toLowerCase();
+
+          if (cond.operator === 'is') return targetVal === queryVal;
+          if (cond.operator === 'isNot') return targetVal !== queryVal;
+          if (cond.operator === 'contains') return targetVal.includes(queryVal);
+          if (cond.operator === 'isEmpty') return !fieldVal;
+          return true;
+        });
+
+        if (filterConjunction === 'AND') {
+          return matches.every(m => m === true);
+        } else {
+          return matches.some(m => m === true);
+        }
+      });
+    }
+
     // Sorting
     if (sortBy === 'priority') {
       const weight = { urgent: 4, high: 3, medium: 2, low: 1 };
@@ -549,7 +663,7 @@ export default function SpacePage({
     }
 
     return result;
-  }, [tasks, activeSpaceId, activeListId, myTasksOnly, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, taskOrder]);
+  }, [tasks, activeSpaceId, activeListId, myTasksOnly, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, taskOrder, filterConjunction, filterConditions]);
 
   // Handle Form Submission for Quick Add Task Modal
   const handleCreateTaskSubmit = (e: React.FormEvent) => {
@@ -753,7 +867,7 @@ export default function SpacePage({
     : activeSpace.name;
 
   return (
-    <div className="flex-grow flex h-full bg-slate-50/50 dark:bg-slate-950/20 font-sans overflow-hidden relative">
+    <div className="flex-grow flex h-full bg-white dark:bg-slate-950/20 font-sans overflow-hidden relative">
       
       {/* ── Sub-sidebar for Spaces (Left side, matching ClickUp) ── */}
       <AnimatePresence initial={false}>
@@ -912,7 +1026,7 @@ export default function SpacePage({
 
                       {/* Lists nested under Space */}
                       {isExpanded && (
-                        <div className="pl-4 space-y-0.5 border-l border-slate-200 dark:border-slate-800 ml-4.5 mt-0.5">
+                        <div className="pl-4 space-y-0.5 ml-4.5 mt-0.5">
                           {/* Quick Add List button at top of hierarchy */}
                           {activeSpaceId === space.id && (
                             <button
@@ -933,7 +1047,7 @@ export default function SpacePage({
                             return (
                               <div key={folder.id} className="space-y-0.5 text-left">
                                 <div 
-                                  className={`w-full flex items-center justify-between py-1 px-1.5 rounded-lg text-xs font-bold transition-all text-left cursor-pointer group/folder ${
+                                  className={`w-full flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer group/folder ${
                                     activeSpaceId === space.id && activeFolderId === folder.id
                                       ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
                                       : 'text-slate-550 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:text-slate-850 dark:hover:text-slate-250'
@@ -999,14 +1113,14 @@ export default function SpacePage({
                                 </div>
 
                                 {isFolderOpen && (
-                                  <div className="pl-3.5 space-y-0.5 border-l border-slate-150 dark:border-slate-850 ml-2 mt-0.5">
+                                  <div className="pl-3.5 space-y-0.5 ml-2 mt-0.5">
                                     {folderLists.map(list => {
                                       const isListActive = activeSpaceId === space.id && activeListId === list.id;
                                       const taskCount = tasks.filter(t => t.listId === list.id).length;
                                       return (
                                         <div 
                                           key={list.id}
-                                          className={`w-full group/list flex items-center justify-between py-1 px-1.5 rounded-lg text-xs font-bold transition-all text-left relative ${
+                                          className={`w-full group/list flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left relative ${
                                             isListActive
                                               ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
                                               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10'
@@ -1099,7 +1213,7 @@ export default function SpacePage({
                                             if (setActiveListId) setActiveListId(null);
                                             setActiveView('doc');
                                           }}
-                                          className="w-full flex items-center gap-1.5 py-1 px-1.5 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                                          className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-855 dark:hover:bg-slate-800/10 text-left cursor-pointer"
                                         >
                                           <span className="text-sm shrink-0">📄</span>
                                           <span className="truncate">{doc.title}</span>
@@ -1116,7 +1230,7 @@ export default function SpacePage({
                                           setActiveFolderId(folder.id);
                                           setActiveView('whiteboard');
                                         }}
-                                        className="w-full flex items-center gap-1.5 py-1 px-1.5 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10 text-left cursor-pointer"
+                                        className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-xs font-bold text-slate-550 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10 text-left cursor-pointer"
                                       >
                                         <span className="text-sm shrink-0">🎨</span>
                                         <span className="truncate">{wb.name}</span>
@@ -1124,7 +1238,7 @@ export default function SpacePage({
                                     ))}
 
                                     {folderLists.length === 0 && folderDocs.length === 0 && folderWhiteboards.length === 0 && (
-                                      <div className="text-[10px] text-slate-400 italic pl-5 py-0.5">Empty folder.</div>
+                                      <div className="text-[10px] text-slate-400 italic pl-[28px] py-0.5">Empty folder.</div>
                                     )}
                                   </div>
                                 )}
@@ -1322,304 +1436,395 @@ export default function SpacePage({
 
       {/* Main Page Workspace Content Container (Right) */}
       <div className="flex-grow flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/80 flex flex-col relative z-30 select-none shadow-3xs font-sans">
-          
-          {/* Row 1: Breadcrumbs & Actions (Image 2 Top Row) */}
-          <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 dark:border-slate-800/65 flex-wrap gap-2.5">
-            {/* Left Side: Space Selector Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 relative">
-              {/* Space Icon & Name */}
-              <div 
-                onClick={() => {
-                  if (setActiveListId) setActiveListId(null);
-                  setActiveView('overview');
-                }}
-                className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
-              >
-                {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
-                  <span className="text-sm shrink-0">{activeSpace.emoji}</span>
-                ) : (
-                  <div 
-                    className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-3xs"
-                    style={{ 
-                      backgroundColor: 
-                        activeSpace.themeColor === 'rose' ? '#FF3366' : 
-                        activeSpace.themeColor === 'sky' ? '#33D1FF' : 
-                        activeSpace.themeColor === 'emerald' ? '#10b981' : 
-                        activeSpace.themeColor === 'amber' ? '#f59e0b' : 
-                        activeSpace.themeColor === 'sunset' ? '#f97316' : '#7B61FF' 
-                    }}
-                  >
-                    {(activeSpace.name || 'S').charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="text-slate-850 dark:text-slate-200 font-extrabold">{activeSpace.name}</span>
-              </div>
+        <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/80 flex flex-col relative z-30 select-none shadow-3xs">
+          {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
+          <div className="flex items-center justify-between px-5 py-2 relative flex-wrap gap-3 min-h-[48px]">
+            
+            {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Scrollable & Unified) */}
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 pr-2">
+              
+              {/* Space Selector Breadcrumbs */}
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
+                {/* Space Icon & Name */}
+                <div 
+                  onClick={() => {
+                    if (setActiveListId) setActiveListId(null);
+                    setActiveView('overview');
+                  }}
+                  className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
+                >
+                  {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
+                    <span className="text-sm shrink-0">{activeSpace.emoji}</span>
+                  ) : (
+                    <div 
+                      className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-3xs"
+                      style={{ 
+                        backgroundColor: 
+                          activeSpace.themeColor === 'rose' ? '#FF3366' : 
+                          activeSpace.themeColor === 'sky' ? '#33D1FF' : 
+                          activeSpace.themeColor === 'emerald' ? '#10b981' : 
+                          activeSpace.themeColor === 'amber' ? '#f59e0b' : 
+                          activeSpace.themeColor === 'sunset' ? '#f97316' : '#7B61FF' 
+                      }}
+                    >
+                      {(activeSpace.name || 'S').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-slate-850 dark:text-slate-200 font-extrabold">{activeSpace.name}</span>
+                </div>
 
-              {/* Folder if nested or active directly */}
-              {(() => {
-                const currentList = activeSpace.lists?.find(l => l.id === activeListId);
-                const folderId = currentList?.folderId || activeFolderId;
-                const folder = activeSpace.folders?.find(f => f.id === folderId);
-                if (folder) {
-                  return (
-                    <>
-                      <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
-                      <div className="flex items-center gap-1 text-slate-550 dark:text-slate-400">
-                        <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        <span className="truncate">{folder.name}</span>
-                      </div>
-                    </>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* List Name and Navigator Chevron (Modern Image 1 Style) */}
-              {(() => {
-                const currentList = activeSpace.lists?.find(l => l.id === activeListId);
-                if (currentList) {
-                  return (
-                    <>
-                      <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
-                      
-                      <div className="relative flex items-center">
-                        <div 
-                          onClick={() => setShowBreadcrumbNav(!showBreadcrumbNav)}
-                          className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors bg-slate-50 dark:bg-slate-805 py-1 px-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800 shadow-3xs"
-                        >
-                          <List className="w-3.5 h-3.5 text-slate-450 shrink-0" />
-                          <span className="text-slate-850 dark:text-slate-200 font-extrabold text-[12px]">{currentList.name}</span>
-                          <ChevronDown className="w-3 h-3 text-slate-450 transition-transform duration-200" />
+                {/* Folder if nested or active directly */}
+                {(() => {
+                  const currentList = activeSpace.lists?.find(l => l.id === activeListId);
+                  const folderId = currentList?.folderId || activeFolderId;
+                  const folder = activeSpace.folders?.find(f => f.id === folderId);
+                  if (folder) {
+                    return (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
+                        <div className="flex items-center gap-1 text-slate-550 dark:text-slate-400">
+                          <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="truncate">{folder.name}</span>
                         </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
 
-                        {/* Interactive Breadcrumb Dropdown Navigator (Image 1 Detail Popup) */}
-                        <AnimatePresence>
-                          {showBreadcrumbNav && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setShowBreadcrumbNav(false)} />
-                              <motion.div 
-                                initial={{ opacity: 0, y: 5, scale: 0.96 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 5, scale: 0.96 }}
-                                className="absolute left-0 top-full mt-2 w-[310px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 text-left font-sans select-none"
-                              >
-                                {/* Header Box: Rename list input & options */}
-                                <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/20 rounded-xl mb-3 shadow-3xs">
-                                  <List className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
-                                  <input
-                                    type="text"
-                                    value={listNameInput}
-                                    onChange={e => setListNameInput(e.target.value)}
-                                    onBlur={() => handleRenameList(currentList.id, listNameInput)}
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter') {
-                                        handleRenameList(currentList.id, listNameInput);
-                                        e.currentTarget.blur();
-                                      }
-                                    }}
-                                    placeholder="List Name..."
-                                    className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-100 text-xs px-1 py-0.5"
-                                  />
-                                  <button 
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(window.location.href);
-                                      if (triggerToast) triggerToast('success', 'Link Copied', 'Copied list link to clipboard!');
-                                    }}
-                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-650 cursor-pointer transition-colors"
-                                    title="Copy list link"
-                                  >
-                                    <LinkIcon className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      if (confirm(`Are you sure you want to delete the list "${currentList.name}"?`)) {
-                                        handleDeleteList(currentList.id);
-                                        setShowBreadcrumbNav(false);
-                                      }
-                                    }}
-                                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                                    title="Delete list"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
+                {/* List Name and Navigator Chevron */}
+                {(() => {
+                  const currentList = activeSpace.lists?.find(l => l.id === activeListId);
+                  if (currentList) {
+                    return (
+                      <>
+                        <span className="text-slate-300 dark:text-slate-700 mx-0.5 font-normal">/</span>
+                        
+                        <div className="relative flex items-center">
+                          <div 
+                            onClick={() => setShowBreadcrumbNav(!showBreadcrumbNav)}
+                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors bg-slate-50 dark:bg-slate-805 py-1 px-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800 shadow-3xs"
+                          >
+                            <List className="w-3.5 h-3.5 text-slate-450 shrink-0" />
+                            <span className="text-slate-850 dark:text-slate-200 font-extrabold text-[12px]">{currentList.name}</span>
+                            <ChevronDown className="w-3 h-3 text-slate-450 transition-transform duration-200" />
+                          </div>
 
-                                <div className="border-t border-slate-100 dark:border-slate-800/80 my-2" />
-
-                                {/* Hierarchy List */}
-                                <div className="space-y-1">
-                                  {/* Space Header */}
-                                  <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-wider">
-                                    {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
-                                      <span className="text-[12px]">{activeSpace.emoji}</span>
-                                    ) : (
-                                      <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[8px] font-black text-white">
-                                        {activeSpace.name.charAt(0).toUpperCase()}
-                                      </div>
-                                    )}
-                                    <span>{activeSpace.name}</span>
+                          {/* Interactive Breadcrumb Dropdown Navigator */}
+                          <AnimatePresence>
+                            {showBreadcrumbNav && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowBreadcrumbNav(false)} />
+                                <motion.div 
+                                  initial={{ opacity: 0, y: 5, scale: 0.96 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 5, scale: 0.96 }}
+                                  className="absolute left-0 top-full mt-2 w-[310px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 z-50 text-left font-sans select-none"
+                                >
+                                  {/* Header Box: Rename list input & options */}
+                                  <div className="flex items-center gap-2 p-1.5 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/20 rounded-xl mb-3 shadow-3xs">
+                                    <List className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+                                    <input
+                                      type="text"
+                                      value={listNameInput}
+                                      onChange={e => setListNameInput(e.target.value)}
+                                      onBlur={() => handleRenameList(currentList.id, listNameInput)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                          handleRenameList(currentList.id, listNameInput);
+                                          e.currentTarget.blur();
+                                        }
+                                      }}
+                                      placeholder="List Name..."
+                                      className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-105 text-xs px-1 py-0.5"
+                                    />
+                                    <button 
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(window.location.href);
+                                        if (triggerToast) triggerToast('success', 'Link Copied', 'Copied list link to clipboard!');
+                                      }}
+                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-650 cursor-pointer transition-colors"
+                                      title="Copy list link"
+                                    >
+                                      <LinkIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        if (confirm(`Are you sure you want to delete the list "${currentList.name}"?`)) {
+                                          handleDeleteList(currentList.id);
+                                          setShowBreadcrumbNav(false);
+                                        }
+                                      }}
+                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                      title="Delete list"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
 
-                                  {/* Lists lists */}
-                                  <div className="pl-3.5 space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
-                                    {activeSpace.lists?.map(list => {
-                                      const isSelected = list.id === activeListId;
-                                      return (
-                                        <button
-                                          key={list.id}
-                                          type="button"
-                                          onClick={() => {
-                                            if (setActiveListId) setActiveListId(list.id);
-                                            setActiveView('table');
-                                            setShowBreadcrumbNav(false);
-                                          }}
-                                          className={`w-full flex items-center gap-2 py-1.5 px-3 rounded-xl text-left font-bold transition-all cursor-pointer ${
-                                            isSelected 
-                                              ? 'bg-blue-50 dark:bg-indigo-950/30 text-blue-600 dark:text-indigo-400 shadow-3xs border border-blue-100/10 dark:border-indigo-900/10' 
-                                              : 'text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
-                                          }`}
-                                        >
-                                          <List className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-450'}`} />
-                                          <span className="truncate text-xs">{list.name}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </motion.div>
-                            </>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </>
-                  );
-                }
-                return null;
-              })()}
+                                  <div className="border-t border-slate-100 dark:border-slate-800/80 my-2" />
 
-              {/* Path Action Buttons (Star, Columns, Assignee, Flag, Calendar) */}
-              <div className="flex items-center gap-1 ml-1 select-none">
-                <button 
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className="p-1 text-slate-400 hover:text-amber-500 rounded-md transition-colors cursor-pointer"
-                  title="Favorite"
-                >
-                  <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (triggerToast) triggerToast('info', 'Layout Columns', 'Adjust table column visibility in sidebar panel.');
-                  }}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors cursor-pointer"
-                  title="Layout Columns"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (triggerToast) triggerToast('info', 'Team Members', 'Assign lists to specific team leads or members.');
-                  }}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors cursor-pointer"
-                  title="Assignees"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (triggerToast) triggerToast('info', 'List Priority', 'Set priority flag for the entire list.');
-                  }}
-                  className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors cursor-pointer"
-                  title="List Priority"
-                >
-                  <Flag className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => {
-                    if (triggerToast) triggerToast('info', 'List Calendar', 'Specify list deadline or schedule.');
-                  }}
-                  className="p-1 text-slate-400 hover:text-indigo-500 rounded-md transition-colors cursor-pointer"
-                  title="Calendar Schedule"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                </button>
+                                  {/* Hierarchy List */}
+                                  <div className="space-y-1">
+                                    {/* Space Header */}
+                                    <div className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-wider">
+                                      {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
+                                        <span className="text-[12px]">{activeSpace.emoji}</span>
+                                      ) : (
+                                        <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[8px] font-black text-white">
+                                          {activeSpace.name.charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+                                      <span>{activeSpace.name}</span>
+                                    </div>
+
+                                    {/* Lists lists */}
+                                    <div className="pl-3.5 space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+                                      {activeSpace.lists?.map(list => {
+                                        const isSelected = list.id === activeListId;
+                                        return (
+                                          <button
+                                            key={list.id}
+                                            type="button"
+                                            onClick={() => {
+                                              if (setActiveListId) setActiveListId(list.id);
+                                              setActiveView('table');
+                                              setShowBreadcrumbNav(false);
+                                            }}
+                                            className={`w-full flex items-center gap-2 py-1.5 px-3 rounded-xl text-left font-bold transition-all cursor-pointer ${
+                                              isSelected 
+                                                ? 'bg-blue-55 dark:bg-indigo-950/30 text-blue-600 dark:text-indigo-400 shadow-3xs border border-blue-100/10 dark:border-indigo-900/10' 
+                                                : 'text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                            }`}
+                                          >
+                                            <List className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-450'}`} />
+                                            <span className="truncate text-xs">{list.name}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+
               </div>
+
+              {/* Star Button */}
+              <button 
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="p-1 text-slate-400 hover:text-amber-500 rounded-md transition-colors cursor-pointer shrink-0"
+                title="Favorite"
+              >
+                <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
+              </button>
+
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
+
+              {/* View Switcher Tabs (Scrollable inline with breadcrumbs) */}
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1">
+                {staticTabs.map(tab => {
+                  const TabIcon = tab.icon;
+                  const isActive = activeTabId === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTabId(tab.id);
+                        setActiveView(tab.viewId);
+                      }}
+                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
+                        isActive
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200/50 dark:border-indigo-900/40 text-indigo-650 dark:text-indigo-400 shadow-3xs'
+                          : 'border-transparent text-slate-500 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-205 hover:bg-slate-50/60 dark:hover:bg-slate-900/40'
+                      }`}
+                    >
+                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Add View */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => {
+                    setShowAddViewMenu(!showAddViewMenu);
+                    setIsSearchViewOpen(true);
+                  }}
+                  className="flex items-center gap-1 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors cursor-pointer"
+                  title="Add View"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+
+                {showAddViewMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => { setShowAddViewMenu(false); setIsSearchViewOpen(false); setSearchViewQuery(''); }} />
+                    <div className="absolute left-0 top-full mt-1 w-[220px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-2 font-sans select-none">
+                      <div className="relative mb-2">
+                        <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search views..."
+                          value={searchViewQuery}
+                          onChange={(e) => setSearchViewQuery(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+                        {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
+                          const ViewIcon = view.icon;
+                          return (
+                            <button
+                              key={view.id}
+                              onClick={() => {
+                                handleSelectView(view);
+                                setShowAddViewMenu(false);
+                                setIsSearchViewOpen(false);
+                                setSearchViewQuery('');
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-colors text-left cursor-pointer group"
+                            >
+                              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: view.bg }}>
+                                <ViewIcon className="w-3.5 h-3.5" style={{ color: view.color }} />
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{view.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
             </div>
 
-            {/* Consolidated Controls Row 1 Right */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Call, Agents, Automate, Brain, Share (Glass pills) */}
-              <div className="flex items-center gap-0.5">
-                <button className="py-1 px-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer">
-                  <Phone className="w-3.5 h-3.5 text-slate-450" />
+            {/* Right Side: Quick Tools, Share, Cog Settings, and "+ Task" primary action */}
+            <div className="flex items-center gap-2 shrink-0">
+              
+              {/* Quick Tools Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowQuickTools(!showQuickTools)}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 text-[10.5px] font-extrabold text-slate-600 dark:text-slate-350 hover:text-slate-800 dark:hover:text-white rounded-lg flex items-center gap-1.5 hover:bg-slate-100/90 dark:hover:bg-slate-900 transition-colors cursor-pointer shadow-3xs"
+                  title="Workspace settings & tools"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Tools</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-450 transition-transform duration-200 ${showQuickTools ? 'rotate-180' : ''}`} />
                 </button>
-                <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
-                  <Bot className="w-3.5 h-3.5 text-slate-455" />
-                  <span>Agents</span>
-                </button>
-                <button className="py-1 px-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-455" />
-                  <span>Automate</span>
-                </button>
-                <button className="py-1 px-2 text-slate-550 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Brain²</span>
-                </button>
-                <button className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[11px] font-black rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer ml-1 text-slate-655 shadow-3xs">
-                  <Users className="w-3.5 h-3.5 text-slate-455" />
-                  <span>Share</span>
-                </button>
+
+                {showQuickTools && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowQuickTools(false)} />
+                    <div className="absolute left-0 top-full mt-1.5 w-[210px] bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-1.5 font-sans select-none">
+                      <div className="px-2 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Workspace Actions</div>
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Starting workspace call..."); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Start Audio Call</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Opening agents center..."); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Bot className="w-3.5 h-3.5 text-slate-455" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Workspace Agents</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Opening automations dashboard..."); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-455" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Automations</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Triggering AI Brain² assistant..."); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400">Brain² Assistant</span>
+                      </button>
+
+                      <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+                      <div className="px-2 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">List Customizations</div>
+                      
+                      <button
+                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'Layout Columns', 'Adjust table column visibility in sidebar panel.'); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Layout Columns</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'Team Members', 'Assign lists to specific team leads or members.'); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Users className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Assignees</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'List Priority', 'Set priority flag for the entire list.'); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Flag className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">List Priority</span>
+                      </button>
+                      <button
+                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'List Calendar', 'Specify list deadline or schedule.'); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Calendar Schedule</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
+              {/* Share button */}
+              <button className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[10.5px] font-extrabold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-slate-655 dark:text-slate-350 shadow-3xs hover:bg-slate-100 dark:hover:bg-slate-900">
+                <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-500" />
+                <span>Share</span>
+              </button>
 
-              {/* View Controls (Filter, Checkmark, Search, Settings) */}
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => alert("Filters applied.")}
-                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
-                  title="Filter"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => alert("Show completed tasks toggled.")}
-                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
-                  title="Show Closed Tasks"
-                >
-                  <CheckSquare className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => alert("Search task list.")}
-                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer"
-                  title="Search Tasks"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    if (activeSpaceSettings?.id === activeSpace.id) {
-                      setActiveSpaceSettings(null);
-                    } else {
-                      setActiveSpaceSettings({
-                        id: activeSpace.id,
-                        x: rect.left - 200,
-                        y: rect.bottom + 4
-                      });
-                    }
-                    setActiveSpaceMenu(null);
-                    setActiveListMenu(null);
-                  }}
-                  className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer relative"
-                  title="Space Settings"
-                >
-                  <Cog className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {/* Space settings Cog */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  if (activeSpaceSettings?.id === activeSpace.id) {
+                    setActiveSpaceSettings(null);
+                  } else {
+                    setActiveSpaceSettings({
+                      id: activeSpace.id,
+                      x: rect.left - 200,
+                      y: rect.bottom + 4
+                    });
+                  }
+                  setActiveSpaceMenu(null);
+                  setActiveListMenu(null);
+                }}
+                className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-405 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer relative border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50"
+                title="Space Settings"
+              >
+                <Cog className="w-3.5 h-3.5" />
+              </button>
 
-              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
               {/* Blue "+ Task" button */}
               <div className="flex items-center rounded-xl overflow-hidden shadow-sm shadow-blue-500/20 bg-[#007fff] hover:bg-blue-600 transition-colors shrink-0">
@@ -1638,88 +1843,7 @@ export default function SpacePage({
                   <ChevronDown className="w-3 h-3 text-white" />
                 </button>
               </div>
-            </div>
-          </div>
 
-          {/* Row 2: View Switcher Tabs */}
-          <div className="flex items-center px-5 gap-0.5 overflow-x-auto scrollbar-none relative">
-            {staticTabs.map(tab => {
-              const TabIcon = tab.icon;
-              const isActive = activeTabId === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTabId(tab.id);
-                    setActiveView(tab.viewId);
-                  }}
-                  className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                    isActive
-                      ? 'text-indigo-600 dark:text-indigo-400'
-                      : 'text-slate-450 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
-                >
-                  <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-550'}`} />
-                  <span>{tab.label}</span>
-                  {isActive && (
-                    <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-indigo-600 dark:bg-indigo-400 rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Add View */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => {
-                  setShowAddViewMenu(!showAddViewMenu);
-                  setIsSearchViewOpen(true);
-                }}
-                className="flex items-center gap-1 px-2 py-2 text-[11px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-
-              {showAddViewMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => { setShowAddViewMenu(false); setIsSearchViewOpen(false); setSearchViewQuery(''); }} />
-                  <div className="absolute right-0 top-full mt-1 w-[220px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-2 font-sans select-none">
-                    <div className="relative mb-2">
-                      <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Search views..."
-                        value={searchViewQuery}
-                        onChange={(e) => setSearchViewQuery(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-indigo-500 transition-colors"
-                      />
-                    </div>
-                    <div className="space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
-                      {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
-                        const ViewIcon = view.icon;
-                        return (
-                          <button
-                            key={view.id}
-                            onClick={() => {
-                              handleSelectView(view);
-                              setShowAddViewMenu(false);
-                              setIsSearchViewOpen(false);
-                              setSearchViewQuery('');
-                            }}
-                            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-colors text-left cursor-pointer group"
-                          >
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: view.bg }}>
-                              <ViewIcon className="w-3.5 h-3.5" style={{ color: view.color }} />
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{view.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </header>
@@ -1814,58 +1938,201 @@ export default function SpacePage({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-3.5"
+            className="shrink-0 bg-slate-50/50 dark:bg-slate-900/60 border-b border-slate-205 dark:border-slate-800 px-5 py-4.5 space-y-4"
           >
-            <div className="flex gap-4 flex-wrap text-xs font-bold text-slate-700 dark:text-slate-350">
-              {/* Priority Filters */}
-              <div className="space-y-1">
-                <label className="text-[9px] text-slate-400 uppercase">Priority</label>
-                <div className="flex gap-1.5">
-                  {['all', 'urgent', 'high', 'medium', 'low'].map(p => (
-                    <button 
-                      key={p} 
-                      onClick={() => setFilterPriority(p)}
-                      className={`px-2.5 py-1 text-[11px] rounded-lg border transition-all cursor-pointer ${
-                        filterPriority === p 
-                          ? 'bg-indigo-600 border-indigo-650 text-white' 
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
+            {/* Top row: conjunction selection & preset management */}
+            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Match Type</span>
+                <div className="flex bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-800/80">
+                  <button 
+                    onClick={() => setFilterConjunction('AND')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded ${filterConjunction === 'AND' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-3xs' : 'text-slate-500'}`}
+                  >
+                    AND
+                  </button>
+                  <button 
+                    onClick={() => setFilterConjunction('OR')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded ${filterConjunction === 'OR' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-3xs' : 'text-slate-500'}`}
+                  >
+                    OR
+                  </button>
                 </div>
+                <span className="text-[10.5px] text-slate-550 dark:text-slate-400">tasks matching these rules:</span>
               </div>
 
-              {/* Assignee Filters */}
-              <div className="space-y-1">
-                <label className="text-[9px] text-slate-400 uppercase">Assignee</label>
-                <select 
-                  value={filterAssignee}
-                  onChange={(e) => setFilterAssignee(e.target.value)}
-                  className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-905 outline-none"
-                >
-                  <option value="all">Everyone</option>
-                  <option value="user">Me Only</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Reset button */}
-              <div className="flex items-end">
-                <button 
+              {/* Presets manager */}
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Save current filters as..." 
+                  value={newPresetName}
+                  onChange={e => setNewPresetName(e.target.value)}
+                  className="px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none focus:border-indigo-500 text-slate-850 dark:text-slate-100"
+                />
+                <button
                   onClick={() => {
-                    setFilterPriority('all');
-                    setFilterAssignee('all');
-                    setFilterTag('all');
+                    if (!newPresetName.trim()) return;
+                    setFilterPresets(prev => [...prev, { name: newPresetName.trim(), conjunction: filterConjunction, conditions: [...filterConditions] }]);
+                    setNewPresetName('');
+                    if (triggerToast) triggerToast('success', 'Preset Saved', 'Saved filter combination.');
                   }}
-                  className="px-3 py-1 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-[11px] transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-colors shadow-2xs"
                 >
-                  Reset filters
+                  Save Preset
                 </button>
               </div>
+            </div>
+
+            {/* Presets List */}
+            {filterPresets.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">Saved Presets:</span>
+                {filterPresets.map(preset => (
+                  <div key={preset.name} className="flex items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-0.5 shadow-3xs">
+                    <button 
+                      onClick={() => {
+                        setFilterConjunction(preset.conjunction);
+                        setFilterConditions([...preset.conditions]);
+                      }}
+                      className="text-[10px] font-extrabold text-indigo-650 dark:text-indigo-400 hover:underline mr-1.5 cursor-pointer"
+                    >
+                      {preset.name}
+                    </button>
+                    <button 
+                      onClick={() => setFilterPresets(prev => prev.filter(p => p.name !== preset.name))}
+                      className="text-slate-350 hover:text-rose-500 text-[10px]"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Conditions Builder List */}
+            <div className="space-y-2.5">
+              {filterConditions.map((cond, idx) => (
+                <div key={cond.id} className="flex items-center gap-2 flex-wrap">
+                  {idx > 0 && (
+                    <span className="text-[9.5px] font-black text-slate-400 w-8 text-center">{filterConjunction}</span>
+                  )}
+                  {idx === 0 && <div className="w-8 shrink-0" />}
+
+                  {/* Attribute Field Selector */}
+                  <select 
+                    value={cond.field}
+                    onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: e.target.value as any, value: '' } : c))}
+                    className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    <option value="title">Task Name</option>
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="assignee">Assignee</option>
+                  </select>
+
+                  {/* Operator Dropdown */}
+                  <select 
+                    value={cond.operator}
+                    onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: e.target.value as any } : c))}
+                    className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    <option value="is">is</option>
+                    <option value="isNot">is not</option>
+                    <option value="contains">contains</option>
+                    <option value="isEmpty">is empty</option>
+                  </select>
+
+                  {/* Value Picker */}
+                  {cond.operator !== 'isEmpty' && (() => {
+                    if (cond.field === 'status') {
+                      return (
+                        <select 
+                          value={cond.value}
+                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
+                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="">Select status...</option>
+                          <option value="todo">To Do</option>
+                          <option value="inprogress">In Progress</option>
+                          <option value="review">Review</option>
+                          <option value="completed">Done</option>
+                        </select>
+                      );
+                    }
+                    if (cond.field === 'priority') {
+                      return (
+                        <select 
+                          value={cond.value}
+                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
+                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="">Select priority...</option>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      );
+                    }
+                    if (cond.field === 'assignee') {
+                      return (
+                        <select 
+                          value={cond.value}
+                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
+                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="">Select member...</option>
+                          <option value="user">Me</option>
+                          {members.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      );
+                    }
+                    return (
+                      <input 
+                        type="text" 
+                        placeholder="Type text value..." 
+                        value={cond.value}
+                        onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
+                        className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-800 dark:text-slate-100"
+                      />
+                    );
+                  })()}
+
+                  {/* Remove condition */}
+                  <button 
+                    onClick={() => setFilterConditions(prev => prev.filter(c => c.id !== cond.id))}
+                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-500 rounded-lg cursor-pointer"
+                    title="Remove rule"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom action row: add rule, reset */}
+            <div className="flex justify-between items-center pt-2">
+              <button 
+                onClick={() => setFilterConditions(prev => [...prev, { id: `rule-${Date.now()}`, field: 'title', operator: 'contains', value: '' }])}
+                className="px-3 py-1.5 rounded-lg text-[10.5px] font-black border border-dashed border-slate-250 hover:border-indigo-500 text-indigo-650 dark:text-indigo-400 cursor-pointer hover:bg-indigo-50/20"
+              >
+                + Add Rule
+              </button>
+              <button 
+                onClick={() => {
+                  setFilterConjunction('AND');
+                  setFilterConditions([]);
+                  setFilterPriority('all');
+                  setFilterAssignee('all');
+                  setFilterTag('all');
+                }}
+                className="px-3 py-1.5 rounded-lg text-[10.5px] font-black bg-rose-50 dark:bg-rose-955/10 text-rose-600 dark:text-rose-455 hover:bg-rose-100 cursor-pointer"
+              >
+                Reset Filter
+              </button>
             </div>
           </motion.div>
         )}
@@ -1992,6 +2259,8 @@ export default function SpacePage({
             visibleFields={visibleFields}
             customFields={customFields}
             onOpenFieldsPanel={() => setShowFieldsPanel(true)}
+            setVisibleFields={setVisibleFields}
+            setCustomFields={setCustomFields}
           />
         )}
 
@@ -2269,7 +2538,120 @@ export default function SpacePage({
             allTasks={tasks}
             allDocs={allDocs}
             onOpenFieldsPanel={() => setShowFieldsPanel(true)}
+            visibleFields={visibleFields}
+            onToggleFieldVisibility={(fieldKey) => {
+              if (fieldKey === 'title') return;
+              if (visibleFields.includes(fieldKey)) {
+                setVisibleFields(visibleFields.filter(f => f !== fieldKey));
+              } else {
+                setVisibleFields([...visibleFields, fieldKey]);
+              }
+            }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Floating Bulk Action Bar (Sticky UI) */}
+      <AnimatePresence>
+        {selectedTaskIds.length > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3.5 px-5 py-3 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md shadow-2xl max-w-full overflow-x-auto scrollbar-none select-none"
+          >
+            {/* Selection Count Badge */}
+            <div className="flex items-center gap-2 pr-3.5 border-r border-slate-150 dark:border-slate-800 shrink-0">
+              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">
+                {selectedTaskIds.length}
+              </span>
+              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-350">Selected</span>
+            </div>
+
+            {/* Mass Status Picker */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-505">Status</span>
+              {(['todo', 'inprogress', 'review', 'completed'] as TaskStatus[]).map(status => (
+                <button
+                  key={status}
+                  onClick={() => handleBulkStatusChange(status)}
+                  className="px-2.5 py-1 text-[9.5px] font-extrabold rounded-lg border border-slate-100 hover:border-indigo-400 bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-350 cursor-pointer hover:bg-indigo-50/20 hover:text-indigo-650 transition-all"
+                >
+                  {status === 'todo' ? 'To Do' : status === 'inprogress' ? 'In Progress' : status === 'review' ? 'Review' : 'Done'}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+            {/* Mass Assignee Dropdown */}
+            <div className="flex items-center gap-2 shrink-0 relative">
+              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-505">Assignee</span>
+              <select
+                onChange={e => handleBulkAssigneeChange(e.target.value || null)}
+                defaultValue=""
+                className="px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-slate-805 bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-350 cursor-pointer outline-none"
+              >
+                <option value="" disabled>Select member...</option>
+                <option value="unassigned">Unassigned</option>
+                {members.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-800 shrink-0" />
+
+            {/* Bulk Delete with confirmation */}
+            <button
+              onClick={handleBulkDelete}
+              className="px-3 py-1 text-[10px] font-black rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-955/20 border border-rose-200/30 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors flex items-center gap-1 shrink-0"
+              title="Delete all selected tasks"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+
+            {/* Clear Selection */}
+            <button
+              onClick={() => setSelectedTaskIds([])}
+              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 cursor-pointer transition-colors shrink-0"
+              title="Clear selection"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Undo Notification */}
+      <AnimatePresence>
+        {undoAction && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-20 right-6 z-[145] bg-slate-900 text-white rounded-xl shadow-xl p-3.5 flex flex-col gap-2 min-w-[280px] overflow-hidden"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold">Bulk action applied.</span>
+              <button
+                onClick={handleUndoBulkAction}
+                className="text-xs font-black text-indigo-400 hover:text-indigo-350 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Undo</span>
+              </button>
+            </div>
+            {/* Timer visual count down bar */}
+            <div className="w-full h-1 bg-slate-850 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: '100%' }}
+                animate={{ width: '0%' }}
+                transition={{ duration: 5, ease: 'linear' }}
+                className="h-full bg-indigo-500"
+              />
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -2339,11 +2721,23 @@ export default function SpacePage({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Start Date</label>
-                  <PremiumDatePicker dateValue={newStartDate} onChange={(val) => setNewStartDate(val || '')} />
+                  <PremiumDatePicker 
+                    startDateValue={newStartDate} 
+                    onStartDateChange={(val) => setNewStartDate(val || '')} 
+                    dateValue={newDueDate} 
+                    onChange={(val) => setNewDueDate(val || '')} 
+                    label="Start"
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Due Date</label>
-                  <PremiumDatePicker dateValue={newDueDate} onChange={(val) => setNewDueDate(val || '')} />
+                  <PremiumDatePicker 
+                    startDateValue={newStartDate} 
+                    onStartDateChange={(val) => setNewStartDate(val || '')} 
+                    dateValue={newDueDate} 
+                    onChange={(val) => setNewDueDate(val || '')} 
+                    label="Due"
+                  />
                 </div>
               </div>
 
@@ -3853,10 +4247,23 @@ function CustomFieldsTabs({
       alert(`A field named "${cleanName}" already exists!`);
       return;
     }
+
+    let options: string[] | undefined = undefined;
+    if (type === 'dropdown' || type === 'labels') {
+      const optsStr = prompt(`Enter options for this field, separated by commas (e.g. Planning, Design, QA):`);
+      if (optsStr !== null) {
+        options = optsStr.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      if (!options || options.length === 0) {
+        options = ['Option 1', 'Option 2', 'Option 3'];
+      }
+    }
+
     const newField = {
       id: `cf-${Date.now()}`,
       name: cleanName,
-      type
+      type,
+      ...(options ? { options } : {})
     };
     setCustomFields([...customFields, newField]);
     setVisibleFields([...visibleFields, cleanName]);

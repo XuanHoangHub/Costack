@@ -4,10 +4,11 @@ import React, { useState, useRef } from 'react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DragStart, DropResult, DroppableProvided, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
-import { ChevronDown, Plus, GripVertical, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal, Play, Pause, Clock } from 'lucide-react';
+import { ChevronDown, Plus, GripVertical, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, MoreHorizontal, Play, Pause, Clock, AlertTriangle, Hourglass } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
+import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
 
 const DraggableCast = Draggable as typeof Draggable;
 
@@ -33,6 +34,13 @@ const PRIORITY_LEFT_BORDER: Record<Priority, string> = {
   high: 'border-l-orange-500',
   medium: 'border-l-yellow-400',
   low: 'border-l-slate-300 dark:border-l-slate-600',
+};
+
+const STATUS_LEFT_BORDER: Record<TaskStatus, string> = {
+  todo: 'border-l-slate-300 dark:border-l-slate-600',
+  inprogress: 'border-l-amber-500',
+  review: 'border-l-cyan-500',
+  completed: 'border-l-emerald-500',
 };
 
 interface TaskListViewProps {
@@ -69,6 +77,56 @@ export default function TaskListView({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     todo: true, inprogress: true, review: true, completed: true
   });
+
+  const [statusConfigs, setStatusConfigs] = useState<OptionConfig[]>([]);
+  const [priorityConfigs, setPriorityConfigs] = useState<OptionConfig[]>([]);
+
+  const reloadMeta = () => {
+    setStatusConfigs(getStoredStatuses());
+    setPriorityConfigs(getStoredPriorities());
+  };
+
+  React.useEffect(() => {
+    reloadMeta();
+    window.addEventListener('avaxa-field-config-changed', reloadMeta);
+    return () => window.removeEventListener('avaxa-field-config-changed', reloadMeta);
+  }, []);
+
+  const dynamicStatusMeta = React.useMemo(() => {
+    const meta: Record<string, any> = {};
+    const baseList = statusConfigs.length > 0 ? statusConfigs : [
+      { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50/80 dark:bg-slate-800/40', color: 'slate-500' },
+      { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50/80 dark:bg-amber-955/20', color: 'amber-500' },
+      { id: 'review', label: 'UNDER REVIEW', dot: 'bg-cyan-500', bg: 'bg-cyan-50/80 dark:bg-cyan-955/20', color: 'cyan-500' },
+      { id: 'completed', label: 'COMPLETED', dot: 'bg-emerald-500', bg: 'bg-emerald-50/80 dark:bg-emerald-955/20', color: 'emerald-500' }
+    ];
+    baseList.forEach(s => {
+      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
+      meta[s.id] = {
+        label: s.label,
+        dot: s.dot || `bg-${c}-500`,
+        bg: s.bg || `bg-${c}-50/80 dark:bg-${c}-955/20`,
+        text: `text-${c}-700 dark:text-${c}-400`,
+        border: `border-${c}-200 dark:border-${c}-800`
+      };
+    });
+    return meta;
+  }, [statusConfigs]);
+
+  const dynamicStatusBorders = React.useMemo(() => {
+    const borders: Record<string, string> = {};
+    const baseList = statusConfigs.length > 0 ? statusConfigs : [
+      { id: 'todo', color: 'slate-500' },
+      { id: 'inprogress', color: 'amber-500' },
+      { id: 'review', color: 'cyan-500' },
+      { id: 'completed', color: 'emerald-500' }
+    ];
+    baseList.forEach(s => {
+      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
+      borders[s.id] = `border-l-${c}-500`;
+    });
+    return borders;
+  }, [statusConfigs]);
   const [inlineAddingStatus, setInlineAddingStatus] = useState<string | null>(null);
   const [inlineAddingTitle, setInlineAddingTitle] = useState('');
   const [inlineEditTaskId, setInlineEditTaskId] = useState<string | null>(null);
@@ -82,6 +140,48 @@ export default function TaskListView({
     );
   };
   const isDraggingRef = useRef(false);
+
+  // Helper to build recursive tree inside each group
+  const buildGroupTree = (
+    groupNodes: Task[],
+    parentId: string | undefined = undefined,
+    depth = 0
+  ): { task: Task; depth: number }[] => {
+    const levelNodes = groupNodes.filter(n => 
+      parentId === undefined 
+        ? (!n.parentId || !groupNodes.some(parent => parent.id === n.parentId)) 
+        : n.parentId === parentId
+    );
+    
+    let result: { task: Task; depth: number }[] = [];
+    levelNodes.forEach(node => {
+      result.push({ task: node, depth });
+      
+      const hasChildren = groupNodes.some(n => n.parentId === node.id);
+      const isExpanded = expandedSubtaskTaskIds.includes(node.id);
+      
+      if (hasChildren && isExpanded) {
+        const children = buildGroupTree(groupNodes, node.id, depth + 1);
+        result = result.concat(children);
+      }
+    });
+    return result;
+  };
+
+  const getProgress = (t: Task) => {
+    const children = filteredTasks.filter(c => c.parentId === t.id);
+    if (children.length > 0) {
+      const completed = children.filter(c => c.status === 'completed').length;
+      return Math.round((completed / children.length) * 100);
+    }
+    return t.progress || 0;
+  };
+
+  const hasSubtasksOrChildren = (t: Task) => {
+    const hasChildren = filteredTasks.some(c => c.parentId === t.id);
+    const hasChecklist = t.subtasks && t.subtasks.length > 0;
+    return hasChildren || hasChecklist;
+  };
 
   React.useEffect(() => {
     if (activeDragId) {
@@ -109,7 +209,7 @@ export default function TaskListView({
       startDate: '', dueDate: '', tags: [], isPinned: false, subtasks: []
     });
     
-    const standardLabel = STATUS_META[statusId as TaskStatus]?.label;
+    const standardLabel = dynamicStatusMeta[statusId]?.label;
     const label = standardLabel || statusId.toUpperCase();
     onAddSyncLog(`Quick added: "${inlineAddingTitle.trim()}" to ${label}`);
     if (triggerToast) triggerToast('success', 'Quick Add', `Added "${inlineAddingTitle.trim()}"`);
@@ -165,7 +265,7 @@ export default function TaskListView({
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="space-y-1">
       {currentStatuses.map(statusItem => {
-        const standardMeta = STATUS_META[statusItem.id as TaskStatus];
+        const standardMeta = dynamicStatusMeta[statusItem.id];
         const meta = standardMeta ? { ...standardMeta, label: statusItem.label } : {
           label: statusItem.label.toUpperCase(),
           dot: '',
@@ -181,17 +281,17 @@ export default function TaskListView({
           <div key={statusItem.id} className="rounded-xl overflow-hidden">
             {/* Group Header */}
             <button onClick={() => toggleGroup(statusItem.id)}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 ${meta.bg} border ${meta.border} rounded-xl cursor-pointer select-none transition-all hover:shadow-sm group`}>
-              <span className={`transition-transform ${isExpanded ? '' : '-rotate-90'}`}>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+              className="w-full flex items-center gap-2.5 px-2.5 py-2.5 bg-transparent hover:bg-slate-50/50 dark:hover:bg-slate-900/30 border-b border-slate-100 dark:border-slate-800/40 rounded-none cursor-pointer select-none transition-all group mb-1">
+              <span className={`transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`}>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
               </span>
               {statusItem.color && !standardMeta ? (
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: statusItem.color }} />
+                <span className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.05)]" style={{ backgroundColor: statusItem.color }} />
               ) : (
-                <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.05)] ${meta.dot}`} />
               )}
-              <span className={`text-[11px] font-black uppercase tracking-wider ${meta.text}`}>{meta.label}</span>
-              <span className="text-[10px] font-bold text-slate-400 bg-white/60 dark:bg-slate-800/60 px-1.5 py-0.5 rounded-md">{groupTasks.length}</span>
+              <span className={`text-[10.5px] font-extrabold uppercase tracking-widest ${meta.text}`}>{meta.label}</span>
+              <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-550 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full leading-none">{groupTasks.length}</span>
             </button>
 
             {/* Tasks */}
@@ -199,20 +299,20 @@ export default function TaskListView({
               {isExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                   <StrictModeDroppable droppableId={statusItem.id} type="task">
-{(provided: DroppableProvided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[4px]">
-                          {groupTasks.map((task, index) => {
-                            const assignee = members.find(m => m.id === task.assigneeId);
-                            const daysInfo = getDaysText(task.dueDate);
-                            const isSelected = selectedTaskIds.includes(task.id);
+                    {(provided: DroppableProvided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[4px]">
+                        {buildGroupTree(groupTasks).map(({ task, depth }, index) => {
+                          const assignee = members.find(m => m.id === task.assigneeId);
+                          const daysInfo = getDaysText(task.dueDate);
+                          const isSelected = selectedTaskIds.includes(task.id);
 
-                            return (
-                              <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
-                                {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
-                                  <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
-                                    style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
-                                    <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                                      className={`flex items-center gap-3 px-4 py-2 border-l-[3.5px] border-b border-b-slate-150/40 dark:border-b-slate-800/30 ${PRIORITY_LEFT_BORDER[task.priority]} cursor-pointer transition-all group/row hover:bg-slate-55/60 dark:hover:bg-slate-800/20 ${isSelected ? 'bg-slate-105 dark:bg-slate-800/35' : 'bg-white dark:bg-slate-900/60'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 rounded-xl z-50 opacity-95' : ''}`}>
+                          return (
+                            <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
+                              {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
+                                <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
+                                  style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
+                                  <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
+                                    className={`flex items-center gap-3 px-4 py-2.5 border-l-[3px] border-b border-b-slate-100/50 dark:border-b-slate-800/30 ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-pointer transition-all group/row hover:bg-slate-50/70 dark:hover:bg-slate-850/30 ${isSelected ? 'bg-indigo-50/20 dark:bg-indigo-950/15' : 'bg-white dark:bg-slate-900/50'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 rounded-xl z-50 opacity-95' : ''}`}>
 
                                      {/* Drag handle */}
                                      <div {...dragProvided.dragHandleProps} onClick={e => e.stopPropagation()}
@@ -220,8 +320,20 @@ export default function TaskListView({
                                        <GripVertical className="w-3.5 h-3.5" />
                                      </div>
 
-                                     {/* Subtask Dropdown expand arrow (Image 3) */}
-                                     {task.subtasks && task.subtasks.length > 0 ? (
+                                     {/* Render visual indentation and connector lines */}
+                                     {depth > 0 && (
+                                       <div className="flex items-center shrink-0" style={{ paddingLeft: `${(depth - 1) * 20}px` }}>
+                                         <div className="relative h-6 w-5 flex items-center justify-center shrink-0">
+                                           {/* Horizontal connector line */}
+                                           <div className="absolute top-[11px] left-[4px] w-3 h-[1.5px] bg-slate-200 dark:bg-slate-700/80 rounded" />
+                                           {/* Vertical connector line */}
+                                           <div className="absolute top-0 bottom-0 left-[4px] w-[1.5px] bg-slate-200 dark:bg-slate-700/80" />
+                                         </div>
+                                       </div>
+                                     )}
+
+                                     {/* Subtask Dropdown expand arrow */}
+                                     {filteredTasks.some(c => c.parentId === task.id) ? (
                                        <button 
                                          type="button"
                                          onClick={e => { e.stopPropagation(); toggleSubtaskExpand(task.id); }}
@@ -231,9 +343,9 @@ export default function TaskListView({
                                        >
                                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedSubtaskTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
                                        </button>
-                                     ) : (
+                                     ) : depth > 0 ? (
                                        <div className="w-[18px] h-[18px] shrink-0" />
-                                     )}
+                                     ) : null}
 
                                      {/* Checkbox */}
                                      <input type="checkbox" checked={isSelected}
@@ -261,18 +373,33 @@ export default function TaskListView({
                                             className="w-full text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b-2 border-indigo-500 outline-none py-0.5" />
                                        ) : (
                                           <div className="flex items-center justify-between min-w-0" onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}>
-                                            <div className="flex items-center gap-1.5 min-w-0">
+                                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                                               <span 
                                                 onClick={() => {
                                                   setInlineEditTaskId(task.id);
                                                   setInlineEditTitle(task.title);
                                                 }}
-                                                className={`text-[13px] font-semibold truncate cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}
+                                                className={`text-[13px] font-semibold truncate cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-800 dark:text-slate-100'}`}
                                                 title="Click to rename task"
                                               >
                                                 {task.title}
                                               </span>
                                               {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
+                                              
+                                              {/* Dependency Badges */}
+                                              {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
+                                                <span className="bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Waiting on another task to complete">
+                                                  <Hourglass className="w-2.5 h-2.5 animate-pulse" />
+                                                  <span>Waiting On</span>
+                                                </span>
+                                              )}
+                                              {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
+                                                <span className="bg-rose-50/80 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/30 text-rose-650 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Blocking another task from starting">
+                                                  <AlertTriangle className="w-2.5 h-2.5" />
+                                                  <span>Blocking</span>
+                                                </span>
+                                              )}
+
                                               {activeTimerTaskId === task.id && (
                                                 <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-1.5 py-0.5 rounded border border-rose-200/40 dark:border-rose-900/30 animate-pulse select-none shrink-0 ml-1">
                                                   <Clock className="w-2.5 h-2.5" /> Ticking
@@ -280,7 +407,7 @@ export default function TaskListView({
                                               )}
                                             </div>
 
-                                           {/* Hover Option Buttons (Image 3, 4) */}
+                                           {/* Hover Option Buttons */}
                                            <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-1.5 transition-all ml-3 shrink-0">
                                              {/* Time Tracking */}
                                              {activeTimerTaskId === task.id ? (
@@ -289,7 +416,7 @@ export default function TaskListView({
                                                    e.stopPropagation();
                                                    if (onStopGlobalTimer) onStopGlobalTimer();
                                                  }}
-                                                 className="p-1 border border-rose-200 dark:border-rose-900/50 rounded bg-rose-50 dark:bg-rose-955/30 shadow-3xs text-rose-600 dark:text-rose-455 hover:bg-rose-100 transition-all cursor-pointer"
+                                                 className="p-1 border border-rose-200 dark:border-rose-905/50 rounded bg-rose-50 dark:bg-rose-955/30 shadow-3xs text-rose-605 dark:text-rose-455 hover:bg-rose-100 transition-all cursor-pointer"
                                                  title="Stop Timer"
                                                >
                                                  <Clock className="w-3 h-3 text-rose-500 animate-spin" />
@@ -373,7 +500,7 @@ export default function TaskListView({
                                      <div className="hidden lg:flex items-center gap-1 shrink-0">
                                        {task.tags?.slice(0, 2).map(tag => (
                                          <span key={tag} onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${filterTag === tag ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'}`}>
+                                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${filterTag === tag ? 'bg-indigo-600 text-white' : 'bg-slate-105 dark:bg-slate-800 text-slate-550 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-955/30'}`}>
                                            #{tag}
                                          </span>
                                        ))}
@@ -398,12 +525,17 @@ export default function TaskListView({
                                      {/* Start Date picker */}
                                      <div className="shrink-0 hidden lg:block" onClick={e => e.stopPropagation()}>
                                        <PremiumDatePicker 
-                                         dateValue={task.startDate || ''} 
-                                         onChange={newD => {
-                                           onUpdateTask({ ...task, startDate: newD });
+                                         startDateValue={task.startDate || ''} 
+                                         onStartDateChange={newD => {
+                                           onUpdateTask({ ...task, startDate: newD || '' });
                                            onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
                                          }} 
-                                         label="—" 
+                                         dateValue={task.dueDate || ''}
+                                         onChange={newD => {
+                                           onUpdateTask({ ...task, dueDate: newD || '' });
+                                           onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
+                                         }} 
+                                         label="Start" 
                                          align="right" 
                                          className="text-[10px] text-slate-300 dark:text-slate-600 cursor-pointer border-0 bg-transparent"
                                        />
@@ -412,23 +544,32 @@ export default function TaskListView({
                                      {/* Due Date picker */}
                                      <div className="shrink-0 text-right" onClick={e => e.stopPropagation()}>
                                        <PremiumDatePicker 
-                                         dateValue={task.dueDate || ''} 
+                                         startDateValue={task.startDate || ''} 
+                                         onStartDateChange={newD => {
+                                           onUpdateTask({ ...task, startDate: newD || '' });
+                                           onAddSyncLog(`Start Date "${task.title}" → ${newD || 'Cleared'}`);
+                                         }} 
+                                         dateValue={task.dueDate || ''}
                                          onChange={newD => {
-                                           onUpdateTask({ ...task, dueDate: newD });
+                                           onUpdateTask({ ...task, dueDate: newD || '' });
                                            onAddSyncLog(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
                                          }} 
-                                         label="—" 
+                                         label="Due" 
                                          align="right" 
-                                         className={daysInfo ? `text-[10px] font-bold px-1.5 py-0.5 rounded border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-300 dark:text-slate-600 cursor-pointer border-0 bg-transparent"} 
+                                         className={daysInfo ? `text-[10px] font-bold px-1.5 py-0.5 rounded border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-350 dark:text-slate-600 cursor-pointer border-0 bg-transparent"} 
                                        />
                                      </div>
 
                                      {/* Meta icons */}
                                      <div className="hidden md:flex items-center gap-1.5 shrink-0 text-slate-400 dark:text-slate-500">
-                                       {(task.subtasks?.length || 0) > 0 && (
+                                       {hasSubtasksOrChildren(task) && (
                                          <span className="text-[9px] font-bold flex items-center gap-0.5">
                                            <Check className="w-3 h-3" />
-                                           {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}
+                                           {task.subtasks && task.subtasks.length > 0 ? (
+                                             `${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}`
+                                           ) : (
+                                             `${filteredTasks.filter(c => c.parentId === task.id && c.status === 'completed').length}/${filteredTasks.filter(c => c.parentId === task.id).length}`
+                                           )}
                                          </span>
                                        )}
                                        {(task.comments?.length || 0) > 0 && (
@@ -450,11 +591,11 @@ export default function TaskListView({
                                        }} />
                                      </div>
 
-                                     {/* Far Right Settings (Image 5) */}
+                                     {/* Far Right Settings */}
                                      <div className="shrink-0 relative w-6 flex items-center justify-center" onClick={e => e.stopPropagation()}>
                                        <button 
                                          onClick={() => setSelectedTask(task)}
-                                         className="opacity-0 group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                                         className="opacity-0 group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-202 transition-all cursor-pointer"
                                          title="Task Options"
                                        >
                                          <MoreHorizontal className="w-3.5 h-3.5" />

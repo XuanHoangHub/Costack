@@ -87,12 +87,14 @@ export interface Task {
   progress: number; // 0 to 100
   createdAt: string;
   completedAt?: string;
+  position?: number;
   hoursEstimate?: number;
   hoursLogged?: number;
   commentsCount: number;
   tags?: string[];
   isPinned?: boolean;
   workspaceId?: string;
+  parentId?: string;
   spaceId?: string; // ClickUp Space link
   listId?: string; // ClickUp List link
   attachments?: TaskAttachment[];

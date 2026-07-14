@@ -221,7 +221,7 @@ export default function SpaceOverviewTab({
       {/* ── Bento Stats Strip (Top Header) ── */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10">
         {/* Card 1: Core Space Identity (Lg Span 5) */}
-        <div className={`md:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-3xs flex items-center gap-5 relative overflow-hidden group hover:border-indigo-500/25 transition-all duration-300`}>
+        <div className={`md:col-span-5 glass-panel rounded-3xl p-6 flex items-center gap-5 relative overflow-hidden group hover:border-indigo-500/25 transition-all duration-300 shadow-3xs`}>
           <div className={`absolute -right-16 -top-16 w-36 h-36 rounded-full bg-gradient-to-br ${theme.gradient} opacity-5 blur-2xl group-hover:scale-125 transition-transform duration-500`} />
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-display shadow-sm relative overflow-hidden bg-slate-55 dark:bg-slate-950 border border-slate-200/50 dark:border-slate-805 shrink-0`}>
             <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${theme.gradient}`} />
@@ -243,7 +243,7 @@ export default function SpaceOverviewTab({
         </div>
 
         {/* Card 2: Space Task Completion Analytics (Lg Span 4) */}
-        <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-202/65 dark:border-slate-800 shadow-3xs flex items-center justify-between relative overflow-hidden group hover:border-indigo-505/25 transition-all duration-300">
+        <div className="md:col-span-4 glass-panel rounded-3xl p-6 shadow-3xs flex items-center justify-between relative overflow-hidden group hover:border-indigo-505/25 transition-all duration-300">
           <div className="space-y-1 text-left">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Tiến độ' : 'Progress'}</h4>
             <div className="space-y-0.5">
@@ -275,7 +275,7 @@ export default function SpaceOverviewTab({
         </div>
 
         {/* Card 3: Space Member Presence Hub (Lg Span 3) */}
-        <div className="md:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-202/65 dark:border-slate-800 shadow-3xs flex flex-col justify-between gap-4 relative overflow-hidden group hover:border-indigo-505/25 transition-all duration-300 text-left">
+        <div className="md:col-span-3 glass-panel rounded-3xl p-6 shadow-3xs flex flex-col justify-between gap-4 relative overflow-hidden group hover:border-indigo-505/25 transition-all duration-300 text-left">
           <div className="space-y-1">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Thành viên' : 'Team Members'}</h4>
             <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium">
@@ -305,7 +305,7 @@ export default function SpaceOverviewTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
         
         {/* Recent Section */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+        <div className="glass-panel rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
           <div className="space-y-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 text-left">
               {locale === 'vi' ? 'Hoạt động gần đây' : 'Recent Activity'}
@@ -351,7 +351,7 @@ export default function SpaceOverviewTab({
         </div>
 
         {/* Docs Section */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+        <div className="glass-panel rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -401,7 +401,7 @@ export default function SpaceOverviewTab({
         </div>
 
         {/* Bookmarks Section */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+        <div className="glass-panel rounded-3xl p-6 shadow-3xs flex flex-col justify-between hover:shadow-md hover:-translate-y-1 transition-all duration-300">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
