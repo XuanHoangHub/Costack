@@ -918,7 +918,7 @@ export default function TaskBoardView({
     const startCol = boardState.columns[activeCol];
     const endCol = boardState.columns[overCol];
 
-    let nextBoardState = { ...boardState };
+    const nextBoardState = { ...boardState };
 
     // Case A: Dragged within the same column
     if (activeCol === overCol) {
