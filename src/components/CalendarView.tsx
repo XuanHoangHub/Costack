@@ -12,7 +12,7 @@ import {
   Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
   RefreshCw, CheckCircle2, Sparkles, Check, Plus, X,
   Search, Filter, Info, Trash2, ArrowRight, UserCheck, Users,
-  ListPlus, Settings, CalendarDays, Eye, Edit3, Tag
+  ListPlus, Settings, CalendarDays, Eye, Edit3, Tag, GripVertical, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -69,7 +69,7 @@ export default function CalendarView({
   const [quickAssigneeId, setQuickAssigneeId] = useState<string>('');
   const [quickStartTime, setQuickStartTime] = useState<string>('09:00');
   const [quickEndTime, setQuickEndTime] = useState<string>('10:00');
-  const [quickEventColor, setQuickEventColor] = useState<string>('#6366f1');
+  const [quickEventColor, setQuickEventColor] = useState<string>('#7B61FF');
   const [createType, setCreateType] = useState<'task' | 'event'>('task');
 
   // Sidebar expanded state
@@ -94,7 +94,6 @@ export default function CalendarView({
       }
     } catch (e) {}
     
-    // Get relative dates to current date
     const d = new Date();
     const formatDate = (offset: number) => {
       const target = new Date(d);
@@ -103,9 +102,9 @@ export default function CalendarView({
     };
 
     return [
-      { id: 'mock-1', summary: 'Product Direction Meeting 🚀', description: 'Review Kanban v2.5 board designs', start: { dateTime: `${formatDate(0)}T10:00:00+07:00` }, end: { dateTime: `${formatDate(0)}T11:30:00+07:00` }, color: '#6366f1', isGoogleEvent: true },
-      { id: 'mock-2', summary: 'Calendar UI Polish 📅', description: 'Perfecting layout grid and scroll behavior', start: { dateTime: `${formatDate(2)}T14:00:00+07:00` }, end: { dateTime: `${formatDate(2)}T15:30:00+07:00` }, color: '#10b981', isGoogleEvent: true },
-      { id: 'mock-3', summary: 'AI Copilot Review 🧠', description: 'Tune prompt patterns for assistant chat', start: { dateTime: `${formatDate(-1)}T09:00:00+07:00` }, end: { dateTime: `${formatDate(-1)}T10:30:00+07:00` }, color: '#f59e0b', isGoogleEvent: true }
+      { id: 'mock-1', summary: 'Họp Định hướng Sản phẩm 🚀', description: 'Đánh giá thiết kế bảng Kanban v2.5 mới', start: { dateTime: `${formatDate(0)}T10:00:00+07:00` }, end: { dateTime: `${formatDate(0)}T11:30:00+07:00` }, color: '#7B61FF', isGoogleEvent: true },
+      { id: 'mock-2', summary: 'Tối ưu Giao diện Calendar 📅', description: 'Hoàn thiện hệ lưới và chuyển động kéo thả', start: { dateTime: `${formatDate(2)}T14:00:00+07:00` }, end: { dateTime: `${formatDate(2)}T15:30:00+07:00` }, color: '#10b981', isGoogleEvent: true },
+      { id: 'mock-3', summary: 'Duyệt Trợ lý AI Copilot 🧠', description: 'Tinh chỉnh câu lệnh cho trợ lý ảo thông minh', start: { dateTime: `${formatDate(-1)}T09:00:00+07:00` }, end: { dateTime: `${formatDate(-1)}T10:30:00+07:00` }, color: '#f59e0b', isGoogleEvent: true }
     ];
   });
 
@@ -162,7 +161,7 @@ export default function CalendarView({
         }
         return next;
       });
-    }, 600000 / 600000 * 800); // quick simulated interval
+    }, 400); // Quick simulated interval
   };
 
   // Drag and drop handlers
@@ -217,7 +216,7 @@ export default function CalendarView({
       onUpdateTask(updatedTask);
       if ((window as any).playSystemSound) (window as any).playSystemSound('success');
       addLocalSyncLog(`Rescheduled task "${findTask.title}" to ${dateStr} at ${scheduledHour}:00`);
-      triggerToast?.('success', 'Đã xếp lịch', `Đã chuyển "${findTask.title}" sang ${dateStr} lúc ${scheduledHour}:00`);
+      triggerToast?.('success', 'Đã xếp lịch ⏱', `Đã chuyển "${findTask.title}" sang ngày ${dateStr} lúc ${scheduledHour}:00.`);
     }
   };
 
@@ -270,7 +269,6 @@ export default function CalendarView({
     setShowAddModal(false);
   };
 
-  // Detailed Modal Update
   const handleModalUpdateField = (field: keyof Task, value: any) => {
     if (!selectedTask || !onUpdateTask) return;
     const updatedTask = { ...selectedTask, [field]: value };
@@ -287,10 +285,9 @@ export default function CalendarView({
     const lastDate = new Date(year, month + 1, 0).getDate();
     
     const days: { date: Date; isCurrentMonth: boolean }[] = [];
-    
-    // Previous month padding
     const prevMonthLastDate = new Date(year, month, 0).getDate();
     const padCount = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Align Mon-Sun
+
     for (let i = padCount - 1; i >= 0; i--) {
       days.push({
         date: new Date(year, month - 1, prevMonthLastDate - i),
@@ -298,7 +295,6 @@ export default function CalendarView({
       });
     }
     
-    // Current month dates
     for (let i = 1; i <= lastDate; i++) {
       days.push({
         date: new Date(year, month, i),
@@ -306,7 +302,6 @@ export default function CalendarView({
       });
     }
     
-    // Next month padding to fill grid
     const remaining = 42 - days.length;
     for (let i = 1; i <= remaining; i++) {
       days.push({
@@ -350,7 +345,6 @@ export default function CalendarView({
     return `${year}-${month}-${day}`;
   };
 
-  // General Filtered Tasks list
   const getFilteredTasksForDate = (dateStr: string) => {
     if (!showTasks) return [];
     return tasks.filter(t => {
@@ -377,10 +371,10 @@ export default function CalendarView({
 
     if (showHolidays) {
       const holidaysMap: Record<string, { summary: string; color: string }> = {
-        '2026-01-01': { summary: "New Year's Day 🎉", color: '#ef4444' },
-        '2026-04-30': { summary: 'Liberation Day 🇻🇳', color: '#ef4444' },
-        '2026-05-01': { summary: 'International Labor Day 🛠️', color: '#ef4444' },
-        '2026-09-02': { summary: 'National Day 🇻🇳', color: '#ef4444' },
+        '2026-01-01': { summary: "Tết Dương Lịch 🎉", color: '#ef4444' },
+        '2026-04-30': { summary: 'Ngày Giải Phóng 🇻🇳', color: '#ef4444' },
+        '2026-05-01': { summary: 'Quốc Tế Lao Động 🛠️', color: '#ef4444' },
+        '2026-09-02': { summary: 'Quốc Khánh VN 🇻🇳', color: '#ef4444' },
       };
       if (holidaysMap[dateStr]) {
         evts.push({
@@ -395,7 +389,6 @@ export default function CalendarView({
     return evts;
   };
 
-  // Nav Actions
   const handlePrev = () => {
     const d = new Date(currentDate);
     if (viewMode === 'month') d.setMonth(d.getMonth() - 1);
@@ -418,34 +411,30 @@ export default function CalendarView({
     setCurrentDate(new Date());
   };
 
-  // Unscheduled tasks
   const unscheduledTasks = tasks.filter(t => !t.dueDate);
-
-  // Month details
   const daysInMonth = getDaysInMonth(currentDate);
   const daysInWeek = getDaysInWeek(currentDate);
+  
   const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
   ];
 
-  // Hour list
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
-  // Priority color map helper (pastels)
   const getPriorityStyle = (priority: Priority) => {
     switch (priority) {
-      case 'urgent': return { bg: 'bg-rose-50', text: 'text-rose-600', dot: 'bg-rose-500', border: 'border-rose-100' };
-      case 'high': return { bg: 'bg-orange-50', text: 'text-orange-600', dot: 'bg-orange-500', border: 'border-orange-100' };
-      case 'medium': return { bg: 'bg-indigo-50', text: 'text-indigo-650', dot: 'bg-indigo-500', border: 'border-indigo-100' };
-      default: return { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400', border: 'border-slate-100' };
+      case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-955/20', text: 'text-rose-650 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-100 dark:border-rose-900/40' };
+      case 'high': return { bg: 'bg-orange-50 dark:bg-orange-955/20', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-100 dark:border-orange-900/40' };
+      case 'medium': return { bg: 'bg-indigo-50 dark:bg-indigo-955/20', text: 'text-indigo-650 dark:text-indigo-400', dot: 'bg-indigo-500', border: 'border-indigo-100 dark:border-indigo-900/40' };
+      default: return { bg: 'bg-slate-50 dark:bg-slate-800/40', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-100 dark:border-slate-800' };
     }
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full font-sans select-none pb-8 text-slate-800 animate-fadeIn">
+    <div className="flex flex-col lg:flex-row gap-6 w-full font-sans select-none pb-8 text-slate-800 dark:text-slate-100 animate-fadeIn">
       
-      {/* ═══════════════ LEFT COLLAPSIBLE SIDEBAR ═══════════════ */}
+      {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
         {isSidebarOpen && (
           <motion.div
@@ -455,46 +444,45 @@ export default function CalendarView({
             transition={{ type: 'spring', stiffness: 220, damping: 26 }}
             className="w-full lg:w-72 flex flex-col gap-5 shrink-0 text-left overflow-hidden pr-1"
           >
-            
             {/* Google Calendar Connection Card */}
-            <div className="p-4.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs relative overflow-hidden">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
               
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Liên kết bộ lịch</span>
               </h4>
                
               {gcalConnected ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-100">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-650 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">G</div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-150 dark:border-indigo-900/60">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-650 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
                     <div className="min-w-0">
-                      <span className="block text-[11px] font-black text-indigo-700 truncate">{gcalUserEmail}</span>
+                      <span className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 truncate">{gcalUserEmail}</span>
                       <span className="block text-[8px] text-indigo-400 font-extrabold uppercase mt-0.5">Đã kết nối</span>
                     </div>
                   </div>
                   <button 
                     onClick={handleConnectGcal}
-                    className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/60 rounded-xl text-[10px] font-bold text-slate-500 transition-colors cursor-pointer text-center"
+                    className="w-full py-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-250/60 dark:border-slate-700/60 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-455 transition-colors cursor-pointer text-center"
                   >
                     Ngắt kết nối
                   </button>
                 </div>
               ) : syncingGcal ? (
-                <div className="space-y-3.5 pt-1">
-                  <div className="flex items-center justify-between text-[10px] font-bold">
-                    <span className="text-slate-500 animate-pulse">Đang đồng bộ...</span>
-                    <span className="font-mono text-indigo-600">{syncProgress}%</span>
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between text-[10px] font-black">
+                    <span className="text-slate-500 dark:text-slate-455 animate-pulse">Đang đồng bộ...</span>
+                    <span className="font-mono text-indigo-605 dark:text-indigo-400">{syncProgress}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${syncProgress}%` }}
-                      className="h-full bg-indigo-500 rounded-full"
+                      className="h-full bg-indigo-505 rounded-full"
                     />
                   </div>
-                  <div className="bg-slate-900 p-2.5 rounded-xl font-mono text-[8px] text-slate-300 leading-normal max-h-24 overflow-y-auto space-y-1 scrollbar-none">
+                  <div className="bg-slate-900 dark:bg-slate-950 p-2.5 rounded-2xl font-mono text-[8px] text-slate-350 dark:text-slate-450 leading-normal max-h-24 overflow-y-auto space-y-1 scrollbar-none">
                     {syncLogs.map((log, i) => (
                       <div key={i} className="truncate">{log}</div>
                     ))}
@@ -503,46 +491,66 @@ export default function CalendarView({
               ) : (
                 <button 
                   onClick={handleConnectGcal}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-900 dark:bg-white hover:bg-slate-850 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs shadow-xs transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-600" />
                   <span>Đồng bộ Google Calendar</span>
                 </button>
               )}
             </div>
 
-            {/* Filter Card */}
-            <div className="p-4.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-4">
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            {/* Filter Toggle Pills */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
                 <span>Bộ lọc hiển thị</span>
               </h4>
               
-              <div className="space-y-3">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                  <input type="checkbox" checked={showTasks} onChange={e => setShowTasks(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer" />
-                  <span>Công việc ({tasks.length})</span>
-                </label>
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                  <input type="checkbox" checked={showGcal} onChange={e => setShowGcal(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer" />
-                  <span>Lịch Google ({gcalEvents.length})</span>
-                </label>
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                  <input type="checkbox" checked={showHolidays} onChange={e => setShowHolidays(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-rose-500 focus:ring-rose-500 accent-rose-500 cursor-pointer" />
-                  <span>Ngày lễ Việt Nam</span>
-                </label>
+              <div className="space-y-2">
+                {[
+                  { id: 'showTasks', label: 'Công việc', count: tasks.length, color: 'indigo', state: showTasks, setter: setShowTasks },
+                  { id: 'showGcal', label: 'Lịch Google', count: gcalEvents.length, color: 'emerald', state: showGcal, setter: setShowGcal },
+                  { id: 'showHolidays', label: 'Ngày lễ Việt Nam', count: null, color: 'rose', state: showHolidays, setter: setShowHolidays }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => item.setter(!item.state)}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
+                      item.state
+                        ? item.color === 'indigo'
+                          ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400'
+                          : item.color === 'emerald'
+                          ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-rose-50/60 dark:bg-rose-955/20 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-850'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <span className={`w-2.5 h-2.5 rounded-full ${
+                        item.state
+                          ? item.color === 'indigo' ? 'bg-indigo-500' : item.color === 'emerald' ? 'bg-emerald-500' : 'bg-rose-500'
+                          : 'bg-slate-300 dark:bg-slate-700'
+                      }`} />
+                      <span>{item.label}</span>
+                    </span>
+                    {item.count !== null && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                        item.state ? 'bg-white/80 dark:bg-slate-800/80 shadow-3xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                      }`}>
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
 
-              {/* Priority filter */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                <label className="text-[9px] font-black uppercase text-slate-400 block">Độ ưu tiên</label>
+              {/* Priority Filter */}
+              <div className="space-y-1.5 pt-3.5 border-t border-slate-100 dark:border-slate-800/60">
+                <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 block">Độ ưu tiên</label>
                 <select 
                   value={priorityFilter} 
                   onChange={e => setPriorityFilter(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 outline-none text-xs font-bold text-slate-650 cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs font-bold text-slate-650 dark:text-slate-300 cursor-pointer"
                 >
                   <option value="all">Tất cả độ ưu tiên</option>
                   <option value="urgent">Khẩn cấp (Urgent)</option>
@@ -554,117 +562,120 @@ export default function CalendarView({
             </div>
 
             {/* Unscheduled Tasks Card */}
-            <div className="p-4.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex-1 min-h-[250px] flex flex-col overflow-hidden">
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-3">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-1 min-h-[250px] flex flex-col overflow-hidden">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-3">
                 <ListPlus className="w-3.5 h-3.5" />
                 <span>Chưa lên lịch ({unscheduledTasks.length})</span>
               </h4>
               
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 lg:max-h-[calc(100vh-420px)] max-h-64 pr-1.5 scrollbar-thin">
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 lg:max-h-[calc(100vh-420px)] max-h-64 pr-1.5 scrollbar-thin">
                 {unscheduledTasks.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 space-y-1">
+                  <div className="py-10 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
                     <Check className="w-5 h-5 mx-auto text-emerald-500 stroke-[3px]" />
-                    <p className="text-[10px] font-black text-slate-650">Tuyệt vời!</p>
+                    <p className="text-[10px] font-black text-slate-650 dark:text-slate-300">Tuyệt vời!</p>
                     <p className="text-[9px]">Mọi việc đã được lên lịch.</p>
                   </div>
                 ) : (
                   unscheduledTasks.map(t => {
                     const style = getPriorityStyle(t.priority);
                     return (
-                      <div 
+                      <motion.div 
                         key={t.id}
                         draggable
-                        onDragStart={e => handleDragStart(e, t.id)}
+                        onDragStart={e => handleDragStart(e as any, t.id)}
                         onDragEnd={handleDragEnd}
-                        className="py-2.5 group cursor-grab active:cursor-grabbing hover:bg-slate-50 rounded-lg transition-colors px-1"
+                        whileHover={{ scale: 1.02, x: 2 }}
+                        className="py-2.5 group cursor-grab active:cursor-grabbing hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded-xl transition-all px-2 border border-transparent hover:border-slate-100 dark:hover:border-slate-800 flex items-start gap-2.5"
                       >
-                        <div className="flex items-start gap-2 justify-between">
-                          <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-650 transition-colors truncate max-w-[150px]">{t.title}</span>
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${style.bg} ${style.text} ${style.border} border`}>
-                            {t.priority}
-                          </span>
+                        <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 mt-0.5 shrink-0 cursor-grab" />
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-start gap-2 justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
+                            <span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
+                              {t.priority}
+                            </span>
+                          </div>
+                          {t.description && <p className="text-[9.5px] text-slate-400 dark:text-slate-550 truncate mt-0.5">{t.description}</p>}
                         </div>
-                        {t.description && <p className="text-[9.5px] text-slate-400 truncate mt-1">{t.description}</p>}
-                      </div>
+                      </motion.div>
                     );
                   })
                 )}
               </div>
               
-              <p className="text-[8.5px] text-slate-400 text-center font-bold bg-slate-50 py-2 rounded-xl border border-slate-100 mt-3 select-none">
-                💡 Kéo và thả việc vào lịch để định ngày
+              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 text-center font-bold bg-slate-50 dark:bg-slate-950/40 py-2 rounded-xl border border-slate-100 dark:border-slate-800 mt-3 select-none">
+                💡 Kéo thả việc vào lịch để định ngày
               </p>
             </div>
-
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── SIDEBAR TOGGLE BUTTON ── */}
+      {/* Sidebar Toggle Button */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="hidden lg:flex items-center justify-center w-6 h-10 rounded-r-xl border border-l-0 border-slate-200 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
+        className="hidden lg:flex items-center justify-center w-6 h-10 rounded-r-2xl border border-l-0 border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-400 hover:text-slate-600 dark:hover:text-slate-250 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
         title={isSidebarOpen ? "Thu gọn sidebar" : "Mở rộng sidebar"}
       >
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* ── RIGHT MAIN GRID (Main Calendar Views) ── */}
-      <div className="flex-1 p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col gap-4 min-w-0">
+      {/* Main Calendar Views */}
+      <div className="flex-1 p-5.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col gap-4 min-w-0">
         
-        {/* Calendar Header with navigation controls and switcher */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-base font-black tracking-tight text-slate-900 capitalize">
+        {/* Calendar Navigation Header */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white capitalize">
               {viewMode === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
               {viewMode === 'week' && `Tuần ${Math.ceil(currentDate.getDate() / 7)}, ${monthNames[currentDate.getMonth()]}`}
               {viewMode === '4day' && `4 Ngày tiếp theo`}
               {viewMode === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
               {viewMode === 'schedule' && `Lịch trình chi tiết`}
             </h2>
-            <div className="flex items-center gap-0.5 border border-slate-200/80 p-0.5 rounded-lg bg-slate-50">
-              <button onClick={handlePrev} className="p-1 rounded hover:bg-white hover:shadow-2xs transition-all cursor-pointer"><ChevronLeft className="w-3.5 h-3.5" /></button>
-              <button onClick={handleToday} className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase hover:bg-white hover:shadow-2xs transition-all cursor-pointer">Hôm nay</button>
-              <button onClick={handleNext} className="p-1 rounded hover:bg-white hover:shadow-2xs transition-all cursor-pointer"><ChevronRight className="w-3.5 h-3.5" /></button>
+            <div className="flex items-center gap-0.5 border border-slate-200/80 dark:border-slate-700/60 p-0.5 rounded-xl bg-slate-50 dark:bg-slate-950/40">
+              <button onClick={handlePrev} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
+              <button onClick={handleToday} className="px-3 py-1 rounded-lg text-[9.5px] font-black uppercase hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-650 dark:text-slate-305">Hôm nay</button>
+              <button onClick={handleNext} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
 
-          {/* Controls: Search, Me Mode & View Toggles */}
-          <div className="flex flex-wrap items-center gap-3 justify-end w-full sm:w-auto">
-            {/* Search */}
+          {/* Search, Filter & Toggles */}
+          <div className="flex flex-wrap items-center gap-3 justify-end w-full md:w-auto">
+            {/* Search Input */}
             <div className="relative flex items-center">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3" />
               <input
                 type="text"
                 placeholder="Tìm công việc..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white placeholder-slate-400 outline-none w-40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium"
+                className="pl-8.5 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 placeholder-slate-400 outline-none w-40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold"
               />
             </div>
 
-            {/* Me / Team Toggle */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 select-none">
+            {/* Me vs Team Switch Slider */}
+            <div className="flex bg-slate-100 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 relative select-none">
               <button 
                 onClick={() => setIsMeMode(true)}
-                className={`px-2.5 py-1 rounded text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
-                  isMeMode ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/20' : 'text-slate-400 hover:text-slate-700'
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
+                  isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-450 dark:text-slate-450 hover:text-slate-700'
                 }`}
               >
                 <UserCheck className="w-3 h-3" /> Của tôi
               </button>
               <button 
                 onClick={() => setIsMeMode(false)}
-                className={`px-2.5 py-1 rounded text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer ${
-                  !isMeMode ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/20' : 'text-slate-400 hover:text-slate-700'
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
+                  !isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-455 dark:text-slate-455 hover:text-slate-700'
                 }`}
               >
                 <Users className="w-3 h-3" /> Cả nhóm
               </button>
             </div>
 
-            {/* Views dropdown / buttons */}
-            <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 select-none">
+            {/* View Select Mode Slider */}
+            <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none relative">
               {[
                 { id: 'month', label: 'Tháng' },
                 { id: 'week', label: 'Tuần' },
@@ -675,30 +686,35 @@ export default function CalendarView({
                 <button 
                   key={m.id}
                   onClick={() => setViewMode(m.id as any)}
-                  className={`px-3 py-1.5 rounded-md text-[10.5px] font-black transition-all cursor-pointer ${
-                    viewMode === m.id 
-                      ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/10' 
-                      : 'text-slate-400 hover:text-slate-700'
-                  }`}
+                  className="px-3.5 py-2 rounded-lg text-[10.5px] font-black transition-all cursor-pointer relative"
                 >
-                  {m.label}
+                  {viewMode === m.id && (
+                    <motion.div 
+                      layoutId="activeViewTab" 
+                      className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-3xs border border-slate-200/10"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className={`relative z-10 ${viewMode === m.id ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-350'}`}>
+                    {m.label}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Main interactive grid content */}
+        {/* Main Grid Content Area */}
         <div className="flex-1 overflow-x-auto min-w-0">
           
           {/* A. MONTH VIEW */}
           {viewMode === 'month' && (
-            <div className="grid grid-cols-7 gap-px bg-slate-100 rounded-2xl overflow-hidden border border-slate-200/80 min-w-[700px]">
-               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(header => (
-                 <div key={header} className="bg-slate-50/80 py-2.5 text-center text-[10px] font-black tracking-widest text-slate-400 uppercase select-none">
-                   {header}
-                 </div>
-               ))}
+            <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 min-w-[720px]">
+              {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map(header => (
+                <div key={header} className="bg-slate-50/80 dark:bg-slate-950/30 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase select-none">
+                  {header}
+                </div>
+              ))}
               
               {daysInMonth.map((day, idx) => {
                 const dateStr = formatDateString(day.date);
@@ -714,54 +730,59 @@ export default function CalendarView({
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, dateStr)}
                     onClick={() => handleGridCellClick(dateStr)}
-                    className={`min-h-[105px] bg-white p-2 relative flex flex-col gap-1.5 transition-colors group text-left ${
-                      day.isCurrentMonth ? 'text-slate-800' : 'text-slate-300 opacity-40'
-                    } ${isToday ? 'bg-indigo-50/5' : ''} ${isDragOver ? 'bg-indigo-50/40 ring-1 ring-indigo-500/30' : 'hover:bg-slate-50/30'}`}
+                    className={`min-h-[110px] bg-white dark:bg-slate-900 p-2.5 relative flex flex-col gap-1.5 transition-all duration-200 border-r border-b border-slate-100 dark:border-slate-850/60 group text-left ${
+                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-350 dark:text-slate-605 opacity-30'
+                    } ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-950/10' : ''} ${isDragOver ? 'bg-indigo-50/40 dark:bg-indigo-950/20 ring-2 ring-indigo-500/30 dark:ring-indigo-500/20 z-10' : 'hover:bg-slate-50/40 dark:hover:bg-slate-850/20'}`}
                   >
-                    {/* Day number header */}
+                    {/* Day Number Header */}
                     <div className="flex justify-between items-center select-none">
-                      <span className={`text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center ${
-                        isToday ? 'bg-slate-900 text-white shadow-xs' : ''
+                      <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                        isToday ? 'bg-indigo-650 text-white shadow-md font-black' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-805 dark:group-hover:text-white'
                       }`}>{day.date.getDate()}</span>
                       
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleGridCellClick(dateStr); }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-650 transition-all cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     {/* Scrollable event lists in cell */}
-                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[70px] scrollbar-none">
+                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[72px] scrollbar-none pr-0.5">
                       {dayEvents.map((evt, i) => (
-                        <div 
+                        <motion.div 
+                          layoutId={evt.id}
                           key={evt.id || i}
                           onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
-                          className="px-2 py-0.5 rounded-md text-[9px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none"
-                          style={{ backgroundColor: evt.color || '#6366f1' }}
+                          whileHover={{ scale: 1.02 }}
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none flex items-center gap-1.5"
+                          style={{ backgroundColor: evt.color || '#7B61FF' }}
                         >
-                          {evt.summary}
-                        </div>
+                          <span className="w-1 h-1 rounded-full bg-white block shrink-0 animate-pulse" />
+                          <span className="truncate">{evt.summary}</span>
+                        </motion.div>
                       ))}
                       {dayTasks.map(task => {
                         const style = getPriorityStyle(task.priority);
                         return (
-                          <div 
+                          <motion.div 
+                            layoutId={task.id}
                             key={task.id}
                             draggable
-                            onDragStart={e => handleDragStart(e, task.id)}
+                            onDragStart={e => handleDragStart(e as any, task.id)}
                             onDragEnd={handleDragEnd}
                             onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
-                            className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold truncate border flex items-center gap-1 shadow-3xs cursor-grab active:cursor-grabbing hover:scale-[1.01] transition-all ${
+                            whileHover={{ scale: 1.02 }}
+                            className={`px-2 py-1 rounded-lg text-[9px] font-extrabold truncate border-l-[3px] border-r border-t border-b flex items-center gap-1.5 shadow-3xs cursor-grab active:cursor-grabbing transition-all ${
                               task.status === 'completed' 
-                                ? 'bg-emerald-50/60 border-emerald-100 text-emerald-600 line-through' 
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-400'
+                                ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900 text-emerald-650 dark:text-emerald-500 line-through font-bold' 
+                                : 'bg-white dark:bg-slate-850 border-slate-150 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-700'
                             }`}
+                            style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
                           >
-                            <span className={`w-1 h-1 rounded-full ${style.dot}`} />
                             <span className="truncate">{task.title}</span>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -773,21 +794,21 @@ export default function CalendarView({
 
           {/* B. WEEK VIEW & D. 4-DAY VIEW & C. DAY VIEW (Hourly grids) */}
           {(viewMode === 'week' || viewMode === '4day' || viewMode === 'day') && (
-            <div className="flex flex-col rounded-2xl overflow-hidden border border-slate-200/80 min-w-[650px] relative">
+            <div className="flex flex-col rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 min-w-[650px] relative bg-white dark:bg-slate-900">
               
               {/* Header Days Row */}
-              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 border-b border-slate-200/85`}>
-                <div className="bg-slate-50 py-3 text-center text-[10px] font-black text-slate-400 uppercase select-none">Giờ</div>
+              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800 border-b border-slate-200/85 dark:border-slate-800`}>
+                <div className="bg-slate-50 dark:bg-slate-900 py-3 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase select-none">Giờ</div>
                 {
                   (viewMode === 'week' ? daysInWeek : viewMode === '4day' ? getDays4Day(currentDate) : [currentDate]).map((day, idx) => {
                     const dateStr = formatDateString(day);
                     const isToday = formatDateString(new Date()) === dateStr;
                     return (
-                      <div key={idx} className={`bg-slate-50 py-2.5 text-center flex flex-col items-center justify-center gap-1 select-none ${isToday ? 'bg-indigo-50/10' : ''}`}>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
-                          {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
+                      <div key={idx} className={`bg-slate-50 dark:bg-slate-900 py-2.5 text-center flex flex-col items-center justify-center gap-1 select-none ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-950/10' : ''}`}>
+                        <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">
+                          {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
                         </span>
-                        <span className={`text-xs font-black w-5 h-5 rounded-full flex items-center justify-center ${isToday ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-700'}`}>
+                        <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-indigo-650 text-white shadow-md font-black' : 'text-slate-700 dark:text-slate-200'}`}>
                           {day.getDate()}
                         </span>
                       </div>
@@ -797,7 +818,7 @@ export default function CalendarView({
               </div>
 
               {/* Time grid body */}
-              <div className="min-h-[450px] h-[calc(100vh-320px)] overflow-y-auto divide-y divide-slate-100 relative scrollbar-none">
+              <div className="min-h-[480px] h-[calc(100vh-320px)] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 relative scrollbar-none">
                 
                 {/* 🔴 Current time line indicator */}
                 {(() => {
@@ -808,8 +829,7 @@ export default function CalendarView({
                   if (todayIdx !== -1) {
                     const currentHour = now.getHours();
                     const currentMin = now.getMinutes();
-                    // Each hour is 48px height (min-h-[48px]). Let's render the indicator line at correct top offset.
-                    const topOffset = currentHour * 48 + (currentMin / 60) * 48;
+                    const topOffset = currentHour * 52 + (currentMin / 60) * 52; // each hour is 52px
                     const gridColumnsCount = activeDays.length + 1;
                     const leftOffsetPercent = (todayIdx + 1) * (100 / gridColumnsCount);
                     const columnWidthPercent = 100 / gridColumnsCount;
@@ -823,8 +843,11 @@ export default function CalendarView({
                           width: `${columnWidthPercent}%`
                         }}
                       >
-                        <span className="w-2 h-2 rounded-full bg-rose-500 -ml-1 shrink-0" />
-                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.25 shrink-0 shadow-sm relative flex">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-450 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                        </span>
+                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs border-t border-dashed border-rose-350 dark:border-rose-700" />
                       </div>
                     );
                   }
@@ -832,10 +855,10 @@ export default function CalendarView({
                 })()}
 
                 {hours.map(hour => (
-                  <div key={hour} className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100`}>
+                  <div key={hour} className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800`}>
                     
                     {/* Time Label column */}
-                    <div className="bg-white py-3.5 pr-2.5 text-right text-[10px] font-bold text-slate-400 font-mono select-none">
+                    <div className="bg-white dark:bg-slate-900 py-4 pr-3.5 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 font-mono select-none border-r border-slate-100 dark:border-slate-800">
                       {`${String(hour).padStart(2, '0')}:00`}
                     </div>
 
@@ -863,38 +886,51 @@ export default function CalendarView({
                           onDragLeave={handleDragLeave}
                           onDrop={e => handleDrop(e, dateStr, hour)}
                           onClick={() => handleGridCellClick(dateStr, hour)}
-                          className={`bg-white min-h-[48px] p-1 relative flex flex-col gap-1 transition-all ${
-                            isDragOver ? 'bg-indigo-50/50 border-indigo-400/40 ring-1 ring-indigo-500/20' : 'hover:bg-slate-50/20'
+                          className={`bg-white dark:bg-slate-900 min-h-[52px] p-1.5 relative flex flex-col gap-1 transition-all duration-150 ${
+                            isDragOver ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-400/40 ring-2 ring-indigo-500/20 z-10' : 'hover:bg-slate-50/30 dark:hover:bg-slate-850/10'
                           }`}
                         >
                           {hourEvents.map((evt, idx) => (
-                            <div 
+                            <motion.div 
+                              layoutId={evt.id}
                               key={evt.id || idx}
                               onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
-                              className="px-2 py-0.5 rounded-md text-[8.5px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none"
-                              style={{ backgroundColor: evt.color || '#6366f1' }}
+                              whileHover={{ scale: 1.02 }}
+                              className="px-2 py-1 rounded-lg text-[9px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none flex items-center gap-1.5"
+                              style={{ backgroundColor: evt.color || '#7B61FF' }}
                             >
-                              {evt.summary}
-                            </div>
+                              <span className="w-1.5 h-1.5 rounded-full bg-white block shrink-0 animate-pulse" />
+                              <span className="truncate">{evt.summary}</span>
+                            </motion.div>
                           ))}
                           {hourTasks.map(task => {
                             const style = getPriorityStyle(task.priority);
                             return (
-                              <div 
+                              <motion.div 
+                                layoutId={task.id}
                                 key={task.id}
                                 draggable
-                                onDragStart={e => handleDragStart(e, task.id)}
+                                onDragStart={e => handleDragStart(e as any, task.id)}
                                 onDragEnd={handleDragEnd}
                                 onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
-                                className={`px-2 py-0.5 rounded-md text-[8.5px] font-black border flex items-center gap-1 shadow-3xs cursor-grab active:cursor-grabbing hover:scale-[1.01] transition-all truncate ${
+                                whileHover={{ scale: 1.02 }}
+                                className={`px-2 py-1 rounded-lg text-[9px] font-black border-l-[3px] border-r border-t border-b flex items-center gap-2 shadow-3xs cursor-grab active:cursor-grabbing hover:scale-[1.01] transition-all truncate ${
                                   task.status === 'completed' 
-                                    ? 'bg-emerald-50/60 border-emerald-100 text-emerald-600 line-through' 
-                                    : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-500'
+                                    ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-500 line-through font-bold' 
+                                    : 'bg-white dark:bg-slate-850 border-slate-150 dark:border-slate-800 text-slate-700 dark:text-slate-250 hover:border-indigo-500 dark:hover:border-indigo-800'
                                 }`}
+                                style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
                               >
-                                <span className={`w-1 h-1 rounded-full ${style.dot}`} />
-                                <span className="truncate">{task.title}</span>
-                              </div>
+                                {task.status === 'completed' ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                ) : (
+                                  <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                                )}
+                                <span className="truncate flex-1">{task.title}</span>
+                                {task.assigneeId && (
+                                  <span className="text-[7.5px] px-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md font-bold uppercase select-none">{members.find(m => m.id === task.assigneeId)?.name.substring(0, 2)}</span>
+                                )}
+                              </motion.div>
                             );
                           })}
                         </div>
@@ -910,11 +946,9 @@ export default function CalendarView({
           {viewMode === 'schedule' && (
             <div className="flex flex-col gap-6 text-left max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
               {(() => {
-                // Collect and group all events/tasks that have scheduled dates
                 const allItems: { date: string; dateObj: Date; items: any[] }[] = [];
-                
-                // Scan next 14 days to group
                 const today = new Date(currentDate);
+
                 for (let i = 0; i < 14; i++) {
                   const targetDate = new Date(today);
                   targetDate.setDate(today.getDate() + i);
@@ -934,9 +968,9 @@ export default function CalendarView({
 
                 if (allItems.length === 0) {
                   return (
-                    <div className="py-16 text-center text-slate-400 bg-white border border-slate-200/80 rounded-2xl p-6">
-                      <CalendarDays className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                      <h4 className="text-sm font-black text-slate-700">Lịch trình trống</h4>
+                    <div className="py-16 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6">
+                      <CalendarDays className="w-10 h-10 mx-auto text-slate-350 dark:text-slate-600 mb-2" />
+                      <h4 className="text-sm font-black text-slate-700 dark:text-slate-300">Lịch trình trống</h4>
                       <p className="text-xs mt-1">Không có công việc hoặc sự kiện nào trong 2 tuần tới.</p>
                     </div>
                   );
@@ -945,14 +979,14 @@ export default function CalendarView({
                 return allItems.map((group, idx) => {
                   const isToday = formatDateString(new Date()) === group.date;
                   return (
-                    <div key={idx} className="space-y-2.5">
-                      <div className="flex items-center gap-2 select-none">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          isToday ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-500'
+                    <div key={idx} className="space-y-3">
+                      <div className="flex items-center gap-2.5 select-none">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          isToday ? 'bg-indigo-650 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                         }`}>
-                          {isToday ? 'Hôm nay' : ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
+                          {isToday ? 'Hôm nay' : ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
                         </span>
-                        <h4 className="text-xs font-black text-slate-700">
+                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
                           {group.dateObj.getDate()} {monthNames[group.dateObj.getMonth()]}, {group.dateObj.getFullYear()}
                         </h4>
                       </div>
@@ -963,39 +997,39 @@ export default function CalendarView({
                           const style = !isGoogleEvent ? getPriorityStyle(item.priority) : null;
                           
                           return (
-                            <div 
+                            <motion.div 
                               key={item.id || itemIdx}
                               onClick={() => setSelectedTask(item)}
-                              className="p-3 bg-white border border-slate-200/80 hover:border-indigo-400 rounded-xl shadow-2xs hover:shadow-sm cursor-pointer transition-all flex items-start gap-3 justify-between"
+                              whileHover={{ scale: 1.01 }}
+                              className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-800 rounded-2xl shadow-3xs hover:shadow-2xs cursor-pointer transition-all flex items-start gap-3 justify-between"
                             >
-                              <div className="space-y-1 min-w-0 flex-1">
+                              <div className="space-y-1.5 min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-md ${
-                                    isGoogleEvent ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                    isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350'
                                   }`}>
                                     {isGoogleEvent ? 'Sự kiện' : 'Công việc'}
                                   </span>
-                                  {!isGoogleEvent && (
-                                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-md ${style?.bg} ${style?.text} ${style?.border} border`}>
+                                  {!isGoogleEvent && style && (
+                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${style.bg} ${style.text} ${style.border} border`}>
                                       {item.priority}
                                     </span>
                                   )}
                                 </div>
-                                <h5 className="text-xs font-bold text-slate-800 leading-snug truncate">{item.summary || item.title}</h5>
-                                {item.description && <p className="text-[10px] text-slate-400 line-clamp-1">{item.description}</p>}
+                                <h5 className="text-xs font-black text-slate-800 dark:text-slate-200 leading-snug truncate">{item.summary || item.title}</h5>
+                                {item.description && <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1">{item.description}</p>}
                               </div>
 
-                              {/* Right details */}
                               <div className="text-right shrink-0 flex flex-col justify-between h-full space-y-2">
-                                <span className="text-[9px] font-bold text-slate-400 font-mono flex items-center gap-0.5">
-                                  <Clock className="w-3 h-3" />
+                                <span className="text-[9px] font-bold text-slate-450 dark:text-slate-500 font-mono flex items-center gap-0.5">
+                                  <Clock className="w-3 h-3 text-slate-400" />
                                   {isGoogleEvent 
                                     ? new Date(item.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) 
                                     : `${item.custom_fields?.scheduledHour || 9}:00`
                                   }
                                 </span>
                               </div>
-                            </div>
+                            </motion.div>
                           );
                         })}
                       </div>
@@ -1010,28 +1044,28 @@ export default function CalendarView({
 
       </div>
 
-      {/* ── INTERACTIVE TASK DETAIL EDIT OVERLAY MODAL ── */}
+      {/* Interactive Detail Modal Editor Overlay */}
       <AnimatePresence>
         {selectedTask && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedTask(null)}
-              className="absolute inset-0 bg-slate-950/30 backdrop-blur-xs" />
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" />
             
             <motion.div 
-              initial={{ scale: 0.96, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative border border-slate-150 overflow-hidden text-left"
+              initial={{ scale: 0.96, y: 15, opacity: 0 }} 
+              animate={{ scale: 1, y: 0, opacity: 1 }} 
+              exit={{ scale: 0.96, y: 15, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-slate-200 dark:border-slate-800 overflow-hidden text-left"
             >
-              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
+              <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
               
-              <div className="flex justify-between items-start mb-3">
-                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                  (selectedTask as any).isGoogleEvent ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
+              <div className="flex justify-between items-start mb-4">
+                <span className={`text-[8.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
+                  (selectedTask as any).isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350'
                 }`}>
                   {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Avaxa Task'}
                 </span>
-                <button onClick={() => setSelectedTask(null)} className="p-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setSelectedTask(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
 
               {/* Editable Title */}
@@ -1040,38 +1074,37 @@ export default function CalendarView({
                   type="text"
                   value={selectedTask.title}
                   onChange={e => handleModalUpdateField('title', e.target.value)}
-                  className="text-sm font-bold text-slate-800 leading-snug mb-3 w-full border-b border-transparent hover:border-slate-200 focus:border-indigo-500 outline-none pb-0.5 transition-colors"
+                  className="text-sm font-black text-slate-800 dark:text-white leading-snug mb-4 w-full border-b border-transparent hover:border-slate-200 dark:hover:border-slate-800 focus:border-indigo-500 outline-none pb-1 transition-colors"
                 />
               ) : (
-                <h3 className="text-sm font-bold text-slate-800 leading-snug mb-3">{(selectedTask as any).summary}</h3>
+                <h3 className="text-sm font-black text-slate-800 dark:text-white leading-snug mb-4">{(selectedTask as any).summary}</h3>
               )}
               
               {/* Detailed properties fields */}
-              <div className="space-y-3 mb-6 text-xs text-left">
-                {/* Time range label */}
+              <div className="space-y-3.5 mb-6 text-xs text-left">
                 {selectedTask.dueDate && (
-                  <div className="flex items-center gap-2.5 text-slate-500">
-                    <CalendarIcon className="w-4 h-4 text-slate-400" />
-                    <span>Hạn chót: <b>{selectedTask.dueDate}</b></span>
+                  <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
+                    <CalendarIcon className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                    <span>Hạn chót: <b className="text-slate-800 dark:text-slate-200">{selectedTask.dueDate}</b></span>
                   </div>
                 )}
                 
                 {(selectedTask as any).start?.dateTime && (
-                  <div className="flex items-center gap-2.5 text-slate-500">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <span>Thời gian: <b>{new Date((selectedTask as any).start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date((selectedTask as any).end.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</b></span>
+                  <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
+                    <Clock className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                    <span>Thời gian: <b className="text-slate-800 dark:text-slate-200">{new Date((selectedTask as any).start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date((selectedTask as any).end.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</b></span>
                   </div>
                 )}
 
-                {/* Priority Selector (Only for tasks) */}
+                {/* Priority Selector */}
                 {!(selectedTask as any).isGoogleEvent && (
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <Tag className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="shrink-0 w-20">Độ ưu tiên:</span>
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <Tag className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                    <span className="shrink-0 w-24">Độ ưu tiên:</span>
                     <select
                       value={selectedTask.priority}
                       onChange={e => handleModalUpdateField('priority', e.target.value as Priority)}
-                      className="px-2 py-0.5 rounded border border-slate-200 outline-none bg-slate-50 cursor-pointer font-bold text-slate-700"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-250 cursor-pointer font-bold"
                     >
                       <option value="low">Thấp</option>
                       <option value="medium">Trung bình</option>
@@ -1081,15 +1114,15 @@ export default function CalendarView({
                   </div>
                 )}
 
-                {/* Status Selector (Only for tasks) */}
+                {/* Status Selector */}
                 {!(selectedTask as any).isGoogleEvent && (
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="shrink-0 w-20">Trạng thái:</span>
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <CheckCircle2 className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                    <span className="shrink-0 w-24">Trạng thái:</span>
                     <select
                       value={selectedTask.status}
                       onChange={e => handleModalUpdateField('status', e.target.value as TaskStatus)}
-                      className="px-2 py-0.5 rounded border border-slate-200 outline-none bg-slate-50 cursor-pointer font-bold text-slate-700"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-255 cursor-pointer font-bold"
                     >
                       <option value="todo">Cần làm</option>
                       <option value="inprogress">Đang thực hiện</option>
@@ -1099,15 +1132,15 @@ export default function CalendarView({
                   </div>
                 )}
 
-                {/* Assignee Selector (Only for tasks) */}
+                {/* Assignee Selector */}
                 {!(selectedTask as any).isGoogleEvent && (
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <UserCheck className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="shrink-0 w-20">Phụ trách:</span>
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                    <UserCheck className="w-4.5 h-4.5 text-slate-400 shrink-0" />
+                    <span className="shrink-0 w-24">Phụ trách:</span>
                     <select
                       value={selectedTask.assigneeId || ''}
                       onChange={e => handleModalUpdateField('assigneeId', e.target.value || null)}
-                      className="px-2 py-0.5 rounded border border-slate-200 outline-none bg-slate-50 cursor-pointer text-slate-700 font-bold"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-250 cursor-pointer font-bold"
                     >
                       <option value="">Chưa phân công</option>
                       {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -1115,31 +1148,31 @@ export default function CalendarView({
                   </div>
                 )}
 
-                {/* Editable description */}
+                {/* Editable Description */}
                 {!(selectedTask as any).isGoogleEvent ? (
-                  <div className="pt-2 border-t border-slate-100 space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400">Mô tả chi tiết</label>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-500">Mô tả chi tiết</label>
                     <textarea
                       value={selectedTask.description || ''}
                       onChange={e => handleModalUpdateField('description', e.target.value)}
                       rows={3}
                       placeholder="Viết mô tả cho công việc này..."
-                      className="w-full px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 outline-none resize-none font-medium text-slate-600 transition-colors focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none resize-none font-semibold text-slate-600 dark:text-slate-350 transition-colors focus:border-indigo-500"
                     />
                   </div>
                 ) : (
                   (selectedTask as any).description && (
-                    <div className="pt-2 border-t border-slate-100 text-slate-500 leading-normal max-h-36 overflow-y-auto font-medium">
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 leading-normal max-h-36 overflow-y-auto font-medium">
                       {(selectedTask as any).description}
                     </div>
                   )
                 )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2.5">
                 <button 
                   onClick={() => setSelectedTask(null)}
-                  className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer text-center"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-xs font-black text-white dark:text-slate-900 shadow-xs transition-colors cursor-pointer text-center"
                 >
                   Hoàn tất
                 </button>
@@ -1149,64 +1182,64 @@ export default function CalendarView({
         )}
       </AnimatePresence>
 
-      {/* ── CREATE QUICK TASK/EVENT MODAL ── */}
+      {/* CREATE QUICK TASK/EVENT MODAL */}
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-slate-950/30 backdrop-blur-xs" />
-            <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative border border-slate-150 overflow-hidden text-left"
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.96, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.96, y: 15, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-slate-200 dark:border-slate-800 overflow-hidden text-left"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-indigo-650" />
-                  <h3 className="text-sm font-black text-slate-900">Lên lịch ngày {clickedDate} lúc {clickedHour}:00</h3>
+                  <Plus className="w-4 h-4 text-indigo-650 dark:text-indigo-400" />
+                  <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">Lên lịch: {clickedDate} lúc {clickedHour}:00</h3>
                 </div>
-                <button onClick={() => setShowAddModal(false)} className="p-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setShowAddModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
 
-              <form onSubmit={handleCreateQuickItem} className="space-y-3.5 text-xs text-left">
-                {/* Switch Type */}
-                <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 select-none">
+              <form onSubmit={handleCreateQuickItem} className="space-y-4 text-xs text-left">
+                {/* Switch Type Option */}
+                <div className="grid grid-cols-2 gap-1 bg-slate-105 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none">
                   <button type="button" onClick={() => setCreateType('task')}
-                    className={`py-1.5 rounded-md text-[10px] font-black text-center cursor-pointer transition-colors ${createType === 'task' ? 'bg-white text-indigo-650 shadow-2xs border border-slate-200/10' : 'text-slate-400 hover:text-slate-700'}`}>
+                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'task' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-2xs border border-slate-200/10' : 'text-slate-450 dark:text-slate-500 hover:text-slate-700'}`}>
                     Công việc mới
                   </button>
                   <button type="button" onClick={() => setCreateType('event')}
-                    className={`py-1.5 rounded-md text-[10px] font-black text-center cursor-pointer transition-colors ${createType === 'event' ? 'bg-white text-emerald-600 shadow-2xs border border-slate-200/10' : 'text-slate-400 hover:text-slate-700'}`}>
+                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'event' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-450 shadow-2xs border border-slate-200/10' : 'text-slate-450 dark:text-slate-500 hover:text-slate-700'}`}>
                     Sự kiện Google
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Tiêu đề</label>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Tiêu đề</label>
                   <input type="text" value={quickTitle} onChange={e => setQuickTitle(e.target.value)} required placeholder="Nhập tiêu đề..."
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 outline-none transition-colors font-medium text-slate-800" />
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none transition-colors font-semibold text-slate-800 dark:text-white" />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Mô tả</label>
-                  <textarea value={quickDesc} onChange={e => setQuickDesc(e.target.value)} rows={2} placeholder="Nhập ghi chú chi tiết..."
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 outline-none resize-none transition-colors font-medium text-slate-800" />
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Mô tả</label>
+                  <textarea value={quickDesc} onChange={e => setQuickDesc(e.target.value)} rows={2.5} placeholder="Nhập ghi chú chi tiết..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none resize-none transition-colors font-semibold text-slate-800 dark:text-white" />
                 </div>
 
                 {createType === 'task' ? (
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1 text-left">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Độ ưu tiên</label>
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Độ ưu tiên</label>
                       <select value={quickPriority} onChange={e => setQuickPriority(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-750">
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-250">
                         <option value="low">Thấp</option>
                         <option value="medium">Trung bình</option>
                         <option value="high">Cao</option>
                         <option value="urgent">Khẩn cấp</option>
                       </select>
                     </div>
-                    <div className="space-y-1 text-left">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Người phụ trách</label>
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Người phụ trách</label>
                       <select value={quickAssigneeId} onChange={e => setQuickAssigneeId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-750">
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-250">
                         <option value="">Chưa phân công</option>
                         {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
@@ -1214,21 +1247,21 @@ export default function CalendarView({
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Bắt đầu</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Bắt đầu</label>
                       <input type="time" value={quickStartTime} onChange={e => setQuickStartTime(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 outline-none cursor-pointer font-bold text-slate-700" />
+                        className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-200" />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Kết thúc</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Kết thúc</label>
                       <input type="time" value={quickEndTime} onChange={e => setQuickEndTime(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 outline-none cursor-pointer font-bold text-slate-700" />
+                        className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-200" />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400">Màu nhãn</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Màu nhãn</label>
                       <select value={quickEventColor} onChange={e => setQuickEventColor(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-xl bg-slate-50 border border-slate-200 outline-none cursor-pointer font-black text-slate-700">
-                        <option value="#6366f1" style={{ color: '#6366f1' }}>Indigo</option>
+                        className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-black text-slate-700 dark:text-slate-250">
+                        <option value="#7B61FF" style={{ color: '#7B61FF' }}>Indigo</option>
                         <option value="#10b981" style={{ color: '#10b981' }}>Emerald</option>
                         <option value="#ef4444" style={{ color: '#ef4444' }}>Rose</option>
                         <option value="#f59e0b" style={{ color: '#f59e0b' }}>Amber</option>
@@ -1237,14 +1270,14 @@ export default function CalendarView({
                   </div>
                 )}
 
-                <div className="flex gap-2.5 pt-2">
+                <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setShowAddModal(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-500 cursor-pointer text-center"
+                    className="flex-1 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer text-center"
                   >
                     Hủy bỏ
                   </button>
                   <button type="submit"
-                    className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white shadow-sm hover:brightness-105 transition-colors cursor-pointer text-center bg-slate-900 hover:bg-slate-800"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white dark:text-slate-905 bg-slate-900 dark:bg-white hover:bg-slate-850 dark:hover:bg-slate-100 shadow-sm transition-colors cursor-pointer text-center font-black"
                   >
                     Xếp lịch
                   </button>

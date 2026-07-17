@@ -49,6 +49,7 @@ export default function WorkspaceSettingsModal({
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>('general');
   const [searchQuery, setSearchQuery] = useState('');
+  const isOwner = !workspace || !workspace.user_id || workspace.user_id === currentUser.id;
   
   // Form states
   const [name, setName] = useState('');
@@ -758,10 +759,16 @@ export default function WorkspaceSettingsModal({
                     ].map(app => (
                       <label 
                         key={app.key} 
-                        className={`flex items-start justify-between p-4 rounded-2xl border transition-all cursor-pointer select-none ${
-                          clickApps[app.key]
+                        className={`flex items-start justify-between p-4 rounded-2xl border transition-all select-none ${
+                          !isOwner 
+                            ? 'cursor-not-allowed opacity-80 bg-slate-50/30 border-slate-100 dark:bg-slate-950/10 dark:border-slate-805' 
+                            : 'cursor-pointer'
+                        } ${
+                          clickApps[app.key] && isOwner
                             ? 'bg-indigo-500/5 border-indigo-500/20 dark:bg-indigo-950/10'
-                            : 'bg-slate-50/50 border-slate-100 dark:bg-slate-950/20 dark:border-slate-800/60 hover:bg-slate-100/50'
+                            : !clickApps[app.key] && isOwner
+                              ? 'bg-slate-50/50 border-slate-100 dark:bg-slate-955/20 dark:border-slate-800/60 hover:bg-slate-100/50'
+                              : ''
                         }`}
                       >
                         <div className="space-y-0.5 text-left pr-4">
@@ -771,8 +778,9 @@ export default function WorkspaceSettingsModal({
                         <input
                           type="checkbox"
                           checked={!!clickApps[app.key]}
-                          onChange={() => toggleClickApp(app.key)}
-                          className="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4 cursor-pointer mt-0.5"
+                          disabled={!isOwner}
+                          onChange={() => isOwner && toggleClickApp(app.key)}
+                          className="rounded text-indigo-650 focus:ring-indigo-500 w-4 h-4 cursor-pointer mt-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </label>
                     ))}

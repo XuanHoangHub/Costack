@@ -230,10 +230,10 @@ export default function TaskListView({
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate.split('T')[0]); due.setHours(0, 0, 0, 0);
     const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { text: `Overdue ${Math.abs(diff)}d`, cls: 'text-rose-600 bg-rose-50 dark:bg-rose-950/30' };
-    if (diff === 0) return { text: 'Today', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 font-black' };
-    if (diff === 1) return { text: 'Tomorrow', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30' };
-    return { text: `${diff}d`, cls: 'text-slate-500 bg-slate-50 dark:bg-slate-800' };
+    if (diff < 0) return { text: `Overdue ${Math.abs(diff)}d`, cls: 'text-rose-650 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-[0_0_10px_rgba(239,68,68,0.12)]' };
+    if (diff === 0) return { text: 'Today', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 font-black' };
+    if (diff === 1) return { text: 'Tomorrow', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20' };
+    return { text: `${diff}d`, cls: 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50' };
   };
 
   const currentStatuses = statuses || [
@@ -277,21 +277,29 @@ export default function TaskListView({
         const groupTasks = filteredTasks.filter(t => t.status === statusItem.id || t.status === statusItem.type);
         const isExpanded = expandedGroups[statusItem.id];
 
+        // Determine header gradient background mapping based on status type
+        const headerBgGradient = 
+          statusItem.id === 'todo' ? 'bg-gradient-to-r from-slate-100/80 to-transparent dark:from-slate-900/60 dark:to-transparent' :
+          statusItem.id === 'inprogress' ? 'bg-gradient-to-r from-amber-500/10 to-transparent dark:from-amber-500/5 dark:to-transparent' :
+          statusItem.id === 'review' ? 'bg-gradient-to-r from-cyan-500/10 to-transparent dark:from-cyan-500/5 dark:to-transparent' :
+          statusItem.id === 'completed' ? 'bg-gradient-to-r from-emerald-500/10 to-transparent dark:from-emerald-500/5 dark:to-transparent' :
+          'bg-gradient-to-r from-slate-100/80 to-transparent dark:from-slate-900/60 dark:to-transparent';
+
         return (
-          <div key={statusItem.id} className="rounded-xl overflow-hidden">
+          <div key={statusItem.id} className="rounded-xl mb-4">
             {/* Group Header */}
             <button onClick={() => toggleGroup(statusItem.id)}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2.5 bg-transparent hover:bg-slate-50/50 dark:hover:bg-slate-900/30 border-b border-slate-100 dark:border-slate-800/40 rounded-none cursor-pointer select-none transition-all group mb-1">
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2 ${headerBgGradient} hover:from-slate-200/40 dark:hover:from-slate-800/50 border border-slate-200/30 dark:border-slate-800/30 rounded-xl cursor-pointer select-none transition-all group mb-2.5 shadow-3xs`}>
               <span className={`transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`}>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
               </span>
               {statusItem.color && !standardMeta ? (
-                <span className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.05)]" style={{ backgroundColor: statusItem.color }} />
+                <span className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.1)]" style={{ backgroundColor: statusItem.color }} />
               ) : (
-                <span className={`w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.05)] ${meta.dot}`} />
+                <span className={`w-2 h-2 rounded-full shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.1)] ${meta.dot}`} />
               )}
-              <span className={`text-[10.5px] font-extrabold uppercase tracking-widest ${meta.text}`}>{meta.label}</span>
-              <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-550 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full leading-none">{groupTasks.length}</span>
+              <span className={`text-[10.5px] font-black uppercase tracking-widest ${meta.text}`}>{meta.label}</span>
+              <span className="text-[9.5px] font-black text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200/20 leading-none">{groupTasks.length}</span>
             </button>
 
             {/* Tasks */}
@@ -309,25 +317,21 @@ export default function TaskListView({
                           return (
                             <DraggableCast key={task.id} draggableId={`task_list_item_${task.id}`} index={index}>
                               {(dragProvided: DraggableProvided, dragSnapshot: DraggableStateSnapshot) => (
-                                <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
-                                  style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
-                                  <div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-                                    className={`flex items-center gap-3 px-4 py-2.5 border-l-[3px] border-b border-b-slate-100/50 dark:border-b-slate-800/30 ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-pointer transition-all group/row hover:bg-slate-50/70 dark:hover:bg-slate-850/30 ${isSelected ? 'bg-indigo-50/20 dark:bg-indigo-950/15' : 'bg-white dark:bg-slate-900/50'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 rounded-xl z-50 opacity-95' : ''}`}>
-
-                                     {/* Drag handle */}
-                                     <div {...dragProvided.dragHandleProps} onClick={e => e.stopPropagation()}
-                                       className="p-0.5 text-slate-300 dark:text-slate-600 hover:text-indigo-500 cursor-grab active:cursor-grabbing opacity-0 group-hover/row:opacity-100 transition-opacity shrink-0">
-                                       <GripVertical className="w-3.5 h-3.5" />
-                                     </div>
+                                  <div ref={dragProvided.innerRef} {...dragProvided.draggableProps}
+                                    style={{ ...dragProvided.draggableProps?.style, transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition }}>
+                                    <motion.div onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
+                                      {...(dragProvided.dragHandleProps as any)}
+                                      whileHover={{ x: 2, borderRightColor: 'rgba(99, 102, 241, 0.1)', boxShadow: '0 4px 12px rgba(15,23,42,0.02)' }}
+                                      className={`flex items-center gap-3 px-4 py-2.5 border-l-[3.5px] border border-slate-200/30 dark:border-slate-800/30 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/50 dark:hover:bg-slate-850/20 hover:shadow-xs ${isSelected ? 'bg-indigo-50/20 dark:bg-indigo-955/15' : 'bg-white dark:bg-slate-900/50'} ${dragSnapshot.isDragging ? 'shadow-lg bg-white dark:bg-slate-900 z-50 opacity-95 cursor-grabbing' : 'mb-1.5'}`}>
 
                                      {/* Render visual indentation and connector lines */}
                                      {depth > 0 && (
                                        <div className="flex items-center shrink-0" style={{ paddingLeft: `${(depth - 1) * 20}px` }}>
                                          <div className="relative h-6 w-5 flex items-center justify-center shrink-0">
                                            {/* Horizontal connector line */}
-                                           <div className="absolute top-[11px] left-[4px] w-3 h-[1.5px] bg-slate-200 dark:bg-slate-700/80 rounded" />
+                                           <div className="absolute top-[11px] left-[4px] w-3 h-[1.5px] bg-slate-200 dark:bg-slate-700/60 rounded" />
                                            {/* Vertical connector line */}
-                                           <div className="absolute top-0 bottom-0 left-[4px] w-[1.5px] bg-slate-200 dark:bg-slate-700/80" />
+                                           <div className="absolute top-0 bottom-0 left-[4px] w-[1.5px] bg-slate-200 dark:bg-slate-700/60" />
                                          </div>
                                        </div>
                                      )}
@@ -364,8 +368,10 @@ export default function TaskListView({
                                      </div>
 
                                      {/* Complete toggle circle button */}
-                                     <button
+                                     <motion.button
                                        type="button"
+                                       whileHover={{ scale: 1.15 }}
+                                       whileTap={{ scale: 0.9 }}
                                        onClick={(e) => {
                                          e.stopPropagation();
                                          const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -375,14 +381,14 @@ export default function TaskListView({
                                            (window as any).playSystemSound?.('toggle');
                                          }
                                        }}
-                                       className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 ${
+                                       className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                                          task.status === 'completed'
-                                           ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
-                                           : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                                           ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                                           : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-500'
                                        }`}
                                      >
-                                       <Check className="w-3 h-3 text-white dark:text-slate-100" strokeWidth={3} />
-                                     </button>
+                                       <Check className={`w-2.5 h-2.5 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+                                     </motion.button>
 
                                      {/* Title */}
                                      <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
@@ -409,7 +415,7 @@ export default function TaskListView({
                                               
                                               {/* Dependency Badges */}
                                               {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                                                <span className="bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Waiting on another task to complete">
+                                                <span className="bg-amber-55/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Waiting on another task to complete">
                                                   <Hourglass className="w-2.5 h-2.5 animate-pulse" />
                                                   <span>Waiting On</span>
                                                 </span>
@@ -422,7 +428,7 @@ export default function TaskListView({
                                               )}
 
                                               {activeTimerTaskId === task.id && (
-                                                <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-1.5 py-0.5 rounded border border-rose-200/40 dark:border-rose-900/30 animate-pulse select-none shrink-0 ml-1">
+                                                <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 bg-rose-55 dark:bg-rose-955/20 px-1.5 py-0.5 rounded border border-rose-200/40 dark:border-rose-900/30 animate-pulse select-none shrink-0 ml-1">
                                                   <Clock className="w-2.5 h-2.5" /> Ticking
                                                 </span>
                                               )}
@@ -451,7 +457,7 @@ export default function TaskListView({
                                                  className="p-1 border border-slate-250 dark:border-slate-800 rounded bg-white dark:bg-slate-905 shadow-3xs text-slate-400 hover:text-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
                                                  title="Start Timer"
                                                >
-                                                 <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                                                 <Play className="w-3 h-3 text-emerald-505 fill-emerald-505" />
                                                </button>
                                              )}
 
@@ -466,7 +472,7 @@ export default function TaskListView({
                                                    if (triggerToast) triggerToast('success', 'Subtask Added', `Added subtask to "${task.title}"`);
                                                  }
                                                }}
-                                               className="p-1 border border-slate-250 dark:border-slate-800 rounded bg-white dark:bg-slate-900 shadow-3xs text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                                               className="p-1 border border-slate-255 dark:border-slate-800 rounded bg-white dark:bg-slate-900 shadow-3xs text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
                                                title="Add Subtask"
                                              >
                                                <Plus className="w-3 h-3" />
@@ -622,16 +628,16 @@ export default function TaskListView({
                                          <MoreHorizontal className="w-3.5 h-3.5" />
                                        </button>
                                      </div>
-                                   </div>
-                                 </div>
-                               )}
-                             </DraggableCast>
-                           );
-                         })}
-                         {provided.placeholder}
-                       </div>
-                     )}
-                   </StrictModeDroppable>
+                                  </motion.div>
+                                </div>
+                              )}
+                            </DraggableCast>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </StrictModeDroppable>
 
                    {/* Inline Add */}
                    <div className="px-4 py-1.5">

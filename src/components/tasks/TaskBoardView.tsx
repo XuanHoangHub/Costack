@@ -28,6 +28,7 @@ import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
+import { motion } from 'motion/react';
 
 // Simple Portal wrapper
 function Portal({ children }: { children: React.ReactNode }) {
@@ -108,15 +109,24 @@ function KanbanCard({
   const titleCls = localCardSize === 'small' ? 'text-xs font-semibold' : localCardSize === 'large' ? 'text-sm font-bold' : 'text-[12.5px] font-bold';
   const descCls = localCardSize === 'small' ? 'hidden' : 'text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed';
 
+  const subtasks = task.subtasks || [];
+  const completedSubtasks = subtasks.filter((s: any) => s.completed).length;
+  const hasSubtasks = subtasks.length > 0;
+  const subtaskPercent = hasSubtasks ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
+
   return (
     <div 
       ref={setNodeRef} 
       style={style} 
       className="outline-none"
     >
-      <div 
+      <motion.div 
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
-        className={`rounded-2xl border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border-y border-r border-slate-200/50 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-pointer shadow-[0_2px_8px_rgba(15,23,42,0.01)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.04)] hover:border-indigo-300/60 dark:hover:border-indigo-900/60 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-400/30' : ''} overflow-hidden`}
+        {...attributes}
+        {...listeners}
+        whileHover={{ y: -3, scale: 1.01, boxShadow: '0 10px 25px rgba(15,23,42,0.06)' }}
+        whileTap={{ scale: 0.99 }}
+        className={`rounded-2xl border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border border-slate-200/50 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-grab active:cursor-grabbing shadow-[0_2px_8px_rgba(15,23,42,0.008)] transition-all duration-200 hover:border-indigo-305/50 dark:hover:border-indigo-900/50 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-400/30' : ''} overflow-hidden`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -127,16 +137,7 @@ function KanbanCard({
         <div className={paddingCls}>
           {localCardSize === 'small' ? (
             <div className="flex items-center gap-2">
-              {/* Dedicated Grip Drag Handle */}
-              <div 
-                {...attributes}
-                {...listeners}
-                onClick={e => e.stopPropagation()}
-                className="text-slate-350 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
-              >
-                <GripVertical className="w-3.5 h-3.5" />
-              </div>
-              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-101'}`}>
+              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-550' : 'text-slate-850 dark:text-slate-101'}`}>
                 {task.title}
               </h4>
             </div>
@@ -144,16 +145,6 @@ function KanbanCard({
             <>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                  {/* Dedicated Grip Drag Handle */}
-                  <div 
-                    {...attributes}
-                    {...listeners}
-                    onClick={e => e.stopPropagation()}
-                    className="text-slate-355 dark:text-slate-600 hover:text-slate-550 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors shrink-0"
-                  >
-                    <GripVertical className="w-3.5 h-3.5" />
-                  </div>
-
                   <input type="checkbox" checked={selectedTaskIds.includes(task.id)}
                     onChange={e => { e.stopPropagation(); setSelectedTaskIds((prev: any) => e.target.checked ? [...prev, task.id] : prev.filter((id: any) => id !== task.id)); }}
                     onClick={e => e.stopPropagation()}
@@ -183,7 +174,7 @@ function KanbanCard({
                       className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-650 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
                       title="Start Timer"
                     >
-                      <Play className="w-3 h-3 text-emerald-505 fill-emerald-505" />
+                      <Play className="w-3 h-3 text-emerald-505 fill-emerald-555" />
                     </button>
                   )}
                 </div>
@@ -197,11 +188,11 @@ function KanbanCard({
                       </span>
                     );
                   })()}
-                  <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none border ${
-                    task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-955/20 dark:border-rose-900/30 dark:text-rose-400' :
-                    task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-955/20 dark:border-orange-900/30 dark:text-orange-400' :
-                    task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-955/20 dark:border-yellow-900/30 dark:text-yellow-400' :
-                    'bg-slate-50 border-slate-200 text-slate-550 dark:bg-slate-800/40 dark:border-slate-705 dark:text-slate-400'
+                  <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none border ${
+                    task.priority === 'urgent' ? 'bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.08)]' :
+                    task.priority === 'high' ? 'bg-orange-500/15 border-orange-500/20 text-orange-600 dark:text-orange-450' :
+                    task.priority === 'medium' ? 'bg-yellow-500/15 border-yellow-500/20 text-yellow-700 dark:text-yellow-455' :
+                    'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                   }`}>
                     {dynamicPriorityMeta[task.priority]?.label || task.priority}
                   </span>
@@ -210,8 +201,10 @@ function KanbanCard({
 
               <div className="flex items-start gap-2.5 mt-2">
                 {/* Complete toggle circle button */}
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={(e) => {
                     e.stopPropagation();
                     const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -221,14 +214,14 @@ function KanbanCard({
                       (window as any).playSystemSound?.('toggle');
                     }
                   }}
-                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 ${
+                  className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all mt-0.5 ${
                     task.status === 'completed'
-                      ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
-                      : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                      ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                      : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-500'
                   }`}
                 >
-                  <Check className="w-2.5 h-2.5 text-white dark:text-slate-100" strokeWidth={3} />
-                </button>
+                  <Check className={`w-2 h-2 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+                </motion.button>
 
                 <div className="flex-1 min-w-0">
                   {inlineEditTaskId === task.id ? (
@@ -279,6 +272,24 @@ function KanbanCard({
                 </div>
               )}
 
+              {/* Render progress bar for subtasks */}
+              {hasSubtasks && (
+                <div className="mt-3 select-none">
+                  <div className="flex justify-between items-center text-[9px] text-slate-450 dark:text-slate-500 font-bold mb-1">
+                    <span>Progress</span>
+                    <span>{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
+                  </div>
+                  <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/10">
+                    <motion.div 
+                      className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${subtaskPercent}%` }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold select-none">
                 <div className="flex items-center gap-1.5">
                   {assignees.length > 0 ? (
@@ -324,7 +335,7 @@ function KanbanCard({
             </>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -415,10 +426,10 @@ const getDaysText = (dueDate?: string) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate.split('T')[0]); due.setHours(0, 0, 0, 0);
   const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return { text: `Overdue`, cls: 'text-rose-600 bg-rose-50 dark:bg-rose-955/30' };
-  if (diff === 0) return { text: 'Today', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-955/30' };
-  if (diff <= 3) return { text: `${diff}d`, cls: 'text-amber-600 bg-amber-50 dark:bg-amber-955/30' };
-  return { text: `${diff}d`, cls: 'text-slate-500 bg-slate-55 dark:bg-slate-805' };
+  if (diff < 0) return { text: `Overdue`, cls: 'text-rose-650 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.08)] font-black' };
+  if (diff === 0) return { text: 'Today', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 font-black' };
+  if (diff <= 3) return { text: `${diff}d`, cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 font-black' };
+  return { text: `${diff}d`, cls: 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50' };
 };
 
 interface NormalizedState {
@@ -1293,12 +1304,12 @@ export default function TaskBoardView({
               const colMeta = getColumnMeta(col);
               const colTasks = boardState.columns[col]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
               const isOverColumn = localActiveOverDropId === col;
-              
+                         
               return (
                 <div 
                   key={col} 
-                  className={`min-w-[290px] w-[290px] flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/25 backdrop-blur-xs p-4 rounded-2xl flex flex-col gap-3 transition-[background-color,border-color,box-shadow,ring] duration-300 border border-slate-200/50 dark:border-slate-805/50 shadow-[0_4px_20px_rgba(15,23,42,0.015)] hover:border-slate-300 dark:hover:border-slate-700/50 ${
-                    isOverColumn ? 'ring-2 ring-indigo-500/20 bg-indigo-50/15 dark:bg-indigo-955/10 border-indigo-400/30' : ''
+                  className={`min-w-[290px] w-[290px] flex-shrink-0 bg-slate-50/30 dark:bg-slate-900/15 backdrop-blur-md p-4 rounded-2xl flex flex-col gap-3 transition-all duration-300 border border-slate-200/40 dark:border-slate-800/40 shadow-[0_4px_18px_rgba(15,23,42,0.01)] hover:border-slate-300 dark:hover:border-slate-700/60 hover:shadow-[0_8px_24px_rgba(15,23,42,0.02)] ${
+                    isOverColumn ? 'ring-2 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-955/15 border-indigo-400/40' : ''
                   }`}
                 >
                   {/* Column Header */}
@@ -1307,12 +1318,12 @@ export default function TaskBoardView({
                       {colMeta.avatar && (
                         <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
                       )}
-                      <span className={`px-2 py-0.5 rounded-[6px] text-[10px] font-extrabold tracking-wider uppercase flex items-center gap-1.5 border border-transparent ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                      <span className={`px-2 py-0.5 rounded-[8px] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5 border border-transparent shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
                         {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
                         {colMeta.label}
                       </span>
-                      <span className={`font-black text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200/60 dark:bg-slate-800/60 min-w-[20px] text-center ${
-                        col === 'completed' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-955/30' : 'text-slate-400 dark:text-slate-550'
+                      <span className={`font-black text-[10px] px-2 py-0.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 min-w-[22px] text-center shadow-3xs ${
+                        col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-400 dark:text-slate-500'
                       }`}>
                         {colTasks.length}
                       </span>
@@ -1320,7 +1331,7 @@ export default function TaskBoardView({
                     
                     <button 
                       onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                      className="w-6 h-6 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 flex items-center justify-center transition-colors cursor-pointer"
+                      className="w-6 h-6 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-slate-400 hover:text-indigo-650 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>

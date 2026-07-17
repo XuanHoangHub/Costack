@@ -62,7 +62,7 @@ export interface Space {
   emoji?: string;
   themeColor?: string;
   workspaceId: string;
-  lists: { id: string; name: string; folderId?: string }[];
+  lists: { id: string; name: string; folderId?: string; isPrivate?: boolean; shareSettings?: Record<string, 'view' | 'edit'>; user_id?: string }[];
   folders?: { id: string; name: string; color?: string }[];
   whiteboards?: { id: string; name: string; folderId?: string }[];
   channels?: { id: string; name: string; description?: string; type?: string }[];
@@ -76,6 +76,9 @@ export interface Space {
     priorities?: boolean;
   };
   customFields?: CustomFieldDefinition[];
+  isPrivate?: boolean;
+  shareSettings?: Record<string, 'view' | 'edit'>;
+  user_id?: string;
 }
 
 export interface Task {
@@ -100,8 +103,8 @@ export interface Task {
   isPinned?: boolean;
   workspaceId?: string;
   parentId?: string;
-  spaceId?: string; // ClickUp Space link
-  listId?: string; // ClickUp List link
+  spaceId?: string; // Workspace Space link
+  listId?: string; // Workspace List link
   attachments?: TaskAttachment[];
   activities?: {
     id: string;
@@ -254,7 +257,7 @@ export interface TeamMemberCursor {
   y: number;
 }
 
-// ─── Avaxa Base (Lark Base / Bitable-style no-code database) ───
+// ─── Avaxa Base (Bitable-style no-code database) ───
 
 export type BaseFieldType =
   | 'text' | 'long_text' | 'number' | 'single_select' | 'multi_select'

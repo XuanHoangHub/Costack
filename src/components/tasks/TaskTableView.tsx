@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { motion } from 'motion/react';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
@@ -53,7 +55,7 @@ const CustomizableHeader = ({
 }) => (
   <th 
     onClick={() => isSortable && onToggleSort(col)}
-    className={`px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-105 dark:hover:bg-slate-800/60 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-905/10 group/h select-none ${className}`}
+    className={`px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-550 dark:text-slate-400 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/60 border-b border-slate-200/65 dark:border-slate-800/65 bg-slate-50/50 dark:bg-slate-900/40 backdrop-blur-md group/h select-none sticky top-0 z-10 ${className}`}
   >
     <div className="flex items-center justify-between gap-1 w-full">
       <div className="flex items-center gap-1">
@@ -681,11 +683,9 @@ export default function TaskTableView({
           {flatTree.map(({ task, depth }, index) => {
             const assignee = members.find(m => m.id === task.assigneeId);
             const isSelected = selectedTaskIds.includes(task.id);
-            const daysInfo = getDaysText(task.dueDate);
-
-            return (
+            const daysInfo = getDaysText(task.dueDate);            return (
               <tr key={task.id} onClick={() => setSelectedTask(task)}
-                className={`cursor-pointer transition-all group/row ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/15' : index % 2 === 0 ? 'bg-white dark:bg-slate-900/40' : 'bg-slate-50/30 dark:bg-slate-900/20'} hover:bg-indigo-50/30 dark:hover:bg-indigo-950/10`}>
+                className={`cursor-pointer transition-all duration-200 group/row border-b border-slate-100 dark:border-slate-805/45 ${isSelected ? 'bg-indigo-50/30 dark:bg-indigo-950/10 shadow-[inset_3px_0_0_#6366f1]' : index % 2 === 0 ? 'bg-white dark:bg-slate-900/30' : 'bg-slate-50/20 dark:bg-slate-900/10'} hover:bg-indigo-50/20 dark:hover:bg-indigo-950/5`}>
                 
                 <td className="px-4 py-3 border-b border-slate-100/65 dark:border-slate-800/40 text-center w-12" onClick={e => e.stopPropagation()}>
                   <div className="relative flex items-center justify-center min-h-[20px] w-6 mx-auto">
@@ -762,8 +762,10 @@ export default function TaskTableView({
                       </button>
                     )}
                     {/* Complete toggle circle button */}
-                    <button
+                    <motion.button
                       type="button"
+                      whileHover={{ scale: 1.15 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -773,14 +775,14 @@ export default function TaskTableView({
                           (window as any).playSystemSound?.('toggle');
                         }
                       }}
-                      className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 ${
+                      className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                         task.status === 'completed'
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                          ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                          : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-500'
                       }`}
                     >
-                      <Check className="w-3 h-3 text-white dark:text-slate-100" strokeWidth={3} />
-                    </button>
+                      <Check className={`w-2.5 h-2.5 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+                    </motion.button>
 
                     {inlineEditTaskId === task.id ? (
                       <input 
@@ -1478,6 +1480,7 @@ function FieldSettingsModal({
   onClose: () => void;
   onSave: (updated: { name: string; type: string; options?: any[] }) => void;
 }) {
+  const { t, locale } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [options, setOptions] = useState<{ id: string; label: string; color: string; icon?: string }[]>([]);
@@ -1538,7 +1541,7 @@ function FieldSettingsModal({
         <form onSubmit={handleSave} className="relative w-full max-w-[480px] bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-[24px] shadow-2xl p-6 flex flex-col gap-5 z-10 font-sans text-xs">
           <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="text-base font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-              Cài đặt trường: {config.isStandard ? 'Trường hệ thống' : 'Trường tùy chỉnh'}
+              {t('fieldSettingsTitle') || 'Field Settings'}: {config.isStandard ? (t('systemField') || 'System Field') : (t('customField') || 'Custom Field')}
             </h3>
             <button type="button" onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 dark:text-slate-200 transition-colors">
               <X className="w-4 h-4" />
@@ -1548,7 +1551,7 @@ function FieldSettingsModal({
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
             {/* Field Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tên trường</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('fieldName') || 'Field Name'}</label>
               <input
                 type="text"
                 value={name}
@@ -1561,21 +1564,21 @@ function FieldSettingsModal({
             {/* Field Type (only for custom fields) */}
             {!config.isStandard && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loại dữ liệu</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dataType') || 'Data Type'}</label>
                 <select
                   value={type}
                   onChange={e => setType(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-700 dark:text-slate-200"
                 >
-                  <option value="text">Text (Đoạn văn ngắn)</option>
-                  <option value="number">Number (Số)</option>
-                  <option value="date">Date (Ngày tháng)</option>
-                  <option value="checkbox">Checkbox (Hộp kiểm)</option>
-                  <option value="dropdown">Dropdown (Lựa chọn đơn)</option>
-                  <option value="labels">Labels (Đa lựa chọn)</option>
-                  <option value="money">Money (Tiền tệ)</option>
-                  <option value="progress">Progress (Tiến trình)</option>
-                  <option value="rating">Rating (Đánh giá sao)</option>
+                  <option value="text">{locale === 'vi' ? 'Text (Đoạn văn ngắn)' : 'Text (Short text)'}</option>
+                  <option value="number">{locale === 'vi' ? 'Number (Số)' : 'Number (Digit)'}</option>
+                  <option value="date">{locale === 'vi' ? 'Date (Ngày tháng)' : 'Date (Calendar)'}</option>
+                  <option value="checkbox">{locale === 'vi' ? 'Checkbox (Hộp kiểm)' : 'Checkbox (Checkmark)'}</option>
+                  <option value="dropdown">{locale === 'vi' ? 'Dropdown (Lựa chọn đơn)' : 'Dropdown (Single select)'}</option>
+                  <option value="labels">{locale === 'vi' ? 'Labels (Đa lựa chọn)' : 'Labels (Multi select)'}</option>
+                  <option value="money">{locale === 'vi' ? 'Money (Tiền tệ)' : 'Money (Currency)'}</option>
+                  <option value="progress">{locale === 'vi' ? 'Progress (Tiến trình)' : 'Progress (Percentage)'}</option>
+                  <option value="rating">{locale === 'vi' ? 'Rating (Đánh giá sao)' : 'Rating (Stars)'}</option>
                 </select>
               </div>
             )}
@@ -1584,14 +1587,14 @@ function FieldSettingsModal({
             {(type === 'dropdown' || type === 'labels' || config.id === 'status' || config.id === 'priority') && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Danh sách Options</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('optionsList') || 'Options List'}</label>
                   {(type === 'dropdown' || type === 'labels') && (
                     <button
                       type="button"
                       onClick={handleAddOption}
-                      className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline cursor-pointer"
+                      className="text-[10px] font-black text-indigo-655 dark:text-indigo-400 hover:underline cursor-pointer"
                     >
-                      + Thêm Option
+                      + {t('addOption') || 'Add Option'}
                     </button>
                   )}
                 </div>
@@ -1642,13 +1645,13 @@ function FieldSettingsModal({
               onClick={onClose}
               className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold"
             >
-              Hủy
+              {t('cancel') || 'Cancel'}
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-xl bg-indigo-650 text-white hover:bg-indigo-750 font-bold"
             >
-              Lưu thay đổi
+              {t('saveChanges') || 'Save Changes'}
             </button>
           </div>
         </form>

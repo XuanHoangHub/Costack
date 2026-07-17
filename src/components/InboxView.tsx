@@ -14,6 +14,7 @@ interface InboxViewProps {
   tasks: Task[];
   members: User[];
   workspaces: Workspace[];
+  spaces?: any[];
   activeWorkspaceId: string;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
@@ -32,6 +33,7 @@ export default function InboxView({
   tasks,
   members,
   workspaces,
+  spaces = [],
   activeWorkspaceId,
   onUpdateTask,
   onDeleteTask,
@@ -43,8 +45,8 @@ export default function InboxView({
   onAcceptInvite,
   onDeclineInvite
 }: InboxViewProps) {
-  // Tabs: 'all' | 'assigned' | 'mentions' | 'saved' | 'unread'
-  const [activeTab, setActiveTab] = useState<'all' | 'assigned' | 'mentions' | 'saved' | 'unread'>('all');
+  // Tabs: 'all' | 'assigned' | 'mentions' | 'saved' | 'unread' | 'archived'
+  const [activeTab, setActiveTab] = useState<'all' | 'assigned' | 'mentions' | 'saved' | 'unread' | 'archived'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
@@ -119,18 +121,26 @@ export default function InboxView({
       const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
       const isCleared = n.cleared === true;
 
+      // Archived tab: ONLY show cleared notifications
+      if (activeTab === 'archived') {
+        return isCleared;
+      }
+
+      // If cleared, hide from all other active streams
+      if (isCleared) return false;
+
       // Unread: only show non-cleared, non-snoozed unread items
       if (activeTab === 'unread') {
-        return !n.read && !isCleared && !isSnoozed;
+        return !n.read && !isSnoozed;
       }
 
       // Saved for Later: show pinned or snoozed items
       if (activeTab === 'saved') {
-        return (n.pinned || isSnoozed) && !isCleared;
+        return (n.pinned || isSnoozed);
       }
 
-      // If snoozed or cleared, hide from standard active streams ('all', 'assigned', 'mentions')
-      if (isSnoozed || isCleared) return false;
+      // If snoozed, hide from standard active streams
+      if (isSnoozed) return false;
 
       // Mentions: filter items where type is comment or message contains '@'
       if (activeTab === 'mentions') {
@@ -495,6 +505,7 @@ export default function InboxView({
               { id: 'mentions', label: 'Mentions' },
               { id: 'saved', label: 'Saved' },
               { id: 'unread', label: 'Unread' },
+              { id: 'archived', label: 'Archived' },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -515,6 +526,7 @@ export default function InboxView({
                     const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
                     const isCleared = n.cleared === true;
 
+                    if (tab.id === 'archived') return isCleared && !n.read;
                     if (tab.id === 'unread') return !n.read && !isCleared && !isSnoozed;
                     if (tab.id === 'saved') return (n.pinned || isSnoozed) && !isCleared;
                     if (isSnoozed || isCleared) return false;
@@ -847,7 +859,7 @@ export default function InboxView({
 
       {/* Right Column: Split Screen Task Editor Pane */}
       <div className={`flex-[1.5] min-w-0 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-[0_4px_24px_rgba(0,0,0,0.015)] overflow-hidden flex flex-col justify-center relative ${
-        selectedTask ? 'flex' : 'hidden md:flex'
+        selectedTask || selectedNotif ? 'flex' : 'hidden md:flex'
       }`}>
         
         {selectedTask ? (
@@ -885,7 +897,7 @@ export default function InboxView({
                 task={selectedTask}
                 members={members}
                 workspaces={workspaces}
-                spaces={[]} // Empty array or mock spaces
+                spaces={spaces}
                 onClose={() => setSelectedNotificationId(null)}
                 onUpdateTask={(t) => {
                   onUpdateTask(t);
@@ -909,6 +921,137 @@ export default function InboxView({
               />
             </div>
           </div>
+        ) : selectedNotif ? (
+          <div className="w-full h-full flex flex-col min-h-0 relative">
+            {/* Split Screen Panel Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/40 select-none shrink-0">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-pink-500" />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Notification Details</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {selectedNotif.cleared ? (
+                  <button 
+                    onClick={() => handleRestore(selectedNotif.id)}
+                    className="flex items-center gap-1 py-1 px-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-450 border border-indigo-100 dark:border-indigo-900/30 text-[10px] font-bold hover:scale-103 transition-transform cursor-pointer"
+                  >
+                    <ArchiveRestore className="w-3.5 h-3.5" />
+                    <span>Restore Notification</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => handleClear(selectedNotif.id)}
+                    className="flex items-center gap-1 py-1 px-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 text-[10px] font-bold hover:scale-103 transition-transform cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Archive Notification</span>
+                  </button>
+                )}
+                {/* Back button visible only on mobile */}
+                <button 
+                  onClick={() => setSelectedNotificationId(null)}
+                  className="md:hidden p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-655"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Content Body */}
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto text-left custom-scrollbar">
+              {/* Main Card */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-955/15 border border-slate-150/40 dark:border-slate-800/80 rounded-3xl space-y-4 shadow-3xs">
+                <div className="flex items-center gap-3.5">
+                  <div className={`p-3 rounded-2xl shrink-0 ${
+                    selectedNotif.type === 'comment' || selectedNotif.type === 'assignment' ? 'bg-indigo-50 text-indigo-500 dark:bg-indigo-950/40' :
+                    selectedNotif.type === 'deadline' ? 'bg-rose-50 text-rose-500 dark:bg-rose-955/40' :
+                    'bg-slate-100 text-slate-550 dark:bg-slate-805 dark:text-slate-400'
+                  }`}>
+                    <Bell className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-850 dark:text-slate-100 leading-tight">
+                      {selectedNotif.title}
+                    </h3>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block mt-1">
+                      Received at {selectedNotif.timestamp}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl whitespace-pre-wrap">
+                  {selectedNotif.message}
+                </p>
+
+                {/* Metadata List */}
+                <div className="grid grid-cols-2 gap-3.5 pt-2">
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-100/80 dark:border-slate-800/80 rounded-2xl space-y-1 shadow-3xs">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Status</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${selectedNotif.read ? 'bg-slate-400' : 'bg-indigo-500'}`} />
+                      <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-300">
+                        {selectedNotif.read ? 'Marked Read' : 'Unread'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-100/80 dark:border-slate-800/80 rounded-2xl space-y-1 shadow-3xs">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Importance</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${selectedNotif.pinned ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`} />
+                      <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-300">
+                        {selectedNotif.pinned ? 'Pinned to Top' : 'Standard'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons strip */}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <button 
+                    onClick={() => handleToggleRead(selectedNotif.id)}
+                    className="flex items-center gap-1.5 py-2 px-3 text-[10.5px] font-extrabold rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-655 dark:text-slate-305 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{selectedNotif.read ? 'Mark as Unread' : 'Mark as Read'}</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handleTogglePin(selectedNotif.id)}
+                    className={`flex items-center gap-1.5 py-2 px-3 text-[10.5px] font-extrabold rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
+                      selectedNotif.pinned ? 'text-amber-500 border-amber-200 bg-amber-50/10' : 'text-slate-655 dark:text-slate-305'
+                    }`}
+                  >
+                    <Pin className="w-3.5 h-3.5" />
+                    <span>{selectedNotif.pinned ? 'Unpin from Top' : 'Pin to Top'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Smart AI Actions/Explanation (Premium Feel) */}
+              <div className="p-5 bg-indigo-50/10 dark:bg-indigo-950/5 border border-indigo-100/30 dark:border-indigo-900/10 rounded-3xl space-y-3.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                  <h4 className="text-[11px] font-black uppercase text-indigo-500 tracking-wider">Avaxa AI Suggestion</h4>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                  {selectedNotif.type === 'assignment' && 'This notification informs you about a new task assigned to you. Recommend reviewing the task description, updating the estimate hours, or adding subtasks.'}
+                  {selectedNotif.type === 'deadline' && 'Urgent: This task completion deadline is approaching rapidly. Please ensure that work is on track or request adjustments.'}
+                  {selectedNotif.type === 'comment' && 'A team member commented. You can quickly respond to their queries in the task discussion section.'}
+                  {['success', 'info'].includes(selectedNotif.type) && 'System notification. This confirms a change has synced successfully to our database and is active across all team devices.'}
+                  {!['assignment', 'deadline', 'comment', 'success', 'info'].includes(selectedNotif.type) && 'This notification represents a general update. Review changes and archive once resolved.'}
+                </p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleClear(selectedNotif.id)}
+                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white text-[10px] font-black rounded-xl cursor-pointer"
+                  >
+                    Archive & Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           /* Placeholder empty panel state */
           <div className="flex flex-col items-center justify-center p-10 text-center space-y-3.5 select-none h-full">
@@ -916,9 +1059,9 @@ export default function InboxView({
               <Sparkles className="w-6 h-6 text-indigo-500 animate-pulse" />
             </div>
             <div className="max-w-xs">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">No Task Selected</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-205">No Notification Selected</p>
               <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-1 leading-normal">
-                Click on any notification in the list that has a linked task to view and resolve details in real time.
+                Click on any notification in the list to inspect details, configure states, or resolve tasks in real time.
               </p>
             </div>
           </div>

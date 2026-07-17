@@ -23,6 +23,7 @@ import SpacePage from '../components/SpacePage';
 import CalendarView from '../components/CalendarView';
 import Whiteboard from '../components/Whiteboard';
 import WhiteboardHub from '../components/WhiteboardHub';
+import EmojiIconPicker from '../components/EmojiIconPicker';
 import ChatRoom from '../components/ChatRoom';
 import DocumentHub from '../components/DocumentHub';
 import TeamDirectory from '../components/TeamDirectory';
@@ -42,10 +43,10 @@ import GoalsHub from '../components/GoalsHub';
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
-  Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown,
+  Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
   Timer, Bell, Calendar, Settings, Plus,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
-  GripVertical, BarChart3, Target
+  BarChart3, Target
 } from 'lucide-react';
 
 import {
@@ -230,13 +231,13 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const u = session.user;
-        const displayName = u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
         const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
         const userObj = {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
           isPremium
@@ -250,13 +251,13 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const u = session.user;
-        const displayName = u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
         const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
         const userObj = {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
           isPremium
@@ -988,6 +989,7 @@ export default function App() {
 
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+  const [dragOverSide, setDragOverSide] = useState<'top' | 'bottom' | null>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedItemId(id);
@@ -999,12 +1001,21 @@ export default function App() {
     e.preventDefault();
     if (draggedItemId && draggedItemId !== id) {
       setDragOverItemId(id);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+      setDragOverSide(relativeY < rect.height / 2 ? 'top' : 'bottom');
     }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverItemId(null);
+    setDragOverSide(null);
   };
 
   const handleDragEnd = () => {
     setDraggedItemId(null);
     setDragOverItemId(null);
+    setDragOverSide(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
@@ -1022,19 +1033,22 @@ export default function App() {
     });
 
     const draggedIndex = currentOrder.indexOf(draggedItemId);
-    const targetIndex = currentOrder.indexOf(targetId);
-
-    if (draggedIndex !== -1 && targetIndex !== -1) {
+    if (draggedIndex !== -1) {
       currentOrder.splice(draggedIndex, 1);
-      currentOrder.splice(targetIndex, 0, draggedItemId);
-      setSidebarOrder(currentOrder);
-      if (typeof window !== 'undefined') {
-        (window as any).playSystemSound?.('toggle');
+      const adjustedTargetIndex = currentOrder.indexOf(targetId);
+      if (adjustedTargetIndex !== -1) {
+        const insertIndex = dragOverSide === 'top' ? adjustedTargetIndex : adjustedTargetIndex + 1;
+        currentOrder.splice(insertIndex, 0, draggedItemId);
+        setSidebarOrder(currentOrder);
+        if (typeof window !== 'undefined') {
+          (window as any).playSystemSound?.('toggle');
+        }
       }
     }
 
     setDraggedItemId(null);
     setDragOverItemId(null);
+    setDragOverSide(null);
   };
 
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number }>>(() => {
@@ -1106,7 +1120,7 @@ export default function App() {
     const workspaceChannels = [
       { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
       { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-      { id: `${activeWorkspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Avaxa Brain AI support assistant online', type: 'public' },
+      { id: `${activeWorkspaceId}:apexa-ai`, name: 'apexa-ai', description: 'Apexa AI support assistant online', type: 'public' },
       { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' }
     ];
     return workspaceChannels.filter(c => 
@@ -1679,9 +1693,9 @@ export default function App() {
 
         // A. Load Team Members first to find user profile (or handle placeholder)
         const myMemberId = `user-${userId}`;
-        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const myName = currentUser?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
+        const myAvatar = currentUser?.avatar || session.user.user_metadata?.avatar_url || session.user.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
         const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
         
         let dbMembers: any[] = [];
@@ -3981,6 +3995,7 @@ export default function App() {
                         draggable
                         onDragStart={(e) => handleDragStart(e, item.id)}
                         onDragOver={(e) => handleDragOver(e, item.id)}
+                        onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, item.id)}
                         onClick={() => {
@@ -3996,7 +4011,7 @@ export default function App() {
                           addSyncLog(`Switched to: ${item.label}`);
                         }}
                         title={isMainSidebarCollapsed ? item.label : undefined}
-                        className={`group w-full transition-all cursor-pointer relative flex ${
+                        className={`group w-full transition-all cursor-grab active:cursor-grabbing relative flex ${
                           isMainSidebarCollapsed 
                             ? 'flex-col items-center justify-center py-2 px-1 rounded-xl gap-1 text-[9.5px] font-bold text-center' 
                             : 'py-1.5 px-3 rounded-xl text-xs font-bold items-center gap-2.5'
@@ -4004,16 +4019,18 @@ export default function App() {
                           isActive 
                             ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
                             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
-                        } ${
-                          dragOverItemId === item.id 
-                            ? 'border border-dashed border-indigo-500 dark:border-indigo-400 bg-indigo-50/30' 
-                            : 'border border-transparent'
-                        }`}
+                        } border border-transparent`}
                         style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
                       >
-                        {!isMainSidebarCollapsed && (
-                          <div className="absolute left-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-                            <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                        {dragOverItemId === item.id && dragOverSide && (
+                          <div
+                            className={`absolute left-0 right-0 h-[2px] bg-indigo-500 dark:bg-indigo-400 pointer-events-none z-30 transition-all ${
+                              dragOverSide === 'top' 
+                                ? 'top-0 -translate-y-1/2' 
+                                : 'bottom-0 translate-y-1/2'
+                            }`}
+                          >
+                            <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
                           </div>
                         )}
                         <Icon
@@ -4037,8 +4054,8 @@ export default function App() {
                         {item.count !== undefined && item.count > 0 && (
                           <span className={
                             isMainSidebarCollapsed 
-                              ? "absolute top-1 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-sm"
-                              : "ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce"
+                                ? "absolute top-1 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-sm"
+                                : "ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce"
                           }>
                             {item.count}
                           </span>
@@ -4978,7 +4995,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2">
                           <Hash className="w-3.5 h-3.5 text-purple-500 font-bold" />
-                          <span>Avaxa Brain Core</span>
+                          <span>Apexa AI Core</span>
                         </div>
                         <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
@@ -5440,146 +5457,189 @@ export default function App() {
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
               onClick={() => setShowAddSpaceModal(false)} 
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" 
+              className="absolute inset-0 bg-slate-955/40 backdrop-blur-sm" 
             />
             <motion.div 
               initial={{ scale: 0.95, y: 15, opacity: 0 }} 
               animate={{ scale: 1, y: 0, opacity: 1 }} 
               exit={{ scale: 0.95, y: 15, opacity: 0 }} 
-              className="relative w-full max-w-[620px] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-7 overflow-hidden z-10 text-left font-sans select-none"
+              className="relative w-full max-w-[500px] rounded-[28px] bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-2xl p-7.5 overflow-hidden z-10 text-left font-sans select-none"
             >
+              {/* Glow Effect */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-rose-500/10 dark:from-indigo-500/5 dark:to-rose-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-br from-sky-500/10 to-emerald-500/10 dark:from-sky-500/5 dark:to-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
               {/* Close Button */}
               <button 
                 onClick={() => setShowAddSpaceModal(false)} 
-                className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-slate-655 dark:hover:text-slate-200 hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors"
+                className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all active:scale-95 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              <form onSubmit={handleAddSpace} className="space-y-6">
+              <form onSubmit={handleAddSpace} className="space-y-5 relative z-10">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white">Create a Space</h3>
-                  <p className="text-xs text-slate-455 mt-1 leading-relaxed">
-                    A Space represents teams, departments, or groups, each with its own Lists, workflows, and settings.
+                  <h3 className="text-base font-black text-slate-850 dark:text-white uppercase tracking-wider">Create a Space</h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-450 mt-1 leading-relaxed">
+                    A Space represents teams, departments, or projects, each with its own Lists and settings.
                   </p>
                 </div>
 
-                {/* Icon, Color & Name Row */}
+                {/* Icon & Theme Color Row */}
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Icon (Emoji)</label>
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-extrabold text-sm shadow-3xs shrink-0 select-none uppercase">
-                          {newSpaceEmoji || '📦'}
-                        </div>
-                        <input 
-                          type="text" 
-                          maxLength={2}
-                          value={newSpaceEmoji} 
-                          onChange={e => setNewSpaceEmoji(e.target.value)} 
-                          placeholder="📦" 
-                          className="w-16 text-center px-2 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-3 space-y-1.5 text-left">
+                      <label className="text-[9.5px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Icon / Emoji</label>
+                      <div className="mt-1">
+                        <EmojiIconPicker
+                          value={newSpaceEmoji || '📦'}
+                          onChange={setNewSpaceEmoji}
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Theme Color</label>
-                      <select 
-                        value={newSpaceColor} 
-                        onChange={e => setNewSpaceColor(e.target.value)} 
-                        className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-700 dark:text-slate-300 font-bold cursor-pointer h-10"
-                      >
-                        <option value="indigo">Purple</option>
-                        <option value="rose">Pink</option>
-                        <option value="sky">Sky Blue</option>
-                        <option value="emerald">Emerald</option>
-                        <option value="amber">Amber</option>
-                        <option value="sunset">Sunset</option>
-                      </select>
+                    <div className="col-span-9 space-y-1.5 text-left">
+                      <label className="text-[9.5px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Theme Color</label>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        {['indigo', 'rose', 'sky', 'emerald', 'amber', 'sunset'].map(col => {
+                          const colorBgMap = {
+                            indigo: '#6366f1',
+                            rose: '#ec4899',
+                            sky: '#38bdf8',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            sunset: '#f97316',
+                          };
+                          return (
+                            <button
+                              key={col}
+                              type="button"
+                              onClick={() => setNewSpaceColor(col)}
+                              style={{ backgroundColor: colorBgMap[col as keyof typeof colorBgMap] }}
+                              className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-3xs hover:scale-115 active:scale-90 relative ${
+                                newSpaceColor === col ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900 scale-105' : ''
+                              }`}
+                            >
+                              {newSpaceColor === col && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Space Name</label>
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[9.5px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider">Space Name</label>
                     <input 
                       type="text" 
                       required 
                       value={newSpaceName} 
                       onChange={e => setNewSpaceName(e.target.value)} 
                       placeholder="e.g. Marketing, Engineering, HR" 
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-205 dark:border-slate-800 outline-none bg-slate-50/50 dark:bg-slate-950/40 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-850 dark:text-white font-semibold transition-all shadow-3xs"
                     />
                   </div>
                 </div>
 
                 {/* Description Box */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description (optional)</label>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[9.5px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider">Description (optional)</label>
                   <input 
                     type="text" 
                     value={newSpaceDescription} 
                     onChange={e => setNewSpaceDescription(e.target.value)} 
                     placeholder="Provide a brief description..." 
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 focus:border-blue-500 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-205 dark:border-slate-808 outline-none bg-slate-50/50 dark:bg-slate-955/40 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-850 dark:text-white font-semibold transition-all shadow-3xs"
                   />
                 </div>
 
                 {/* Permission Row */}
-                <div className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-355">Default permission</span>
+                <div className="flex items-center justify-between py-2.5 px-3.5 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-808/60 rounded-2xl">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-xs font-bold text-slate-700 dark:text-slate-200 leading-none">Default Permission</span>
+                      <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 mt-1">Initial role for workspace members</span>
+                    </div>
                   </div>
                   
-                  <select 
-                    value={newSpacePermission}
-                    onChange={e => setNewSpacePermission(e.target.value)}
-                    className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
-                  >
-                    <option value="Full edit">Full edit</option>
-                    <option value="Edit only">Edit only</option>
-                    <option value="Read only">Read only</option>
-                    <option value="Comment only">Comment only</option>
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={newSpacePermission}
+                      onChange={e => setNewSpacePermission(e.target.value)}
+                      className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] pl-3.5 pr-8 py-1.5 text-slate-750 dark:text-slate-200 font-bold outline-none focus:border-indigo-500 cursor-pointer shadow-3xs"
+                    >
+                      <option value="Full edit">Full edit</option>
+                      <option value="Edit only">Edit only</option>
+                      <option value="Read only">Read only</option>
+                      <option value="Comment only">Comment only</option>
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Private Toggle Switch Row */}
-                <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-4">
-                  <div className="text-left">
-                    <span className="block text-xs font-bold text-slate-850 dark:text-slate-200">Make Private</span>
-                    <span className="block text-[10px] text-slate-455 mt-0.5">Only you and invited members have access</span>
+                <div className="flex items-center justify-between py-2.5 px-3.5 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-808/60 rounded-2xl">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-xs font-bold text-slate-700 dark:text-slate-200 leading-none">Make Private Space</span>
+                      <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 mt-1">Only you and invited members can access</span>
+                    </div>
                   </div>
                   
-                  {/* Switch toggle styling */}
                   <button
                     type="button"
                     onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
-                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-250 outline-none ${
-                      newSpaceIsPrivate ? 'bg-[#007fff]' : 'bg-slate-200 dark:bg-slate-800'
+                    style={{
+                      backgroundColor: newSpaceIsPrivate ? {
+                        indigo: '#6366f1',
+                        rose: '#ec4899',
+                        sky: '#38bdf8',
+                        emerald: '#10b981',
+                        amber: '#f59e0b',
+                        sunset: '#f97316',
+                      }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] : undefined
+                    }}
+                    className={`w-11 h-6.5 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 outline-none ${
+                      newSpaceIsPrivate ? '' : 'bg-slate-200 dark:bg-slate-800'
                     }`}
                   >
                     <div 
-                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-250 ${
-                        newSpaceIsPrivate ? 'translate-x-4' : 'translate-x-0'
+                      className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-300 ease-out ${
+                        newSpaceIsPrivate ? 'translate-x-4.5' : 'translate-x-0'
                       }`}
                     />
                   </button>
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-150 dark:border-slate-800/60 mt-2">
                   <button 
                     type="button"
-                    className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                    className="text-xs font-black text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 hover:underline"
                   >
-                    Use Templates
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Use template layout</span>
                   </button>
                   
                   <button 
                     type="submit" 
-                    className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-[#007fff] hover:bg-blue-600 shadow-md cursor-pointer transition-colors"
+                    style={{
+                      backgroundColor: {
+                        indigo: '#6366f1',
+                        rose: '#ec4899',
+                        sky: '#38bdf8',
+                        emerald: '#10b981',
+                        amber: '#f59e0b',
+                        sunset: '#f97316',
+                      }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset']
+                    }}
+                    className="px-6 py-2.5 rounded-xl text-xs font-black text-white hover:opacity-90 active:scale-[0.98] shadow-md transition-all cursor-pointer"
                   >
                     Continue
                   </button>

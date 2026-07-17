@@ -1644,7 +1644,7 @@ export default function TaskDetailsPanel({
 
             {/* ── Content Body Render ── */}
             {isTwoColumn ? (
-              // ── Two Column Layout (Linear/Notion style) ──
+              // ── Two Column Layout (Linear style) ──
               <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden">
                 
                 {/* Left: Main details (Scrollable) */}

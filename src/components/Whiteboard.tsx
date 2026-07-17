@@ -6,6 +6,7 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react';
+import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task } from '../types';
 import { supabase } from '../supabaseClient';
@@ -115,6 +116,7 @@ export default function Whiteboard({
   onAddTask,
   tasks = []
 }: WhiteboardProps) {
+  const { t, locale } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
   // Custom tools state (extend with Hand tool support)
@@ -2289,7 +2291,7 @@ export default function Whiteboard({
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-55 flex items-center gap-1.5">
                 <Brain className="w-4 h-4 text-indigo-500 animate-pulse" />
-                AI Whiteboard Analyst
+                {t('aiWhiteboardAnalyst') || 'AI Whiteboard Analyst'}
               </h3>
               <button 
                 onClick={() => setShowAiAnalyst(false)} 
@@ -2318,19 +2320,19 @@ export default function Whiteboard({
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                     }`}
                   >
-                    {mode === 'explain' ? 'Giải thích' : mode === 'optimize' ? 'Tối ưu' : 'Trích Task'}
+                    {mode === 'explain' ? (t('explain') || 'Explain') : mode === 'optimize' ? (t('optimize') || 'Optimize') : (t('extractTasks') || 'Extract Tasks')}
                   </button>
                 ))}
               </div>
 
               {/* Custom Prompt */}
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Yêu cầu thêm (Tùy chọn)</label>
+                <label className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('additionalRequest') || 'Additional Request (Optional)'}</label>
                 <input
                   type="text"
                   value={aiPrompt}
                   onChange={e => setAiPrompt(e.target.value)}
-                  placeholder={aiMode === 'tasks' ? "Ví dụ: Chỉ lấy các task dev..." : "Ví dụ: Tóm tắt ngắn gọn..."}
+                  placeholder={aiMode === 'tasks' ? (t('aiTasksPromptPlaceholder') || "e.g. Only fetch dev tasks...") : (t('aiExplainPromptPlaceholder') || "e.g. Short summary...")}
                   className="w-full px-3.5 py-2 text-[10.5px] font-semibold rounded-xl border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-850 text-slate-850 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-800 transition-colors"
                 />
               </div>
@@ -2344,12 +2346,12 @@ export default function Whiteboard({
                 {aiLoading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Đang phân tích...</span>
+                    <span>{t('analyzing') || 'Analyzing...'}</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Bắt đầu phân tích AI</span>
+                    <span>{t('startAiAnalysis') || 'Start AI Analysis'}</span>
                   </>
                 )}
               </button>
@@ -2357,7 +2359,7 @@ export default function Whiteboard({
               {/* Error */}
               {aiError && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-455 rounded-xl text-[10px] font-semibold leading-relaxed">
-                  ⚠️ Lỗi: {aiError}
+                  ⚠️ {t('error') || 'Error'}: {aiError}
                 </div>
               )}
 
@@ -2365,7 +2367,7 @@ export default function Whiteboard({
               {aiLoading ? (
                 <div className="py-12 flex flex-col items-center gap-2 text-center select-none">
                   <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold animate-pulse">Gemini đang nhìn nhận sơ đồ của bạn...</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold animate-pulse">{t('geminiLookingAtBoard') || 'Gemini is analyzing your whiteboard elements...'}</span>
                 </div>
               ) : aiResult ? (
                 <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-150/60 dark:border-slate-800 rounded-2xl text-[11px] leading-relaxed text-slate-650 dark:text-slate-350 max-h-[260px] overflow-y-auto font-sans space-y-2 whitespace-pre-wrap scrollbar-thin">
@@ -2374,7 +2376,7 @@ export default function Whiteboard({
               ) : aiGeneratedTasks.length > 0 ? (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center select-none">
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">Trích xuất được ({aiGeneratedTasks.length})</span>
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">{(t('extractedTasksCount') || 'Extracted').replace('{count}', String(aiGeneratedTasks.length))}</span>
                     <button
                       onClick={handleAddAiTasks}
                       disabled={tasksAdded}
@@ -2387,12 +2389,12 @@ export default function Whiteboard({
                       {tasksAdded ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
-                          <span>Đã lưu vào Board</span>
+                          <span>{t('savedToBoard') || 'Saved to Board'}</span>
                         </>
                       ) : (
                         <>
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Lưu vào Board</span>
+                          <span>{t('saveToBoard') || 'Save to Board'}</span>
                         </>
                       )}
                     </button>
@@ -2423,7 +2425,7 @@ export default function Whiteboard({
               ) : (
                 !aiLoading && (
                   <div className="py-12 text-center text-slate-400 dark:text-slate-550 italic text-[10.5px] leading-relaxed select-none">
-                    Nhấn nút phân tích để bắt đầu! AI có thể đọc hiểu hình vẽ, sơ đồ flowchart hoặc Sticky Notes trên bảng của bạn.
+                    {t('aiAnalysisPlaceholder') || 'Click analyze to start! AI can read and understand drawings, flowcharts, or Sticky Notes on your board.'}
                   </div>
                 )
               )}

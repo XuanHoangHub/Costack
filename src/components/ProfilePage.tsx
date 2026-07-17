@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Task } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -36,6 +37,7 @@ export default function ProfilePage({
   triggerToast,
   onUpdateMember
 }: ProfilePageProps) {
+  const { t, locale } = useTranslation();
   // Form states
   const [name, setName] = useState(currentUser.name);
   const [role, setRole] = useState(currentUser.role);
@@ -365,8 +367,8 @@ export default function ProfilePage({
             </h2>
             <p className="text-xs font-bold text-slate-405 dark:text-slate-500 uppercase tracking-widest flex items-center justify-center md:justify-start gap-1">
               <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{role === 'admin' ? 'Quản trị viên (Admin)' : 'Thành viên đội ngũ'}</span>
-              {department && <span> • {department}</span>}
+              <span>{role === 'admin' ? t('roleAdmin') || 'Admin' : t('roleMember') || 'Member'}</span>
+              {department && <span> • {t('dept_' + department + '_name') || department}</span>}
             </p>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 pt-2 text-xs text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">
@@ -392,14 +394,14 @@ export default function ProfilePage({
           
           {/* Donut Progress Stats Card */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left flex flex-col justify-between">
-            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Thống kê công việc</h3>
+            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('workStatistics') || 'Task Statistics'}</h3>
             
             <div className="flex items-center gap-6 py-4">
               <div className="relative w-28 h-28 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statPieData.length > 0 ? statPieData : [{ name: 'Trống', value: 1, color: '#e2e8f0' }]}
+                      data={statPieData.length > 0 ? statPieData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
                       innerRadius={35}
@@ -407,7 +409,7 @@ export default function ProfilePage({
                       paddingAngle={3}
                       dataKey="value"
                     >
-                      {(statPieData.length > 0 ? statPieData : [{ name: 'Trống', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
+                      {(statPieData.length > 0 ? statPieData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -415,13 +417,13 @@ export default function ProfilePage({
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{myTasks.length}</span>
-                  <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-0.5">Nhiệm vụ</span>
+                  <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-0.5">{t('tasks') || 'Tasks'}</span>
                 </div>
               </div>
 
               <div className="flex-1 space-y-2">
                 <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
-                  <span>Tỉ lệ hoàn thành</span>
+                  <span>{t('completionRate') || 'Completion rate'}</span>
                   <span className="text-emerald-500">{completionRate}%</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-950 h-2 rounded-full overflow-hidden">
@@ -431,7 +433,7 @@ export default function ProfilePage({
                   />
                 </div>
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-                  Đã làm xong {completedTasks.length} / {myTasks.length} việc được giao
+                  {t('doneTasks').replace('{completed}', String(completedTasks.length)).replace('{total}', String(myTasks.length))}
                 </p>
               </div>
             </div>
@@ -439,12 +441,12 @@ export default function ProfilePage({
             {/* List breakdown */}
             <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-205/30">
-                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">Đang làm</span>
-                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{inProgressTasksCount} việc</span>
+                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">{t('inProgress') || 'In Progress'}</span>
+                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{locale === 'vi' ? `${inProgressTasksCount} việc` : `${inProgressTasksCount} tasks`}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-205/30">
-                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">Đang Review</span>
-                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{reviewTasksCount} việc</span>
+                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">{t('inReview') || 'In Review'}</span>
+                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{locale === 'vi' ? `${reviewTasksCount} việc` : `${reviewTasksCount} tasks`}</span>
               </div>
             </div>
           </div>
@@ -452,14 +454,14 @@ export default function ProfilePage({
           {/* Interactive Skills Tags Cloud Card */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4">
             <div>
-              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Kỹ năng & Chuyên môn</h3>
-              <p className="text-[10px] text-slate-405 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Gắn thẻ các thế mạnh kỹ thuật của bạn</p>
+              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('skillsAndExpertise') || 'Skills & Expertise'}</h3>
+              <p className="text-[10px] text-slate-405 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">{t('tagStrengths') || 'Tag your strengths'}</p>
             </div>
 
             {/* Tags Cloud */}
             <div className="flex flex-wrap gap-1.5 py-1 min-h-[40px]">
               {skills.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">Chưa gắn thẻ kỹ năng nào.</p>
+                <p className="text-xs text-slate-400 italic">{locale === 'vi' ? 'Chưa gắn thẻ kỹ năng nào.' : 'No skills tagged yet.'}</p>
               ) : (
                 skills.map(skill => (
                   <span 
@@ -485,7 +487,7 @@ export default function ProfilePage({
                 type="text"
                 value={newSkill}
                 onChange={e => setNewSkill(e.target.value)}
-                placeholder="Thêm kỹ năng mới (ví dụ: Next.js)..."
+                placeholder={t('addSkillPlaceholder') || 'Add a new skill (e.g. Next.js)...'}
                 className="flex-1 text-xs font-bold px-3 py-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
               />
               <button 
@@ -500,12 +502,12 @@ export default function ProfilePage({
           {/* Account Tier Panel */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-3.5 relative overflow-hidden flex-1">
             <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-amber-500/5 blur-xl pointer-events-none" />
-            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Gói tài khoản</h3>
+            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('accountTier') || 'Account Tier'}</h3>
             <div className="flex items-center justify-between">
               <div>
-                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Cấp độ</span>
+                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t('account') || 'Account'}</span>
                 <span className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                  {currentUser.isPremium ? 'Avaxa Premium Pro' : 'Gói miễn phí (Free Tier)'}
+                  {currentUser.isPremium ? 'Avaxa Premium Pro' : (locale === 'vi' ? 'Gói miễn phí (Free Tier)' : 'Free Tier Package')}
                 </span>
               </div>
               <div className="p-2 rounded-2xl bg-amber-500/10 text-amber-500">
@@ -514,8 +516,8 @@ export default function ProfilePage({
             </div>
             <p className="text-[11px] text-slate-450 dark:text-slate-400 leading-relaxed">
               {currentUser.isPremium 
-                ? 'Đã kích hoạt toàn bộ công cụ AI thông minh, Gantt chart, whiteboards không giới hạn.' 
-                : 'Nâng cấp để sử dụng các tính năng Gantt chart nâng cao và Gemini AI.'}
+                ? (locale === 'vi' ? 'Đã kích hoạt toàn bộ công cụ AI thông minh, Gantt chart, whiteboards không giới hạn.' : 'Full access to smart AI tools, Gantt charts, and unlimited whiteboards.')
+                : (locale === 'vi' ? 'Nâng cấp để sử dụng các tính năng Gantt chart nâng cao và Gemini AI.' : 'Upgrade to use advanced Gantt charts and Gemini AI features.')}
             </p>
             <div className="pt-2">
               <button
@@ -524,7 +526,7 @@ export default function ProfilePage({
                   if ((window as any).showPremiumModal) {
                     (window as any).showPremiumModal();
                   } else if (triggerToast) {
-                    triggerToast('info', 'Thông báo 📁', 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.');
+                    triggerToast('info', locale === 'vi' ? 'Thông báo 📁' : 'Notification 📁', locale === 'vi' ? 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.' : 'Please use a Premium account to access all features.');
                   }
                 }}
                 className={`w-full py-2.5 rounded-2xl text-[11px] font-bold text-center transition-all cursor-pointer ${
@@ -533,7 +535,9 @@ export default function ProfilePage({
                     : 'text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-105 shadow-sm'
                 }`}
               >
-                {currentUser.isPremium ? 'Quản lý gói đăng ký' : 'Nâng cấp Premium ngay'}
+                {currentUser.isPremium 
+                  ? (locale === 'vi' ? 'Quản lý gói đăng ký' : 'Manage Subscription') 
+                  : (locale === 'vi' ? 'Nâng cấp Premium ngay' : 'Upgrade to Premium Now')}
               </button>
             </div>
           </div>
@@ -548,8 +552,8 @@ export default function ProfilePage({
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-3 text-left">
                 <div>
-                  <h3 className="text-sm font-black text-slate-850 dark:text-white uppercase tracking-wider">Thông tin cá nhân</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Chỉnh sửa thông tin hồ sơ của bạn trên hệ thống</p>
+                  <h3 className="text-sm font-black text-slate-850 dark:text-white uppercase tracking-wider">{t('personalInfo') || 'Personal Information'}</h3>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('editProfileInfo') || 'Edit your profile details'}</p>
                 </div>
                 <UserIcon className="w-5 h-5 text-indigo-500 shrink-0" />
               </div>
@@ -557,68 +561,68 @@ export default function ProfilePage({
               {/* Input grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">Họ và tên</label>
+                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('fullName') || 'Full Name'}</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder="Họ và tên..."
+                    placeholder={t('fullNamePlaceholder') || 'Full Name...'}
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">Vai trò / Chuyên môn</label>
+                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('roleProfession') || 'Role / Profession'}</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
                     className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
                   >
-                    <option value="member">Kỹ sư / Thành viên đội ngũ</option>
-                    <option value="admin">Quản trị viên (Admin)</option>
+                    <option value="member">{t('roleMember') || 'Member'}</option>
+                    <option value="admin">{t('roleAdmin') || 'Admin'}</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">Số điện thoại</label>
+                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('phoneNumber') || 'Phone Number'}</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder="Số điện thoại liên hệ..."
+                    placeholder={t('phonePlaceholder') || 'Phone number...'}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">Phòng ban</label>
+                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('department') || 'Department'}</label>
                   <input
                     type="text"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder="Phòng ban làm việc..."
+                    placeholder={t('departmentPlaceholder') || 'Working department...'}
                   />
                 </div>
               </div>
 
               <div className="space-y-1 text-left">
-                <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">Tiểu sử ngắn (Bio)</label>
+                <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('shortBio') || 'Short Bio'}</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={4}
-                  className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-855 dark:text-slate-100 resize-none"
-                  placeholder="Giới thiệu bản thân và trách nhiệm của bạn..."
+                  className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-955 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-855 dark:text-slate-100 resize-none"
+                  placeholder={t('bioPlaceholder') || 'Introduce yourself and your responsibilities...'}
                 />
               </div>
 
               {/* Email (Readonly) */}
-              <div className="space-y-1 p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-855 text-left">
+              <div className="space-y-1 p-3.5 bg-slate-50 dark:bg-slate-955 rounded-xl border border-slate-200/50 dark:border-slate-855 text-left">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Địa chỉ email tài khoản (Không thể chỉnh sửa)</span>
+                  <span>{t('emailReadOnly') || 'Account email (Read-only)'}</span>
                 </label>
                 <p className="text-xs font-mono text-slate-550 dark:text-slate-400 pl-5 pt-0.5">
                   {currentUser.email}
@@ -631,13 +635,13 @@ export default function ProfilePage({
               {saveStatus === 'saved' && (
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                   <CheckCircle className="w-3.5 h-3.5 animate-pulse" />
-                  <span>Mọi thay đổi đã được lưu</span>
+                  <span>{t('allChangesSaved') || 'All changes saved'}</span>
                 </span>
               )}
               {saveStatus === 'dirty' && (
                 <span className="text-[10px] text-amber-600 dark:text-amber-450 font-bold flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Chờ lưu thay đổi...</span>
+                  <span>{t('waitingForChanges') || 'Waiting for changes...'}</span>
                 </span>
               )}
 
@@ -655,17 +659,17 @@ export default function ProfilePage({
                 {saveStatus === 'saving' ? (
                   <>
                     <Clock className="w-4 h-4 animate-spin" />
-                    <span>Đang lưu...</span>
+                    <span>{t('saving') || 'Saving...'}</span>
                   </>
                 ) : saveStatus === 'saved' ? (
                   <>
                     <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Đã lưu thành công</span>
+                    <span>{t('savedSuccessfully') || 'Saved successfully'}</span>
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    <span>Lưu hồ sơ cá nhân</span>
+                    <span>{t('saveProfile') || 'Save Profile'}</span>
                   </>
                 )}
               </button>

@@ -49,6 +49,7 @@ export default function GoalsHub({
 }: GoalsHubProps) {
   // Goals State
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [expandedGoalIds, setExpandedGoalIds] = useState<string[]>([]);
   
   // Modal States
   const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
@@ -391,11 +392,51 @@ export default function GoalsHub({
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                       <div 
-                        className={`h-full rounded-full transition-all duration-550 ${progress === 100 ? 'bg-emerald-500' : 'bg-indigo-505'}`}
+                        className={`h-full rounded-full transition-all duration-550 ${progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
                         style={{ width: `${progress}%` }}
                       />
                     </div>
                   </div>
+
+                  {/* Collapsible Key Results list */}
+                  {goal.targets.length > 0 && (
+                    <div className="border-t border-slate-100 dark:border-slate-800/40 pt-2 select-text" onClick={e => e.stopPropagation()}>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedGoalIds(prev => prev.includes(goal.id) ? prev.filter(id => id !== goal.id) : [...prev, goal.id]);
+                        }}
+                        className="text-[9.5px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-650 flex items-center gap-1 cursor-pointer"
+                      >
+                        <ChevronRight className={`w-3 h-3 transition-transform ${expandedGoalIds.includes(goal.id) ? 'rotate-90' : ''}`} />
+                        <span>{expandedGoalIds.includes(goal.id) ? 'Ẩn mục tiêu con' : 'Xem mục tiêu con'}</span>
+                      </button>
+                      
+                      <AnimatePresence>
+                        {expandedGoalIds.includes(goal.id) && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden mt-2 space-y-1 pl-3 border-l border-slate-200/50 dark:border-slate-800/50"
+                          >
+                            {goal.targets.map(target => {
+                              const p = getTargetProgress(target);
+                              return (
+                                <div key={target.id} className="flex items-center justify-between text-[9px] font-semibold text-slate-500 dark:text-slate-400">
+                                  <span className="truncate max-w-[70%]">{target.title}</span>
+                                  <span className={p === 100 ? "text-emerald-500 font-extrabold" : "text-indigo-500"}>
+                                    {p === 100 ? "Xong" : `${p}%`}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
 
                   {/* Owner & Due Date */}
                   <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800/80">

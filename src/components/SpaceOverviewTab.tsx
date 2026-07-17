@@ -448,7 +448,7 @@ export default function SpaceOverviewTab({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
                   </svg>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-[200px] leading-relaxed mx-auto font-semibold">
-                    {locale === 'vi' ? 'Lưu trữ tài nguyên web quan trọng để truy cập nhanh chóng.' : 'Bookmarks save URLs and ClickUp resources from the web.'}
+                    {locale === 'vi' ? 'Lưu trữ tài nguyên web quan trọng để truy cập nhanh chóng.' : 'Bookmarks save URLs and workspace resources from the web.'}
                   </p>
                   <button 
                     onClick={() => setShowAddBookmarkModal(true)}

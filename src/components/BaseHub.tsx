@@ -21,6 +21,7 @@ import BaseFormView from './base/BaseFormView';
 import BaseCalendarView from './base/BaseCalendarView';
 import BaseGanttView from './base/BaseGanttView';
 import BaseDashboardView from './base/BaseDashboardView';
+import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 
 interface BaseHubProps {
   bases: BaseApp[];
@@ -448,7 +449,9 @@ export default function BaseHub({
                       className="text-left bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer group"
                     >
                       <div className="flex items-start gap-3 mb-3">
-                        <span className="text-2xl">{space.emoji || '📦'}</span>
+                        <span className="text-2xl w-8 h-8 flex items-center justify-center text-indigo-500 shrink-0">
+                          {renderSpaceIcon(space.emoji || '📦', "w-6 h-6")}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{space.name}</h3>
                           <p className="text-[11px] text-slate-400 truncate mt-0.5">{space.workspaceId}</p>
@@ -538,7 +541,9 @@ export default function BaseHub({
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <span className="text-lg">{activeSpace.emoji || '📦'}</span>
+          <span className="text-lg flex items-center justify-center text-indigo-500 shrink-0">
+            {renderSpaceIcon(activeSpace.emoji || '📦', "w-5 h-5")}
+          </span>
           <h1 className="text-sm font-black text-slate-800 truncate">{activeSpace.name}</h1>
           {isOffline && <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Offline</span>}
 
@@ -1001,13 +1006,11 @@ export default function BaseHub({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Emoji</label>
-                      <input
-                        type="text"
-                        maxLength={2}
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Icon / Emoji</label>
+                      <EmojiIconPicker
                         value={newSpaceEmoji}
-                        onChange={e => setNewSpaceEmoji(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 text-center"
+                        onChange={setNewSpaceEmoji}
+                        className="w-full"
                       />
                     </div>
                     <div>

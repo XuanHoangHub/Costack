@@ -185,7 +185,7 @@ export default function AvaxaBrainAssistant({
     if (isOffline) {
       setTimeout(() => {
         setLoading(false);
-        setResponseText("⚠️ Offline: Avaxa Brain cannot connect to Gemini AI servers at this time. Please enable network connection (Click the SYNCD button in the bottom-left corner) to resume online queries!");
+        setResponseText("⚠️ Offline: Apexa AI cannot connect to Gemini AI servers at this time. Please enable network connection (Click the SYNCD button in the bottom-left corner) to resume online queries!");
       }, 700);
       return;
     }
@@ -203,7 +203,7 @@ export default function AvaxaBrainAssistant({
       if (data.success && data.text) {
         setResponseText(data.text);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Asked Avaxa Brain: "${finalQuery.slice(0, 20)}..."`);
+        onAddSyncLog(`Asked Apexa AI: "${finalQuery.slice(0, 20)}..."`);
       } else {
         throw new Error(data.error || "Fail Response");
       }
@@ -255,7 +255,7 @@ Based on current information, here is a quick summary:
       if (data.success && data.text) {
         setDocSummary(data.text);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Avaxa Brain analyzed document: "${doc.title}"`);
+        onAddSyncLog(`Apexa AI analyzed document: "${doc.title}"`);
       } else {
         throw new Error(data.error);
       }
@@ -264,7 +264,7 @@ Based on current information, here is a quick summary:
       setIsAiFallbackActive(true);
       let fallbackText = `### Document Analysis: ${doc.title}\n\n`;
       if (type === 'summarize') {
-        fallbackText += `- **Concise Summary**: The document outlines platform architecture guidelines and operations streamlining.\n- **Keywords**: Productivity, Synchronization, Modern ClickUp Workflows.`;
+        fallbackText += `- **Concise Summary**: The document outlines platform architecture guidelines and operations streamlining.\n- **Keywords**: Productivity, Synchronization, Modern Workflows.`;
       } else {
         fallbackText += `- **Improvements**: Re-organize priorities using Kanban boards.\n- **Proposed Actions**: Activate weekly sprint plans and run offline synchronization.`;
       }
@@ -305,7 +305,7 @@ Based on current information, here is a quick summary:
       if (data.subtasks && data.subtasks.length > 0) {
         setSuggestedSubtasks(data.subtasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Avaxa Brain suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
+        onAddSyncLog(`Apexa AI suggested ${data.subtasks.length} subtasks for: "${task.title}"`);
       } else {
         throw new Error("Zero list");
       }
@@ -386,7 +386,7 @@ Based on current information, here is a quick summary:
             subtasks: ["Write unit tests", "Fix CSS/JS bugs", "Deploy live update"]
           }
         ]);
-        onAddSyncLog(`Avaxa Brain suggested 3 tasks (Offline Fallback)`);
+        onAddSyncLog(`Apexa AI suggested 3 tasks (Offline Fallback)`);
       }, 700);
       return;
     }
@@ -398,7 +398,7 @@ Based on current information, here is a quick summary:
       if (data.tasks) {
         setGeneratedTasks(data.tasks);
         setIsAiFallbackActive(false);
-        onAddSyncLog(`Avaxa Brain planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
+        onAddSyncLog(`Apexa AI planned ${data.tasks.length} tasks for: "${finalPrompt.slice(0, 20)}..."`);
       } else {
         throw new Error("Response error");
       }
@@ -461,7 +461,7 @@ Based on current information, here is a quick summary:
     });
 
     setTasksCreated(true);
-    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Avaxa Brain to Task Manager`);
+    onAddSyncLog(`Successfully added ${generatedTasks.length} tasks from Apexa AI to Task Manager`);
   };
 
   // Helper function to render text to custom clean markup beautifully
@@ -511,10 +511,10 @@ Based on current information, here is a quick summary:
 
   return (
     <>
-      {/* PERSISTENT FLOATING BUTTON (Avaxa Brain Icon) */}
+      {/* PERSISTENT FLOATING BUTTON (Apexa AI Icon) */}
       <div className="fixed right-6 bottom-6 z-40">
         <motion.button
-          id="btn_avaxa_brain_float"
+          id="btn_apexa_ai_float"
           onClick={() => {
             setIsOpen(!isOpen);
             // Default selections if unselected
@@ -530,7 +530,7 @@ Based on current information, here is a quick summary:
           }}
           transition={{ repeat: Infinity, duration: 3 }}
           className="w-13 h-13 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-xl cursor-pointer relative"
-          title="Avaxa Brain AI Assistant"
+          title="Apexa AI Assistant"
         >
           {isOpen ? (
             <X className="w-5 h-5 shrink-0" />
@@ -560,7 +560,7 @@ Based on current information, here is a quick summary:
 
             {/* AI Assistant Drawer Container */}
             <motion.div
-              id="avaxa_brain_drawer"
+              id="apexa_ai_drawer"
               initial={{ x: '100%', opacity: 0.9 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0.9 }}
@@ -575,7 +575,7 @@ Based on current information, here is a quick summary:
                   </div>
                   <div>
                     <h2 className="text-sm font-black font-display tracking-tight flex items-center gap-1.5 text-white">
-                      Avaxa Brain
+                      Apexa AI
                       <span className="bg-indigo-500/20 text-indigo-300 text-[8px] font-extrabold px-1.5 py-0.5 rounded border border-indigo-500/30">Gemini 3.5</span>
                     </h2>
                     <p className="text-[10px] text-slate-300">Smart project coordination AI assistant</p>
@@ -632,7 +632,7 @@ Based on current information, here is a quick summary:
                   <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>⚠️ Offline / AI Simulation Mode:</strong> Avaxa Brain is operating in simulation mode because the server is offline or the access key (GEMINI_API_KEY) is not set. The analysis results shown below are sample data for testing.
+                      <strong>⚠️ Offline / AI Simulation Mode:</strong> Apexa AI is operating in simulation mode because the server is offline or the access key (GEMINI_API_KEY) is not set. The analysis results shown below are sample data for testing.
                     </div>
                   </div>
                 )}
@@ -672,7 +672,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
                             <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Avaxa Brain is analyzing your project workload...</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Apexa AI is analyzing your project workload...</span>
                           </div>
                         ) : responseText ? (
                           <div className="space-y-1 relative pr-8">
@@ -815,7 +815,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
                             <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Avaxa Brain is editing document using Gemini algorithms...</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Apexa AI is editing document using Gemini algorithms...</span>
                           </div>
                         ) : docSummary ? (
                           <div className="space-y-1">
@@ -867,7 +867,7 @@ Based on current information, here is a quick summary:
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Avaxa Brain is extracting subtasks...</span>
+                          <span>Apexa AI is extracting subtasks...</span>
                         </>
                       ) : (
                         <>
@@ -976,7 +976,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
                             <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse font-sans">Avaxa Brain is planning detailed tasks...</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse font-sans">Apexa AI is planning detailed tasks...</span>
                           </div>
                         ) : generatedTasks.length > 0 ? (
                           <div className="space-y-4">
@@ -1057,7 +1057,7 @@ Based on current information, here is a quick summary:
               <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium">
                 <span className="flex items-center gap-1">
                   <Bot className="w-3.5 h-3.5 text-indigo-500" />
-                  Avaxa Autonomous Brain Active
+                  Apexa AI Engine Active
                 </span>
                 <span>Powered by Gemini API</span>
               </div>

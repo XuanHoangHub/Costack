@@ -285,10 +285,16 @@ export function useSupabaseSync() {
                 emoji: s.emoji || '📦',
                 themeColor: s.theme_color || 'indigo',
                 workspaceId: s.workspace_id,
+                user_id: s.user_id,
+                isPrivate: s.is_private || false,
+                shareSettings: s.share_settings || {},
                 lists: (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
                   id: l.id,
                   name: l.name,
-                  folderId: l.folder_id || undefined
+                  folderId: l.folder_id || undefined,
+                  user_id: l.user_id,
+                  isPrivate: l.is_private || false,
+                  shareSettings: l.share_settings || {}
                 })),
                 folders: s.folders || [],
                 whiteboards: s.whiteboards || [],

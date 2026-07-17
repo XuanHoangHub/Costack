@@ -7,10 +7,10 @@ import { Task, TaskStatus, User } from '../../types';
 import SignedImage from '../SignedImage';
 
 const STATUS_COLORS: Record<TaskStatus, { bar: string; barBg: string; text: string; dot: string }> = {
-  todo: { bar: 'bg-slate-400', barBg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600', dot: 'bg-slate-400' },
-  inprogress: { bar: 'bg-amber-500', barBg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700', dot: 'bg-amber-500' },
-  review: { bar: 'bg-cyan-500', barBg: 'bg-cyan-50 dark:bg-cyan-950/30', text: 'text-cyan-700', dot: 'bg-cyan-500' },
-  completed: { bar: 'bg-emerald-500', barBg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  todo: { bar: 'bg-gradient-to-r from-slate-400 to-slate-500', barBg: 'bg-slate-100/50 dark:bg-slate-800/30', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400' },
+  inprogress: { bar: 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-sm shadow-amber-500/20', barBg: 'bg-amber-50/50 dark:bg-amber-955/20', text: 'text-amber-700 dark:text-amber-450', dot: 'bg-amber-500' },
+  review: { bar: 'bg-gradient-to-r from-cyan-400 to-blue-500 shadow-sm shadow-cyan-500/20', barBg: 'bg-cyan-50/50 dark:bg-cyan-955/20', text: 'text-cyan-700 dark:text-cyan-400', dot: 'bg-cyan-500' },
+  completed: { bar: 'bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm shadow-emerald-500/20', barBg: 'bg-emerald-50/50 dark:bg-emerald-955/20', text: 'text-emerald-700 dark:text-emerald-450', dot: 'bg-emerald-500' },
 };
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -61,6 +61,7 @@ export default function TaskGanttView({
    setSelectedTask, onUpdateTask, onAddSyncLog
   }: TaskGanttViewProps) {
   const { t } = useTranslation();
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
 
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('day');
   const [viewOffset, setViewOffset] = useState(0);
@@ -256,6 +257,17 @@ export default function TaskGanttView({
       {/* ── Toolbar ── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
+            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 cursor-pointer transition-colors border border-slate-200/40 dark:border-slate-800/40 mr-1 bg-white dark:bg-slate-900 shadow-3xs"
+            title={isLeftPanelCollapsed ? "Show Task List" : "Hide Task List"}
+          >
+            {isLeftPanelCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
           <button onClick={() => navigate('left')} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 cursor-pointer transition-colors">
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -286,12 +298,12 @@ export default function TaskGanttView({
       <div className="flex overflow-hidden" style={{ maxHeight: 'calc(100vh - 380px)' }}>
 
         {/* ── Left: Task list panel ── */}
-        <div className="w-[280px] min-w-[280px] border-r border-slate-200/60 dark:border-slate-800/60 overflow-y-auto bg-white dark:bg-slate-900/40">
+        <div className={`border-r border-slate-200/60 dark:border-slate-800/60 overflow-y-auto bg-white dark:bg-slate-900/40 transition-all duration-300 ${isLeftPanelCollapsed ? 'w-0 min-w-0 border-r-0' : 'w-[280px] min-w-[280px]'}`}>
           {/* Header */}
-          <div className="h-[60px] flex items-end px-3 pb-2 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40">
-<span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {t('tasksLabel', filteredTasks.length)}
-              </span>
+          <div className="h-[60px] flex items-end px-3 pb-2 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40 overflow-hidden">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              {t('tasksLabel', filteredTasks.length)}
+            </span>
           </div>
 
           {/* Task rows */}
@@ -303,10 +315,10 @@ export default function TaskGanttView({
             return (
               <div key={status}>
                 {/* Status group header */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50/70 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800/40" style={{ height: ROW_HEIGHT * 0.7 }}>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50/30 dark:bg-slate-900/10 border-b border-slate-200/40 dark:border-slate-800/40" style={{ height: ROW_HEIGHT * 0.7 }}>
                   <div className={`w-2 h-2 rounded-full ${sc.dot}`} />
-                  <span className={`text-[9px] font-black uppercase tracking-wider ${sc.text}`}>{STATUS_LABELS[status]}</span>
-                  <span className="text-[9px] font-bold text-slate-400">{tasks.length}</span>
+                  <span className={`text-[9.5px] font-black uppercase tracking-wider ${sc.text}`}>{STATUS_LABELS[status]}</span>
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-200/20 leading-none">{tasks.length}</span>
                 </div>
 
                 {tasks.map(task => {
@@ -409,8 +421,8 @@ export default function TaskGanttView({
             {todayOffset >= 0 && todayOffset < visibleDays && (
               <div className="absolute top-0 bottom-0 z-10 pointer-events-none"
                 style={{ left: todayLeft + cellWidth / 2, width: 2 }}>
-                <div className="w-full h-full bg-indigo-500/60" />
-                <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-white dark:border-slate-900" />
+                <div className="w-full h-full bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)] animate-pulse" />
+                <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-indigo-500 border-2 border-white dark:border-slate-950 shadow-[0_0_10px_rgba(99,102,241,0.6)]" />
               </div>
             )}
 

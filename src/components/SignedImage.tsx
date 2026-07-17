@@ -131,7 +131,14 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
         }}
         title={title || alt}
       >
-        <span style={{ fontSize: '45cqmin', lineHeight: '1' }}>{initial}</span>
+        <span style={{ 
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: '45cqmin',
+          lineHeight: '1'
+        }}>{initial}</span>
       </div>
     );
   }

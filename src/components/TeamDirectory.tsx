@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Workspace, Task } from '../types';
 import { 
@@ -41,11 +42,11 @@ const DEPARTMENTS = [
 
 const getDeptBadge = (deptId?: string) => {
   switch (deptId) {
-    case 'd-hq': return { label: 'HQ Executive', icon: '🏢', class: 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-900/30 dark:text-indigo-400' };
-    case 'd-eng': return { label: 'Engineering', icon: '💻', class: 'bg-cyan-50 border-cyan-150 text-cyan-700 dark:bg-cyan-950/40 dark:border-cyan-900/30 dark:text-cyan-400' };
-    case 'd-design': return { label: 'Design UX', icon: '🎨', class: 'bg-purple-50 border-purple-150 text-purple-700 dark:bg-purple-950/40 dark:border-purple-900/30 dark:text-purple-400' };
-    case 'd-growth': return { label: 'Growth Mktg', icon: '📈', class: 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950/40 dark:border-amber-900/30 dark:text-amber-400' };
-    default: return { label: 'General Staff', icon: '👥', class: 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400' };
+    case 'd-hq': return { label: 'dept_hq_badge', icon: '🏢', class: 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-455' };
+    case 'd-eng': return { label: 'dept_eng_badge', icon: '💻', class: 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-455' };
+    case 'd-design': return { label: 'dept_design_badge', icon: '🎨', class: 'bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-455' };
+    case 'd-growth': return { label: 'dept_growth_badge', icon: '📈', class: 'bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-455' };
+    default: return { label: 'dept_general_badge', icon: '👥', class: 'bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-slate-500 dark:text-slate-405' };
   }
 };
 
@@ -59,6 +60,7 @@ export default function TeamDirectory({
   onDeleteMember,
   onAddSyncLog
 }: TeamDirectoryProps) {
+  const { t, locale } = useTranslation();
   // Top-level Team OS sub-tab state
   const [teamOSView, setTeamOSView] = useState<'directory' | 'org_chart' | 'workload'>('directory');
   
@@ -68,6 +70,8 @@ export default function TeamDirectory({
   // Custom status popover state
   const [showStatusPopover, setShowStatusPopover] = useState(false);
   const me = members.find(m => m.id === 'user');
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
+  const isOwner = me?.role === 'admin' || activeWorkspace?.user_id === me?.id;
   const [statusVal, setStatusVal] = useState<'online' | 'busy' | 'away' | 'offline'>(me?.customStatus || 'online');
   const [statusMsg, setStatusMsg] = useState(me?.statusMessage || '');
   const [statusEmj, setStatusEmj] = useState(me?.statusEmoji || '');
@@ -203,16 +207,16 @@ export default function TeamDirectory({
   };
 
   const statusLabelsEng = {
-    online: 'Online',
-    busy: 'Busy / DND',
-    away: 'Away',
-    offline: 'Offline'
+    online: t('online') || 'Online',
+    busy: t('busy') || 'Busy / DND',
+    away: locale === 'vi' ? 'Vắng mặt' : 'Away',
+    offline: t('offline') || 'Offline'
   };
 
   const roleLabels = {
-    admin: { text: 'Admin', bg: 'bg-indigo-50 border-indigo-200/50 text-indigo-700 dark:bg-indigo-950/35 dark:border-indigo-900/40 dark:text-indigo-400' },
-    member: { text: 'Member', bg: 'bg-cyan-50 border-cyan-200/50 text-cyan-700 dark:bg-cyan-950/35 dark:border-cyan-900/40 dark:text-cyan-400' },
-    guest: { text: 'Guest / Partner', bg: 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-400' }
+    admin: { text: t('roleAdmin') || 'Admin', bg: 'bg-indigo-50 border-indigo-200/50 text-indigo-700 dark:bg-indigo-950/35 dark:border-indigo-900/40 dark:text-indigo-400' },
+    member: { text: t('roleMember') || 'Member', bg: 'bg-cyan-50 border-cyan-200/50 text-cyan-700 dark:bg-cyan-950/35 dark:border-cyan-900/40 dark:text-cyan-400' },
+    guest: { text: locale === 'vi' ? 'Khách / Đối tác' : 'Guest / Partner', bg: 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-400' }
   };
 
   // Find users in the organization not yet in this active workspace
@@ -330,7 +334,7 @@ export default function TeamDirectory({
       m.name.toLowerCase().includes(query) || 
       m.email.toLowerCase().includes(query) || 
       (m.phone && m.phone.toLowerCase().includes(query)) ||
-      deptInfo.label.toLowerCase().includes(query) ||
+      t(deptInfo.label).toLowerCase().includes(query) ||
       (m.bio && m.bio.toLowerCase().includes(query));
 
     const matchesRole = filterRole === 'all' || m.role === filterRole;
@@ -746,9 +750,9 @@ export default function TeamDirectory({
                 onChange={(e) => setFilterDept(e.target.value)}
                 className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
               >
-                <option value="all">All Departments</option>
+                <option value="all">{t('allDepartments') || 'All departments'}</option>
                 {DEPARTMENTS.map(d => (
-                  <option key={d.id} value={d.id}>{d.label}</option>
+                  <option key={d.id} value={d.id}>{t('dept_' + d.id + '_name') || d.label}</option>
                 ))}
               </select>
 
@@ -757,10 +761,10 @@ export default function TeamDirectory({
                 onChange={(e) => setFilterRole(e.target.value)}
                 className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
               >
-                <option value="all">All Roles</option>
-                <option value="admin">Administrators</option>
-                <option value="member">Members</option>
-                <option value="guest">Guests</option>
+                <option value="all">{t('allRoles') || 'All roles'}</option>
+                <option value="admin">{t('roleAdminLabel') || 'Admin'}</option>
+                <option value="member">{t('roleMemberLabel') || 'Member'}</option>
+                <option value="guest">{t('roleGuestLabel') || 'Guest'}</option>
               </select>
 
               <select
@@ -768,11 +772,11 @@ export default function TeamDirectory({
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
               >
-                <option value="all">All Statuses</option>
-                <option value="online">Online</option>
-                <option value="away">Away</option>
-                <option value="busy">Busy / DND</option>
-                <option value="offline">Offline</option>
+                <option value="all">{t('allStatuses') || 'All statuses'}</option>
+                <option value="online">{t('online') || 'Online'}</option>
+                <option value="away">{locale === 'vi' ? 'Vắng mặt' : 'Away'}</option>
+                <option value="busy">{t('busy') || 'Busy / DND'}</option>
+                <option value="offline">{t('offline') || 'Offline'}</option>
               </select>
 
               {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
@@ -780,7 +784,7 @@ export default function TeamDirectory({
                   onClick={clearAllFilters}
                   className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/5 rounded-xl border border-rose-500/20 transition-all cursor-pointer"
                 >
-                  Reset
+                  {t('clearFilters') || 'Reset'}
                 </button>
               )}
             </div>
@@ -871,10 +875,10 @@ export default function TeamDirectory({
 
                     {/* Department badge indicator */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550">Department:</span>
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550">{t('department') || 'Department'}:</span>
                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border flex items-center gap-1 shadow-3xs ${deptBadge.class}`}>
                         <span>{deptBadge.icon}</span>
-                        <span>{deptBadge.label}</span>
+                        <span>{t(deptBadge.label) || deptBadge.label}</span>
                       </span>
                     </div>
 
@@ -962,10 +966,10 @@ export default function TeamDirectory({
                     {/* HQ Node Box */}
                     <div className="relative p-5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-3xl shadow-xl w-64 text-center border border-indigo-400/20 hover:scale-105 transition-all duration-300">
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-white text-indigo-750 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm border border-indigo-50 select-none">
-                        Top Office
+                        {locale === 'vi' ? 'Văn phòng Cao nhất' : 'Top Office'}
                       </div>
-                      <h4 className="text-sm font-black tracking-tight">{hq.name}</h4>
-                      <p className="text-[10px] text-indigo-100 font-medium mt-1 leading-relaxed">{hq.description}</p>
+                      <h4 className="text-sm font-black tracking-tight">{t('dept_' + hq.id + '_name') || hq.name}</h4>
+                      <p className="text-[10px] text-indigo-100 font-medium mt-1 leading-relaxed">{t('dept_' + hq.id + '_desc') || hq.description}</p>
                       
                       {/* Leader profile block */}
                       {manager && (
@@ -977,7 +981,7 @@ export default function TeamDirectory({
                           />
                           <div className="min-w-0">
                             <p className="text-[10px] font-black leading-none truncate">{manager.name}</p>
-                            <span className="text-[8px] text-indigo-150 uppercase tracking-widest font-black block mt-0.5">HQ Director</span>
+                            <span className="text-[8px] text-indigo-150 uppercase tracking-widest font-black block mt-0.5">{locale === 'vi' ? 'Giám đốc Điều hành' : 'HQ Director'}</span>
                           </div>
                         </div>
                       )}
@@ -1000,7 +1004,7 @@ export default function TeamDirectory({
                             {/* Department Box */}
                             <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-md w-56 text-center hover:border-indigo-500/40 dark:hover:border-indigo-400/40 transition-all duration-300">
                               <span className="text-xs">{getDeptBadge(dept.id).icon}</span>
-                              <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 mt-1">{dept.name}</h5>
+                              <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 mt-1">{t('dept_' + dept.id + '_name') || dept.name}</h5>
                               
                               {deptManager && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 justify-start text-left">
@@ -1011,7 +1015,7 @@ export default function TeamDirectory({
                                   />
                                   <div className="min-w-0">
                                     <p className="text-[9px] font-bold text-slate-700 dark:text-slate-300 leading-none truncate">{deptManager.name}</p>
-                                    <span className="text-[8px] text-slate-400 font-medium block mt-px">Dept Lead</span>
+                                    <span className="text-[8px] text-slate-400 font-medium block mt-px">{locale === 'vi' ? 'Trưởng phòng' : 'Dept Lead'}</span>
                                   </div>
                                 </div>
                               )}
@@ -1037,9 +1041,9 @@ export default function TeamDirectory({
                                     className="p-3 bg-slate-50/50 hover:bg-white dark:bg-slate-900/40 dark:hover:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl shadow-2xs w-48 text-left cursor-pointer hover:border-indigo-500/25 dark:hover:border-indigo-400/25 transition-all"
                                   >
                                     <div className="flex items-start justify-between gap-1">
-                                      <h6 className="text-[11px] font-black text-slate-805 dark:text-slate-200 leading-tight truncate">{team.name}</h6>
+                                      <h6 className="text-[11px] font-black text-slate-805 dark:text-slate-200 leading-tight truncate">{t('team_' + team.id + '_name') || team.name}</h6>
                                       <span className="text-[8px] font-black px-1.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-455 rounded-md shrink-0">
-                                        {memberCount} staff
+                                        {t('memberCount').replace('{count}', String(memberCount))}
                                       </span>
                                     </div>
                                     
@@ -1079,57 +1083,65 @@ export default function TeamDirectory({
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl space-y-4">
               <h4 className="text-xs font-black text-slate-850 dark:text-slate-200 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 uppercase tracking-wider">
                 <Megaphone className="w-4 h-4 text-amber-500" />
-                <span>Team Broadcasts</span>
+                <span>{t('teamBroadcasts') || 'Team Broadcasts'}</span>
               </h4>
 
               {activeAnnouncementTeam ? (
                 <div className="space-y-3.5 text-left font-sans text-xs">
                   <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800">
-                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest block">Selected Team</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100 block mt-0.5">{activeAnnouncementTeam.name}</span>
+                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest block">{t('selectedTeam') || 'Selected Team'}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-100 block mt-0.5">{t('team_' + activeAnnouncementTeam.id + '_name') || activeAnnouncementTeam.name}</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400 block">Broadcast Message</label>
-                    <textarea
-                      rows={3}
-                      value={newAnnouncementText}
-                      onChange={(e) => setNewAnnouncementText(e.target.value)}
-                      placeholder="Write team broadcast notice (e.g. Schedule changes)..."
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-semibold"
-                    />
-                  </div>
+                  {isOwner ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400 block">{t('broadcastMessage') || 'Broadcast Message'}</label>
+                        <textarea
+                          rows={3}
+                          value={newAnnouncementText}
+                          onChange={(e) => setNewAnnouncementText(e.target.value)}
+                          placeholder={t('writeBroadcastPlaceholder') || 'Write team broadcast notice (e.g. Schedule changes)...'}
+                          className="w-full p-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-855 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-550 font-semibold"
+                        />
+                      </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveAnnouncementTeam(null)}
-                      className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl font-bold transition-all cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePostAnnouncement}
-                      className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
-                    >
-                      Publish
-                    </button>
-                  </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveAnnouncementTeam(null)}
+                          className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl font-bold transition-all cursor-pointer"
+                        >
+                          {t('cancelFocus') || 'Cancel'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePostAnnouncement}
+                          className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
+                        >
+                          {t('publish') || 'Publish'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+                      {t('broadcastOwnerOnly') || 'Only workspace owners can publish broadcast announcements.'}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-slate-400 italic text-[11px] font-medium leading-relaxed">
-                  Click any Team card on the visual tree to read or broadcast a new announcement notice.
+                  {t('clickTeamToBroadcast') || 'Click any Team card on the visual tree to read or broadcast a new announcement notice.'}
                 </div>
               )}
             </div>
 
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl space-y-3.5 text-left">
               <h4 className="text-xs font-black text-slate-850 dark:text-slate-200 pb-2 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider">
-                Corporate Guidelines
+                {t('corporateGuidelines') || 'Corporate Guidelines'}
               </h4>
               <p className="text-[11px] text-slate-405 leading-relaxed font-medium">
-                Our organizational structure synchronizes roles dynamically. All modifications here auto-provision unified Lark-style chat threads and calendar overlays.
+                {t('corporateGuidelinesDesc') || 'Our organizational structure synchronizes roles dynamically. All modifications here auto-provision unified Lark-style chat threads and calendar overlays.'}
               </p>
             </div>
           </div>
@@ -1186,7 +1198,7 @@ export default function TeamDirectory({
                       </div>
                       <div className="min-w-0 text-left">
                         <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{member.name}</h4>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide block mt-0.5">{getDeptBadge(member.department).label}</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide block mt-0.5">{t(getDeptBadge(member.department).label)}</span>
                       </div>
                     </div>
 
@@ -1406,29 +1418,29 @@ export default function TeamDirectory({
                         <div className="space-y-1.5 p-4 bg-slate-50/40 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800/80 rounded-2xl text-left">
                           <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
                             <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>Short Bio / Intro</span>
+                            <span>{t('bio') || 'Bio'}</span>
                           </h4>
                           <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                            {selectedMember.bio || 'This member is busy building things and has not written a bio yet.'}
+                            {selectedMember.bio || t('noBiographyYet') || 'No biography updated yet.'}
                           </p>
                         </div>
 
                         <div className="space-y-1.5 p-4 bg-slate-50/40 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800/80 rounded-2xl text-left">
-                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Office Details</h4>
+                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('detailsLabel') || 'Details'}</h4>
                           <div className="space-y-2 text-xs font-semibold text-slate-750 dark:text-slate-350">
                             <div className="flex items-center gap-2">
                               <Briefcase className="w-4 h-4 text-slate-400" />
-                              <span>Department: <strong>{getDeptBadge(selectedMember.department).label}</strong></span>
+                              <span>{t('department') || 'Department'}: <strong>{t(getDeptBadge(selectedMember.department).label) || getDeptBadge(selectedMember.department).label}</strong></span>
                             </div>
                             {selectedMember.phone && (
                               <div className="flex items-center gap-2">
                                 <Phone className="w-4 h-4 text-slate-400" />
-                                <span>Phone: <a href={`tel:${selectedMember.phone}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">{selectedMember.phone}</a></span>
+                                <span>{t('phone') || 'Phone'}: <a href={`tel:${selectedMember.phone}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">{selectedMember.phone}</a></span>
                               </div>
                             )}
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4 text-slate-400" />
-                              <span>Joined Date: <span className="text-slate-500">{selectedMember.joinedDate || '2026'}</span></span>
+                              <span>{t('joinedDate') || 'Joined'}: <span className="text-slate-500">{selectedMember.joinedDate || '2026'}</span></span>
                             </div>
                           </div>
                         </div>

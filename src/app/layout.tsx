@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { TranslationProvider } from "@/contexts/TranslationContext";
+import SecurityGuard from "@/components/SecurityGuard";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -77,6 +78,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} min-h-full flex flex-col font-sans`}>
+        <SecurityGuard />
         <TranslationProvider>
           {children}
         </TranslationProvider>

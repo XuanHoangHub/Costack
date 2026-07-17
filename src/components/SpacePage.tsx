@@ -20,7 +20,9 @@ import {
   Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown,
   Folder, FolderOpen, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone
-, Flag } from 'lucide-react';
+, Flag, Lock, Shield } from 'lucide-react';
+import ShareSettingsModal from './ShareSettingsModal';
+import { renderSpaceIcon } from './EmojiIconPicker';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect, BulkStatusSelect, BulkAssigneeSelect, BulkPrioritySelect } from './tasks/TaskSelects';
 import TaskListView from './tasks/TaskListView';
 import TaskBoardView from './tasks/TaskBoardView';
@@ -131,6 +133,96 @@ export default function SpacePage({
     };
   }, [spaces, activeSpaceId]);
 
+  // Active workspace configuration
+  const activeWorkspace = useMemo(() => {
+    return allWorkspaces?.find(w => w.id === activeWorkspaceId);
+  }, [allWorkspaces, activeWorkspaceId]);
+
+  // Sharing states
+  const [sharingModalOpen, setSharingModalOpen] = useState(false);
+  const [sharingTargetType, setSharingTargetType] = useState<'space' | 'list'>('space');
+  const [sharingTargetId, setSharingTargetId] = useState('');
+  const [sharingTargetName, setSharingTargetName] = useState('');
+  const [sharingTargetIsPrivate, setSharingTargetIsPrivate] = useState(false);
+  const [sharingTargetShareSettings, setSharingTargetShareSettings] = useState<Record<string, 'view' | 'edit'>>({});
+
+  // Access check helpers
+  const hasSpaceAccess = React.useCallback((space: Space) => {
+    const cleanCurrentUserId = currentUser?.id;
+    const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isCreator = space.user_id === cleanCurrentUserId;
+    const isPublic = !space.isPrivate;
+    
+    // Check if shared with user
+    const hasAccessKey = space.shareSettings && (space.shareSettings[cleanCurrentUserId] === 'view' || space.shareSettings[cleanCurrentUserId] === 'edit');
+    
+    return isWsOwner || isCreator || isPublic || hasAccessKey;
+  }, [activeWorkspace, currentUser]);
+
+  const canEditSpace = React.useCallback((space: Space) => {
+    const cleanCurrentUserId = currentUser?.id;
+    const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isCreator = space.user_id === cleanCurrentUserId;
+    const isSharedEditor = space.shareSettings && space.shareSettings[cleanCurrentUserId] === 'edit';
+    const isPublic = !space.isPrivate;
+    return isWsOwner || isCreator || isSharedEditor || isPublic;
+  }, [activeWorkspace, currentUser]);
+
+  const hasListAccess = React.useCallback((space: Space, list: any) => {
+    const cleanCurrentUserId = currentUser?.id;
+    const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isCreator = list.user_id === cleanCurrentUserId;
+    const isPublic = !list.isPrivate;
+    const hasAccessKey = list.shareSettings && (list.shareSettings[cleanCurrentUserId] === 'view' || list.shareSettings[cleanCurrentUserId] === 'edit');
+    return hasSpaceAccess(space) && (isWsOwner || isCreator || isPublic || hasAccessKey);
+  }, [currentUser, hasSpaceAccess, activeWorkspace]);
+
+  const canEditList = React.useCallback((space: Space, list: any) => {
+    const cleanCurrentUserId = currentUser?.id;
+    const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isCreator = list.user_id === cleanCurrentUserId;
+    const isSharedEditor = list.shareSettings && list.shareSettings[cleanCurrentUserId] === 'edit';
+    const isPublic = !list.isPrivate;
+    return hasSpaceAccess(space) && (isWsOwner || isCreator || isSharedEditor || isPublic);
+  }, [currentUser, hasSpaceAccess, activeWorkspace]);
+
+  const handleSaveSharingSettings = (newIsPrivate: boolean, newShareSettings: Record<string, 'view' | 'edit'>) => {
+    if (sharingTargetType === 'space') {
+      const updated = spaces.map(s => {
+        if (s.id === sharingTargetId) {
+          return {
+            ...s,
+            isPrivate: newIsPrivate,
+            shareSettings: newShareSettings
+          };
+        }
+        return s;
+      });
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Updated sharing settings for Space "${sharingTargetName}"`);
+    } else {
+      const updated = spaces.map(s => {
+        const hasList = s.lists?.some(l => l.id === sharingTargetId);
+        if (hasList) {
+          const updatedLists = s.lists.map(l => {
+            if (l.id === sharingTargetId) {
+              return {
+                ...l,
+                isPrivate: newIsPrivate,
+                shareSettings: newShareSettings
+              };
+            }
+            return l;
+          });
+          return { ...s, lists: updatedLists };
+        }
+        return s;
+      });
+      onSaveSpaces?.(updated);
+      onAddSyncLog(`Updated sharing settings for List "${sharingTargetName}"`);
+    }
+  };
+
   // Favorite star state
   const [isFavorite, setIsFavorite] = useState(false);
   const [showQuickTools, setShowQuickTools] = useState(false);
@@ -188,7 +280,7 @@ export default function SpacePage({
   }, []);
 
 
-  // ClickUp exact views from screenshot (managed dynamically)
+  // Space exact views from screenshot (managed dynamically)
   const [staticTabs, setStaticTabs] = useState<any[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('tab-overview');
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -202,31 +294,29 @@ export default function SpacePage({
   // Custom Fields and visibility states
   const [showFieldsPanel, setShowFieldsPanel] = useState<boolean>(false);
   const [visibleFields, setVisibleFields] = useState<string[]>([
-    'title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags',
-    'Objective', 'Owner', 'Cost', 'Phase', 'Complexity', 'Active'
+    'title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags'
   ]);
-  const [customFields, setCustomFields] = useState<any[]>([
-    { id: 'cf-objective', name: 'Objective', type: 'text' },
-    { id: 'cf-owner', name: 'Owner', type: 'text' },
-    { id: 'cf-cost', name: 'Cost', type: 'number' },
-    { id: 'cf-phase', name: 'Phase', type: 'dropdown', options: ['Planning', 'Design', 'Development', 'QA', 'Release'] },
-    { id: 'cf-complexity', name: 'Complexity', type: 'rating' },
-    { id: 'cf-active', name: 'Active', type: 'checkbox' }
-  ]);
+  const [customFields, setCustomFields] = useState<any[]>([]);
 
   // Synchronize custom fields config from activeSpace
   useEffect(() => {
-    if (activeSpace && activeSpace.customFields && activeSpace.customFields.length > 0) {
+    if (activeSpace && activeSpace.customFields) {
       setCustomFields(activeSpace.customFields);
-    } else if (activeSpace) {
-      setCustomFields([
-        { id: 'cf-objective', name: 'Objective', type: 'text' },
-        { id: 'cf-owner', name: 'Owner', type: 'text' },
-        { id: 'cf-cost', name: 'Cost', type: 'number' },
-        { id: 'cf-phase', name: 'Phase', type: 'dropdown', options: ['Planning', 'Design', 'Development', 'QA', 'Release'] },
-        { id: 'cf-complexity', name: 'Complexity', type: 'rating' },
-        { id: 'cf-active', name: 'Active', type: 'checkbox' }
-      ]);
+      
+      const customFieldNames = activeSpace.customFields.map((f: any) => f.name);
+      setVisibleFields(prev => {
+        const baseFields = prev.filter(f => ['title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags'].includes(f));
+        const nextFields = [...baseFields];
+        customFieldNames.forEach((name: string) => {
+          if (!nextFields.includes(name)) {
+            nextFields.push(name);
+          }
+        });
+        return nextFields;
+      });
+    } else {
+      setCustomFields([]);
+      setVisibleFields(['title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags']);
     }
   }, [activeSpace?.id, activeSpace?.customFields]);
   // Confirm Modal state and helper
@@ -632,7 +722,7 @@ export default function SpacePage({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // ClickUp style Views Dropdown Menu Definitions
+  // Modern style Views Dropdown Menu Definitions
   const POPULAR_VIEWS = [
     { id: 'list', label: 'List', desc: 'Track tasks, bugs, people & more', icon: List, color: '#7c828d', bg: 'rgba(124, 130, 141, 0.08)' },
     { id: 'gantt', label: 'Gantt Chart', desc: 'Plan dependencies & time', icon: GanttChart, color: '#f04438', bg: 'rgba(240, 68, 56, 0.08)' },
@@ -965,7 +1055,7 @@ export default function SpacePage({
         )}
       </AnimatePresence>
 
-      {/* ── Sub-sidebar for Spaces (Left side, matching ClickUp) ── */}
+      {/* ── Sub-sidebar for Spaces (Left side) ── */}
       <AnimatePresence initial={false}>
         {(!isSubSidebarCollapsed || isMobileSidebarOpen) && (
           <motion.div
@@ -1033,7 +1123,7 @@ export default function SpacePage({
                     return space.name.toLowerCase().includes(spacesSearchQuery.toLowerCase());
                   }
                   return true;
-                }).map(space => {
+                }).filter(hasSpaceAccess).map(space => {
                   const isSpaceActive = activeSpaceId === space.id && activeListId === null;
                   const isAnyChildActive = activeSpaceId === space.id;
                   const isExpanded = isSpacesExpanded;
@@ -1071,13 +1161,14 @@ export default function SpacePage({
                         >
                           {/* Space Icon */}
                           {space.emoji && space.emoji !== '📦' ? (
-                            <span className="text-sm shrink-0">{space.emoji}</span>
+                            renderSpaceIcon(space.emoji, "w-4.5 h-4.5 text-indigo-550 dark:text-indigo-400")
                           ) : (
                             <div className={`w-4.5 h-4.5 rounded-lg flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-3xs ${bgClass}`}>
                               {initialLetter}
                             </div>
                           )}
                           <span className="truncate">{space.name}</span>
+                          {space.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-1" />}
                         </div>
                         {/* Space Hover actions */}
                         <div className="opacity-0 group-hover/space:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
@@ -1144,7 +1235,7 @@ export default function SpacePage({
                           {/* Render Folders */}
                           {space.folders?.map(folder => {
                             const isFolderOpen = expandedFolders[folder.id];
-                            const folderLists = space.lists?.filter(l => l.folderId === folder.id) || [];
+                            const folderLists = (space.lists?.filter(l => l.folderId === folder.id) || []).filter(l => hasListAccess(space, l));
                             const folderDocs = allDocs?.filter(d => d.folderId === folder.id) || [];
                             const folderWhiteboards = space.whiteboards?.filter(w => w.folderId === folder.id) || [];
                             return (
@@ -1242,6 +1333,7 @@ export default function SpacePage({
                                           >
                                             <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                             <span className="truncate">{list.name}</span>
+                                            {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-505 shrink-0 ml-1" />}
                                           </div>
                                           
                                           {/* Task count or hover actions */}
@@ -1350,7 +1442,7 @@ export default function SpacePage({
                           })}
 
                           {/* Render direct Lists */}
-                          {space.lists?.filter(l => !l.folderId).map(list => {
+                          {space.lists?.filter(l => !l.folderId).filter(l => hasListAccess(space, l)).map(list => {
                             const isListActive = activeSpaceId === space.id && activeListId === list.id;
                             const taskCount = tasks.filter(t => t.listId === list.id).length;
                             return (
@@ -1375,6 +1467,7 @@ export default function SpacePage({
                                 >
                                   <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                   <span className="truncate">{list.name}</span>
+                                  {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-550 shrink-0 ml-1" />}
                                 </div>
                                 
                                 {/* Task count or hover actions */}
@@ -1565,7 +1658,7 @@ export default function SpacePage({
                   className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
                 >
                   {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
-                    <span className="text-sm shrink-0">{activeSpace.emoji}</span>
+                    renderSpaceIcon(activeSpace.emoji, "w-5 h-5 text-indigo-550 dark:text-indigo-400")
                   ) : (
                     <div 
                       className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-3xs"
@@ -1614,11 +1707,11 @@ export default function SpacePage({
                         <div className="relative flex items-center">
                           <div 
                             onClick={() => setShowBreadcrumbNav(!showBreadcrumbNav)}
-                            className="flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors bg-slate-50 dark:bg-slate-805 py-1 px-2.5 rounded-xl border border-slate-200/50 dark:border-slate-800 shadow-3xs"
+                            className="flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors py-1 px-2 rounded-lg text-slate-850 dark:text-slate-200"
                           >
-                            <List className="w-3.5 h-3.5 text-slate-450 shrink-0" />
-                            <span className="text-slate-850 dark:text-slate-200 font-extrabold text-[12px]">{currentList.name}</span>
-                            <ChevronDown className="w-3 h-3 text-slate-450 transition-transform duration-200" />
+                            <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="text-slate-850 dark:text-slate-200 font-black text-xs">{currentList.name}</span>
+                            <ChevronDown className="w-3 h-3 text-slate-400 transition-transform duration-200" />
                           </div>
 
                           {/* Interactive Breadcrumb Dropdown Navigator */}
@@ -1684,7 +1777,7 @@ export default function SpacePage({
                                     {/* Space Header */}
                                     <div className="flex items-center gap-2.5 px-2.5 py-1.5 text-xs font-black text-slate-700 dark:text-slate-350 uppercase tracking-wider">
                                       {activeSpace.emoji && activeSpace.emoji !== '📦' ? (
-                                        <span className="text-[12px]">{activeSpace.emoji}</span>
+                                        renderSpaceIcon(activeSpace.emoji, "w-4 h-4 text-indigo-550 dark:text-indigo-400")
                                       ) : (
                                         <div className="w-4 h-4 rounded bg-indigo-500 flex items-center justify-center text-[8px] font-black text-white">
                                           {activeSpace.name.charAt(0).toUpperCase()}
@@ -1744,7 +1837,7 @@ export default function SpacePage({
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
               {/* View Switcher Tabs (Scrollable inline with breadcrumbs) */}
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1">
+              <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200/30 dark:border-slate-800/30 overflow-x-auto scrollbar-none max-w-fit shrink-0">
                 {staticTabs.map(tab => {
                   const TabIcon = tab.icon;
                   const isActive = activeTabId === tab.id;
@@ -1755,13 +1848,13 @@ export default function SpacePage({
                         setActiveTabId(tab.id);
                         setActiveView(tab.viewId);
                       }}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
+                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                         isActive
-                          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200/50 dark:border-indigo-900/40 text-indigo-650 dark:text-indigo-400 shadow-3xs'
-                          : 'border-transparent text-slate-500 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-205 hover:bg-slate-50/60 dark:hover:bg-slate-900/40'
+                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-705/30'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/20'
                       }`}
                     >
-                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-550 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -1843,75 +1936,148 @@ export default function SpacePage({
                 {showQuickTools && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowQuickTools(false)} />
-                    <div className="absolute left-0 top-full mt-1.5 w-[210px] bg-white dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-1.5 font-sans select-none">
-                      <div className="px-2 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Workspace Actions</div>
+                    <div className="absolute left-0 top-full mt-1.5 w-[260px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-2xl z-50 p-2 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-200">
+                      
+                      <div className="px-2.5 py-1.5 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none block mb-1">
+                        Workspace Actions
+                      </div>
+                      
                       <button
                         onClick={() => { setShowQuickTools(false); alert("Starting workspace call..."); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
-                        <Phone className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Start Audio Call</span>
-                      </button>
-                      <button
-                        onClick={() => { setShowQuickTools(false); alert("Opening agents center..."); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
-                      >
-                        <Bot className="w-3.5 h-3.5 text-slate-455" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Workspace Agents</span>
-                      </button>
-                      <button
-                        onClick={() => { setShowQuickTools(false); alert("Opening automations dashboard..."); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-455" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Automations</span>
-                      </button>
-                      <button
-                        onClick={() => { setShowQuickTools(false); alert("Triggering AI Brain² assistant..."); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                        <span className="text-[11px] font-bold text-indigo-650 dark:text-indigo-400">Brain² Assistant</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <Phone className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Start Audio Call</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Host an instant voice huddle</span>
+                        </div>
                       </button>
 
-                      <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-                      <div className="px-2 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">List Customizations</div>
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Opening agents center..."); }}
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <Bot className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Workspace Agents</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Configure custom AI agents</span>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Opening automations dashboard..."); }}
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <SlidersHorizontal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Automations</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Create workflow trigger rules</span>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => { setShowQuickTools(false); alert("Triggering AI Brain² assistant..."); }}
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/30 transition-all text-left cursor-pointer group border border-indigo-500/10"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-black text-indigo-655 dark:text-indigo-400 block">Apexa AI</span>
+                          <span className="text-[9px] text-indigo-500/80 dark:text-indigo-400/80 block leading-normal mt-0.5 font-semibold">Consult the AI cognitive engine</span>
+                        </div>
+                      </button>
+
+                      <div className="border-t border-slate-100 dark:border-slate-808/60 my-1.5" />
+                      
+                      <div className="px-2.5 py-1.5 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none block mb-1">
+                        List Customizations
+                      </div>
                       
                       <button
                         onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'Layout Columns', 'Adjust table column visibility in sidebar panel.'); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Layout Columns</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <SlidersHorizontal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Layout Columns</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Configure view custom fields</span>
+                        </div>
                       </button>
+
                       <button
                         onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'Team Members', 'Assign lists to specific team leads or members.'); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
-                        <Users className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Assignees</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <Users className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Assignees</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Assign tasks to multiple leads</span>
+                        </div>
                       </button>
+
                       <button
                         onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'List Priority', 'Set priority flag for the entire list.'); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
-                        <Flag className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">List Priority</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <Flag className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">List Priority</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Define priority weight thresholds</span>
+                        </div>
                       </button>
+
                       <button
                         onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'List Calendar', 'Specify list deadline or schedule.'); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors text-left cursor-pointer"
+                        className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
-                        <Calendar className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Calendar Schedule</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
+                          <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Calendar Schedule</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Sync list cards to timelines</span>
+                        </div>
                       </button>
+                      
                     </div>
                   </>
                 )}
               </div>
 
               {/* Share button */}
-              <button className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[10.5px] font-extrabold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-slate-655 dark:text-slate-350 shadow-3xs hover:bg-slate-100 dark:hover:bg-slate-900">
+              <button 
+                onClick={() => {
+                  const currentList = activeSpace.lists?.find(l => l.id === activeListId);
+                  if (currentList) {
+                    setSharingTargetType('list');
+                    setSharingTargetId(currentList.id);
+                    setSharingTargetName(currentList.name);
+                    setSharingTargetIsPrivate(!!currentList.isPrivate);
+                    setSharingTargetShareSettings(currentList.shareSettings || {});
+                  } else {
+                    setSharingTargetType('space');
+                    setSharingTargetId(activeSpace.id);
+                    setSharingTargetName(activeSpace.name);
+                    setSharingTargetIsPrivate(!!activeSpace.isPrivate);
+                    setSharingTargetShareSettings(activeSpace.shareSettings || {});
+                  }
+                  setSharingModalOpen(true);
+                }}
+                className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[10.5px] font-extrabold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-slate-655 dark:text-slate-350 shadow-3xs hover:bg-slate-100 dark:hover:bg-slate-900"
+              >
                 <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-500" />
                 <span>Share</span>
               </button>
@@ -3286,7 +3452,7 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   if (triggerToast) {
-                    triggerToast('success', 'Template Library Opened', 'Choose a ClickUp template from our curated workspace library.');
+                    triggerToast('success', 'Template Library Opened', 'Choose a template from our curated workspace library.');
                   } else {
                     alert("Templates gallery opened!");
                   }
@@ -3570,7 +3736,7 @@ export default function SpacePage({
               {/* Automations */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("ClickUp Automations dashboard loaded."); }}
+                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Automations dashboard loaded."); }}
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
               >
                 <Zap className="w-3.5 h-3.5 text-slate-450" />
@@ -3651,7 +3817,16 @@ export default function SpacePage({
               <div className="p-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Sharing and permissions menu loaded."); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    setSharingTargetType('space');
+                    setSharingTargetId(space.id);
+                    setSharingTargetName(space.name);
+                    setSharingTargetIsPrivate(!!space.isPrivate);
+                    setSharingTargetShareSettings(space.shareSettings || {});
+                    setSharingModalOpen(true);
+                  }}
                   className="w-full py-2 bg-[#007fff] hover:bg-blue-650 text-white font-extrabold text-center rounded-lg transition-colors cursor-pointer block text-xs"
                 >
                   Sharing & Permissions
@@ -3891,48 +4066,73 @@ export default function SpacePage({
               <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 
               {/* Custom Fields */}
+              {canEditList(space, list) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveListSettings(null);
+                    setShowFieldsPanel(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Custom Fields</span>
+                </button>
+              )}
+
+              {/* Automations */}
+              {canEditList(space, list) && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List Automations settings loaded."); }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5 text-slate-455" />
+                  <span className="font-bold">Automations</span>
+                </button>
+              )}
+
+              {/* Sharing & Permissions */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveListSettings(null);
-                  setShowFieldsPanel(true);
+                  setSharingTargetType('list');
+                  setSharingTargetId(list.id);
+                  setSharingTargetName(list.name);
+                  setSharingTargetIsPrivate(!!list.isPrivate);
+                  setSharingTargetShareSettings(list.shareSettings || {});
+                  setSharingModalOpen(true);
                 }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+                className="w-full flex items-center gap-2 px-3.5 py-2 text-indigo-650 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-left cursor-pointer"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Custom Fields</span>
-              </button>
-
-              {/* Automations */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List Automations settings loaded."); }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
-              >
-                <Zap className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Automations</span>
+                <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="font-bold">Sharing & Permissions</span>
               </button>
 
               <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 
               {/* Duplicate */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveListSettings(null);
-                  const newListName = `${list.name} (Copy)`;
-                  const updatedLists = [...space.lists, { id: `l-${Date.now()}`, name: newListName, folderId: list.folderId }];
-                  const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
-                  onSaveSpaces?.(updated);
-                  onAddSyncLog(`Duplicated List "${list.name}"`);
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Duplicate</span>
-              </button>
+              {canEditList(space, list) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveListSettings(null);
+                    const newListName = `${list.name} (Copy)`;
+                    const updatedLists = [...space.lists, { id: `l-${Date.now()}`, name: newListName, folderId: list.folderId }];
+                    const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
+                    onSaveSpaces?.(updated);
+                    onAddSyncLog(`Duplicated List "${list.name}"`);
+                  }}
+                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 text-slate-450" />
+                  <span className="font-bold">Duplicate</span>
+                </button>
+              )}
 
               {/* Archive */}
               <button
@@ -4331,6 +4531,24 @@ export default function SpacePage({
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {sharingModalOpen && (
+        <ShareSettingsModal
+          isOpen={sharingModalOpen}
+          onClose={() => setSharingModalOpen(false)}
+          targetType={sharingTargetType}
+          targetId={sharingTargetId}
+          targetName={sharingTargetName}
+          isPrivate={sharingTargetIsPrivate}
+          shareSettings={sharingTargetShareSettings}
+          members={members}
+          currentUser={currentUser}
+          onSave={handleSaveSharingSettings}
+          canEdit={sharingTargetType === 'space' 
+            ? canEditSpace(spaces.find(s => s.id === sharingTargetId) || activeSpace) 
+            : canEditList(activeSpace, activeSpace.lists?.find(l => l.id === sharingTargetId))}
+        />
+      )}
 
       </div> {/* Closing tag for Main Page Workspace Content Container */}
     </div>

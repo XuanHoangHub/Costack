@@ -609,6 +609,11 @@ export function useAppActions() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          const currentMember = useMemberStore.getState().members.find(m => m.id === updated.id);
+          const finalWSIds = (updated.workspaceIds && updated.workspaceIds.length > 0)
+            ? updated.workspaceIds
+            : (currentMember?.workspaceIds || []);
+
           const dbId = updated.id === 'user' ? `user-${session.user.id}` : updated.id;
           const { error } = await supabase.from('members').update({
             name: updated.name,
@@ -620,7 +625,7 @@ export function useAppActions() {
             department: updated.department || null,
             bio: updated.bio || null,
             joined_date: updated.joinedDate || null,
-            workspace_ids: updated.workspaceIds || null
+            workspace_ids: finalWSIds.length > 0 ? finalWSIds : null
           }).eq('id', dbId);
           if (error) console.error('Supabase Member Update Error:', error);
         }
@@ -683,7 +688,9 @@ export function useAppActions() {
               statuses: space.statuses || [],
               click_apps: space.clickApps || {},
               custom_fields_config: space.customFields || [],
-              user_id: userId
+              user_id: userId,
+              is_private: space.isPrivate || false,
+              share_settings: space.shareSettings || {}
             });
 
             const oldSpace = spaces.find(s => s.id === space.id);
@@ -701,7 +708,9 @@ export function useAppActions() {
                 name: list.name,
                 space_id: space.id,
                 folder_id: list.folderId || null,
-                user_id: userId
+                user_id: userId,
+                is_private: list.isPrivate || false,
+                share_settings: list.shareSettings || {}
               }));
               await supabase.from('lists').upsert(listsToUpsert);
             }

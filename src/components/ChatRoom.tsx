@@ -249,7 +249,7 @@ export default function ChatRoom({
   const [activeSidebarTab, setActiveSidebarTab] = useState<'members' | 'search' | 'files'>('members');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
-  // Lark Thread states
+  // Thread states
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   const [threadInputVal, setThreadInputVal] = useState('');
 
@@ -345,6 +345,7 @@ export default function ChatRoom({
 
   // Refs
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -874,7 +875,12 @@ export default function ChatRoom({
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }, 100);
   };
 
@@ -1619,8 +1625,8 @@ export default function ChatRoom({
                       key={c.id}
                       className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent ${
                         isActive 
-                          ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 border-indigo-200/20 dark:border-indigo-900/20 font-bold' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-850 dark:hover:text-slate-200'
                       }`}
                     >
                       <button
@@ -1854,10 +1860,10 @@ export default function ChatRoom({
                     <button
                       key={c.id}
                       onClick={() => setActiveChannelId(c.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border relative overflow-hidden group ${
+                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border relative overflow-hidden group ${
                         isActive 
-                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/50 text-amber-700' 
-                          : 'border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/10 border-amber-200/50 dark:border-amber-900/30 text-amber-705 dark:text-amber-400' 
+                          : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
                       <Sparkles className="w-4 h-4 shrink-0 text-amber-500 animate-pulse" />
@@ -2054,7 +2060,7 @@ export default function ChatRoom({
         )}
 
         {/* Messages List Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
           {isSelfDm && (
             <div className="flex flex-col items-center justify-center text-center py-10 max-w-md mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-center mb-4 text-2xl">
@@ -2110,13 +2116,13 @@ export default function ChatRoom({
                 id={`msg-${msg.id}`}
                 className={`flex gap-3 items-start group relative rounded-xl p-3 transition-all ${
                   msg.isAi 
-                    ? 'bg-gradient-to-r from-amber-500/5 via-orange-500/3 to-transparent border-l-2 border-l-amber-500 dark:from-amber-950/10 dark:via-orange-950/5 dark:to-transparent' 
-                    : 'hover:bg-slate-55/40 dark:hover:bg-slate-800/10'
+                    ? 'bg-gradient-to-r from-indigo-50/20 via-purple-50/10 to-transparent border-l-[3px] border-indigo-505 dark:from-indigo-950/15 dark:via-purple-955/5 dark:to-transparent' 
+                    : 'hover:bg-slate-50/40 dark:hover:bg-slate-800/10'
                 }`}
               >
                 {/* Sender Avatar */}
                 {msg.isAi ? (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shrink-0 shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shrink-0 shadow-sm">
                     <Bot className="w-4.5 h-4.5 animate-pulse" />
                   </div>
                 ) : (
@@ -2126,8 +2132,8 @@ export default function ChatRoom({
                 {/* Message Body */}
                 <div className="flex-1 min-w-0 text-left space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-black ${msg.isAi ? 'text-amber-700' : 'text-slate-800'}`}>{msg.senderName}</span>
-                    <span className="text-[9px] text-slate-400 font-mono">{msg.timestamp}</span>
+                    <span className={`text-[11px] font-black ${msg.isAi ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>{msg.senderName}</span>
+                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-mono">{msg.timestamp}</span>
                     {isMe && (
                       <span className="flex items-center gap-0.5 ml-1 select-none group/ticks relative" title={isOffline ? "Sent (Offline)" : "Read by team"}>
                         {isOffline ? (
@@ -2144,7 +2150,7 @@ export default function ChatRoom({
                     )}
                     {msg.isAi && (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[7.5px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>
+                        <span className="text-[7.5px] font-black bg-indigo-650 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>
                         <button
                           onClick={() => handleToggleSpeech(msg.id, msg.content)}
                           className="p-1 rounded hover:bg-slate-100 text-slate-450 hover:text-indigo-650 transition-colors cursor-pointer"
@@ -2763,7 +2769,7 @@ export default function ChatRoom({
         )}
       </AnimatePresence>
 
-      {/* ── Lark Thread Panel ── */}
+      {/* ── Thread Panel ── */}
       <AnimatePresence>
         {activeThreadMessage && (
           <motion.div 

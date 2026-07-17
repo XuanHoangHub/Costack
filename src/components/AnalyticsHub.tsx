@@ -30,6 +30,7 @@ export default function AnalyticsHub({
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>('all');
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7days' | '30days' | 'all'>('all');
   const [selectedMetric, setSelectedMetric] = useState<'count' | 'hours'>('count');
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Filter tasks based on space and timeframe
   const filteredTasks = useMemo(() => {
@@ -55,6 +56,21 @@ export default function AnalyticsHub({
 
   // General Metrics
   const stats = useMemo(() => {
+    if (isDemoMode) {
+      return {
+        total: 24,
+        completed: 16,
+        inProgress: 5,
+        review: 2,
+        todo: 1,
+        loggedHours: 42.5,
+        estimatedHours: 60,
+        completionRate: 67,
+        avgLeadTimeHours: 4.8,
+        overdue: 1
+      };
+    }
+
     const total = filteredTasks.length;
     const completed = filteredTasks.filter(t => t.status === 'completed').length;
     const inProgress = filteredTasks.filter(t => t.status === 'inprogress').length;
@@ -103,20 +119,38 @@ export default function AnalyticsHub({
       avgLeadTimeHours,
       overdue
     };
-  }, [filteredTasks]);
+  }, [filteredTasks, isDemoMode]);
 
   // 1. Task status data for Donut Chart
   const statusChartData = useMemo(() => {
+    if (isDemoMode) {
+      return [
+        { name: 'To Do', value: 1, color: '#6366f1' },
+        { name: 'In Progress', value: 5, color: '#f59e0b' },
+        { name: 'Review', value: 2, color: '#a855f7' },
+        { name: 'Completed', value: 16, color: '#10b981' }
+      ];
+    }
+
     return [
       { name: 'To Do', value: stats.todo, color: '#6366f1' },
       { name: 'In Progress', value: stats.inProgress, color: '#f59e0b' },
       { name: 'Review', value: stats.review, color: '#a855f7' },
       { name: 'Completed', value: stats.completed, color: '#10b981' }
     ].filter(d => d.value > 0);
-  }, [stats]);
+  }, [stats, isDemoMode]);
 
   // 2. Priority breakdown data
   const priorityChartData = useMemo(() => {
+    if (isDemoMode) {
+      return [
+        { name: 'Low', value: 4, color: '#3b82f6' },
+        { name: 'Medium', value: 10, color: '#eab308' },
+        { name: 'High', value: 7, color: '#f97316' },
+        { name: 'Urgent', value: 3, color: '#ef4444' }
+      ];
+    }
+
     const urgent = filteredTasks.filter(t => t.priority === 'urgent').length;
     const high = filteredTasks.filter(t => t.priority === 'high').length;
     const medium = filteredTasks.filter(t => t.priority === 'medium').length;
@@ -128,10 +162,22 @@ export default function AnalyticsHub({
       { name: 'High', value: high, color: '#f97316' },
       { name: 'Urgent', value: urgent, color: '#ef4444' }
     ].filter(d => d.value > 0);
-  }, [filteredTasks]);
+  }, [filteredTasks, isDemoMode]);
 
   // 3. Weekly Velocity Area Chart
   const velocityChartData = useMemo(() => {
+    if (isDemoMode) {
+      return [
+        { name: 'Thứ 2', 'Đã tạo': 3, 'Hoàn thành': 1 },
+        { name: 'Thứ 3', 'Đã tạo': 5, 'Hoàn thành': 3 },
+        { name: 'Thứ 4', 'Đã tạo': 2, 'Hoàn thành': 4 },
+        { name: 'Thứ 5', 'Đã tạo': 6, 'Hoàn thành': 5 },
+        { name: 'Thứ 6', 'Đã tạo': 4, 'Hoàn thành': 6 },
+        { name: 'Thứ 7', 'Đã tạo': 2, 'Hoàn thành': 2 },
+        { name: 'Chủ Nhật', 'Đã tạo': 1, 'Hoàn thành': 1 }
+      ];
+    }
+
     const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
     const now = new Date();
     const currentDay = now.getDay();
@@ -153,10 +199,18 @@ export default function AnalyticsHub({
         'Hoàn thành': completed
       };
     });
-  }, [filteredTasks]);
+  }, [filteredTasks, isDemoMode]);
 
   // 4. Performance radar per Member
   const memberPerformanceData = useMemo(() => {
+    if (isDemoMode) {
+      return [
+        { subject: 'Hoàng', 'Hiệu suất': 85, 'Số task': 12, 'Số giờ': 18, 'Task khẩn cấp': 20, fullMark: 100 },
+        { subject: 'Thảo', 'Hiệu suất': 92, 'Số task': 8, 'Số giờ': 12, 'Task khẩn cấp': 10, fullMark: 100 },
+        { subject: 'Minh', 'Hiệu suất': 70, 'Số task': 15, 'Số giờ': 24, 'Task khẩn cấp': 30, fullMark: 100 }
+      ];
+    }
+
     return members.map(m => {
       const memberTasks = filteredTasks.filter(t => t.assigneeId === m.id || (t.assigneeIds && t.assigneeIds.includes(m.id)));
       const completed = memberTasks.filter(t => t.status === 'completed').length;
@@ -174,10 +228,17 @@ export default function AnalyticsHub({
         fullMark: 100
       };
     }).filter(m => m['Số task'] > 0);
-  }, [members, filteredTasks]);
+  }, [members, filteredTasks, isDemoMode]);
 
   // 5. Space task distribution
   const spaceDistributionData = useMemo(() => {
+    if (isDemoMode) {
+      return [
+        { name: 'Dự án A', 'Tổng số': 15, 'Hoàn thành': 10, 'Số giờ': 28 },
+        { name: 'Marketing', 'Tổng số': 8, 'Hoàn thành': 5, 'Số giờ': 14 }
+      ];
+    }
+
     const spaceIds = Array.from(new Set(filteredTasks.map(t => t.spaceId).filter(Boolean)));
     return spaceIds.map(sid => {
       const spaceObj = spaces.find(s => s.id === sid);
@@ -192,10 +253,18 @@ export default function AnalyticsHub({
         'Số giờ': hours
       };
     });
-  }, [filteredTasks, spaces]);
+  }, [filteredTasks, spaces, isDemoMode]);
 
   // Top Performer computation
   const topPerformer = useMemo<{ member: User; completed: number; hours: number } | null>(() => {
+    if (isDemoMode && members.length > 0) {
+      return {
+        member: members[0],
+        completed: 10,
+        hours: 18
+      };
+    }
+
     if (members.length === 0 || filteredTasks.length === 0) return null;
     
     let bestMember: User | null = null;
@@ -298,6 +367,19 @@ export default function AnalyticsHub({
               <option value="30days">30 ngày qua</option>
             </select>
           </div>
+
+          {/* Demo Mode Toggle */}
+          <button
+            onClick={() => setIsDemoMode(!isDemoMode)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border transition-all cursor-pointer select-none ${
+              isDemoMode 
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850'
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isDemoMode ? 'animate-pulse text-white' : 'text-indigo-500'}`} />
+            <span>{isDemoMode ? 'Demo Mode: ON' : 'Demo Mode'}</span>
+          </button>
         </div>
       </motion.div>
 
