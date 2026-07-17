@@ -4251,7 +4251,6 @@ export default function App() {
                         >
                           <div className="text-[9px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
                             <span>Duration (Minutes)</span>
-                            <span className="text-[8px] text-indigo-500 lowercase font-semibold">Auto Synced</span>
                           </div>
                           
                           <div className="grid grid-cols-3 gap-1.5">
@@ -4389,35 +4388,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Sync panel actions block */}
-        <div className="space-y-2 pt-3 border-t border-slate-200/10">
-          {isMainSidebarCollapsed ? (
-            <div className="flex items-center justify-center py-1">
-              <button 
-                onClick={handleToggleOffline} 
-                className={`hover:scale-105 transition-all flex items-center justify-center p-1.5 rounded-full border shadow-xs ${
-                  isOffline ? 'bg-amber-50 border-amber-200 text-amber-500' : 'bg-emerald-50 border-emerald-200 text-emerald-500'
-                }`}
-                title={isOffline ? 'Offline - Click to Sync' : 'Synced'}
-              >
-                <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between text-[10px] px-2.5 font-bold">
-              <span className="text-slate-400 uppercase tracking-widest text-[9px]">Live Sync</span>
-              <button 
-                onClick={handleToggleOffline} 
-                className={`hover:scale-105 transition-all flex items-center gap-1.5 py-1 px-2.5 rounded-full border text-[8px] font-black uppercase shadow-xs ${
-                  isOffline ? 'bg-amber-50 text-amber-600 border-amber-200/50' : 'bg-emerald-50 text-emerald-600 border-emerald-200/50'
-                }`}
-              >
-                <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-                {isOffline ? 'Offline' : 'Synced'}
-              </button>
-            </div>
-          )}
-        </div>
+
 
       </div>
 

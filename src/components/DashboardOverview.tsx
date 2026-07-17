@@ -331,7 +331,7 @@ export default function DashboardOverview({
             <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse shrink-0" />
           </div>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-            {t('dashboardSyncDescription') || 'Chào mừng bạn quay lại. Hệ thống đang trực tiếp đồng bộ hóa các sơ đồ cống hiến, bảng công việc và Whiteboard theo thời gian thực từ cơ sở dữ liệu Supabase.'}
+            {t('dashboardSyncDescription') || 'All your documents, whiteboards, schedules and habits are automatically synced in real-time across all devices.'}
           </p>
         </div>
 
@@ -342,7 +342,7 @@ export default function DashboardOverview({
               : 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-955/20'
           }`}>
             <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500 animate-ping'}`} />
-            <span>{isOffline ? (locale === 'vi' ? 'Chế độ Offline' : 'Offline Mode') : 'Supabase Realtime'}</span>
+            <span>{isOffline ? (locale === 'vi' ? 'Ngoại tuyến' : 'Offline') : (locale === 'vi' ? 'Trực tuyến' : 'Online')}</span>
           </div>
         </div>
       </motion.div>

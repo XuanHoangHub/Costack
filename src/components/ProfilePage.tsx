@@ -323,7 +323,7 @@ export default function ProfilePage({
           <div className="absolute top-4 right-4 flex gap-2">
             <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/20 dark:bg-black/35 text-white backdrop-blur-md border border-white/10 flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'}`} />
-              {isOffline ? 'Offline' : 'Supabase Connected'}
+              {isOffline ? 'Offline' : 'Online'}
             </span>
           </div>
         </div>
