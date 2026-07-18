@@ -23,7 +23,8 @@ export function useUserPresence() {
     const myMemberId = `user-${currentUser.id}`;
 
     // Get current user's profile from store
-    const me = members.find((m) => m.id === 'user');
+    const currentMembers = useMemberStore.getState().members;
+    const me = currentMembers.find((m) => m.id === 'user');
     const customStatus = me?.customStatus || 'online';
     const statusMessage = me?.statusMessage || '';
     const statusEmoji = me?.statusEmoji || '';
@@ -189,7 +190,7 @@ export function useUserPresence() {
         supabase.removeChannel(channel);
       }
     };
-  }, [currentUser, members, isIdle]);
+  }, [currentUser]);
 
   // Function to manually set custom status (persisted in DB and presence)
   const setCustomStatus = async (

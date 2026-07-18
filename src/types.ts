@@ -26,10 +26,11 @@ export interface WorkspaceInvitation {
   email: string;
   role: 'admin' | 'member' | 'guest';
   invitedBy: string;
-  token: string;
+  invitedByName?: string;
+  token?: string;
   status: 'pending' | 'accepted' | 'declined' | 'revoked';
   createdAt: string;
-  expiresAt: string;
+  expiresAt?: string;
   workspaceName?: string;
   workspaceTheme?: string;
   workspaceCoverUrl?: string;

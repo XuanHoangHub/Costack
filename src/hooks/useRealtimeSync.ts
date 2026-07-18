@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuthStore } from '@/store';
 import { useTaskStore } from '@/store/taskStore';
@@ -11,7 +11,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
-import { Task, Document, User, Workspace, Space, BaseApp } from '@/types';
+import { Task, Document, User, Workspace, Space, BaseApp, WorkspaceInvitation } from '@/types';
 import { useUserPresence } from '@/hooks/useUserPresence';
 
 export function useSupabaseSync() {
@@ -605,3 +605,62 @@ export function useSupabaseSync() {
     };
   }, [currentUser, isOffline]);
 }
+
+export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: boolean) {
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+
+  const loadInvitations = useCallback(async () => {
+    if (!currentUserEmail || typeof window === 'undefined') return;
+
+    const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+    const localList: WorkspaceInvitation[] = storedRaw ? JSON.parse(storedRaw) : [];
+    const emailLower = currentUserEmail.trim().toLowerCase();
+
+    if (!isOffline) {
+      try {
+        const { data, error } = await supabase
+          .from('workspace_invitations')
+          .select('*')
+          .eq('email', emailLower);
+
+        if (!error && data) {
+          const mapped: WorkspaceInvitation[] = data.map(i => ({
+            id: i.id,
+            workspaceId: i.workspace_id,
+            workspaceName: i.workspace_name || 'Workspace',
+            email: i.email,
+            role: i.role || 'member',
+            invitedBy: i.invited_by,
+            invitedByName: i.invited_by_name || i.invited_by,
+            status: i.status || 'pending',
+            createdAt: i.created_at
+          }));
+
+          const map = new Map<string, WorkspaceInvitation>();
+          localList.forEach(i => map.set(i.id, i));
+          mapped.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values()).filter(i => 
+            i.email.toLowerCase() === emailLower && i.status === 'pending'
+          );
+          setInvitations(merged);
+          return;
+        }
+      } catch (e) {
+        console.warn('Exception loading workspace invitations:', e);
+      }
+    }
+
+    setInvitations(localList.filter(i => i.email.toLowerCase() === emailLower && i.status === 'pending'));
+  }, [currentUserEmail, isOffline]);
+
+  useEffect(() => {
+    loadInvitations();
+
+    const handleUpdate = () => loadInvitations();
+    window.addEventListener('avaxa-invitation-updated', handleUpdate);
+    return () => window.removeEventListener('avaxa-invitation-updated', handleUpdate);
+  }, [loadInvitations]);
+
+  return { invitations, refreshInvitations: loadInvitations };
+}
+

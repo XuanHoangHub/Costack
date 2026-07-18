@@ -13,7 +13,7 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { useSyncStore } from '@/store/syncStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
-import { Task, Document, User, Space, BaseApp } from '@/types';
+import { Task, Document, User, Space, BaseApp, WorkspaceInvitation } from '@/types';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -229,8 +229,6 @@ export function useAppActions() {
       } catch (err) {
         console.error('Task sync failure:', err);
       }
-    } else {
-      setTasks(prev => [...prev, newTask]);
     }
   }, [members, activeWorkspaceId, isOffline, setTasks, triggerToast, addSyncLog]);
 
@@ -601,6 +599,169 @@ export function useAppActions() {
       }
     }
   }, [isOffline]);
+
+  const handleSendWorkspaceInvites = useCallback(async (emails: string[], role: string) => {
+    const activeWsId = useWorkspaceStore.getState().activeWorkspaceId;
+    const currentWS = workspaces.find(w => w.id === activeWsId);
+    const inviterName = currentUser?.name || 'Workspace Admin';
+
+    for (const email of emails) {
+      const inviteId = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const cleanEmail = email.trim().toLowerCase();
+      const newInvite: WorkspaceInvitation = {
+        id: inviteId,
+        workspaceId: activeWsId,
+        workspaceName: currentWS?.name || 'Avaxa Workspace',
+        email: cleanEmail,
+        role: (role as any) || 'member',
+        invitedBy: currentUser?.email || 'admin',
+        invitedByName: inviterName,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+
+      if (!isOffline) {
+        try {
+          const { error } = await supabase.from('workspace_invitations').insert([{
+            id: newInvite.id,
+            workspace_id: newInvite.workspaceId,
+            workspace_name: newInvite.workspaceName,
+            email: newInvite.email,
+            role: newInvite.role,
+            invited_by: newInvite.invitedBy,
+            invited_by_name: newInvite.invitedByName,
+            status: 'pending',
+            created_at: newInvite.createdAt
+          }]);
+          if (error) {
+            console.warn('Supabase invitation insert notice:', error.message);
+          }
+        } catch (e) {
+          console.error('Exception inserting invitation:', e);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        const localInvitesRaw = localStorage.getItem('avaxa_workspace_invitations');
+        const localInvites: WorkspaceInvitation[] = localInvitesRaw ? JSON.parse(localInvitesRaw) : [];
+        const filtered = localInvites.filter(i => i.id !== inviteId);
+        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify([newInvite, ...filtered]));
+        window.dispatchEvent(new CustomEvent('avaxa-invitation-updated', { detail: newInvite }));
+      }
+    }
+
+    triggerToast({
+      id: generateId(),
+      type: 'success',
+      title: 'Invitations Sent',
+      message: `Successfully sent invitation(s) to ${emails.length} email address(es).`,
+      duration: 4000
+    });
+    addSyncLog(`Sent workspace invitations to: ${emails.join(', ')}`);
+  }, [workspaces, currentUser, isOffline, triggerToast, addSyncLog]);
+
+  const handleAcceptWorkspaceInvite = useCallback(async (inviteId: string, workspaceId: string, role: string) => {
+    let targetWS = workspaces.find(w => w.id === workspaceId);
+
+    if (!isOffline) {
+      try {
+        await supabase.from('workspace_invitations').update({ status: 'accepted' }).eq('id', inviteId);
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+      if (storedRaw) {
+        const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
+        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'accepted' as const } : i)));
+      }
+    }
+
+    // Fetch the workspace from Supabase and add to store if not already present
+    if (!targetWS && !isOffline) {
+      try {
+        const { data: wsData } = await supabase
+          .from('workspaces')
+          .select('*')
+          .eq('id', workspaceId)
+          .maybeSingle();
+
+        if (wsData) {
+          const mappedWS = {
+            id: wsData.id,
+            name: wsData.name,
+            theme: wsData.theme || 'indigo',
+            initial: wsData.initial || wsData.name.charAt(0).toUpperCase(),
+            user_id: wsData.user_id,
+            coverUrl: wsData.coverUrl || '',
+            logoUrl: wsData.logoUrl || '',
+            settings: wsData.settings || {}
+          };
+          targetWS = mappedWS;
+          setWorkspaces(prev => {
+            const exists = prev.some(w => w.id === mappedWS.id);
+            if (exists) return prev;
+            return [...prev, mappedWS];
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to fetch workspace after accepting invitation:', e);
+      }
+    }
+
+    if (currentUser) {
+      const myMemberId = `user-${currentUser.id}`;
+      const myProfile = members.find(m => m.id === 'user' || m.id === myMemberId);
+      const existingWsIds = myProfile?.workspaceIds || [];
+      const updatedWsIds = Array.from(new Set([...existingWsIds, workspaceId]));
+
+      setMembers(prev => prev.map(m => (m.id === 'user' || m.id === myMemberId) ? { ...m, workspaceIds: updatedWsIds, role: (role as any) || m.role } : m));
+
+      if (!isOffline) {
+        try {
+          await supabase.from('members').update({
+            workspace_ids: updatedWsIds
+          }).eq('id', myMemberId);
+        } catch (e) {}
+      }
+    }
+
+    useWorkspaceStore.getState().setActiveWorkspaceId(workspaceId);
+
+    triggerToast({
+      id: generateId(),
+      type: 'success',
+      title: 'Invitation Accepted! 🎉',
+      message: `Welcome! You have joined workspace "${targetWS?.name || 'Workspace'}".`,
+      duration: 4000
+    });
+    addSyncLog(`Accepted invitation and joined workspace "${targetWS?.name || workspaceId}"`);
+  }, [currentUser, workspaces, members, isOffline, setMembers, setWorkspaces, triggerToast, addSyncLog]);
+
+  const handleDeclineWorkspaceInvite = useCallback(async (inviteId: string) => {
+    if (!isOffline) {
+      try {
+        await supabase.from('workspace_invitations').update({ status: 'declined' }).eq('id', inviteId);
+      } catch (e) {}
+    }
+
+    if (typeof window !== 'undefined') {
+      const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+      if (storedRaw) {
+        const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
+        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'declined' as const } : i)));
+      }
+    }
+
+    triggerToast({
+      id: generateId(),
+      type: 'info',
+      title: 'Invitation Declined',
+      message: 'Workspace invitation has been declined.',
+      duration: 4000
+    });
+    addSyncLog('Declined workspace invitation');
+  }, [isOffline, triggerToast, addSyncLog]);
 
   const handleUpdateMember = useCallback(async (updated: User) => {
     useMemberStore.getState().updateMember(updated);
@@ -998,6 +1159,9 @@ export function useAppActions() {
     cancelWorkspaceSettings: useCallback(() => {
       useUiStore.getState().setShowWorkspaceSettingsModal(false);
     }, []),
+    handleSendWorkspaceInvites,
+    handleAcceptWorkspaceInvite,
+    handleDeclineWorkspaceInvite,
     mapTasksToSpaces,
   };
 }

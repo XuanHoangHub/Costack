@@ -67,7 +67,7 @@ interface TaskListViewProps {
   onStopGlobalTimer?: () => void;
 }
 
-export default function TaskListView({
+const TaskListView = React.memo(function TaskListView({
    filteredTasks, tasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
    onUpdateTask, onAddSyncLog, triggerToast, filterTag, setFilterTag, isSmartSort, isUrgentNearDueTask,
    isMultiSelectMode, onAddTask, setViewType, statuses,
@@ -668,4 +668,7 @@ export default function TaskListView({
       </div>
     </DragDropContext>
    );
-}
+});
+
+export default TaskListView;
+export { TaskListView };

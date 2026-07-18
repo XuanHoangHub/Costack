@@ -26,7 +26,7 @@ interface ProfilePageProps {
   onUpdateMember?: (member: User) => void;
 }
 
-export default function ProfilePage({
+function ProfilePage({
   currentUser,
   setCurrentUser,
   members,
@@ -317,33 +317,39 @@ export default function ProfilePage({
     <div className="space-y-6 max-w-5xl mx-auto font-sans animate-fadeIn text-left pb-12 select-none text-slate-800 dark:text-slate-100">
       
       {/* ── Visual Banner Header ── */}
-      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/50 dark:border-slate-850/80 bg-white dark:bg-slate-900">
-        <div className="h-44 md:h-52 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
-          <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]" />
+      <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-300">
+        {/* Glowing Aura Banner */}
+        <div className="h-44 md:h-52 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-black/20" />
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-indigo-400/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-pink-400/30 rounded-full blur-3xl" />
+          
           <div className="absolute top-4 right-4 flex gap-2">
-            <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/20 dark:bg-black/35 text-white backdrop-blur-md border border-white/10 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'}`} />
+            <span className="px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 dark:bg-black/40 text-white backdrop-blur-md border border-white/20 shadow-md flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
               {isOffline ? 'Offline' : 'Online'}
             </span>
           </div>
         </div>
 
-        {/* User Card */}
-        <div className="px-6 py-6 pt-0 relative flex flex-col md:flex-row items-center md:items-end gap-6">
+        {/* User Profile Info Overlay */}
+        <div className="px-6 md:px-8 py-6 pt-0 relative flex flex-col md:flex-row items-center md:items-end gap-6">
           <div className="relative -mt-16 md:-mt-20 shrink-0 group">
-            <div className="relative rounded-3xl overflow-hidden border-4 border-white dark:border-slate-900 shadow-xl bg-slate-100 dark:bg-slate-800">
+            <div className="relative rounded-3xl overflow-hidden ring-4 ring-white dark:ring-slate-900 shadow-2xl bg-slate-100 dark:bg-slate-800">
               <SignedImage 
                 filePath={avatar} 
-                className="w-28 h-28 md:w-36 md:h-36 object-cover" 
+                className="w-28 h-28 md:w-36 md:h-36 object-cover transition-transform duration-300 group-hover:scale-105" 
                 alt={name} 
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1 cursor-pointer"
+                className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-1.5 cursor-pointer"
               >
-                <Camera className="w-5 h-5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Tải ảnh lên</span>
+                <Camera className="w-6 h-6 text-white/90 animate-bounce" />
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full border border-white/30">
+                  {locale === 'vi' ? 'Tải ảnh lên' : 'Upload photo'}
+                </span>
               </button>
               <input 
                 ref={fileInputRef}
@@ -353,31 +359,39 @@ export default function ProfilePage({
                 className="hidden"
               />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 shadow-md flex items-center justify-center text-white text-[9px]" />
+            <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 shadow-lg flex items-center justify-center text-white text-[10px]" />
           </div>
 
-          <div className="flex-1 text-center md:text-left space-y-1 mb-2">
-            <h2 className="text-xl md:text-2xl font-black text-slate-850 dark:text-white flex items-center justify-center md:justify-start gap-2">
-              <span>{name}</span>
+          <div className="flex-1 text-center md:text-left space-y-1.5 mb-1">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+              <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                {name}
+              </h2>
               {currentUser.isPremium ? (
-                <span className="text-[9px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2.5 py-0.5 rounded-full uppercase shadow-xs">PRO</span>
+                <span className="text-[10px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full uppercase shadow-sm flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> PRO
+                </span>
               ) : (
-                <span className="text-[9px] font-black tracking-widest bg-slate-150 text-slate-500 dark:bg-slate-800 dark:text-slate-400 px-2.5 py-0.5 rounded-full uppercase font-mono">FREE</span>
+                <span className="text-[10px] font-black tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full uppercase font-mono border border-slate-200/80 dark:border-slate-700">
+                  FREE
+                </span>
               )}
-            </h2>
-            <p className="text-xs font-bold text-slate-405 dark:text-slate-500 uppercase tracking-widest flex items-center justify-center md:justify-start gap-1">
+            </div>
+
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center md:justify-start gap-1.5">
               <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{role === 'admin' ? t('roleAdmin') || 'Admin' : t('roleMember') || 'Member'}</span>
-              {department && <span> • {t('dept_' + department + '_name') || department}</span>}
+              <span>{role === 'admin' ? (t('roleAdmin') || 'Admin') : (t('roleMember') || 'Member')}</span>
+              {department && <span className="text-slate-400 dark:text-slate-600">• {t('dept_' + department + '_name') || department}</span>}
             </p>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 pt-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-slate-400" />
+
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-5 gap-y-1.5 pt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-indigo-400" />
                 {currentUser.email}
               </span>
               {phone && (
-                <span className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-4">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                <span className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
                   {phone}
                 </span>
               )}
@@ -393,8 +407,13 @@ export default function ProfilePage({
         <div className="lg:col-span-5 space-y-6 flex flex-col">
           
           {/* Donut Progress Stats Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left flex flex-col justify-between">
-            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('workStatistics') || 'Task Statistics'}</h3>
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left flex flex-col justify-between hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                {t('workStatistics') || 'Task Statistics'}
+              </h3>
+              <Activity className="w-4 h-4 text-indigo-500" />
+            </div>
             
             <div className="flex items-center gap-6 py-4">
               <div className="relative w-28 h-28 shrink-0">
@@ -416,19 +435,19 @@ export default function ProfilePage({
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{myTasks.length}</span>
+                  <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">{myTasks.length}</span>
                   <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-0.5">{t('tasks') || 'Tasks'}</span>
                 </div>
               </div>
 
               <div className="flex-1 space-y-2">
-                <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                <div className="flex justify-between text-xs font-extrabold text-slate-700 dark:text-slate-300">
                   <span>{t('completionRate') || 'Completion rate'}</span>
-                  <span className="text-emerald-500">{completionRate}%</span>
+                  <span className="text-emerald-500 font-mono font-bold">{completionRate}%</span>
                 </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-950 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
                   <div 
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.3)]" 
                     style={{ width: `${completionRate}%` }} 
                   />
                 </div>
@@ -439,42 +458,59 @@ export default function ProfilePage({
             </div>
 
             {/* List breakdown */}
-            <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-205/30">
-                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">{t('inProgress') || 'In Progress'}</span>
-                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{locale === 'vi' ? `${inProgressTasksCount} việc` : `${inProgressTasksCount} tasks`}</span>
+            <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-left">
+                <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 block flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {t('inProgress') || 'In Progress'}
+                </span>
+                <span className="text-base font-black text-slate-800 dark:text-slate-100 mt-1 block">
+                  {locale === 'vi' ? `${inProgressTasksCount} việc` : `${inProgressTasksCount} tasks`}
+                </span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-205/30">
-                <span className="text-xs font-bold text-slate-450 dark:text-slate-500 block">{t('inReview') || 'In Review'}</span>
-                <span className="text-sm font-black text-slate-800 dark:text-slate-150 mt-0.5 block">{locale === 'vi' ? `${reviewTasksCount} việc` : `${reviewTasksCount} tasks`}</span>
+              <div className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 text-left">
+                <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 block flex items-center gap-1">
+                  <Activity className="w-3 h-3" />
+                  {t('inReview') || 'In Review'}
+                </span>
+                <span className="text-base font-black text-slate-800 dark:text-slate-100 mt-1 block">
+                  {locale === 'vi' ? `${reviewTasksCount} việc` : `${reviewTasksCount} tasks`}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Interactive Skills Tags Cloud Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4">
-            <div>
-              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('skillsAndExpertise') || 'Skills & Expertise'}</h3>
-              <p className="text-[10px] text-slate-405 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">{t('tagStrengths') || 'Tag your strengths'}</p>
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  {t('skillsAndExpertise') || 'Skills & Expertise'}
+                </h3>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                  {t('tagStrengths') || 'Tag your technical strengths'}
+                </p>
+              </div>
+              <Star className="w-4 h-4 text-amber-400" />
             </div>
 
             {/* Tags Cloud */}
-            <div className="flex flex-wrap gap-1.5 py-1 min-h-[40px]">
+            <div className="flex flex-wrap gap-2 py-1 min-h-[44px]">
               {skills.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">{locale === 'vi' ? 'Chưa gắn thẻ kỹ năng nào.' : 'No skills tagged yet.'}</p>
               ) : (
                 skills.map(skill => (
                   <span 
                     key={skill}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs hover:border-indigo-300 transition-all"
                   >
                     <span>{skill}</span>
                     <button 
                       type="button" 
                       onClick={() => handleRemoveSkill(skill)}
-                      className="p-0.5 hover:bg-indigo-200/60 dark:hover:bg-indigo-900/60 rounded text-indigo-455 transition-colors cursor-pointer"
+                      className="p-0.5 hover:bg-indigo-200/60 dark:hover:bg-indigo-900/60 rounded-md text-indigo-500 transition-colors cursor-pointer"
                     >
-                      <X className="w-2.5 h-2.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))
@@ -488,37 +524,44 @@ export default function ProfilePage({
                 value={newSkill}
                 onChange={e => setNewSkill(e.target.value)}
                 placeholder={t('addSkillPlaceholder') || 'Add a new skill (e.g. Next.js)...'}
-                className="flex-1 text-xs font-bold px-3 py-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
+                className="flex-1 text-xs font-bold px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-all"
               />
               <button 
                 type="submit"
-                className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition-colors cursor-pointer"
+                className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-sm hover:shadow-indigo-500/25 transition-all cursor-pointer flex items-center justify-center"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
             </form>
           </div>
 
           {/* Account Tier Panel */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-3.5 relative overflow-hidden flex-1">
-            <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-amber-500/5 blur-xl pointer-events-none" />
-            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">{t('accountTier') || 'Account Tier'}</h3>
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4 relative overflow-hidden flex-1 hover:shadow-md transition-shadow">
+            <div className="absolute -top-12 -right-12 w-28 h-28 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
+            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+              {t('accountTier') || 'Account Tier'}
+            </h3>
+            
             <div className="flex items-center justify-between">
               <div>
-                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t('account') || 'Account'}</span>
-                <span className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                  {t('account') || 'Account'}
+                </span>
+                <span className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
                   {currentUser.isPremium ? 'Avaxa Premium Pro' : (locale === 'vi' ? 'Gói miễn phí (Free Tier)' : 'Free Tier Package')}
                 </span>
               </div>
-              <div className="p-2 rounded-2xl bg-amber-500/10 text-amber-500">
-                <Sparkles className="w-4 h-4 animate-pulse" />
+              <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                <Sparkles className="w-5 h-5 animate-pulse" />
               </div>
             </div>
-            <p className="text-[11px] text-slate-450 dark:text-slate-400 leading-relaxed">
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
               {currentUser.isPremium 
                 ? (locale === 'vi' ? 'Đã kích hoạt toàn bộ công cụ AI thông minh, Gantt chart, whiteboards không giới hạn.' : 'Full access to smart AI tools, Gantt charts, and unlimited whiteboards.')
                 : (locale === 'vi' ? 'Nâng cấp để sử dụng các tính năng Gantt chart nâng cao và Gemini AI.' : 'Upgrade to use advanced Gantt charts and Gemini AI features.')}
             </p>
+
             <div className="pt-2">
               <button
                 type="button"
@@ -529,10 +572,10 @@ export default function ProfilePage({
                     triggerToast('info', locale === 'vi' ? 'Thông báo 📁' : 'Notification 📁', locale === 'vi' ? 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.' : 'Please use a Premium account to access all features.');
                   }
                 }}
-                className={`w-full py-2.5 rounded-2xl text-[11px] font-bold text-center transition-all cursor-pointer ${
+                className={`w-full py-3 rounded-2xl text-xs font-black tracking-wide text-center transition-all duration-200 cursor-pointer shadow-sm ${
                   currentUser.isPremium
-                    ? 'bg-slate-100 hover:bg-slate-150 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300'
-                    : 'text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-105 shadow-sm'
+                    ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                    : 'text-white bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:brightness-110 shadow-amber-500/20'
                 }`}
               >
                 {currentUser.isPremium 
@@ -547,113 +590,144 @@ export default function ProfilePage({
         <div className="lg:col-span-7">
           <form 
             onSubmit={handleSaveProfile} 
-            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-6 flex flex-col h-full justify-between"
+            className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 md:p-7 rounded-3xl shadow-sm space-y-6 flex flex-col h-full justify-between hover:shadow-md transition-shadow"
           >
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-105 dark:border-slate-800/80 pb-3 text-left">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 text-left">
                 <div>
-                  <h3 className="text-sm font-black text-slate-850 dark:text-white uppercase tracking-wider">{t('personalInfo') || 'Personal Information'}</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('editProfileInfo') || 'Edit your profile details'}</p>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    {t('personalInfo') || 'Personal Information'}
+                  </h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                    {t('editProfileInfo') || 'Edit your profile details'}
+                  </p>
                 </div>
-                <UserIcon className="w-5 h-5 text-indigo-500 shrink-0" />
+                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                  <UserIcon className="w-5 h-5 shrink-0" />
+                </div>
               </div>
 
               {/* Input grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('fullName') || 'Full Name'}</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder={t('fullNamePlaceholder') || 'Full Name...'}
-                    required
-                  />
+                {/* Full Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    {t('fullName') || 'Full Name'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full text-xs font-bold p-3 pl-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                      placeholder={t('fullNamePlaceholder') || 'Full Name...'}
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('roleProfession') || 'Role / Profession'}</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
-                    className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                  >
-                    <option value="member">{t('roleMember') || 'Member'}</option>
-                    <option value="admin">{t('roleAdmin') || 'Admin'}</option>
-                  </select>
+                {/* Role / Profession */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    {t('roleProfession') || 'Role / Profession'}
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
+                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all cursor-pointer"
+                    >
+                      <option value="member">{t('roleMember') || 'Member'}</option>
+                      <option value="admin">{t('roleAdmin') || 'Admin'}</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('phoneNumber') || 'Phone Number'}</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder={t('phonePlaceholder') || 'Phone number...'}
-                  />
+                {/* Phone Number */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    {t('phoneNumber') || 'Phone Number'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                      placeholder={t('phonePlaceholder') || 'Phone number...'}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('department') || 'Department'}</label>
-                  <input
-                    type="text"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-850 dark:text-slate-100"
-                    placeholder={t('departmentPlaceholder') || 'Working department...'}
-                  />
+                {/* Department */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    {t('department') || 'Department'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                      placeholder={t('departmentPlaceholder') || 'Working department...'}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1 text-left">
-                <label className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wide block">{t('shortBio') || 'Short Bio'}</label>
+              {/* Short Bio */}
+              <div className="space-y-1.5 text-left">
+                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                  {t('shortBio') || 'Short Bio'}
+                </label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={4}
-                  className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-955 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-855 dark:text-slate-100 resize-none"
+                  className="w-full text-xs font-medium p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 resize-none transition-all leading-relaxed"
                   placeholder={t('bioPlaceholder') || 'Introduce yourself and your responsibilities...'}
                 />
               </div>
 
               {/* Email (Readonly) */}
-              <div className="space-y-1 p-3.5 bg-slate-50 dark:bg-slate-955 rounded-xl border border-slate-200/50 dark:border-slate-855 text-left">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left space-y-1">
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
                   <span>{t('emailReadOnly') || 'Account email (Read-only)'}</span>
                 </label>
-                <p className="text-xs font-mono text-slate-550 dark:text-slate-400 pl-5 pt-0.5">
+                <p className="text-xs font-mono text-slate-600 dark:text-slate-300 font-semibold pt-0.5">
                   {currentUser.email}
                 </p>
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center justify-end gap-4 border-t border-slate-100 dark:border-slate-800/80 pt-4 mt-6">
-              {saveStatus === 'saved' && (
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle className="w-3.5 h-3.5 animate-pulse" />
-                  <span>{t('allChangesSaved') || 'All changes saved'}</span>
-                </span>
-              )}
-              {saveStatus === 'dirty' && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-450 font-bold flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{t('waitingForChanges') || 'Waiting for changes...'}</span>
-                </span>
-              )}
+            {/* Action buttons bar */}
+            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5 mt-6">
+              <div>
+                {saveStatus === 'saved' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>{t('allChangesSaved') || 'All changes saved'}</span>
+                  </span>
+                )}
+                {saveStatus === 'dirty' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+                    <Clock className="w-3.5 h-3.5 animate-spin" />
+                    <span>{t('waitingForChanges') || 'Waiting for changes...'}</span>
+                  </span>
+                )}
+              </div>
 
               <button
                 type="submit"
                 disabled={saveStatus !== 'dirty' || !name.trim()}
-                className={`px-6 py-3 rounded-2xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
+                className={`px-7 py-3 rounded-2xl text-xs font-black tracking-wide shadow-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
                   saveStatus === 'saved'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 opacity-80'
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 opacity-70'
                     : saveStatus === 'saving'
-                    ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 opacity-80 animate-pulse'
-                    : 'bg-indigo-650 hover:bg-indigo-700 text-white hover:shadow-md'
+                    ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400 opacity-80 animate-pulse'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20 hover:shadow-md'
                 }`}
               >
                 {saveStatus === 'saving' ? (
@@ -682,3 +756,7 @@ export default function ProfilePage({
     </div>
   );
 }
+
+const MemoizedProfilePage = React.memo(ProfilePage);
+export default MemoizedProfilePage;
+export { ProfilePage };

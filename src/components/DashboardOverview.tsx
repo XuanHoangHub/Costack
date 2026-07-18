@@ -29,7 +29,7 @@ interface DashboardOverviewProps {
   onClearSyncLogs?: () => void;
 }
 
-export default function DashboardOverview({
+function DashboardOverview({
   tasks = [],
   members = [],
   docs = [],
@@ -212,7 +212,13 @@ export default function DashboardOverview({
       const dateStr = targetDay.toISOString().split('T')[0];
 
       const created = tasks.filter(t => t.createdAt && t.createdAt.startsWith(dateStr)).length;
-      const completed = tasks.filter(t => t.status === 'completed' && t.completedAt && t.completedAt.startsWith(dateStr)).length;
+      const completed = tasks.filter(t => {
+        if (t.status !== 'completed') return false;
+        if (t.completedAt) return t.completedAt.startsWith(dateStr);
+        if (t.dueDate) return t.dueDate.startsWith(dateStr);
+        if (t.createdAt) return t.createdAt.startsWith(dateStr);
+        return true;
+      }).length;
 
       return {
         name: dayName,
@@ -234,7 +240,13 @@ export default function DashboardOverview({
       const dateStr = d.toISOString().split('T')[0];
       const displayStr = d.toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' });
 
-      const completed = tasks.filter(t => t.status === 'completed' && t.completedAt && t.completedAt.startsWith(dateStr)).length;
+      const completed = tasks.filter(t => {
+        if (t.status !== 'completed') return false;
+        if (t.completedAt) return t.completedAt.startsWith(dateStr);
+        if (t.dueDate) return t.dueDate.startsWith(dateStr);
+        if (t.createdAt) return t.createdAt.startsWith(dateStr);
+        return true;
+      }).length;
       const hours = tasks.filter(t => t.createdAt && t.createdAt.startsWith(dateStr)).reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
 
       data.push({
@@ -352,27 +364,27 @@ export default function DashboardOverview({
       {/* ── Primary KPI Cards Strip ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', value: `${completionPercentage}%`, detail: locale === 'vi' ? `Đã xong ${completedTasks}/${totalTasks} việc` : `Done ${completedTasks}/${totalTasks} tasks`, icon: CheckCircle, color: 'text-indigo-650 bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30' },
-          { label: t('dashboardTasksInProgress') || 'Việc đang thực hiện', value: inProgressTasks + reviewTasks, detail: `${inProgressTasks} In-progress, ${reviewTasks} Review`, icon: Activity, color: 'text-amber-650 bg-amber-50 border-amber-100 dark:bg-amber-955/20 dark:border-amber-900/30' },
-          { label: t('dashboardChartTotalHours') || 'Tổng giờ đóng góp', value: `${tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0)}h`, detail: locale === 'vi' ? `Kế hoạch ước tính: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h` : `Estimated plan: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h`, icon: Clock, color: 'text-emerald-650 bg-emerald-50 border-emerald-100 dark:bg-emerald-955/20 dark:border-emerald-900/30' },
-          { label: locale === 'vi' ? 'Tài liệu & Online' : 'Docs & Online', value: `${docs.length} Doc`, detail: locale === 'vi' ? `${members.filter(m => m.status === 'online').length}/${members.length} thành viên online` : `${members.filter(m => m.status === 'online').length}/${members.length} members online`, icon: FileText, color: 'text-cyan-650 bg-cyan-50 border-cyan-100 dark:bg-cyan-955/20 dark:border-cyan-900/30' },
+          { label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', value: `${completionPercentage}%`, detail: locale === 'vi' ? `Đã xong ${completedTasks}/${totalTasks} việc` : `Done ${completedTasks}/${totalTasks} tasks`, icon: CheckCircle, color: 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-900/40' },
+          { label: t('dashboardTasksInProgress') || 'Việc đang thực hiện', value: inProgressTasks + reviewTasks, detail: `${inProgressTasks} In-progress, ${reviewTasks} Review`, icon: Activity, color: 'text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-955/30 dark:border-amber-900/40' },
+          { label: t('dashboardChartTotalHours') || 'Tổng giờ đóng góp', value: `${tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0)}h`, detail: locale === 'vi' ? `Kế hoạch ước tính: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h` : `Estimated plan: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h`, icon: Clock, color: 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-955/30 dark:border-emerald-900/40' },
+          { label: locale === 'vi' ? 'Tài liệu & Online' : 'Docs & Online', value: `${docs.length} Doc`, detail: locale === 'vi' ? `${members.filter(m => m.status === 'online').length}/${members.length} thành viên online` : `${members.filter(m => m.status === 'online').length}/${members.length} members online`, icon: FileText, color: 'text-cyan-600 bg-cyan-50 border-cyan-100 dark:bg-cyan-955/30 dark:border-cyan-900/40' },
         ].map((card, i) => (
           <motion.div
             key={card.label}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="p-5 rounded-2xl glass-panel flex flex-col justify-between hover:scale-[1.02] hover:shadow-md transition-all duration-300 text-left shadow-sm"
+            transition={{ delay: i * 0.05 }}
+            className="ios27-card p-5.5 flex flex-col justify-between text-left"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-500">{card.label}</span>
-              <div className={`p-1.5 rounded-lg border ${card.color}`}>
+              <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{card.label}</span>
+              <div className={`p-2 rounded-xl border ${card.color}`}>
                 <card.icon className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-4">
-              <span className="text-2xl font-black text-slate-850 dark:text-slate-55 tracking-tight font-display">{card.value}</span>
-              <p className="text-[10px] text-slate-405 font-bold mt-1 uppercase tracking-wide">{card.detail}</p>
+              <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">{card.value}</span>
+              <p className="text-[10px] text-slate-500 font-extrabold mt-1 uppercase tracking-wide">{card.detail}</p>
             </div>
           </motion.div>
         ))}
@@ -764,3 +776,7 @@ export default function DashboardOverview({
     </div>
   );
 }
+
+const MemoizedDashboardOverview = React.memo(DashboardOverview);
+export default MemoizedDashboardOverview;
+export { DashboardOverview };

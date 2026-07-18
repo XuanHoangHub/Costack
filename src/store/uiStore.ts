@@ -55,6 +55,10 @@ interface UiState {
   // Pomodoro settings
   showPomoSettings: boolean;
 
+  // Member profile viewing modal
+  viewingMemberProfileId: string | null;
+  setViewingMemberProfileId: (id: string | null) => void;
+
   sidebarOrder: string[];
 
   setActiveTab: (tab: string) => void;
@@ -74,6 +78,7 @@ interface UiState {
   setBlurIntensity: (intensity: 'soft' | 'default' | 'immersive') => void;
   setAccentPreset: (preset: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
   setSoundEnabled: (enabled: boolean) => void;
+  setIsDarkMode: (isDarkMode: boolean) => void;
   setNotificationSettings: (settings: NotificationSettings | ((prev: NotificationSettings) => NotificationSettings)) => void;
 
   setInitialSelectedTaskId: (id: string | null) => void;
@@ -167,6 +172,7 @@ export const useUiStore = create<UiState>()(
       editWSName: '',
       editWSTheme: 'indigo',
       showPomoSettings: false,
+      viewingMemberProfileId: null,
       sidebarOrder: ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'],
 
       setActiveTab: (activeTab) => set({ activeTab }),
@@ -186,6 +192,7 @@ export const useUiStore = create<UiState>()(
       setBlurIntensity: (blurIntensity) => set({ blurIntensity }),
       setAccentPreset: (accentPreset) => set({ accentPreset }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
+      setIsDarkMode: (isDarkMode) => set({ isDarkMode }),
       setNotificationSettings: (notificationSettings) => set({ notificationSettings: typeof notificationSettings === 'function' ? notificationSettings(get().notificationSettings) : notificationSettings }),
 
       setInitialSelectedTaskId: (initialSelectedTaskId) => set({ initialSelectedTaskId }),
@@ -216,6 +223,7 @@ export const useUiStore = create<UiState>()(
       setEditWSTheme: (editWSTheme) => set({ editWSTheme }),
 
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
+      setViewingMemberProfileId: (viewingMemberProfileId) => set({ viewingMemberProfileId }),
       setSidebarOrder: (sidebarOrder) => set({ sidebarOrder }),
     }),
     {

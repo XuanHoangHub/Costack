@@ -169,6 +169,8 @@ export function useNotificationsEngine() {
     });
   }, [pomodoroActive, notificationSettings, addToast, addNotification]);
 
+  const taskDeadlineKeys = tasks.map(t => `${t.id}:${t.dueDate}:${t.status}`).join('|');
+
   useEffect(() => {
     if (currentUser && tasks.length > 0) {
       const timer = setTimeout(() => {
@@ -226,7 +228,7 @@ export function useNotificationsEngine() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [currentUser, tasks, triggerToast]);
+  }, [currentUser, taskDeadlineKeys, triggerToast]);
 
   return { triggerToast };
 }

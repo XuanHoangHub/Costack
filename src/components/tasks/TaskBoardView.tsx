@@ -29,6 +29,7 @@ import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
 import { motion } from 'motion/react';
+import { useUiStore } from '../../store/uiStore';
 
 // Simple Portal wrapper
 function Portal({ children }: { children: React.ReactNode }) {
@@ -124,9 +125,9 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        whileHover={{ y: -3, scale: 1.01, boxShadow: '0 10px 25px rgba(15,23,42,0.06)' }}
-        whileTap={{ scale: 0.99 }}
-        className={`rounded-2xl border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} border border-slate-200/50 dark:border-slate-855/50 bg-white dark:bg-slate-900 cursor-grab active:cursor-grabbing shadow-[0_2px_8px_rgba(15,23,42,0.008)] transition-all duration-200 hover:border-indigo-305/50 dark:hover:border-indigo-900/50 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-400/30' : ''} overflow-hidden`}
+        whileHover={{ y: -4, scale: 1.015 }}
+        whileTap={{ scale: 0.98 }}
+        className={`ios27-card rounded-[24px] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-300 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500/40 dark:ring-indigo-400/50' : ''} overflow-hidden`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -295,7 +296,15 @@ function KanbanCard({
                   {assignees.length > 0 ? (
                     <div className="flex -space-x-1.5 overflow-hidden">
                       {assignees.map((member: any) => (
-                        <div key={member.id} className="relative group/avatar">
+                        <div
+                          key={member.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            useUiStore.getState().setViewingMemberProfileId(member.id);
+                          }}
+                          className="relative group/avatar cursor-pointer hover:scale-110 transition-transform z-10"
+                          title={`Click to view profile of ${member.name}`}
+                        >
                           {member.avatar ? (
                             <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
                           ) : (
@@ -339,6 +348,8 @@ function KanbanCard({
     </div>
   );
 }
+
+const MemoizedKanbanCard = React.memo(KanbanCard);
 
 const STATUS_META: Record<TaskStatus, { label: string; dot: string; headerBg: string; headerText: string; headerBorder: string; badgeBg: string; badgeText: string }> = {
   todo: { 
@@ -1044,7 +1055,7 @@ export default function TaskBoardView({
 
   const renderCard = (task: Task, index: number) => {
     return (
-      <KanbanCard
+      <MemoizedKanbanCard
         key={task.id}
         task={task}
         index={index}

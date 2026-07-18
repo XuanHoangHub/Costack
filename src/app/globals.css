@@ -377,3 +377,70 @@ html, body, #root {
   pointer-events: none;
   z-index: 50;
 }
+/* ── iOS 27 Futuristic Aesthetic Utility System ── */
+.ios27-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.08), inset 0 1px 1.5px rgba(255, 255, 255, 0.9);
+}
+
+.dark .ios27-glass {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px rgba(255, 255, 255, 0.15);
+}
+
+.ios27-card {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark .ios27-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.ios27-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 20px 40px -12px rgba(123, 97, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.dark .ios27-card:hover {
+  box-shadow: 0 20px 40px -12px rgba(123, 97, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.ios27-pill {
+  border-radius: 9999px;
+  backdrop-filter: blur(20px);
+  transition: all 0.25s ease;
+}
+
+.ios27-glow-ring {
+  position: relative;
+}
+
+.ios27-glow-ring::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(236, 72, 153, 0.5));
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.ios27-glow-ring:hover::after {
+  opacity: 1;
+}

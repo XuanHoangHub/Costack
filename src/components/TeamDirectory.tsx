@@ -31,6 +31,8 @@ interface TeamDirectoryProps {
   onUpdateMember: (member: User) => void;
   onDeleteMember: (id: string) => void;
   onAddSyncLog: (action: string) => void;
+  currentUser?: any;
+  onSendWorkspaceInvites?: (emails: string[], role: string) => void;
 }
 
 const DEPARTMENTS = [
@@ -50,6 +52,23 @@ const getDeptBadge = (deptId?: string) => {
   }
 };
 
+const maskEmail = (email?: string) => {
+  if (!email) return '';
+  const parts = email.split('@');
+  if (parts.length < 2) return email;
+  const name = parts[0];
+  const domain = parts[1];
+  const showLen = Math.min(2, name.length);
+  return `${name.slice(0, showLen)}***@${domain}`;
+};
+
+const maskPhone = (phone?: string) => {
+  if (!phone || phone.trim() === '') return '';
+  const clean = phone.trim();
+  if (clean.length <= 4) return '••••';
+  return '••••••••' + clean.slice(-3);
+};
+
 export default function TeamDirectory({
   members,
   tasks = [],
@@ -58,7 +77,9 @@ export default function TeamDirectory({
   onAddMember,
   onUpdateMember,
   onDeleteMember,
-  onAddSyncLog
+  onAddSyncLog,
+  currentUser,
+  onSendWorkspaceInvites
 }: TeamDirectoryProps) {
   const { t, locale } = useTranslation();
   // Top-level Team OS sub-tab state
@@ -293,6 +314,12 @@ export default function TeamDirectory({
   };
 
   const handleSendInvites = (emails: string[], role: string) => {
+    if (onSendWorkspaceInvites) {
+      onSendWorkspaceInvites(emails, role);
+      setShowInviteModal(false);
+      return;
+    }
+
     const formattedJoinedDate = new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
 
     emails.forEach(email => {
@@ -854,10 +881,21 @@ export default function TeamDirectory({
                         <h4 className="font-extrabold text-slate-850 dark:text-slate-50 text-sm leading-snug truncate group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1">
                           <span>{member.name}</span>
                         </h4>
-                        <span className="text-[10px] text-slate-405 dark:text-slate-500 font-semibold block truncate leading-relaxed">{member.email}</span>
-                        {member.phone && (
-                          <span className="text-[9px] text-slate-400 dark:text-slate-450 block truncate font-medium mt-px">{member.phone}</span>
-                        )}
+                        {(() => {
+                          const canViewSensitiveInfo = currentUser?.role === 'admin' || member.id === 'user' || member.id === currentUser?.id || member.email === currentUser?.email;
+                          return (
+                            <>
+                              <span className="text-[10px] text-slate-405 dark:text-slate-500 font-semibold block truncate leading-relaxed">
+                                {canViewSensitiveInfo ? member.email : maskEmail(member.email)}
+                              </span>
+                              {member.phone && (
+                                <span className="text-[9px] text-slate-400 dark:text-slate-450 block truncate font-medium mt-px">
+                                  {canViewSensitiveInfo ? member.phone : maskPhone(member.phone)}
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
                         {member.statusMessage && (
                           <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-1.5 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/40 pt-1">
                             {member.statusEmoji ? <span className="text-xs">{member.statusEmoji}</span> : null}

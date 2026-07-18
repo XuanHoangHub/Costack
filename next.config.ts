@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: true,
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      '@phosphor-icons/react',
+      'recharts',
+      'motion',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable'
+    ],
+  },
 };
 
 export default nextConfig;
