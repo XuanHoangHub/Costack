@@ -318,7 +318,7 @@ export default function SpacePage({
       setCustomFields([]);
       setVisibleFields(['title', 'status', 'priority', 'assignee', 'dueDate', 'progress', 'tags']);
     }
-  }, [activeSpace?.id, activeSpace?.customFields]);
+  }, [activeSpace]);
   // Confirm Modal state and helper
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -836,7 +836,7 @@ export default function SpacePage({
     }
 
     return result;
-  }, [tasks, activeSpaceId, activeListId, myTasksOnly, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, taskOrder, filterConjunction, filterConditions]);
+  }, [tasks, activeSpaceId, activeListId, activeFolderId, activeSpace.lists, myTasksOnly, searchQuery, filterPriority, filterAssignee, filterTag, sortBy, taskOrder, filterConjunction, filterConditions]);
 
   // Handle Form Submission for Quick Add Task Modal
   const handleCreateTaskSubmit = (e: React.FormEvent) => {

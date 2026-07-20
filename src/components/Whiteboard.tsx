@@ -687,6 +687,7 @@ export default function Whiteboard({
     updateCanvasDimensions();
     window.addEventListener('resize', updateCanvasDimensions);
     return () => window.removeEventListener('resize', updateCanvasDimensions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elements]);
 
   const updateCanvasDimensions = () => {
@@ -703,6 +704,7 @@ export default function Whiteboard({
   // Redraws elements whenever elements list or metadata modifies
   useEffect(() => {
     drawAllElements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elements, brushColor, activeTool, simCursors, selectedElementId, zoom, pan, connectionStart, connectionEnd]);
 
   const drawAllElements = () => {

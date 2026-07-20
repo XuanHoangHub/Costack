@@ -120,6 +120,8 @@ const getShortLabel = (label: string) => {
   return label;
 };
 
+const DEFAULT_SIDEBAR_ORDER = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
+
 export default function App() {
   const { t } = useTranslation();
   const isLoaded = useRef(false);
@@ -1007,7 +1009,8 @@ export default function App() {
   const showNotificationsMenu = useUiStore((s) => s.showNotificationsMenu);
   const setShowNotificationsMenu = useUiStore((s) => s.setShowNotificationsMenu);
 
-  const sidebarOrder = useUiStore((s) => s.sidebarOrder) || ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
+  const rawSidebarOrder = useUiStore((s) => s.sidebarOrder);
+  const sidebarOrder = useMemo(() => rawSidebarOrder || DEFAULT_SIDEBAR_ORDER, [rawSidebarOrder]);
   const setSidebarOrder = useUiStore((s) => s.setSidebarOrder);
 
   const { invitations: workspaceInvitations } = useWorkspaceInvitations(currentUser?.email, isOffline);
@@ -2544,6 +2547,7 @@ export default function App() {
       if (baseAppsChannel) supabase.removeChannel(baseAppsChannel);
       if (invitationsChannel) supabase.removeChannel(invitationsChannel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isOffline]);
 
   // --- Supabase CRUD Wrapper Functions ---

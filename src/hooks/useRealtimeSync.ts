@@ -603,6 +603,7 @@ export function useSupabaseSync() {
       if (spacesChannel) supabase.removeChannel(spacesChannel);
       if (listsChannel) supabase.removeChannel(listsChannel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isOffline]);
 }
 

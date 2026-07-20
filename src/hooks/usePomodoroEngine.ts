@@ -73,7 +73,7 @@ export function usePomodoroEngine() {
       duration: 4000
     });
     addSyncLog('Stopped Pomodoro focus session');
-  }, [pomodoroMode, workDuration, shortBreakDuration, longBreakDuration, setPomodoroActive, setPomodoroTime, previousStatus, addToast, addSyncLog]);
+  }, [pomodoroMode, workDuration, shortBreakDuration, longBreakDuration, setPomodoroActive, setPomodoroTime, previousStatus, setUserStatus, addToast, addSyncLog]);
 
   const switchPomodoroMode = useCallback((mode: 'work' | 'short' | 'long') => {
     setPomodoroActive(false);
@@ -82,7 +82,7 @@ export function usePomodoroEngine() {
     setPomodoroTime(d * 60);
     setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
     addSyncLog(`Changed Pomodoro mode to: ${mode === 'work' ? 'Work' : (mode === 'short' ? 'Short Break' : 'Long Break')}`);
-  }, [workDuration, shortBreakDuration, longBreakDuration, setPomodoroActive, setPomodoroMode, setPomodoroTime, previousStatus, addSyncLog]);
+  }, [workDuration, shortBreakDuration, longBreakDuration, setPomodoroActive, setPomodoroMode, setPomodoroTime, previousStatus, setUserStatus, addSyncLog]);
 
   const updatePomoDurations = useCallback((workVal: number, shortVal: number, longVal: number) => {
     setWorkDuration(workVal);

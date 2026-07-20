@@ -228,6 +228,7 @@ export function useNotificationsEngine() {
       }, 2500);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, taskDeadlineKeys, triggerToast]);
 
   return { triggerToast };

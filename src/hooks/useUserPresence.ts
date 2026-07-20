@@ -190,6 +190,7 @@ export function useUserPresence() {
         supabase.removeChannel(channel);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   // Function to manually set custom status (persisted in DB and presence)

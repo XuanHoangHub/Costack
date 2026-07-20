@@ -101,7 +101,7 @@ function DashboardOverview({
       }
       setIsBriefingChecked(true);
     }
-  }, [tasks, isBriefingChecked, triggerToast]);
+  }, [tasks, isBriefingChecked, triggerToast, locale, t]);
 
   const handleGenerateReport = async () => {
     setIsGenerating(true);

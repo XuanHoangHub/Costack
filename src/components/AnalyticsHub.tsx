@@ -288,7 +288,7 @@ export default function AnalyticsHub({
       completed: maxCompleted,
       hours: maxHours
     } : null;
-  }, [members, filteredTasks]);
+  }, [members, filteredTasks, isDemoMode]);
 
   const CustomChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

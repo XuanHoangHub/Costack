@@ -201,6 +201,7 @@ export default function WorkspaceSettingsModal({
     }, 1200);
 
     return () => clearTimeout(handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name]);
 
   if (!isOpen || !workspace) return null;
