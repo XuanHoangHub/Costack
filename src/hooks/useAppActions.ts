@@ -1010,7 +1010,7 @@ export function useAppActions() {
 
   const mapTasksToSpaces = useCallback((tasksList: Task[]): Task[] => {
     return tasksList.map(t => {
-      if (t.spaceId && t.listId) {
+      if (t.spaceId) {
         return {
           ...t,
           assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])

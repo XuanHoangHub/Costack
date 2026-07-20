@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp, Workspace } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -149,6 +149,24 @@ export default function App() {
   const setNotificationSettings = useUiStore((s) => s.setNotificationSettings);
   const isDarkMode = useUiStore((s) => s.isDarkMode);
   const setIsDarkMode = useUiStore((s) => s.setIsDarkMode);
+
+  // Pomodoro Focus Timer state - consumed from usePomodoroStore
+  const workDuration = usePomodoroStore((s) => s.workDuration);
+  const setWorkDuration = usePomodoroStore((s) => s.setWorkDuration);
+  const shortBreakDuration = usePomodoroStore((s) => s.shortBreakDuration);
+  const setShortBreakDuration = usePomodoroStore((s) => s.setShortBreakDuration);
+  const longBreakDuration = usePomodoroStore((s) => s.longBreakDuration);
+  const setLongBreakDuration = usePomodoroStore((s) => s.setLongBreakDuration);
+  const pomodoroMode = usePomodoroStore((s) => s.pomodoroMode);
+  const setPomodoroMode = usePomodoroStore((s) => s.setPomodoroMode);
+  const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
+  const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
+  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
+  const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
+  const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
+  const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
+  const previousStatus = usePomodoroStore((s) => s.previousStatus);
+  const setPreviousStatus = usePomodoroStore((s) => s.setPreviousStatus);
 
   // Global Time Tracking States
   const [activeTimerTaskId, setActiveTimerTaskId] = useState<string | null>(null);
@@ -700,7 +718,7 @@ export default function App() {
   // Map tasks helper
   const mapTasksToSpaces = (tasksList: Task[]): Task[] => {
     return tasksList.map(t => {
-      if (t.spaceId && t.listId) {
+      if (t.spaceId) {
         return {
           ...t,
           assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
@@ -936,23 +954,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setIsSearchOpen]);
 
-  // Pomodoro Focus Timer state - consumed from usePomodoroStore
-  const workDuration = usePomodoroStore((s) => s.workDuration);
-  const setWorkDuration = usePomodoroStore((s) => s.setWorkDuration);
-  const shortBreakDuration = usePomodoroStore((s) => s.shortBreakDuration);
-  const setShortBreakDuration = usePomodoroStore((s) => s.setShortBreakDuration);
-  const longBreakDuration = usePomodoroStore((s) => s.longBreakDuration);
-  const setLongBreakDuration = usePomodoroStore((s) => s.setLongBreakDuration);
-  const pomodoroMode = usePomodoroStore((s) => s.pomodoroMode);
-  const setPomodoroMode = usePomodoroStore((s) => s.setPomodoroMode);
-  const showPomoSettings = usePomodoroStore((s) => s.showPomoSettings);
-  const setShowPomoSettings = usePomodoroStore((s) => s.setShowPomoSettings);
-  const pomodoroTime = usePomodoroStore((s) => s.pomodoroTime);
-  const setPomodoroTime = usePomodoroStore((s) => s.setPomodoroTime);
-  const pomodoroActive = usePomodoroStore((s) => s.pomodoroActive);
-  const setPomodoroActive = usePomodoroStore((s) => s.setPomodoroActive);
-  const previousStatus = usePomodoroStore((s) => s.previousStatus);
-  const setPreviousStatus = usePomodoroStore((s) => s.setPreviousStatus);
+
 
   // Offline/Sync state - consumed from useUiStore
   const isOffline = useUiStore((s) => s.isOffline);

@@ -20,6 +20,7 @@ interface UiState {
   blurIntensity: 'soft' | 'default' | 'immersive';
   accentPreset: 'indigo' | 'ocean' | 'forest' | 'sunset';
   soundEnabled: boolean;
+  isDarkMode: boolean;
   notificationSettings: NotificationSettings;
 
   // Search selection triggers
