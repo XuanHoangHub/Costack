@@ -23,6 +23,8 @@ interface ProductivityHubProps {
   tasks: Task[];
   members: User[];
   isOffline: boolean;
+  currentUser?: any;
+  onUpgradePremium?: () => void;
   onAddSyncLog?: (action: string) => void;
   triggerToast?: (type: 'success' | 'info' | 'assignment' | 'deadline' | 'comment' | 'message', title: string, message: string) => void;
 }
@@ -47,6 +49,8 @@ export default function ProductivityHub({
   tasks,
   members,
   isOffline,
+  currentUser,
+  onUpgradePremium,
   onAddSyncLog,
   triggerToast
 }: ProductivityHubProps) {
@@ -680,6 +684,10 @@ export default function ProductivityHub({
 
   // Request AI Report
   const generateWeeklyProductivityReport = async () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
     if (isOffline) {
       if (triggerToast) {
         triggerToast(

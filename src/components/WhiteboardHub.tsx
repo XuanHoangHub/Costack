@@ -16,6 +16,8 @@ interface WhiteboardHubProps {
   members: User[];
   tasks: Task[];
   isOffline: boolean;
+  currentUser?: any;
+  onUpgradePremium?: () => void;
   onAddSyncLog: (action: string) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
@@ -28,6 +30,8 @@ export default function WhiteboardHub({
   members,
   tasks,
   isOffline,
+  currentUser,
+  onUpgradePremium,
   onAddSyncLog,
   onAddTask,
   triggerToast
@@ -306,6 +310,8 @@ export default function WhiteboardHub({
                 whiteboardId={activeWb.id}
                 onAddTask={onAddTask}
                 tasks={tasks}
+                currentUser={currentUser}
+                onUpgradePremium={onUpgradePremium}
               />
             </div>
           </div>

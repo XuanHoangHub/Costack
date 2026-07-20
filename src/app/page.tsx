@@ -4550,6 +4550,7 @@ export default function App() {
                       onNavigate={setActiveTab}
                       onToggleOffline={handleToggleOffline}
                       currentUser={currentUser}
+                      onUpgradePremium={() => setShowPremiumModal(true)}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                       onClearSyncLogs={() => {
@@ -4685,6 +4686,8 @@ export default function App() {
                       tasks={currentWorkspaceTasks}
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       isOffline={isOffline}
+                      currentUser={currentUser}
+                      onUpgradePremium={() => setShowPremiumModal(true)}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                     />
@@ -4698,6 +4701,8 @@ export default function App() {
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       tasks={tasks}
                       isOffline={isOffline}
+                      currentUser={currentUser}
+                      onUpgradePremium={() => setShowPremiumModal(true)}
                       onAddSyncLog={addSyncLog}
                       onAddTask={handleAddTask}
                       triggerToast={triggerToast}

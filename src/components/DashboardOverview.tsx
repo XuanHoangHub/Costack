@@ -24,6 +24,7 @@ interface DashboardOverviewProps {
   onNavigate: (tab: string) => void;
   onToggleOffline: () => void;
   currentUser: any;
+  onUpgradePremium?: () => void;
   onAddSyncLog?: (action: string) => void;
   triggerToast?: (type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message', title: string, message: string) => void;
   onClearSyncLogs?: () => void;
@@ -38,6 +39,7 @@ function DashboardOverview({
   onNavigate,
   onToggleOffline,
   currentUser,
+  onUpgradePremium,
   onAddSyncLog,
   triggerToast,
   onClearSyncLogs
@@ -104,6 +106,10 @@ function DashboardOverview({
   }, [tasks, isBriefingChecked, triggerToast, locale, t]);
 
   const handleGenerateReport = async () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
     setIsGenerating(true);
     setReportError('');
     try {

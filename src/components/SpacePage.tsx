@@ -1012,6 +1012,11 @@ export default function SpacePage({
   };
 
   const handleSelectView = (view: { id: string; label: string; icon: React.ElementType; desc: string; color: string; bg: string }) => {
+    const proViews = ['gantt', 'timeline', 'workload', 'mindmap', 'ai'];
+    if (proViews.includes(view.id) && !currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
     // Check if view is already in staticTabs
     const existingTab = staticTabs.find(t => t.viewId === view.id);
     if (existingTab) {
@@ -1845,6 +1850,11 @@ export default function SpacePage({
                     <button
                       key={tab.id}
                       onClick={() => {
+                        const proViews = ['gantt', 'timeline', 'workload', 'mindmap', 'ai'];
+                        if (proViews.includes(tab.viewId) && !currentUser?.isPremium) {
+                          onUpgradePremium?.();
+                          return;
+                        }
                         setActiveTabId(tab.id);
                         setActiveView(tab.viewId);
                       }}
@@ -1856,6 +1866,9 @@ export default function SpacePage({
                     >
                       <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-550 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                       <span>{tab.label}</span>
+                      {['gantt', 'timeline', 'workload', 'mindmap', 'ai'].includes(tab.viewId) && !currentUser?.isPremium && (
+                        <span className="text-[7px] font-black text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded-md leading-none shadow-3xs">PRO</span>
+                      )}
                     </button>
                   );
                 })}

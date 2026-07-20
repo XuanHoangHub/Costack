@@ -26,6 +26,8 @@ interface WhiteboardProps {
   whiteboardId?: string;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   tasks?: Task[];
+  currentUser?: any;
+  onUpgradePremium?: () => void;
 }
 
 // Helper function to safely derive transparent/light fill styles from hex color codes
@@ -114,7 +116,9 @@ export default function Whiteboard({
   onAddSyncLog, 
   whiteboardId,
   onAddTask,
-  tasks = []
+  tasks = [],
+  currentUser,
+  onUpgradePremium
 }: WhiteboardProps) {
   const { t, locale } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -399,6 +403,10 @@ export default function Whiteboard({
   };
 
   const handleOpenAiAnalyst = () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
     if (elements.length === 0) {
       alert("Hãy vẽ nội dung gì đó trên bảng trước khi phân tích!");
       return;
