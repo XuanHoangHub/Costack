@@ -196,14 +196,26 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setSuccess('');
 
     try {
+      const redirectTo = window.location.origin.endsWith('/') 
+        ? window.location.origin 
+        : `${window.location.origin}/`;
+      
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo }
       });
       if (oauthError) throw oauthError;
       setSuccess(`Đang chuyển hướng sang ${provider}...`);
     } catch (err: any) {
       console.warn(`SSO local sandbox fallback:`, err);
+      
+      // Do not fall back to mockup in production to allow real OAuth debug
+      if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+        setError(err.message || (locale === 'vi' ? 'Không thể kết nối với dịch vụ đăng nhập.' : 'Could not connect to sign-in service.'));
+        setLoading(false);
+        return;
+      }
+      
       const mockupUsers = {
         google: { name: 'Hoàng Benjamin', email: 'hoang.benjamin.creative@gmail.com', role: 'admin' },
         facebook: { name: 'Mai Phương', email: 'maiphuong.fb@avaxa.io', role: 'member' }

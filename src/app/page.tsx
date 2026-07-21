@@ -16,6 +16,7 @@ import { useBaseStore } from '@/store/baseStore';
 import { useSyncStore } from '@/store/syncStore';
   import { useNotificationStore } from '@/store/notificationStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
+import { useAuthStore } from '@/store/authStore';
 
 import dynamic from 'next/dynamic';
 import LoginScreen from '../components/LoginScreen';
@@ -128,6 +129,11 @@ export default function App() {
 
   // Authentication check with 1-month persistence
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const updateCurrentUser = useCallback((user: User | null) => {
+    setCurrentUser(user);
+    useAuthStore.getState().setCurrentUser(user);
+  }, []);
 
   // Navigation active tab controller
   const activeTab = useUiStore((s) => s.activeTab);
@@ -266,6 +272,7 @@ export default function App() {
       }
     }
   }, [isDarkMode]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -281,7 +288,14 @@ export default function App() {
           status: 'online' as const,
           isPremium
         };
-        setCurrentUser(userObj);
+        updateCurrentUser(userObj);
+        
+        // Save session to localStorage to prevent flicker on reload
+        const sessionObj = {
+          user: userObj,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 1 month
+        };
+        localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
       }
     }).catch(err => {
       console.warn('Error verifying Supabase session at launch:', err);
@@ -301,16 +315,24 @@ export default function App() {
           status: 'online' as const,
           isPremium
         };
-        setCurrentUser(userObj);
+        updateCurrentUser(userObj);
+        
+        // Save session to localStorage to prevent flicker on reload
+        const sessionObj = {
+          user: userObj,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 1 month
+        };
+        localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
       } else {
-        setCurrentUser(null);
+        updateCurrentUser(null);
+        localStorage.removeItem('avaxa_session');
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-}, []);
+  }, [updateCurrentUser]);
 
 
   // Dynamic effects below read from useUiStore values
@@ -806,7 +828,7 @@ export default function App() {
       if (savedSession) {
         const { user, expiresAt } = JSON.parse(savedSession);
         if (Date.now() < expiresAt) {
-          setCurrentUser(user);
+          updateCurrentUser(user);
         } else {
           localStorage.removeItem('avaxa_session');
         }
@@ -3293,7 +3315,7 @@ export default function App() {
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={(user, rememberMe) => {
       const userWithId = { ...user, id: user.email ? `user-${user.email}` : `user-${Date.now()}` };
-      setCurrentUser(userWithId);
+      updateCurrentUser(userWithId);
       if (rememberMe) {
         const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
         localStorage.setItem('avaxa_session', JSON.stringify({
@@ -4074,7 +4096,7 @@ export default function App() {
                           addSyncLog('Signed out of account');
                           (window as any).playSystemSound?.('delete');
                           try { await supabase.auth.signOut(); } catch (e) {}
-                          setCurrentUser(null);
+                          updateCurrentUser(null);
                           localStorage.removeItem('avaxa_session');
                         }}
                         className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
@@ -4793,7 +4815,7 @@ export default function App() {
                   {activeTab === 'profile' && (
                     <ProfilePage
                       currentUser={currentUser}
-                      setCurrentUser={setCurrentUser}
+                      setCurrentUser={updateCurrentUser}
                       members={members}
                       setMembers={setMembers}
                       tasks={tasks}
