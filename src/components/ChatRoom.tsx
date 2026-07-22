@@ -1770,23 +1770,23 @@ ${channelMessagesText}`;
   }
 
   return (
-    <div className="flex min-h-[500px] h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full rounded-3xl bg-white border border-slate-200/60 shadow-[0_4px_25px_rgba(0,0,0,0.012)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800">
+    <div className="flex min-h-[500px] h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full rounded-3xl bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
       {!forcedChannelId && (
-        <div className={`w-full md:w-64 border-r border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left ${
+        <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/90 flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
           {/* Header area */}
           <div className="flex items-center justify-between px-2 py-1 select-none shrink-0">
-            <span className="text-[15px] font-black text-slate-800 tracking-tight">Chat</span>
+            <span className="text-[15px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Chat</span>
             <button
               onClick={() => {
                 const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
                 setActiveChannelId(selfDmId);
               }}
-              className="p-1.5 rounded-lg border border-slate-200/60 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 shadow-xs transition-all cursor-pointer active:scale-95"
+              className="p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 shadow-xs transition-all cursor-pointer active:scale-95"
               title="New Chat"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1797,10 +1797,10 @@ ${channelMessagesText}`;
           <div className="flex-1 overflow-y-auto space-y-3 pr-1.5 scrollbar-thin min-h-0">
             <div>
               <div className="flex items-center justify-between px-2 mb-1.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Channels</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Channels</span>
                 <button 
                   onClick={() => setShowCreateChannelModal(true)}
-                  className="p-0.5 rounded hover:bg-slate-150 text-slate-455 hover:text-indigo-650 transition-colors cursor-pointer"
+                  className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -1813,17 +1813,17 @@ ${channelMessagesText}`;
                   return (
                     <div 
                       key={c.id}
-                      className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent ${
+                      className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent transition-all ${
                         isActive 
-                          ? 'bg-indigo-50/80 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 border-indigo-200/20 dark:border-indigo-900/20 font-bold' 
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-850 dark:hover:text-slate-200'
+                          ? 'bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-transparent dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-transparent text-indigo-650 dark:text-indigo-300 border-indigo-200/40 dark:border-indigo-800/40 font-bold shadow-3xs' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-900/60 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       <button
                         onClick={() => setActiveChannelId(c.id)}
                         className="flex-1 flex items-center gap-2 px-3 py-2 text-xs font-semibold cursor-pointer text-left truncate"
                       >
-                        <Hash className="w-4 h-4 shrink-0 text-slate-400" />
+                        <Hash className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-slate-500'}`} />
                         <span className="truncate">{c.name}</span>
                         {(unreadCounts[c.id] || 0) > 0 && (
                           <span className="ml-auto px-1.5 py-0.5 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-sm animate-bounce">
@@ -2088,7 +2088,7 @@ ${channelMessagesText}`;
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
-        className={`flex-1 flex flex-col justify-between relative bg-white ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
+        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-slate-900 ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
           isMobileChatActive ? 'flex' : 'hidden md:flex'
         }`}
         onDragOver={handleDragOver}
@@ -2097,21 +2097,21 @@ ${channelMessagesText}`;
       >
         {/* Drag-drop overlay */}
         {isDragOver && (
-          <div className="absolute inset-0 bg-indigo-50/80 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-indigo-50/80 dark:bg-indigo-950/80 backdrop-blur-sm z-40 flex items-center justify-center pointer-events-none">
             <div className="flex flex-col items-center gap-3 animate-pulse">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-100 border-2 border-dashed border-indigo-400 flex items-center justify-center">
-                <Paperclip className="w-7 h-7 text-indigo-500" />
+              <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/60 border-2 border-dashed border-indigo-400 dark:border-indigo-500 flex items-center justify-center">
+                <Paperclip className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <span className="text-sm font-black text-indigo-600">Drop file here to send</span>
-              <span className="text-[10px] font-bold text-indigo-400">Images, documents, audio files…</span>
+              <span className="text-sm font-black text-indigo-600 dark:text-indigo-300">Drop file here to send</span>
+              <span className="text-[10px] font-bold text-indigo-400 dark:text-indigo-400">Images, documents, audio files…</span>
             </div>
           </div>
         )}
         
         {/* Chat header */}
-        <header className="border-b border-slate-200/80 bg-white flex flex-col shrink-0">
+        <header className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col shrink-0">
           {/* Top row */}
-          <div className="px-5 py-3.5 flex items-center justify-between">
+          <div className="px-5 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
               {/* Mobile Back Button to Channels List */}
               <button
@@ -2123,35 +2123,35 @@ ${channelMessagesText}`;
               </button>
               {isSelfDm ? (
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white bg-emerald-500 animate-pulse"></span>
+                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8.5 h-8.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white animate-fadeIn object-cover" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 animate-pulse"></span>
                 </div>
               ) : isDm && dmMember ? (
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
-                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8.5 h-8.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white animate-fadeIn object-cover" />
+                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-650 shrink-0 font-black text-xs select-none">
+                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 dark:from-indigo-950/40 dark:to-purple-950/30 border border-indigo-200/30 dark:border-indigo-800/40 flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0 font-black text-xs select-none shadow-3xs">
                   {isSpaceChan ? '📁' : '#'}
                 </div>
               )}
               
               <div className="text-left min-w-0 flex items-center gap-2">
-                <h2 className="text-sm font-black text-slate-800 leading-none truncate">
+                <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-none truncate">
                   {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
                 </h2>
                 {isEditableChannel && (
                   <div className="relative flex items-center">
                     <button 
                       onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-                      className={`text-slate-400 hover:text-slate-650 cursor-pointer transition-colors p-0.5 rounded-lg hover:bg-slate-50 ${showHeaderMenu ? 'bg-slate-100 text-indigo-650' : ''}`}
+                      className={`text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer transition-colors p-0.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 ${showHeaderMenu ? 'bg-slate-100 dark:bg-slate-800 text-indigo-650 dark:text-indigo-400' : ''}`}
                       title="Channel options"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
                     </button>
                     {showHeaderMenu && (
-                      <div className="absolute left-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-35 min-w-[120px] text-left">
+                      <div className="absolute left-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-35 min-w-[140px] text-left animate-fadeIn">
                         <button
                           onClick={() => {
                             setShowHeaderMenu(false);
@@ -2166,7 +2166,7 @@ ${channelMessagesText}`;
                             }
                             setShowRenameModal(true);
                           }}
-                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                         >
                           <Edit2 className="w-3 h-3 text-slate-450" />
                           Rename Channel
@@ -2179,7 +2179,7 @@ ${channelMessagesText}`;
                               handleDeleteChannel(activeChannelId, nameToDelete);
                             }
                           }}
-                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/30 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                         >
                           <Trash2 className="w-3 h-3 text-rose-450" />
                           Delete Channel
@@ -2188,24 +2188,24 @@ ${channelMessagesText}`;
                     )}
                   </div>
                 )}
-                <button className="text-slate-355 hover:text-amber-500 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50">★</button>
+                <button className="text-slate-355 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 cursor-pointer transition-colors p-0.5 rounded hover:bg-slate-50 dark:hover:bg-slate-800">★</button>
               </div>
             </div>
 
             {/* Branding Logo */}
-            <div className="flex items-center gap-1.5 select-none font-bold text-xs text-slate-800">
-              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500" />
-              <span>Brain²</span>
+            <div className="flex items-center gap-1.5 select-none font-extrabold text-xs text-slate-800 dark:text-slate-200">
+              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 animate-pulse" />
+              <span>Brain² Chat</span>
             </div>
           </div>
 
           {/* Bottom row (Tabs and Right Utilities) */}
-          <div className="px-5 border-t border-slate-100 flex items-center justify-between select-none">
+          <div className="px-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between select-none">
             {/* Tabs */}
-            <div className="flex gap-4 text-xs font-bold text-slate-500 pt-2.5 pb-2">
-              <button className="text-slate-800 border-b-2 border-indigo-600 pb-2 -mb-[9px] px-0.5 cursor-pointer">Chat</button>
-              <button className="hover:text-slate-800 transition-colors pb-2 px-0.5 cursor-pointer">Calendar</button>
-              <button className="hover:text-slate-800 transition-colors pb-2 px-0.5 cursor-pointer">Tasks</button>
+            <div className="flex gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 pt-2.5 pb-2">
+              <button className="text-slate-900 dark:text-slate-100 border-b-2 border-indigo-600 dark:border-indigo-400 pb-2 -mb-[9px] px-0.5 cursor-pointer font-extrabold">Chat</button>
+              <button className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors pb-2 px-0.5 cursor-pointer">Calendar</button>
+              <button className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors pb-2 px-0.5 cursor-pointer">Tasks</button>
             </div>
 
             {/* Right Action Utilities (float bar) */}
@@ -2519,13 +2519,13 @@ ${channelMessagesText}`;
                 </div>
 
                 {/* Actions Popover (Hover menus) */}
-                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white border border-slate-200/80 rounded-xl shadow-md p-1 z-20">
+                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-xl backdrop-blur-md p-1 z-20">
                   {/* Quick Reactions */}
                   {['👍', '❤️', '🎉', '😂'].map(emoji => (
                     <button 
                       key={emoji}
                       onClick={() => handleAddReaction(msg.id, emoji)}
-                      className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-xs select-none transition-all"
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-xs select-none transition-all"
                     >
                       {emoji}
                     </button>
@@ -2534,8 +2534,8 @@ ${channelMessagesText}`;
                   {/* Translate Message Button */}
                   <button 
                     onClick={() => handleTranslateMessage(msg.id, msg.content)}
-                    className={`p-1 rounded-md cursor-pointer transition-colors ${
-                      translatedMessages[msg.id] ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-650 hover:bg-slate-105'
+                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                      translatedMessages[msg.id] ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                     title={translatingMsgId === msg.id ? "Đang dịch..." : "Dịch tin nhắn bằng AI"}
                   >
@@ -2545,7 +2545,7 @@ ${channelMessagesText}`;
                   {/* Reply in Thread */}
                   <button 
                     onClick={() => handleOpenThread(msg)}
-                    className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-indigo-650 transition-colors"
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors"
                     title="Reply in Thread"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
@@ -2554,10 +2554,10 @@ ${channelMessagesText}`;
                   {/* Pin/Unpin Message */}
                   <button 
                     onClick={() => handleTogglePinMessage(msg.id, !!msg.isPinned)}
-                    className={`p-1 rounded-md cursor-pointer transition-colors ${
+                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
                       msg.isPinned 
-                        ? 'text-amber-500 hover:bg-amber-55' 
-                        : 'text-slate-400 hover:text-amber-500 hover:bg-amber-55'
+                        ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-955/30' 
+                        : 'text-slate-400 dark:text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-955/30'
                     }`}
                     title={msg.isPinned ? "Unpin message" : "Pin message"}
                   >
@@ -2567,7 +2567,7 @@ ${channelMessagesText}`;
                   {/* Forward Message */}
                   <button 
                     onClick={() => setForwardingMessage(msg)}
-                    className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-blue-500 transition-colors"
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
                     title="Forward message"
                   >
                     <Forward className="w-3.5 h-3.5" />
@@ -2577,19 +2577,20 @@ ${channelMessagesText}`;
                   {onAddTask && (
                     <button 
                       onClick={() => handleOpenConvertModal(msg)}
-                      className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-emerald-600 transition-colors"
-                      title="Convert to Task"
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      title="Tạo Task từ tin nhắn"
                     >
                       <CheckSquare className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  
+
+                  {/* Edit/Delete for own messages */}
                   {isMe && (
                     <>
                       <button 
                         onClick={() => { setEditingMsgId(msg.id); setEditVal(msg.content); }}
-                        className="p-1 hover:bg-slate-105 rounded-md cursor-pointer text-slate-400 hover:text-indigo-650 transition-colors"
-                        title="Edit message"
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                        title="Edit Message"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -2690,17 +2691,17 @@ ${channelMessagesText}`;
         )}
 
                 {/* Mockup-style unified rich editor box card */}
-        <div className="p-4 bg-white border-t border-slate-150 shrink-0">
-          <form onSubmit={handleSendMessage} className="relative border border-slate-200 dark:border-slate-800 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl p-3 bg-white dark:bg-slate-900 transition-all shadow-xs flex flex-col gap-2 select-text">
+        <div className="p-4 bg-white/90 dark:bg-slate-950/80 border-t border-slate-200/60 dark:border-slate-800/80 backdrop-blur-md shrink-0">
+          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl p-3 bg-white dark:bg-slate-900 transition-all shadow-sm flex flex-col gap-2 select-text">
             
             {/* Selected file preview widget */}
             {selectedFile && (
-              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-250 text-xs font-semibold text-slate-700">
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200">
                 <div className="flex items-center gap-2 truncate">
                   <span>📎</span>
                   <span className="truncate">{selectedFile.name}</span>
                 </div>
-                <button type="button" onClick={() => setSelectedFile(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <button type="button" onClick={() => setSelectedFile(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -2708,9 +2709,9 @@ ${channelMessagesText}`;
 
             {/* Input Text Area container */}
             {isRecording ? (
-              <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 border border-rose-250 animate-pulse text-xs font-semibold text-rose-600">
+              <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-955/30 border border-rose-250 dark:border-rose-900/50 animate-pulse text-xs font-semibold text-rose-600 dark:text-rose-400">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                  <span className="w-2 h-2 rounded-full bg-rose-600 dark:bg-rose-400 animate-ping"></span>
                   <span>Recording Voice: {recordingDuration}s</span>
                 </div>
                 <button 
@@ -2734,7 +2735,7 @@ ${channelMessagesText}`;
                         ? "Ask Avaxa Brain AI..." 
                         : `Write to ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}, press 'space' for AI...`
                   }
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 text-slate-800 resize-none min-h-[48px] custom-scrollbar focus:ring-0 p-0"
+                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none min-h-[48px] custom-scrollbar focus:ring-0 p-0"
                   onKeyDown={e => {
                     if (showCommandDropdown && filteredCommands.length > 0) {
                       if (e.key === 'ArrowDown') {
@@ -2768,19 +2769,19 @@ ${channelMessagesText}`;
 
                 {/* @Mention Autocomplete Dropdown */}
                 {showMentionDropdown && filteredMentionMembers.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200/80 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
+                  <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
                     <div className="px-2 py-1 mb-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mention a member</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mention a member</span>
                     </div>
                     {filteredMentionMembers.map(m => (
                       <button
                         key={m.id}
                         type="button"
                         onClick={() => handleSelectMention(m)}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer text-left"
                       >
                         <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
-                        <span className="text-[10.5px] font-bold text-slate-700">{m.name}</span>
+                        <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-200">{m.name}</span>
                         <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
                       </button>
                     ))}
@@ -2791,7 +2792,7 @@ ${channelMessagesText}`;
                 {showCommandDropdown && filteredCommands.length > 0 && (
                   <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
                     <div className="px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-405">Quick Commands</span>
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-405 dark:text-slate-500">Quick Commands</span>
                     </div>
                     {filteredCommands.map((cmd, idx) => (
                       <button
@@ -2831,40 +2832,40 @@ ${channelMessagesText}`;
             />
 
             {/* Bottom Row Utilities and Actions */}
-            <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100/60">
+            <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100/60 dark:border-slate-800/60">
               {/* Left Utilities */}
-              <div className="flex items-center gap-1.5 text-slate-400 select-none">
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Add File">
+              <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 select-none">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Add File">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => setInputVal(prev => prev + ' ')} className="p-1 hover:text-amber-500 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="AI Sparkles">
+                <button type="button" onClick={() => setInputVal(prev => prev + ' ')} className="p-1 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="AI Sparkles">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
                 </button>
-                <button type="button" onClick={() => insertFormatting('bold')} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Format Text">
+                <button type="button" onClick={() => insertFormatting('bold')} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Format Text">
                   <Bold className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Attach file">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Attach file">
                   <Paperclip className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => { setInputVal(prev => prev + '@'); setShowMentionDropdown(true); setMentionQuery(''); }} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Mention @">
+                <button type="button" onClick={() => { setInputVal(prev => prev + '@'); setShowMentionDropdown(true); setMentionQuery(''); }} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Mention @">
                   <AtSign className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Stickers & Emoji">
+                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Stickers & Emoji">
                   <Smile className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="GIF">
-                  <span className="text-[9px] font-black leading-none border border-slate-350 px-1 py-0.5 rounded">GIF</span>
+                <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="GIF">
+                  <span className="text-[9px] font-black leading-none border border-slate-350 dark:border-slate-700 px-1 py-0.5 rounded">GIF</span>
                 </button>
-                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Video Meeting">
+                <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Video Meeting">
                   <span className="text-sm">📹</span>
                 </button>
-                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Checklist">
+                <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Checklist">
                   <span className="text-sm">☑️</span>
                 </button>
-                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Template">
+                <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Template">
                   <span className="text-sm">📝</span>
                 </button>
-                <button type="button" className="p-1 hover:text-slate-750 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer" title="Automation & Integrations">
+                <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Automation & Integrations">
                   <span className="text-sm">⚡</span>
                 </button>
               </div>
