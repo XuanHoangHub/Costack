@@ -77,7 +77,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col font-sans`}>
+      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-slate-100`}>
         <SecurityGuard />
         <TranslationProvider>
           {children}

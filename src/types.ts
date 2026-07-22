@@ -215,6 +215,13 @@ export interface ChatMessage {
     isImage: boolean;
     isVoice?: boolean;
     duration?: number;
+    isPoll?: boolean;
+    question?: string;
+    options?: {
+      id: string;
+      text: string;
+      votes: string[];
+    }[];
   };
   parentId?: string;
   isPinned?: boolean;

@@ -11,7 +11,8 @@ import {
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff,
-  Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar
+  Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar,
+  BarChart3, Download, Eye, Vote, HelpCircle
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -299,6 +300,195 @@ export default function ChatRoom({
   const [showCommandDropdown, setShowCommandDropdown] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
+
+  // AI Channel Summary state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [aiSummaryText, setAiSummaryText] = useState('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  // Poll Creation state
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState<string[]>(['Option 1', 'Option 2']);
+
+  // Message Translation state
+  const [translatedMessages, setTranslatedMessages] = useState<Record<string, string>>({});
+  const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null);
+
+  // Markdown Preview state
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  // ── AI Channel Summary Handler ──
+  const handleSummarizeChannel = async () => {
+    if (messages.length === 0) {
+      triggerToast?.('info', 'No Messages', 'Channel has no messages to summarize.');
+      return;
+    }
+    setIsSummarizing(true);
+    setShowSummaryModal(true);
+    setAiSummaryText('');
+
+    try {
+      const channelMessagesText = messages.slice(-25).map(m => `${m.senderName}: ${m.content}`).join('\n');
+      const prompt = `Hãy phân tích cuộc trò chuyện sau từ kênh #${activeChannel?.name || 'chat'} và đưa ra bản tóm tắt ngắn gọn, cấu trúc bằng tiếng Việt gồm:
+1. 📌 Tóm tắt chính (Key Discussion Points)
+2. 🎯 Quyết định đã thống nhất (Key Decisions)
+3. ⚡️ Công việc cần làm (Action Items / Next Steps)
+
+Nội dung trò chuyện:
+${channelMessagesText}`;
+
+      const response = await callAiApi('/api/ai/chat', { message: prompt });
+      const data = await response.json();
+      if (data.success && data.text) {
+        setAiSummaryText(data.text);
+      } else {
+        setAiSummaryText('Không thể tạo tóm tắt vào lúc này. Vui lòng thử lại sau.');
+      }
+    } catch (err) {
+      console.error('Error generating channel summary:', err);
+      setAiSummaryText('Lỗi kết nối AI khi tạo tóm tắt.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  // ── Channel Export Handler ──
+  const handleExportChatMarkdown = () => {
+    if (messages.length === 0) {
+      triggerToast?.('info', 'No Messages', 'No chat history to export.');
+      return;
+    }
+
+    const channelName = activeChannel?.name || 'chat';
+    const lines = [
+      `# Chat History - #${channelName}`,
+      `*Exported on: ${new Date().toLocaleString()}*`,
+      `---`,
+      ''
+    ];
+
+    messages.forEach(m => {
+      lines.push(`**${m.senderName}** *(${m.timestamp})*:`);
+      lines.push(`${m.content}`);
+      if (m.attachment) {
+        lines.push(`> 📎 Attachment: ${m.attachment.name || 'file'}`);
+      }
+      lines.push('');
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chat-export-${channelName}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    triggerToast?.('success', 'Export Complete 📥', `Exported #${channelName} history to Markdown.`);
+  };
+
+  // ── Translate Message Handler ──
+  const handleTranslateMessage = async (msgId: string, content: string) => {
+    if (translatedMessages[msgId]) {
+      setTranslatedMessages(prev => {
+        const next = { ...prev };
+        delete next[msgId];
+        return next;
+      });
+      return;
+    }
+
+    setTranslatingMsgId(msgId);
+    try {
+      const prompt = `Translate the following text accurately into Vietnamese (or if it is already Vietnamese, translate to English). Only return the translated text without extra explanation:\n"${content}"`;
+      const response = await callAiApi('/api/ai/chat', { message: prompt });
+      const data = await response.json();
+      if (data.success && data.text) {
+        setTranslatedMessages(prev => ({ ...prev, [msgId]: data.text }));
+      }
+    } catch (err) {
+      console.error('Error translating message:', err);
+    } finally {
+      setTranslatingMsgId(null);
+    }
+  };
+
+  // ── Poll Creation & Voting Handlers ──
+  const handleCreatePollSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pollQuestion.trim()) return;
+    const validOptions = pollOptions.filter(o => o.trim().length > 0);
+    if (validOptions.length < 2) {
+      triggerToast?.('info', 'Poll Requirement', 'Please provide at least 2 options for the poll.');
+      return;
+    }
+
+    const pollAttachment = {
+      isPoll: true,
+      question: pollQuestion.trim(),
+      options: validOptions.map((optText, i) => ({
+        id: `opt-${i}-${Date.now()}`,
+        text: optText.trim(),
+        votes: [] as string[]
+      }))
+    };
+
+    const msgId = `msg-poll-${Date.now()}`;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    const pollMsg: ChatMessage = {
+      id: msgId,
+      senderId: currentUser.id || 'user',
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      content: `📊 **Thăm dò ý kiến:** ${pollQuestion.trim()}`,
+      timestamp: timeStr,
+      attachment: pollAttachment as any
+    };
+
+    setMessages(prev => [...prev, pollMsg]);
+    setShowPollModal(false);
+    setPollQuestion('');
+    setPollOptions(['Option 1', 'Option 2']);
+    scrollToBottom();
+
+    triggerToast?.('success', 'Poll Created 📊', 'Interactive poll posted to channel.');
+  };
+
+  const handleVotePoll = (msgId: string, optionId: string) => {
+    const userId = currentUser.id || 'user';
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId || !m.attachment?.isPoll) return m;
+      
+      const poll = m.attachment;
+      const updatedOptions = (poll?.options || []).map((opt: any) => {
+        const hasVoted = (opt.votes || []).includes(userId);
+        if (opt.id === optionId) {
+          return {
+            ...opt,
+            votes: hasVoted ? opt.votes.filter((id: string) => id !== userId) : [...(opt.votes || []), userId]
+          };
+        } else {
+          return {
+            ...opt,
+            votes: (opt.votes || []).filter((id: string) => id !== userId)
+          };
+        }
+      });
+
+      return {
+        ...m,
+        attachment: {
+          ...poll,
+          options: updatedOptions
+        }
+      };
+    }));
+    (window as any).playSystemSound?.('click');
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -2020,10 +2210,29 @@ export default function ChatRoom({
 
             {/* Right Action Utilities (float bar) */}
             <div className="flex items-center gap-1.5 text-slate-400 pb-1">
-              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Search className="w-3.5 h-3.5" /></button>
-              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><MessageSquare className="w-3.5 h-3.5" /></button>
-              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Smile className="w-3.5 h-3.5" /></button>
-              <button className="p-1 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
+              <button 
+                onClick={handleSummarizeChannel}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-650 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/40 rounded-xl transition-all cursor-pointer shadow-3xs" 
+                title="Tóm tắt nội dung kênh bằng AI"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                <span className="hidden sm:inline">AI Summary</span>
+              </button>
+              <button 
+                onClick={() => setShowPollModal(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer shadow-3xs" 
+                title="Tạo cuộc thăm dò ý kiến (Poll)"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="hidden sm:inline">Poll</span>
+              </button>
+              <button 
+                onClick={handleExportChatMarkdown}
+                className="p-1.5 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer" 
+                title="Xuất lịch sử chat (.md)"
+              >
+                <Download className="w-4 h-4 text-slate-500" />
+              </button>
             </div>
           </div>
         </header>
@@ -2229,6 +2438,58 @@ export default function ChatRoom({
                     </div>
                   )}
 
+                  {/* Interactive Poll Rendering */}
+                  {msg.attachment?.isPoll && (
+                    <div className="mt-2.5 p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-2.5 max-w-md text-left select-none">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">{msg.attachment.question}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {(() => {
+                          const options = msg.attachment.options || [];
+                          const totalVotes = options.reduce((acc: number, opt: any) => acc + (opt.votes?.length || 0), 0);
+                          return options.map((opt: any) => {
+                            const voteCount = opt.votes?.length || 0;
+                            const pct = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                            const hasVoted = (opt.votes || []).includes(currentUser.id || 'user');
+                            return (
+                              <div 
+                                key={opt.id}
+                                onClick={() => handleVotePoll(msg.id, opt.id)}
+                                className={`p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all relative overflow-hidden flex items-center justify-between ${
+                                  hasVoted 
+                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold' 
+                                    : 'border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <div 
+                                  className="absolute left-0 top-0 bottom-0 bg-indigo-500/15 dark:bg-indigo-500/25 transition-all duration-500 pointer-events-none"
+                                  style={{ width: `${pct}%` }}
+                                />
+                                <span className="relative z-10 font-bold">{opt.text}</span>
+                                <span className="relative z-10 text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                                  {voteCount} phiếu ({pct}%)
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline Translation Box */}
+                  {translatedMessages[msg.id] && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-1 text-left animate-fadeIn">
+                      <div className="flex items-center gap-1.5 text-[9.5px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">
+                        <Globe className="w-3 h-3 text-indigo-500" />
+                        Bản dịch AI:
+                      </div>
+                      <p className="italic font-semibold">{translatedMessages[msg.id]}</p>
+                    </div>
+                  )}
+
                   {/* Render Reactions list */}
                   {msg.reactions && msg.reactions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
@@ -2269,6 +2530,17 @@ export default function ChatRoom({
                       {emoji}
                     </button>
                   ))}
+
+                  {/* Translate Message Button */}
+                  <button 
+                    onClick={() => handleTranslateMessage(msg.id, msg.content)}
+                    className={`p-1 rounded-md cursor-pointer transition-colors ${
+                      translatedMessages[msg.id] ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-indigo-650 hover:bg-slate-105'
+                    }`}
+                    title={translatingMsgId === msg.id ? "Đang dịch..." : "Dịch tin nhắn bằng AI"}
+                  >
+                    {translatingMsgId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" /> : <Globe className="w-3.5 h-3.5" />}
+                  </button>
 
                   {/* Reply in Thread */}
                   <button 
@@ -3178,6 +3450,179 @@ export default function ChatRoom({
                   Tạo công việc
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Channel Summary Modal */}
+      <AnimatePresence>
+        {showSummaryModal && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden space-y-4 text-left"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
+                  Tóm tắt Kênh bằng AI (#{activeChannel?.name || 'chat'})
+                </h3>
+                <button 
+                  onClick={() => setShowSummaryModal(false)}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {isSummarizing ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">AI đang tổng hợp cuộc trò chuyện...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl max-h-[300px] overflow-y-auto text-xs leading-relaxed text-slate-700 dark:text-slate-300 font-semibold space-y-2">
+                    {formatMessageContent(aiSummaryText)}
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiSummaryText);
+                        triggerToast?.('success', 'Copied 📋', 'Summary copied to clipboard.');
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      📋 Sao chép
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSummaryModal(false);
+                        const msgId = `ai-summary-${Date.now()}`;
+                        const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                        const summaryMsg: ChatMessage = {
+                          id: msgId,
+                          senderId: 'avaxa-ai',
+                          senderName: 'Avaxa Brain AI',
+                          senderAvatar: '',
+                          content: `✨ **Bản tóm tắt kênh từ AI:**\n${aiSummaryText}`,
+                          timestamp: timeStr,
+                          isAi: true
+                        };
+                        setMessages(prev => [...prev, summaryMsg]);
+                        scrollToBottom();
+                        triggerToast?.('success', 'Summary Shared 📣', 'Posted summary to channel.');
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-black text-white shadow-md transition-all cursor-pointer bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Gửi vào Kênh
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Poll Creation Modal */}
+      <AnimatePresence>
+        {showPollModal && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden space-y-4 text-left"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-indigo-500" />
+                  Tạo cuộc Thăm dò ý kiến (Poll)
+                </h3>
+                <button 
+                  onClick={() => setShowPollModal(false)}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePollSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Câu hỏi thăm dò</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={pollQuestion}
+                    onChange={e => setPollQuestion(e.target.value)}
+                    placeholder="Ví dụ: Thời gian họp tuần tới phù hợp nhất?" 
+                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-955 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Các lựa chọn</label>
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 scrollbar-none">
+                    {pollOptions.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          required 
+                          value={opt}
+                          onChange={e => {
+                            const newOpts = [...pollOptions];
+                            newOpts[i] = e.target.value;
+                            setPollOptions(newOpts);
+                          }}
+                          placeholder={`Lựa chọn ${i + 1}`} 
+                          className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-955 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold"
+                        />
+                        {pollOptions.length > 2 && (
+                          <button 
+                            type="button" 
+                            onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {pollOptions.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setPollOptions([...pollOptions, `Lựa chọn ${pollOptions.length + 1}`])}
+                      className="w-full py-1.5 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer text-center transition-colors"
+                    >
+                      + Thêm lựa chọn
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs font-bold">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPollModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Tạo cuộc thăm dò
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

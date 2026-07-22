@@ -3524,7 +3524,7 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-white text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 w-full h-full bg-white dark:bg-black text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
       
             {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
       <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none" />
