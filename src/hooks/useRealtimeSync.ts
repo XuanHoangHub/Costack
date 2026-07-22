@@ -57,17 +57,17 @@ export function useSupabaseSync() {
               console.warn('workspaces fetch failed:', wsError.message);
             } else {
               let finalWorkspaces = dbWorkspaces || [];
-              const hasSeededWS = typeof window !== 'undefined' ? localStorage.getItem(`avaxa_seeded_workspaces_${userId}`) : null;
+              const hasSeededWS = typeof window !== 'undefined' ? localStorage.getItem(`apexa_seeded_workspaces_${userId}`) : null;
 
               if (finalWorkspaces.length === 0 && !hasSeededWS) {
                 const initialWorkspaces = [
                   { id: 'w1', name: 'Personal', theme: 'indigo', initial: 'P', user_id: userId },
-                  { id: 'w2', name: 'Avaxa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
+                  { id: 'w2', name: 'Apexa Team OS', theme: 'ocean', initial: 'A', user_id: userId },
                   { id: 'w3', name: 'Product Launch', theme: 'sunset', initial: 'L', user_id: userId }
                 ];
                 const { data: seededWorkspaces } = await supabase.from('workspaces').insert(initialWorkspaces).select();
                 if (seededWorkspaces) finalWorkspaces = seededWorkspaces;
-                try { localStorage.setItem(`avaxa_seeded_workspaces_${userId}`, 'true'); } catch (e) {}
+                try { localStorage.setItem(`apexa_seeded_workspaces_${userId}`, 'true'); } catch (e) {}
               }
 
               if (finalWorkspaces.length > 0) {
@@ -91,9 +91,9 @@ export function useSupabaseSync() {
         await loadWorkspaces();
 
         const myMemberId = `user-${userId}`;
-        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Apexa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
+        const myAvatar = currentUser?.avatar || '';
         const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
 
         const { data: dbMembers, error: membersErr } = await supabase
@@ -140,7 +140,7 @@ export function useSupabaseSync() {
 
         if (finalMembers.length > 0) {
           const userEmail = session.user.email || 'default';
-          const storedWorkspaceMapRaw = typeof window !== 'undefined' ? localStorage.getItem(`avaxa_member_workspaces_${userEmail}`) : null;
+          const storedWorkspaceMapRaw = typeof window !== 'undefined' ? localStorage.getItem(`apexa_member_workspaces_${userEmail}`) : null;
           const storedWorkspaceMap = storedWorkspaceMapRaw ? JSON.parse(storedWorkspaceMapRaw) : {};
 
           setMembers(finalMembers.map(m => {
@@ -216,7 +216,7 @@ export function useSupabaseSync() {
             if (d.title && d.title.startsWith('System Task Order: ')) {
               const wsId = d.title.replace('System Task Order: ', '');
               if (wsId && d.content) {
-                try { localStorage.setItem(`avaxa_task_order_${wsId}`, d.content); } catch (e) {}
+                try { localStorage.setItem(`apexa_task_order_${wsId}`, d.content); } catch (e) {}
               }
             }
           });
@@ -252,7 +252,7 @@ export function useSupabaseSync() {
               updatedAt: b.updated_at || new Date().toISOString(),
             }));
             useBaseStore.getState().setBases(bases);
-            try { localStorage.setItem('avaxa_bases', JSON.stringify(dbBases)); } catch (e) {}
+            try { localStorage.setItem('apexa_bases', JSON.stringify(dbBases)); } catch (e) {}
           }
         } catch (e) {
           console.warn('Base apps load warning:', e);
@@ -276,7 +276,7 @@ export function useSupabaseSync() {
             }
 
             const finalSpaces = dbSpaces || [];
-            const hasSeededSpaces = typeof window !== 'undefined' ? localStorage.getItem(`avaxa_seeded_spaces_${userId}`) : null;
+            const hasSeededSpaces = typeof window !== 'undefined' ? localStorage.getItem(`apexa_seeded_spaces_${userId}`) : null;
 
             if (finalSpaces.length > 0) {
               const formattedSpaces = finalSpaces.map(s => ({
@@ -305,7 +305,7 @@ export function useSupabaseSync() {
               }));
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
-                try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
+                try { localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
               }
               return true;
             }
@@ -325,7 +325,7 @@ export function useSupabaseSync() {
         const spacesSuccess = await fetchSpacesAndLists();
         
         if (!spacesSuccess && active) {
-          const savedSpaces = typeof window !== 'undefined' ? localStorage.getItem(`avaxa_spaces_${userId}`) : null;
+          const savedSpaces = typeof window !== 'undefined' ? localStorage.getItem(`apexa_spaces_${userId}`) : null;
           let localSpaces: Space[] = [];
           if (savedSpaces) {
             try { localSpaces = JSON.parse(savedSpaces); } catch (e) {}
@@ -401,7 +401,7 @@ export function useSupabaseSync() {
                 await supabase.from('lists').insert(listsToInsert);
               }
             }
-            try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
+            try { localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
           } catch (e) {
             console.error('Error during seeding spaces migration:', e);
           }
@@ -613,7 +613,7 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
   const loadInvitations = useCallback(async () => {
     if (!currentUserEmail || typeof window === 'undefined') return;
 
-    const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+    const storedRaw = localStorage.getItem('apexa_workspace_invitations');
     const localList: WorkspaceInvitation[] = storedRaw ? JSON.parse(storedRaw) : [];
     const emailLower = currentUserEmail.trim().toLowerCase();
 
@@ -658,8 +658,8 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
     loadInvitations();
 
     const handleUpdate = () => loadInvitations();
-    window.addEventListener('avaxa-invitation-updated', handleUpdate);
-    return () => window.removeEventListener('avaxa-invitation-updated', handleUpdate);
+    window.addEventListener('apexa-invitation-updated', handleUpdate);
+    return () => window.removeEventListener('apexa-invitation-updated', handleUpdate);
   }, [loadInvitations]);
 
   return { invitations, refreshInvitations: loadInvitations };

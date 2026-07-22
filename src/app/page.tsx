@@ -27,10 +27,23 @@ import { useTranslation } from '../contexts/TranslationContext';
 import ToastNotification, { Toast } from '../components/ToastNotification';
 import { WORKSPACE_COVERS } from '../components/SettingsPanel';
 import MemberProfileModal from '../components/MemberProfileModal';
+import { GlobalSearchModal } from '../components/GlobalSearchModal';
+import { AutomationRulesModal } from '../components/AutomationRulesModal';
+import { ExportDataModal } from '../components/ExportDataModal';
+import { PricingModal } from '../components/PricingModal';
 
 const ComponentLoading = () => (
-  <div className="w-full h-full min-h-[300px] flex items-center justify-center p-8 text-slate-400">
-    <div className="w-7 h-7 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+  <div className="w-full h-full p-4 md:p-6 space-y-4 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="h-7 bg-slate-200/70 dark:bg-slate-800/70 rounded-2xl w-48" />
+      <div className="h-8 bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl w-32" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
+      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
+      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
+    </div>
+    <div className="h-72 bg-slate-200/40 dark:bg-slate-800/40 rounded-3xl" />
   </div>
 );
 
@@ -56,7 +69,7 @@ import {
   Briefcase, MessageSquare, Edit3, Users, 
   Grid, LogOut, Cloud, RefreshCw, Sparkles, LayoutDashboard,
   Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
-  Timer, Bell, Calendar, Settings, Plus,
+  Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
   BarChart3, Target
 } from 'lucide-react';
@@ -124,7 +137,7 @@ const getShortLabel = (label: string) => {
 const DEFAULT_SIDEBAR_ORDER = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
@@ -157,6 +170,37 @@ export default function App() {
   const setNotificationSettings = useUiStore((s) => s.setNotificationSettings);
   const isDarkMode = useUiStore((s) => s.isDarkMode);
   const setIsDarkMode = useUiStore((s) => s.setIsDarkMode);
+  const dateFormat = useUiStore((s) => s.dateFormat);
+  const setDateFormat = useUiStore((s) => s.setDateFormat);
+  const uiDensity = useUiStore((s) => s.uiDensity);
+  const setUiDensity = useUiStore((s) => s.setUiDensity);
+  const [showDisplayOptionsMenu, setShowDisplayOptionsMenu] = useState<boolean>(false);
+  const [currentTimeStr, setCurrentTimeStr] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Sync Dark Mode state dynamically to root HTML document element
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('avaxa_dark_mode', 'true');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('avaxa_dark_mode', 'false');
+      }
+    }
+  }, [isDarkMode]);
 
   // Pomodoro Focus Timer state - consumed from usePomodoroStore
   const workDuration = usePomodoroStore((s) => s.workDuration);
@@ -264,14 +308,37 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (isDarkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+    if (typeof window === 'undefined') return;
+
+    // 1. Dark mode sync
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('avaxa_dark_mode', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('avaxa_dark_mode', 'false');
     }
-  }, [isDarkMode]);
+
+    // 2. Accent color sync across stores & CSS custom properties
+    const ACCENT_MAP: Record<string, { primary: string; hover: string; light: string; ring: string }> = {
+      indigo: { primary: '#7B61FF', hover: '#6045EB', light: isDarkMode ? 'rgba(123, 97, 255, 0.18)' : '#ede9fe', ring: 'rgba(123, 97, 255, 0.35)' },
+      ocean: { primary: '#0ea5e9', hover: '#0284c7', light: isDarkMode ? 'rgba(14, 165, 233, 0.18)' : '#e0f2fe', ring: 'rgba(14, 165, 233, 0.35)' },
+      forest: { primary: '#10b981', hover: '#059669', light: isDarkMode ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5', ring: 'rgba(16, 185, 129, 0.35)' },
+      sunset: { primary: '#f43f5e', hover: '#e11d48', light: isDarkMode ? 'rgba(244, 63, 94, 0.18)' : '#ffe4e6', ring: 'rgba(244, 63, 94, 0.35)' },
+    };
+
+    const colors = ACCENT_MAP[accentPreset] || ACCENT_MAP.indigo;
+    document.documentElement.setAttribute('data-accent', accentPreset);
+    document.documentElement.style.setProperty('--avaxa-primary', colors.primary);
+    document.documentElement.style.setProperty('--avaxa-primary-hover', colors.hover);
+    document.documentElement.style.setProperty('--avaxa-primary-light', colors.light);
+    document.documentElement.style.setProperty('--avaxa-ring', colors.ring);
+
+    localStorage.setItem('avaxa_accent_preset', accentPreset);
+    useWorkspaceStore.getState().setAccentPreset(accentPreset as any);
+  }, [isDarkMode, accentPreset]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -283,7 +350,7 @@ export default function App() {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
           isPremium
@@ -310,7 +377,7 @@ export default function App() {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
           isPremium
@@ -954,6 +1021,9 @@ export default function App() {
   const setSearchCategory = useUiStore((s) => s.setSearchCategory);
   const searchInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const [showAutomationModal, setShowAutomationModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+
   // Reset category filter when search modal is opened/closed
   useEffect(() => {
     if (!isSearchOpen) {
@@ -961,22 +1031,31 @@ export default function App() {
     }
   }, [isSearchOpen, setSearchCategory]);
 
-  // Keyboard shortcut listener (Ctrl+K / Cmd+K to focus search, Esc to close)
+  // Keyboard shortcut listener (Ctrl+K / Cmd+K or / to open search, Esc to close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      const activeEl = document.activeElement;
+      const isInputFocused =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable);
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsSearchOpen(true);
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 80);
-      } else if (e.key === 'Escape') {
+      } else if (e.key === '/' && !isInputFocused) {
+        e.preventDefault();
+        setSearchCategory('commands');
+        setSearchQuery('/');
+        setIsSearchOpen(true);
+      } else if (e.key === 'Escape' && isSearchOpen) {
         setIsSearchOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setIsSearchOpen]);
+  }, [isSearchOpen, setIsSearchOpen, setSearchCategory, setSearchQuery]);
 
 
 
@@ -1405,7 +1484,12 @@ export default function App() {
   /* eslint-disable react-hooks/preserve-manual-memoization */
   const currentWorkspaceTasks = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
-    return tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || ((t as any).spaceId && workspaceSpaceIds.has((t as any).spaceId)) || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
+    const mapped = mapTasksToSpaces(tasks);
+    return mapped.filter(t => {
+      const matchesWorkspace = t.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !t.workspaceId);
+      if (!matchesWorkspace) return false;
+      return t.spaceId && workspaceSpaceIds.has(t.spaceId);
+    });
   }, [tasks, spaces, activeWorkspaceId]);
 
   const currentWorkspaceDocs = useMemo(() => {
@@ -1703,7 +1787,7 @@ export default function App() {
       ]);
 
       // 4. Create/Update Profile
-      const myAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(onboardingName.trim())}`;
+      const myAvatar = '';
       const newProfile = {
         id: myMemberId,
         name: onboardingName.trim(),
@@ -1772,7 +1856,7 @@ export default function App() {
         const myMemberId = `user-${userId}`;
         const myName = currentUser?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || session.user.user_metadata?.avatar_url || session.user.user_metadata?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(myName)}`;
+        const myAvatar = currentUser?.avatar || session.user.user_metadata?.avatar_url || session.user.user_metadata?.avatar || '';
         const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
         
         let dbMembers: any[] = [];
@@ -3539,92 +3623,95 @@ export default function App() {
                     className={`absolute top-full mt-2 w-[245px] p-2.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl z-30 space-y-2.5 text-left origin-top ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
                   >
                     {/* Active Workspace Header Card */}
-                    <div className="flex items-center gap-2.5 px-1 py-0.5">
+                    <div className="flex items-center gap-3 px-1 py-1">
                       <div 
-                        className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[13px] shadow-sm shrink-0 select-none overflow-hidden"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md shrink-0 select-none overflow-hidden"
                         style={!currentWorkspace?.logoUrl ? {
                           background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                                       currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
                                       currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                      'linear-gradient(135deg, #7B61FF, #6D55FE)',
+                                      'linear-gradient(135deg, #FF0033, #CC0022)',
                         } : undefined}
                       >
                         {currentWorkspace?.logoUrl ? (
                           <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                         ) : (
-                          <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'W'}</span>
+                          <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A'}</span>
                         )}
                       </div>
                       <div className="leading-tight min-w-0 flex-1">
-                        <div className="font-extrabold text-slate-800 dark:text-slate-100 text-[13px] truncate">
-                          {currentWorkspace?.name || 'Loading...'}
+                        <div className="font-black text-slate-900 dark:text-slate-50 text-[14px] truncate tracking-tight">
+                          {currentWorkspace?.name || 'Avaxa'}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
-                          {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}
+                        <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 flex items-center gap-1">
+                          <span>{currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Quick Setting & People actions */}
-                    <div className="grid grid-cols-2 gap-2 px-0.5">
+                    <div className="grid grid-cols-2 gap-2 px-0.5 pt-1">
                       <button
+                        type="button"
                         onClick={() => {
                           setShowWorkspaceMenu(false);
                           setActiveTab('settings');
                           setActiveSettingsTab('general');
                         }}
-                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-all shadow-3xs"
                       >
-                        <Settings className="w-3.5 h-3.5 text-slate-400" />
-                        Settings
+                        <Settings className="w-4 h-4 text-slate-500" />
+                        <span>Settings</span>
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setShowWorkspaceMenu(false);
                           setActiveTab('settings');
                           setActiveSettingsTab('people');
                         }}
-                        className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-all shadow-3xs"
                       >
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        People
+                        <Users className="w-4 h-4 text-slate-500" />
+                        <span>People</span>
                       </button>
                     </div>
 
                     {/* Workspaces list subsection */}
                     {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
                       <>
-                        <div className="border-t border-slate-100 dark:border-slate-800/60" />
-                        <div className="space-y-1">
-                          <div className="px-2 py-0.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                            Other Workspaces
+                        <div className="border-t border-slate-150 dark:border-slate-800/80 my-1" />
+                        <div className="space-y-1.5 px-0.5">
+                          <div className="px-1 text-[9px] font-black font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                            OTHER WORKSPACES
                           </div>
-                          <div className="max-h-[120px] overflow-y-auto space-y-0.5 pr-0.5 scrollbar-none">
+                          <div className="max-h-[140px] overflow-y-auto space-y-1 pr-0.5 scrollbar-none">
                             {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
                               <button
                                 key={w.id}
+                                type="button"
                                 onClick={() => {
                                   setShowWorkspaceMenu(false);
                                   handleWorkspaceChange(w.id);
                                 }}
-                                className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all text-left group"
+                                className="w-full flex items-center gap-3 p-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50/50 dark:hover:bg-slate-800/80 border border-transparent hover:border-indigo-150 dark:hover:border-slate-700 cursor-pointer transition-all text-left group"
                               >
                                 <div 
-                                  className="w-5.5 h-5.5 rounded-lg flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs group-hover:scale-105 transition-transform"
+                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-2xs group-hover:scale-105 transition-transform"
                                   style={!w.logoUrl ? {
                                     background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                                                 w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
                                                 w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                                'linear-gradient(135deg, #7B61FF, #6D55FE)',
+                                                'linear-gradient(135deg, #FF0033, #CC0022)',
                                   } : undefined}
                                 >
                                   {w.logoUrl ? (
                                     <img src={w.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                                   ) : (
-                                    <span>{w.initial || 'W'}</span>
+                                    <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
                                   )}
                                 </div>
-                                <span className="truncate flex-1 group-hover:text-slate-850 dark:group-hover:text-slate-100 transition-colors">{w.name}</span>
+                                <span className="truncate flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors font-extrabold">{w.name}</span>
                               </button>
                             ))}
                           </div>
@@ -3632,18 +3719,19 @@ export default function App() {
                       </>
                     )}
 
-                    <div className="border-t border-slate-100 dark:border-slate-800/60" />
+                    <div className="border-t border-slate-150 dark:border-slate-800/80 my-1" />
 
                     {/* Create workspace button */}
                     <button
+                      type="button"
                       onClick={() => {
                         setShowWorkspaceMenu(false);
                         setShowAddWorkspaceModal(true);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors"
+                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-2xl border border-dashed border-indigo-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 cursor-pointer transition-all shadow-3xs"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      Create Workspace
+                      <Plus className="w-4 h-4 font-bold" />
+                      <span>Create Workspace</span>
                     </button>
                   </motion.div>
                 </>
@@ -3742,17 +3830,152 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Interactive Date & Display Options Pill Widget */}
             {(() => {
-              const formattedDate = new Date().toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric'
-              });
+              const now = new Date();
+              let formattedDate = '';
+              switch (dateFormat) {
+                case 'full':
+                  formattedDate = now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                  break;
+                case 'vi':
+                  formattedDate = now.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                  break;
+                case 'numeric':
+                  formattedDate = now.toISOString().split('T')[0];
+                  break;
+                case 'clock':
+                  formattedDate = `${now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • ${currentTimeStr || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                  break;
+                case 'short':
+                default:
+                  formattedDate = now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  break;
+              }
+
               return (
-                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-50/60 dark:bg-slate-900/40 px-3 py-1 rounded-xl border border-slate-200/50 dark:border-slate-800/50 select-none shadow-3xs">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                  {formattedDate}
-                </span>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowDisplayOptionsMenu(!showDisplayOptionsMenu)}
+                    className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700/80 select-none shadow-3xs transition-all cursor-pointer group active:scale-95"
+                    title={locale === 'vi' ? 'Tùy chọn hiển thị & Định dạng thời gian' : 'Display Options & Date Format'}
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:rotate-12 transition-transform" />
+                    <span>{formattedDate}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform" />
+                  </button>
+
+                  {/* Display Options & Date Format Popover Menu */}
+                  <AnimatePresence>
+                    {showDisplayOptionsMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowDisplayOptionsMenu(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 z-50 text-left space-y-4 font-sans backdrop-blur-xl"
+                        >
+                          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <Sliders className="w-4 h-4 text-indigo-500" />
+                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                                {locale === 'vi' ? 'Tùy chọn hiển thị' : 'Display Options'}
+                              </h4>
+                            </div>
+                            <button 
+                              onClick={() => setShowDisplayOptionsMenu(false)} 
+                              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Date Format Section */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                              {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time Format'}
+                            </label>
+                            <div className="space-y-1">
+                              {[
+                                { id: 'short', label: locale === 'vi' ? 'Ngắn gọn (Wed, Jul 22)' : 'Short (Wed, Jul 22)', icon: '📅' },
+                                { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime (Wed, Jul 22 • 08:57)' : 'Live Clock (Wed, Jul 22 • 08:57)', icon: '⏰' },
+                                { id: 'full', label: locale === 'vi' ? 'Chi tiết (Wed, Jul 22, 2026)' : 'Full (Wed, Jul 22, 2026)', icon: '📆' },
+                                { id: 'vi', label: locale === 'vi' ? 'Chuẩn Tiếng Việt (T2, 22/07)' : 'Vietnamese Format (T2, 22/07)', icon: '🇻🇳' },
+                                { id: 'numeric', label: locale === 'vi' ? 'Số ISO (2026-07-22)' : 'ISO Numeric (2026-07-22)', icon: '🔢' }
+                              ].map(fmt => (
+                                <button
+                                  key={fmt.id}
+                                  onClick={() => {
+                                    setDateFormat(fmt.id as any);
+                                    (window as any).playSystemSound?.('click');
+                                  }}
+                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all ${
+                                    dateFormat === fmt.id
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span>{fmt.icon}</span>
+                                    <span className="truncate">{fmt.label}</span>
+                                  </div>
+                                  {dateFormat === fmt.id && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* UI Density Options */}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                            <label className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                              {locale === 'vi' ? 'Mật độ hiển thị UI' : 'Interface Density'}
+                            </label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <button
+                                onClick={() => setUiDensity('comfortable')}
+                                className={`p-2 rounded-xl text-center text-xs font-extrabold transition-all border ${
+                                  uiDensity === 'comfortable'
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                                    : 'text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                }`}
+                              >
+                                {locale === 'vi' ? '🌿 Vừa vặn' : '🌿 Comfortable'}
+                              </button>
+                              <button
+                                onClick={() => setUiDensity('compact')}
+                                className={`p-2 rounded-xl text-center text-xs font-extrabold transition-all border ${
+                                  uiDensity === 'compact'
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                                    : 'text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                }`}
+                              >
+                                {locale === 'vi' ? '⚡️ Tối giản' : '⚡️ Compact'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quick Theme Switch */}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <span className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                              {locale === 'vi' ? 'Chế độ Dark/Light' : 'Theme Mode'}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setIsDarkMode(!isDarkMode);
+                                (window as any).playSystemSound?.('click');
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:scale-105 transition-transform"
+                            >
+                              {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               );
             })()}
             
@@ -3770,6 +3993,23 @@ export default function App() {
                 <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
               </motion.button>
             )}
+
+            {/* Quick 1-Click Dark Mode Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsDarkMode(!isDarkMode);
+                (window as any).playSystemSound?.('click');
+              }}
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50 cursor-pointer"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? (
+                <Sun className="w-4.5 h-4.5 text-amber-400 animate-spin-slow" />
+              ) : (
+                <Moon className="w-4.5 h-4.5 text-indigo-500" />
+              )}
+            </button>
 
             {/* 🔔 Notification Center Dropdown & Badge Manager */}
             <div className="relative">
@@ -4552,15 +4792,15 @@ export default function App() {
                 ? 'h-full overflow-hidden' 
                 : 'overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-6'
             }`}>
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, y: 12, scale: 0.99 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.99 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
                   id={`workspace_container_${activeTab}`}
-                  className={isSpaceTab ? "w-full h-full" : "space-y-4 md:space-y-6 w-full max-w-none px-1 lg:px-3"}
+                  className={`will-change-transform transform-gpu ${isSpaceTab ? "w-full h-full" : "space-y-4 md:space-y-6 w-full max-w-none px-1 lg:px-3"}`}
                 >
                   {activeTab === 'dashboard' && (
                     <DashboardOverview
@@ -4854,8 +5094,22 @@ export default function App() {
                       onDeleteWorkspace={handleDeleteWorkspace}
                       onAddWorkspace={handleCreateWorkspace}
                       members={members}
+                      setMembers={setMembers}
+                      tasks={tasks}
+                      onAddMember={handleAddMember}
+                      onUpdateMember={handleUpdateMember}
+                      onDeleteMember={handleDeleteMember}
+                      onAddSyncLog={addSyncLog}
+                      syncLogs={syncLogs}
                       activeSettingsTab={activeSettingsTab}
                       setActiveSettingsTab={setActiveSettingsTab}
+                      onLogout={async () => {
+                        await supabase.auth.signOut();
+                        updateCurrentUser(null);
+                        if (triggerToast) triggerToast('info', 'Signed Out', 'You have been signed out of Avaxa OS.');
+                      }}
+                      triggerToast={triggerToast}
+                      onSendWorkspaceInvites={handleSendWorkspaceInvites}
                     />
                   )}
                 </motion.div>
@@ -4972,333 +5226,70 @@ export default function App() {
       <ToastNotification toasts={toasts} onClose={(id) => removeToast(id)} />
 
       {/* Immersive Global Search Modal overlay */}
-      <AnimatePresence>
-        {isSearchOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh] overflow-hidden">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsSearchOpen(false);
-                setSearchQuery('');
-              }}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs cursor-pointer"
-            />
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchCategory={searchCategory}
+        setSearchCategory={setSearchCategory}
+        tasks={tasks}
+        docs={docs}
+        members={members}
+        activeWorkspaceId={activeWorkspaceId}
+        onSelectTask={(taskId) => {
+          setInitialSelectedTaskId(taskId);
+          setActiveTab('tasks');
+        }}
+        onSelectDoc={(docId) => {
+          setInitialSelectedDocId(docId);
+          setActiveTab('docs');
+        }}
+        onSelectChannel={(channelId) => {
+          setInitialSelectedChannelId(channelId);
+          setActiveTab('chat');
+        }}
+        onSelectMember={(memberId) => {
+          setViewingMemberProfileId(memberId);
+        }}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+        }}
+        onOpenSettings={() => {
+          setActiveTab('settings');
+        }}
+        onOpenAutomations={() => {
+          setShowAutomationModal(true);
+        }}
+        onOpenExport={() => {
+          setShowExportModal(true);
+        }}
+        onToggleDarkMode={() => {
+          setIsDarkMode(!isDarkMode);
+        }}
+        isDarkMode={isDarkMode}
+        addSyncLog={addSyncLog}
+      />
 
-            {/* Modal Body */}
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0, y: -12 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.96, opacity: 0, y: -12 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-700/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[70vh] z-10"
-            >
-              {/* Searching Bar Input Field */}
-              <div className="px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between gap-3 bg-white/40 dark:bg-slate-900/40 focus-within:border-indigo-500/50 transition-colors">
-                <Search className="w-4 h-4 text-indigo-500 shrink-0" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search for tasks, documents, chat channels..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSearchQuery(val);
-                    if (val.trim() === '') {
-                      setSearchCategory('all');
-                    }
-                  }}
-                  className="w-full bg-transparent text-slate-800 dark:text-slate-50 placeholder-slate-400 font-sans text-sm focus:outline-none"
-                />
-                <button
-                  onClick={() => {
-                    setIsSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                  className="p-1 px-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/60 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
+      {/* No-Code Automation Rules Modal */}
+      <AutomationRulesModal
+        isOpen={showAutomationModal}
+        onClose={() => setShowAutomationModal(false)}
+        addSyncLog={addSyncLog}
+        triggerToast={triggerToast}
+      />
 
-              {/* Category-based filter pills (visible immediately after typing) */}
-              {searchQuery.trim() !== '' && (
-                <div className="px-5 py-2.5 bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-                  <button
-                    onClick={() => setSearchCategory('all')}
-                    type="button"
-                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1 ${
-                      searchCategory === 'all'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
-                    }`}
-                  >
-                    All ({filteredTasks.length + filteredDocs.length + filteredChannels.length})
-                  </button>
-                  <button
-                    onClick={() => setSearchCategory('tasks')}
-                    type="button"
-                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                      searchCategory === 'tasks'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
-                    }`}
-                  >
-                    <Briefcase className="w-3 h-3 shrink-0" />
-                    <span>Tasks ({filteredTasks.length})</span>
-                  </button>
-                  <button
-                    onClick={() => setSearchCategory('docs')}
-                    type="button"
-                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                      searchCategory === 'docs'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
-                    }`}
-                  >
-                    <FileText className="w-3 h-3 shrink-0" />
-                    <span>Documents ({filteredDocs.length})</span>
-                  </button>
-                  <button
-                    onClick={() => setSearchCategory('channels')}
-                    type="button"
-                    className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
-                      searchCategory === 'channels'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
-                    }`}
-                  >
-                    <Hash className="w-3 h-3 shrink-0" />
-                    <span>Chat ({filteredChannels.length})</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Scrolling list results */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[50vh]">
-                {searchQuery.trim() === '' ? (
-                  // Default Suggested Searches Screen
-                  <div className="space-y-3.5 p-2">
-                    <span className="text-[10px] uppercase font-mono font-extrabold tracking-wider text-slate-400 dark:text-slate-500 block px-1">Quick Suggestions</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        onClick={() => {
-                          setSearchQuery('Design');
-                          setSearchCategory('all');
-                        }}
-                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-3.5 h-3.5 text-indigo-500 font-bold" />
-                          <span>UI/UX Interface Design</span>
-                        </div>
-                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSearchQuery('offline');
-                          setSearchCategory('all');
-                        }}
-                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="w-3.5 h-3.5 text-indigo-500 font-bold" />
-                          <span>Offline Algorithms</span>
-                        </div>
-                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setSearchQuery('brain');
-                          setSearchCategory('all');
-                        }}
-                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Hash className="w-3.5 h-3.5 text-purple-500 font-bold" />
-                          <span>Apexa AI Core</span>
-                        </div>
-                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setSearchQuery('Culture');
-                          setSearchCategory('all');
-                        }}
-                        className="p-3 text-left bg-slate-50 dark:bg-slate-950 hover:bg-indigo-50/50 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 hover:border-indigo-150 transition-all text-xs text-slate-650 hover:text-indigo-650 flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-3.5 h-3.5 text-pink-500 font-bold" />
-                          <span>CRM Culture Deck Document</span>
-                        </div>
-                        <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    </div>
-
-                    {/* Upgraded Footer (Image 1 style) */}
-                    <div className="pt-3.5 border-t border-slate-150 dark:border-slate-800 px-1 flex items-center justify-between text-[11px] font-medium text-slate-405 dark:text-slate-500">
-                      <span className="flex items-center gap-1.5">
-                        <span>Press <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 px-1 py-0.5 rounded text-[10px] font-mono">/</kbd> to see all available commands, hit <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 px-1 py-0.5 rounded text-[10px] font-mono">Tab</kbd> to see additional actions</span>
-                      </span>
-                      <button 
-                        onClick={() => alert("Search settings loaded.")}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 transition-colors cursor-pointer flex items-center justify-center"
-                        title="Search Settings"
-                      >
-                        <Cog className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  searchCategory === 'all'
-                    ? totalResultsCount === 0
-                    : searchCategory === 'tasks'
-                    ? filteredTasks.length === 0
-                    : searchCategory === 'docs'
-                    ? filteredDocs.length === 0
-                    : filteredChannels.length === 0
-                ) ? (
-                  // No Results Screen
-                  <div className="py-8 text-center space-y-2">
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No matching results found</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
-                      {searchCategory === 'all'
-                        ? 'We searched tasks, docs, and channels but found no matches.'
-                        : searchCategory === 'tasks'
-                        ? 'No tasks match this keyword.'
-                        : searchCategory === 'docs'
-                        ? 'No documents match this keyword.'
-                        : 'No channels match this keyword.'}
-                    </p>
-                  </div>
-                ) : (
-                  // Display Categorized Results
-                  <div className="space-y-4">
-                    {/* Filtered Tasks section */}
-                    {(searchCategory === 'all' || searchCategory === 'tasks') && filteredTasks.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Tasks ({filteredTasks.length})</span>
-                        <div className="space-y-1">
-                          {filteredTasks.map((t) => (
-                            <button
-                              key={t.id}
-                              onClick={() => {
-                                setInitialSelectedTaskId(t.id);
-                                setActiveTab('tasks');
-                                setIsSearchOpen(false);
-                                setSearchQuery('');
-                                addSyncLog(`Jumped to task: "${t.title}" from global search`);
-                              }}
-                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-indigo-50/20 hover:border-indigo-200/70 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3 truncate">
-                                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                                  <Briefcase className="w-4 h-4" />
-                                </div>
-                                <div className="truncate">
-                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-indigo-600 transition-colors truncate">{t.title}</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{t.description}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className={`text-[8px] font-extrabold px-2 py-0.5 rounded border ${
-                                  t.status === 'completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                  t.status === 'inprogress' ? 'bg-indigo-50 text-indigo-600 border-indigo-105' :
-                                  'bg-slate-50 dark:bg-slate-950 text-slate-505 dark:text-slate-400 border-slate-100 dark:border-slate-800/80'
-                                }`}>
-                                  {t.status.toUpperCase()}
-                                </span>
-                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Filtered Documents section */}
-                    {(searchCategory === 'all' || searchCategory === 'docs') && filteredDocs.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Documents ({filteredDocs.length})</span>
-                        <div className="space-y-1">
-                          {filteredDocs.map((d) => (
-                            <button
-                              key={d.id}
-                              onClick={() => {
-                                setInitialSelectedDocId(d.id);
-                                setActiveTab('docs');
-                                setIsSearchOpen(false);
-                                setSearchQuery('');
-                                addSyncLog(`Opened document: "${d.title}" from global search`);
-                              }}
-                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-pink-50/20 hover:border-pink-200/70 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3 truncate">
-                                <div className="p-2 rounded-xl bg-pink-50 text-pink-600 shrink-0">
-                                  <FileText className="w-4 h-4" />
-                                </div>
-                                <div className="truncate">
-                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-pink-650 transition-colors truncate">{d.title}</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate leading-none">Category: {d.category} • Author: {d.updatedBy}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[8px] font-bold bg-pink-50 border border-pink-100 text-pink-600 px-2 py-0.5 rounded uppercase font-mono">DOC</span>
-                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Filtered Chat Channels section */}
-                    {(searchCategory === 'all' || searchCategory === 'channels') && filteredChannels.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold font-mono text-slate-400 dark:text-slate-500 block px-1 uppercase tracking-wider">Chat Channels ({filteredChannels.length})</span>
-                        <div className="space-y-1">
-                          {filteredChannels.map((c) => (
-                            <button
-                              key={c.id}
-                              onClick={() => {
-                                setInitialSelectedChannelId(c.id);
-                                setActiveTab('chat');
-                                setIsSearchOpen(false);
-                                setSearchQuery('');
-                                addSyncLog(`Activated chat channel: #${c.name}`);
-                              }}
-                              className="w-full text-left p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-purple-50/20 hover:border-purple-200/70 hover:shadow-xs transition-colors flex items-center justify-between group cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3 truncate">
-                                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                                  <Hash className="w-4 h-4" />
-                                </div>
-                                <div className="truncate">
-                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-55 block group-hover:text-purple-655 transition-colors truncate">#{c.name}</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{c.description}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[8px] font-bold bg-purple-50 border border-purple-100 text-purple-600 px-2 py-0.5 rounded uppercase font-mono">CHAT</span>
-                                <ArrowRight className="w-3.5 h-3.5 text-slate-350 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Export Data & Backup Center Modal */}
+      <ExportDataModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tasks={tasks}
+        docs={docs}
+        members={members}
+        activeWorkspaceId={activeWorkspaceId}
+        addSyncLog={addSyncLog}
+        triggerToast={triggerToast}
+      />
 
       {/* Immersive Glassmorphic Add Workspace Modal */}
       <AnimatePresence>
@@ -5457,121 +5448,17 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ── PREMIUM SUBSCRIPTION MODAL ── */}
-      <AnimatePresence>
-        {showPremiumModal && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            {/* Overlay backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowPremiumModal(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md"
-            />
-
-            {/* Modal Box */}
-            <motion.div
-              initial={{ scale: 0.95, y: 15, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 15, opacity: 0 }}
-              className="relative w-full max-w-[460px] rounded-3xl bg-white/95 border border-amber-200/50 shadow-2xl p-6 overflow-hidden md:p-7 backdrop-blur-xl"
-            >
-              {/* Premium Glow effect background */}
-              <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full bg-amber-500/10 blur-[60px] pointer-events-none" />
-              <div className="absolute -bottom-32 -left-32 w-64 h-64 rounded-full bg-indigo-500/10 blur-[60px] pointer-events-none" />
-
-              {/* Header Info */}
-              <div className="flex items-start justify-between mb-5 relative">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-300/40 flex items-center justify-center shadow-sm">
-                    <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5 leading-none">
-                      Avaxa Premium Pro <span className="text-[9px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full uppercase">PRO</span>
-                    </h3>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">Unlock the absolute power of your productivity assistant.</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowPremiumModal(false)}
-                  className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer text-slate-400"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Subscriptions Features List */}
-              <div className="space-y-3 mb-6 relative text-left">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Features unlocked:</p>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {[
-                    { title: 'Professional Visual Gantt Charts', desc: 'Plan and manage timelines with visual drag-and-drop.' },
-                    { title: 'AI Automated Subtasks Suggestions', desc: 'Break large tasks into subtasks using AI.' },
-                    { title: 'AI Progress Summary & Productivity Reports', desc: 'Instantly summarize project progress using Gemini AI.' },
-                    { title: 'AI Smart Priority Suggestions', desc: 'Automatically calculate urgency levels based on deadlines.' },
-                  ].map((feat, i) => (
-                    <div key={i} className="flex gap-2.5 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100/80">
-                      <div className="w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-300/40 text-emerald-600 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">✓</div>
-                      <div>
-                        <h4 className="text-[11px] font-bold text-slate-700">{feat.title}</h4>
-                        <p className="text-[9.5px] text-slate-500 leading-normal">{feat.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Pricing Cards Selector */}
-              <div className="grid grid-cols-2 gap-3.5 mb-6">
-                <div className="p-3.5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 text-center relative cursor-pointer hover:border-indigo-300 transition-all">
-                  <span className="text-[9px] font-black text-slate-405 uppercase tracking-widest block mb-1">Monthly Plan</span>
-                  <div className="text-lg font-black text-slate-800">$9 <span className="text-[10px] font-bold text-slate-400">/month</span></div>
-                  <p className="text-[8.5px] text-slate-450 mt-1">Billed monthly</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border-2 border-amber-300 bg-amber-50/30 text-center relative cursor-pointer shadow-xs hover:border-amber-400 transition-all">
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-amber-500 text-[7px] font-black text-white uppercase tracking-widest select-none">Best Seller</span>
-                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block mb-1">Yearly Plan</span>
-                  <div className="text-lg font-black text-slate-800">$79 <span className="text-[10px] font-bold text-slate-400">/year</span></div>
-                  <p className="text-[8.5px] text-emerald-600 font-bold mt-1">Save 25%</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-3 relative">
-                {currentUser?.isPremium ? (
-                  <button
-                    onClick={() => {
-                      handleTogglePremium(false);
-                      setShowPremiumModal(false);
-                    }}
-                    className="w-full py-2.5 rounded-2xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all border border-rose-200 cursor-pointer text-center"
-                  >
-                    Cancel Premium Pro Subscription
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      handleTogglePremium(true);
-                      setShowPremiumModal(false);
-                    }}
-                    className="w-full py-3 rounded-2xl text-xs font-bold text-white shadow-lg hover:shadow-amber-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center relative overflow-hidden group"
-                    style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
-                  >
-                    <span className="relative z-10 flex items-center justify-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Activate Premium Pro Now
-                    </span>
-                    <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
-                  </button>
-                )}
-                
-                <p className="text-center text-[9px] text-slate-400">By subscribing, you agree to Avaxa's Terms of Service and Privacy Policy.</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* ── COMMERCIAL SAAS PRICING & SUBSCRIPTION MODAL ── */}
+      <PricingModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        currentUser={currentUser}
+        onUpdatePremiumStatus={(isPrem, plan) => {
+          handleTogglePremium(isPrem);
+        }}
+        triggerToast={triggerToast}
+        addSyncLog={addSyncLog}
+      />
 
       {/* ── ADD SPACE MODAL ── */}
       <AnimatePresence>

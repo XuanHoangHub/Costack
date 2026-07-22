@@ -30,7 +30,7 @@ export const useSyncStore = create<SyncState>()(
   persist(
     (set, get) => ({
       syncLogs: [
-        { id: 'l1', action: 'Initialized Avaxa OS Engine', time: '09:00 AM', status: 'synced' },
+        { id: 'l1', action: 'Initialized Apexa OS Engine', time: '09:00 AM', status: 'synced' },
         { id: 'l2', action: 'Synchronized real-time collaboration channels', time: '09:05 AM', status: 'synced' },
       ],
       isOffline: false,
@@ -67,7 +67,7 @@ export const useSyncStore = create<SyncState>()(
       setOfflineDeletedMembers: (offlineDeletedMembers) => set({ offlineDeletedMembers: typeof offlineDeletedMembers === 'function' ? offlineDeletedMembers(get().offlineDeletedMembers) : offlineDeletedMembers }),
     }),
     {
-      name: 'avaxa_sync_logs',
+      name: 'apexa_sync_logs',
       partialize: (state) => ({ 
         syncLogs: state.syncLogs.slice(-50),
         isOffline: state.isOffline,

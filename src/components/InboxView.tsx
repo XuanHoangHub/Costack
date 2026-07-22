@@ -417,7 +417,7 @@ export default function InboxView({
       const data = await res.json();
       if (data.success && data.text) {
         setAiSummary(data.text);
-        localStorage.setItem(`avaxa_task_ai_summary_${task.id}`, data.text);
+        localStorage.setItem(`apexa_task_ai_summary_${task.id}`, data.text);
         onAddSyncLog(`AI summary for "${task.title}"`);
       }
     } catch (err) {
@@ -1032,7 +1032,7 @@ export default function InboxView({
               <div className="p-5 bg-indigo-50/10 dark:bg-indigo-950/5 border border-indigo-100/30 dark:border-indigo-900/10 rounded-3xl space-y-3.5">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
-                  <h4 className="text-[11px] font-black uppercase text-indigo-500 tracking-wider">Avaxa AI Suggestion</h4>
+                  <h4 className="text-[11px] font-black uppercase text-indigo-500 tracking-wider">Apexa AI Suggestion</h4>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
                   {selectedNotif.type === 'assignment' && 'This notification informs you about a new task assigned to you. Recommend reviewing the task description, updating the estimate hours, or adding subtasks.'}

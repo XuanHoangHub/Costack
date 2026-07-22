@@ -144,14 +144,14 @@ export default function TaskDetailsPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [modalLayout, setModalLayout] = useState<'modal' | 'fullscreen' | 'sidebar'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('avaxa_task_modal_layout') as any) || 'modal';
+      return (localStorage.getItem('apexa_task_modal_layout') as any) || 'modal';
     }
     return 'modal';
   });
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('avaxa_task_modal_sidebar_expanded') === 'true';
+      return localStorage.getItem('apexa_task_modal_sidebar_expanded') === 'true';
     }
     return false;
   });
@@ -160,7 +160,7 @@ export default function TaskDetailsPanel({
     const nextVal = !isSidebarExpanded;
     setIsSidebarExpanded(nextVal);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('avaxa_task_modal_sidebar_expanded', String(nextVal));
+      localStorage.setItem('apexa_task_modal_sidebar_expanded', String(nextVal));
     }
   };
   const [isStarred, setIsStarred] = useState(task.isPinned || false);
@@ -180,7 +180,7 @@ export default function TaskDetailsPanel({
 
   const handleLayoutChange = (newLayout: 'modal' | 'fullscreen' | 'sidebar') => {
     setModalLayout(newLayout);
-    localStorage.setItem('avaxa_task_modal_layout', newLayout);
+    localStorage.setItem('apexa_task_modal_layout', newLayout);
   };
 
   // Layout styles mapping
@@ -530,7 +530,7 @@ export default function TaskDetailsPanel({
     if (!commentText.trim()) return;
     const comment = {
       id: `c-${Date.now()}`, senderName: 'You',
-      senderAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=You',
+      senderAvatar: '',
       content: commentText, timestamp: new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     };
     onUpdateTask({ ...task, comments: [...(task.comments || []), comment], commentsCount: (task.commentsCount || 0) + 1 });
@@ -1309,7 +1309,7 @@ export default function TaskDetailsPanel({
                       <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
                         className="flex items-start gap-3.5 relative">
                         <div className="relative shrink-0 z-10 ring-4 ring-white dark:ring-slate-900">
-                          <SignedImage filePath={item.avatar} className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-800 object-cover" alt={item.userName} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(item.userName)}`} />
+                          <SignedImage filePath={item.avatar} className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-800 object-cover" alt={item.userName} />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5 text-left">
                           <div className="flex items-center gap-2 mb-1 text-[11.5px]">
@@ -1350,7 +1350,7 @@ export default function TaskDetailsPanel({
         <div className="px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm rounded-[15px] space-y-3 shadow-3xs select-none">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
             <Bot className="w-4.5 h-4.5 text-indigo-505 animate-pulse shrink-0" />
-            <span className="font-extrabold bg-gradient-to-r from-indigo-600 to-violet-655 dark:from-indigo-400 dark:to-violet-405 bg-clip-text text-transparent">Avaxa AI Task Assistant</span>
+            <span className="font-extrabold bg-gradient-to-r from-indigo-600 to-violet-655 dark:from-indigo-400 dark:to-violet-405 bg-clip-text text-transparent">Apexa AI Task Assistant</span>
             <div className="ml-auto">
               <button 
                 type="button" 

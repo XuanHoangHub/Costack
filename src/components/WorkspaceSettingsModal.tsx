@@ -58,7 +58,7 @@ export default function WorkspaceSettingsModal({
   const [clickApps, setClickApps] = useState<Record<string, boolean>>({});
   
   // API Keys States
-  const [apiKey, setApiKey] = useState('ak_avaxa_prod_7df8a9bc0d24e18f8e12d3');
+  const [apiKey, setApiKey] = useState('ak_apexa_prod_7df8a9bc0d24e18f8e12d3');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
@@ -81,7 +81,7 @@ export default function WorkspaceSettingsModal({
 
   // Theme presets
   const themePresets = [
-    { id: 'indigo', name: 'Avaxa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
+    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
     { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', hex: '#0ea5e9' },
     { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', hex: '#10b981' },
     { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', hex: '#f43f5e' }
@@ -141,7 +141,7 @@ export default function WorkspaceSettingsModal({
         priorities: true
       };
       setClickApps(defaultClickApps);
-      setApiKey(((workspace.settings as any)?.apiKey as string) || `ak_avaxa_prod_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`);
+      setApiKey(((workspace.settings as any)?.apiKey as string) || `ak_apexa_prod_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`);
       setDeleteConfirmText('');
       setSelectedMemberToAdd('');
     }
@@ -416,7 +416,7 @@ export default function WorkspaceSettingsModal({
 
     if (!window.confirm("Are you sure you want to regenerate this API key? Existing integrations will break immediately.")) return;
 
-    const newKey = `ak_avaxa_prod_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`;
+    const newKey = `ak_apexa_prod_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`;
     setApiKey(newKey);
     handleAutoSave({ updatedApiKey: newKey });
 

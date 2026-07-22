@@ -19,7 +19,7 @@ const en: Translations = {
   team: 'Team',
   chat: 'Chat',
   productivity: 'Productivity',
-  base: 'Avaxa Base',
+  base: 'Apexa Base',
   baseDescription: 'No-code database for CRM, projects & more',
   settings: 'Settings',
   profile: 'Profile',
@@ -190,7 +190,7 @@ const en: Translations = {
   general: 'General',
   chatGeneral: 'General discussion',
   chatPlanning: 'Project planning & KPI',
-  chatAI: 'Avaxa Brain AI support',
+  chatAI: 'Apexa Brain AI support',
   chatDesign: 'Design whiteboard reviews',
   addComment: 'Add comment...',
   send: 'Send',
@@ -226,7 +226,7 @@ const en: Translations = {
   forgotPassword: 'Forgot password?',
   signInWithGoogle: 'Continue with Google',
   signInWithFacebook: 'Continue with Facebook',
-  signinSuccess: 'Sign-in successful! Connecting to Avaxa OS...',
+  signinSuccess: 'Sign-in successful! Connecting to Apexa OS...',
   welcome: 'Welcome back',
   enterCredentials: 'Please enter email and password',
   enterFullName: 'Please enter your full name',
@@ -236,7 +236,7 @@ const en: Translations = {
   emailAlreadyRegistered: 'This email is already registered.',
   confirmEmail: 'Please confirm your email before continuing.',
   rateLimit: 'You are doing that too fast. Rate limit activated.',
-  signupSuccess: 'Avaxa OS account created! Processing automatic sign-in...',
+  signupSuccess: 'Apexa OS account created! Processing automatic sign-in...',
   verificationCheck: 'Sign-up successful! Please check your inbox to verify, or try signing in again.',
   kolang: 'Kolang',
   julang: 'Julang',
@@ -578,7 +578,7 @@ const en: Translations = {
   dashboardGenerateReportBtn: '"Generate Weekly Report" to start analysis.',
   dashboardCompletedThisWeek: 'Completed this week',
   settingsTitle: 'System Settings',
-  settingsDesc: 'Customize and configure the Avaxa OS platform interface',
+  settingsDesc: 'Customize and configure the Apexa OS platform interface',
   personalSettings: 'System Personalization',
   darkModePure: 'Pure Light Mode',
   darkModeDesc: 'Application is in bright pure white crystal state for maximum visual consistency.',
@@ -634,7 +634,7 @@ const en: Translations = {
   deleteInputPlaceholder: 'Example: {name}',
   confirmDeleteBtn: 'Delete permanently',
   supabaseIntegration: 'Supabase Sync Integration',
-  supabaseIntegrationDesc: 'Avaxa OS data channel already integrated with Realtime Postgres Engine for two-way real-time sync.',
+  supabaseIntegrationDesc: 'Apexa OS data channel already integrated with Realtime Postgres Engine for two-way real-time sync.',
   supabaseTip: 'Tip: Log in to Supabase Dashboard, go to SQL Editor, create a new query draft, paste the SQL below and click "Run" to complete the sync storage process.',
   supabaseRun: 'Run',
   updateBtn: 'Update',
@@ -857,7 +857,7 @@ const en: Translations = {
   personalBtn: 'Personal',
   attachFile: 'Attach file',
   fileAttachmentInfo: 'File attachment selected and loading...',
-  askAi: 'Ask Avaxa Brain AI...',
+  askAi: 'Ask Apexa Brain AI...',
   typeMessage: 'Type message...',
   saveEdit: 'Save changes',
   editMessageTooltip: 'Edit message',
@@ -891,7 +891,7 @@ const en: Translations = {
    cancelBtnInline: 'Cancel',
    createTaskBtn: 'Create Task',
    aiPrioritySuggestions: 'AI Priority Suggestions',
-   aiAnalyzing: 'Avaxa Brain is analyzing...',
+   aiAnalyzing: 'Apexa Brain is analyzing...',
    noData: 'No data',
    noComments: 'No comments yet',
    beFirstToComment: 'Be the first to comment',
@@ -995,7 +995,7 @@ const en: Translations = {
    profileAccountLevel: 'Account Level',
    profileAccount: 'Account',
    profileFreeTier: 'Free Tier',
-   profileUpgradePrompt: 'Upgrade to unlock advanced analytics, Gantt charts, tables, and Avaxa AI Assistant.',
+   profileUpgradePrompt: 'Upgrade to unlock advanced analytics, Gantt charts, tables, and Apexa AI Assistant.',
    profilePremiumToast: 'Please upgrade to a Premium account to access all features.',
    profileManageSub: 'Manage Subscription',
    profileUpgradeNow: 'Upgrade to Premium Now',
@@ -1052,7 +1052,7 @@ const vi: Translations = {
   team: 'Thành viên',
   chat: 'Trò chuyện',
   productivity: 'Năng suất',
-  base: 'Avaxa Base',
+  base: 'Apexa Base',
   baseDescription: 'Cơ sở dữ liệu không mã cho CRM, dự án & hơn thế nữa',
   settings: 'Cài đặt',
   profile: 'Hồ sơ',
@@ -1222,7 +1222,7 @@ const vi: Translations = {
   general: 'Tổng quan',
   chatGeneral: 'Thảo luận chung',
   chatPlanning: 'Kế hoạch dự án & KPI',
-  chatAI: 'Trợ lý Avaxa Brain AI',
+  chatAI: 'Trợ lý Apexa Brain AI',
   chatDesign: 'Bảng trắng duyệt thiết kế',
   addComment: 'Thêm bình luận...',
   send: 'Gửi',
@@ -1258,7 +1258,7 @@ const vi: Translations = {
   forgotPassword: 'Quên mật khẩu?',
   signInWithGoogle: 'Tiếp tục với Google',
   signInWithFacebook: 'Tiếp tục với Facebook',
-  signinSuccess: 'Đăng nhập thành công! Đang kết nối vào Avaxa OS...',
+  signinSuccess: 'Đăng nhập thành công! Đang kết nối vào Apexa OS...',
   welcome: 'Chào mừng trở lại',
   enterCredentials: 'Vui lòng nhập email và mật khẩu',
   enterFullName: 'Vui lòng nhập họ và tên của bạn',
@@ -1268,7 +1268,7 @@ const vi: Translations = {
   emailAlreadyRegistered: 'Email này đã được đăng ký.',
   confirmEmail: 'Vui lòng xác nhận email trước khi tiếp tục.',
   rateLimit: 'Bạn đang thao tác quá nhanh. Kích hoạt giới hạn tần suất.',
-  signupSuccess: 'Tài khoản Avaxa OS đã được tạo! Đang đăng nhập tự động...',
+  signupSuccess: 'Tài khoản Apexa OS đã được tạo! Đang đăng nhập tự động...',
   verificationCheck: 'Đăng ký thành công! Vui lòng kiểm tra hộp thư để xác minh, hoặc thử đăng nhập lại.',
   kolang: 'Kolang',
   julang: 'Julang',
@@ -1608,7 +1608,7 @@ const vi: Translations = {
   dashboardGenerateReportBtn: '"Tạo báo cáo tuần" để bắt đầu phân tích.',
   dashboardCompletedThisWeek: 'Đã xong tuần này',
   settingsTitle: 'Cài đặt hệ thống',
-  settingsDesc: 'Tùy chỉnh và cấu hình giao diện nền tảng Avaxa OS',
+  settingsDesc: 'Tùy chỉnh và cấu hình giao diện nền tảng Apexa OS',
   personalSettings: 'Cá nhân hóa hệ thống',
   darkModePure: 'Chế độ sáng thuần khiết',
   darkModeDesc: 'Giao diện ứng dụng được khóa ở chế độ sáng pha lê để đảm bảo tính đồng nhất thị giác.',
@@ -1664,7 +1664,7 @@ const vi: Translations = {
   deleteInputPlaceholder: 'Ví dụ: {name}',
   confirmDeleteBtn: 'Xóa vĩnh viễn',
   supabaseIntegration: 'Tích hợp đồng bộ Supabase',
-  supabaseIntegrationDesc: 'Kênh dữ liệu Avaxa OS đã được tích hợp với Realtime Postgres Engine để đồng bộ thời gian thực hai chiều.',
+  supabaseIntegrationDesc: 'Kênh dữ liệu Apexa OS đã được tích hợp với Realtime Postgres Engine để đồng bộ thời gian thực hai chiều.',
   supabaseTip: 'Mẹo: Đăng nhập vào Supabase Dashboard, chuyển sang mục SQL Editor, tạo bản nháp truy vấn mới, dán đoạn mã SQL dưới đây và nhấn "Run" để hoàn tất quá trình lưu trữ đồng bộ.',
   supabaseRun: 'Chạy',
   updateBtn: 'Cập nhật',
@@ -1887,7 +1887,7 @@ const vi: Translations = {
   personalBtn: 'Cá nhân',
   attachFile: 'Đính kèm tệp',
   fileAttachmentInfo: 'Đã chọn tệp đính kèm và đang tải...',
-  askAi: 'Hỏi Avaxa Brain AI...',
+  askAi: 'Hỏi Apexa Brain AI...',
   typeMessage: 'Nhập tin nhắn...',
   saveEdit: 'Lưu chỉnh sửa',
   editMessageTooltip: 'Sửa tin nhắn',
@@ -1921,7 +1921,7 @@ const vi: Translations = {
   cancelBtnInline: 'Hủy bỏ',
   createTaskBtn: 'Tạo công việc',
   aiPrioritySuggestions: 'Gợi ý độ ưu tiên từ AI',
-  aiAnalyzing: 'Avaxa Brain đang phân tích...',
+  aiAnalyzing: 'Apexa Brain đang phân tích...',
   noData: 'Không có dữ liệu',
   noComments: 'Chưa có bình luận nào',
   beFirstToComment: 'Hãy là người đầu tiên bình luận',
@@ -2026,7 +2026,7 @@ const vi: Translations = {
   profileAccountLevel: 'Cấp độ tài khoản',
   profileAccount: 'Tài khoản',
   profileFreeTier: 'Gói miễn phí (Free Tier)',
-  profileUpgradePrompt: 'Nâng cấp để mở khóa các tính năng phân tích nâng cao, sơ đồ Gantt, bảng biểu và AI trợ lý Avaxa.',
+  profileUpgradePrompt: 'Nâng cấp để mở khóa các tính năng phân tích nâng cao, sơ đồ Gantt, bảng biểu và AI trợ lý Apexa.',
   profilePremiumToast: 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.',
   profileManageSub: 'Quản lý gói đăng ký',
   profileUpgradeNow: 'Nâng cấp Premium ngay',
@@ -2087,7 +2087,7 @@ export function useTranslation() {
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
    const [locale, setLocaleState] = React.useState<string>(() => {
      if (typeof window !== 'undefined') {
-       return localStorage.getItem('avaxa_locale') || 'en';
+       return localStorage.getItem('apexa_locale') || 'en';
      }
      return 'en';
    });
@@ -2095,7 +2095,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
    const setLocale = useCallback((newLocale: string) => {
      setLocaleState(newLocale);
      if (typeof window !== 'undefined') {
-       localStorage.setItem('avaxa_locale', newLocale);
+       localStorage.setItem('apexa_locale', newLocale);
      }
    }, []);
 

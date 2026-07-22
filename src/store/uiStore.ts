@@ -7,7 +7,7 @@ interface UiState {
   isMainSidebarCollapsed: boolean;
   isSearchOpen: boolean;
   searchQuery: string;
-  searchCategory: 'all' | 'tasks' | 'docs' | 'channels';
+  searchCategory: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands';
   isOffline: boolean;
   syncing: boolean;
   syncProgress: number;
@@ -21,6 +21,8 @@ interface UiState {
   accentPreset: 'indigo' | 'ocean' | 'forest' | 'sunset';
   soundEnabled: boolean;
   isDarkMode: boolean;
+  dateFormat: 'short' | 'full' | 'vi' | 'numeric' | 'clock';
+  uiDensity: 'comfortable' | 'compact';
   notificationSettings: NotificationSettings;
 
   // Search selection triggers
@@ -66,7 +68,7 @@ interface UiState {
   setIsMainSidebarCollapsed: (collapsed: boolean) => void;
   setIsSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setSearchCategory: (category: 'all' | 'tasks' | 'docs' | 'channels') => void;
+  setSearchCategory: (category: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands') => void;
   setIsOffline: (offline: boolean) => void;
   setSyncing: (syncing: boolean) => void;
   setSyncProgress: (progress: number | ((prev: number) => number)) => void;
@@ -80,6 +82,8 @@ interface UiState {
   setAccentPreset: (preset: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
   setSoundEnabled: (enabled: boolean) => void;
   setIsDarkMode: (isDarkMode: boolean) => void;
+  setDateFormat: (format: 'short' | 'full' | 'vi' | 'numeric' | 'clock') => void;
+  setUiDensity: (density: 'comfortable' | 'compact') => void;
   setNotificationSettings: (settings: NotificationSettings | ((prev: NotificationSettings) => NotificationSettings)) => void;
 
   setInitialSelectedTaskId: (id: string | null) => void;
@@ -133,6 +137,8 @@ export const useUiStore = create<UiState>()(
       blurIntensity: 'default',
       isDarkMode: false,
       accentPreset: 'indigo',
+      dateFormat: 'short',
+      uiDensity: 'comfortable',
       soundEnabled: true,
       notificationSettings: {
         enableAll: true,
@@ -194,6 +200,8 @@ export const useUiStore = create<UiState>()(
       setAccentPreset: (accentPreset) => set({ accentPreset }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
       setIsDarkMode: (isDarkMode) => set({ isDarkMode }),
+      setDateFormat: (dateFormat) => set({ dateFormat }),
+      setUiDensity: (uiDensity) => set({ uiDensity }),
       setNotificationSettings: (notificationSettings) => set({ notificationSettings: typeof notificationSettings === 'function' ? notificationSettings(get().notificationSettings) : notificationSettings }),
 
       setInitialSelectedTaskId: (initialSelectedTaskId) => set({ initialSelectedTaskId }),

@@ -289,7 +289,6 @@ export default function SpaceOverviewTab({
                 filePath={m.avatar}
                 className="inline-block h-8 w-8 rounded-full ring-4 ring-white dark:ring-slate-900 object-cover hover:scale-105 hover:z-10 transition-all cursor-pointer"
                 alt={m.name}
-                fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`}
               />
             ))}
             {members.length > 5 && (
@@ -720,7 +719,6 @@ export default function SpaceOverviewTab({
                             filePath={owner.avatar}
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-900 object-cover"
                             alt={owner.name}
-                            fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(owner.name)}`}
                           />
                         ))}
                         {listOwners.length === 0 && (

@@ -45,42 +45,45 @@
 }
 
 .dark {
-  --slate-55: #1e293b;
-  --slate-101: #1e293b;
-  --slate-105: #1e293b;
-  --slate-150: #334155;
-  --slate-202: #334155;
-  --slate-205: #cbd5e1;
-  --slate-250: #334155;
-  --slate-255: #334155;
-  --slate-305: #475569;
-  --slate-350: #475569;
-  --slate-355: #475569;
+  --slate-55: #0e121d;
+  --slate-101: #111624;
+  --slate-105: #111624;
+  --slate-150: #171d2e;
+  --slate-202: #1e263b;
+  --slate-205: #e2e8f0;
+  --slate-250: #1e263b;
+  --slate-255: #1e263b;
+  --slate-305: #334155;
+  --slate-350: #334155;
+  --slate-355: #334155;
   --slate-404: #94a3b8;
   --slate-405: #94a3b8;
   --slate-450: #94a3b8;
   --slate-455: #94a3b8;
-  --slate-505: #cbd5e1;
-  --slate-550: #94a3b8;
-  --slate-555: #cbd5e1;
-  --slate-605: #cbd5e1;
-  --slate-650: #cbd5e1;
-  --slate-655: #cbd5e1;
-  --slate-705: #cbd5e1;
-  --slate-750: #cbd5e1;
-  --slate-755: #1e293b;
-  --slate-805: #1e293b;
-  --slate-808: #1e293b;
-  --slate-850: #1e293b;
-  --slate-855: #1e293b;
-  --slate-905: #0f172a;
-  --slate-955: #0f172a;
+  --slate-505: #e2e8f0;
+  --slate-550: #cbd5e1;
+  --slate-555: #e2e8f0;
+  --slate-605: #f1f5f9;
+  --slate-650: #f1f5f9;
+  --slate-655: #f1f5f9;
+  --slate-705: #f8fafc;
+  --slate-750: #f8fafc;
+  --slate-755: #0e121d;
+  --slate-805: #06080d;
+  --slate-808: #06080d;
+  --slate-850: #06080d;
+  --slate-855: #06080d;
+  --slate-905: #0b0e17;
+  --slate-955: #06080d;
 
   /* Avaxa Core Theme Color Gradients */
   --avaxa-primary: #7B61FF;
-  --avaxa-gradient-start: #7B61FF;
+  --avaxa-primary-hover: #6045EB;
+  --avaxa-primary-light: #f5f3ff;
+  --avaxa-gradient-start: var(--avaxa-primary);
   --avaxa-gradient-end: #FF3366;
   --avaxa-liquid-color: #33D1FF;
+  --avaxa-ring: rgba(123, 97, 255, 0.35);
 }
 
 html, body, #root {
@@ -94,6 +97,15 @@ html, body, #root {
   left: 0;
   right: 0;
   bottom: 0;
+  background-color: #ffffff;
+  color: #0f172a;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.dark, body.dark {
+  background-color: #06080d;
+  color: #f8fafc;
+  color-scheme: dark;
 }
 
 @theme {
@@ -166,10 +178,10 @@ html, body, #root {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.03), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 .dark .glass-panel {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(14, 18, 29, 0.85);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 .liquid-glass {
@@ -179,10 +191,10 @@ html, body, #root {
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
 }
 .dark .liquid-glass {
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(11, 14, 23, 0.85);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 .liquid-blob {
@@ -226,10 +238,10 @@ html, body, #root {
 }
 
 .glass-panel-dark {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(14, 18, 29, 0.85);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
 .glass-liquid-bg {
@@ -238,7 +250,7 @@ html, body, #root {
   background-color: #ffffff;
 }
 .dark .glass-liquid-bg {
-  background-color: #0b0f19;
+  background-color: #06080d;
 }
 
 @keyframes liquid-drift {
@@ -438,11 +450,11 @@ html, body, #root {
 }
 
 .dark .ios27-glass {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(14, 18, 29, 0.88);
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5), inset 0 1px 1.5px rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.1);
 }
 
 .ios27-card {
@@ -455,10 +467,10 @@ html, body, #root {
 }
 
 .dark .ios27-card {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(14, 18, 29, 0.88);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .ios27-card:hover {
@@ -467,7 +479,9 @@ html, body, #root {
 }
 
 .dark .ios27-card:hover {
-  box-shadow: 0 20px 40px -12px rgba(123, 97, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(20, 25, 40, 0.95);
+  border-color: rgba(123, 97, 255, 0.3);
+  box-shadow: 0 20px 40px -12px rgba(123, 97, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .ios27-pill {

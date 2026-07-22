@@ -8,7 +8,8 @@ import {
   Briefcase, Trash2, Edit2, Plus, X, ChevronRight, ChevronLeft, AlertTriangle,
   Globe, Eye, EyeOff, Brain, Bot, Users, FolderOpen, Zap, Tag, Code, Mail, LogOut,
   ChevronDown, Calendar, Search, Users as UsersIcon, ShieldAlert, CheckCircle,
-  HelpCircle, FileClock, Globe2, RefreshCw, Upload
+  HelpCircle, FileClock, Globe2, RefreshCw, Upload, Terminal, Filter, Activity,
+  ImageIcon
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -76,6 +77,7 @@ interface SettingsPanelProps {
   setActiveSettingsTab?: (tab: string) => void;
   onLogout?: () => void;
   triggerToast?: any;
+  onSendWorkspaceInvites?: (emails: string[], role: string) => void;
 }
 
 export default function SettingsPanel({
@@ -105,14 +107,15 @@ export default function SettingsPanel({
   activeSettingsTab,
   setActiveSettingsTab,
   onLogout,
-  triggerToast
+  triggerToast,
+  onSendWorkspaceInvites,
 }: SettingsPanelProps) {
   const [copied, setCopied] = useState(false);
   const currentUser = useAuthStore((s) => s.currentUser);
   const { t, locale, setLocale } = useTranslation();
   const [isSidebarVisibleOnMobile, setIsSidebarVisibleOnMobile] = useState(true);
   
-  // Tab Routing state (internal fallback or linked via prop)
+  // Tab Routing state
   const [localActiveTab, setLocalActiveTab] = useState<string>('general');
   const validTabs = ['general', 'people', 'ai_usage', 'audit_logs', 'preferences', 'notifications'];
   const activeTab = validTabs.includes(activeSettingsTab || localActiveTab) 
@@ -120,7 +123,7 @@ export default function SettingsPanel({
     : 'general';
   const setActiveTab = setActiveSettingsTab || setLocalActiveTab;
 
-  // Local state variables
+  // Local workspace creation/editing states
   const [showQuickCreate, setShowQuickCreate] = useState(false);
   const [newWSName, setNewWSName] = useState('');
   const [newWSTheme, setNewWSTheme] = useState<'indigo' | 'ocean' | 'forest' | 'sunset'>('indigo');
@@ -138,25 +141,59 @@ export default function SettingsPanel({
   const [aiModel, setAiModel] = useState<string>('gemini-3.5-flash');
   const [aiTemp, setAiTemp] = useState<number>(0.7);
   const [aiSearchGrounding, setAiSearchGrounding] = useState<boolean>(false);
+  const [isTestingAi, setIsTestingAi] = useState<boolean>(false);
+
+  // Audit Logs states
+  const [auditSearchQuery, setAuditSearchQuery] = useState<string>('');
+  const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setAiApiKey(localStorage.getItem('avaxa_gemini_api_key') || '');
-      setAiModel(localStorage.getItem('avaxa_ai_model') || 'gemini-3.5-flash');
-      const temp = localStorage.getItem('avaxa_ai_temperature');
+      setAiApiKey(localStorage.getItem('apexa_gemini_api_key') || '');
+      setAiModel(localStorage.getItem('apexa_ai_model') || 'gemini-3.5-flash');
+      const temp = localStorage.getItem('apexa_ai_temperature');
       if (temp) setAiTemp(parseFloat(temp));
-      setAiSearchGrounding(localStorage.getItem('avaxa_ai_search_grounding') === 'true');
+      setAiSearchGrounding(localStorage.getItem('apexa_ai_search_grounding') === 'true');
     }
   }, []);
 
   const handleSaveAiSettings = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('avaxa_gemini_api_key', aiApiKey);
-      localStorage.setItem('avaxa_ai_model', aiModel);
-      localStorage.setItem('avaxa_ai_temperature', aiTemp.toString());
-      localStorage.setItem('avaxa_ai_search_grounding', aiSearchGrounding.toString());
-      if (onAddSyncLog) onAddSyncLog('Updated Gemini AI Integration settings successfully');
-      if (triggerToast) triggerToast('success', 'AI Configuration Saved', 'Your Gemini AI engine has been updated.');
+      localStorage.setItem('apexa_gemini_api_key', aiApiKey);
+      localStorage.setItem('apexa_ai_model', aiModel);
+      localStorage.setItem('apexa_ai_temperature', aiTemp.toString());
+      localStorage.setItem('apexa_ai_search_grounding', aiSearchGrounding.toString());
+      if (onAddSyncLog) onAddSyncLog('Updated Gemini AI Integration settings');
+      if (triggerToast) triggerToast('success', 'AI Configuration Saved', 'Gemini AI engine parameters have been updated.');
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    if (!aiApiKey.trim()) {
+      if (triggerToast) triggerToast('warning', 'Missing API Key', 'Please enter a Gemini API Key to test connection.');
+      return;
+    }
+    setIsTestingAi(true);
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${aiApiKey.trim()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Respond with OK' }] }]
+        })
+      });
+      if (res.ok) {
+        if (triggerToast) triggerToast('success', 'AI Connected', 'Gemini API key verified successfully!');
+        if (onAddSyncLog) onAddSyncLog('Verified Gemini API Key connection successfully');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errMsg = data?.error?.message || 'Invalid API key or model request failed.';
+        if (triggerToast) triggerToast('error', 'Connection Failed', errMsg);
+      }
+    } catch (err: any) {
+      if (triggerToast) triggerToast('error', 'Network Error', err.message || 'Unable to reach Google Gemini API server.');
+    } finally {
+      setIsTestingAi(false);
     }
   };
 
@@ -165,60 +202,14 @@ export default function SettingsPanel({
     if (!newWSName.trim()) return;
     if (onAddWorkspace) {
       onAddWorkspace(newWSName.trim(), newWSTheme, newWSCover);
+      if (triggerToast) triggerToast('success', 'Workspace Created', `Created workspace "${newWSName.trim()}"`);
     }
     setNewWSName('');
     setShowQuickCreate(false);
   };
 
-  const startEditWorkspace = (ws: any) => {
-    setEditingWorkspaceId(ws.id);
-    setEditWSName(ws.name);
-    setEditWSTheme(ws.theme);
-    setEditWSCover(ws.coverUrl || '');
-  };
-
-  const saveWorkspaceEdit = (id: string) => {
-    if (!editWSName.trim()) return;
-    const targetWS = workspaces.find(w => w.id === id);
-    if (onUpdateWorkspace && targetWS) {
-      onUpdateWorkspace(id, editWSName.trim(), editWSTheme, editWSCover, targetWS.logoUrl, targetWS.settings);
-    }
-    setEditingWorkspaceId(null);
-  };
-
-  const sqlCode = `
-CREATE TABLE IF NOT EXISTS public.workspaces (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    theme TEXT DEFAULT 'indigo',
-    initial TEXT,
-    coverUrl TEXT,
-    logoUrl TEXT,
-    settings JSONB DEFAULT '{}'::jsonb,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow select workspaces for workspace members" ON public.workspaces
-    FOR SELECT USING (
-        auth.uid() = user_id 
-        OR id IN (
-            SELECT unnest(workspace_ids) 
-            FROM public.members 
-            WHERE user_id = auth.uid()
-        )
-    );
-`;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(sqlCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const presets = [
-    { id: 'indigo', name: 'Avaxa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
+    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
     { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', hex: '#0ea5e9' },
     { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', hex: '#10b981' },
     { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', hex: '#f43f5e' }
@@ -246,16 +237,34 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
     }
   ];
 
+  const filteredLogs = syncLogs.filter((log: any) => {
+    if (!auditSearchQuery.trim()) return true;
+    const query = auditSearchQuery.toLowerCase();
+    const actionText = (log.action || '').toLowerCase();
+    const timeText = (log.time || '').toLowerCase();
+    return actionText.includes(query) || timeText.includes(query);
+  });
+
+  const handleCopyLogs = () => {
+    const text = syncLogs.map((l: any) => `[${l.time || ''}] ${l.action || ''}`).join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedLogs(true);
+    setTimeout(() => setCopiedLogs(false), 2000);
+  };
+
   return (
     <div className="flex h-[calc(100vh-140px)] w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-xs relative">
+      
       {/* 1. Left Navigation Sidebar */}
-      <aside className={`w-[230px] border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex flex-col justify-between shrink-0 overflow-y-auto scrollbar-none p-3.5 space-y-4 transition-all duration-200 ${
-        isSidebarVisibleOnMobile ? 'flex w-full absolute inset-0 z-20 md:relative md:w-[230px]' : 'hidden md:flex'
+      <aside className={`w-[250px] border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex flex-col justify-between shrink-0 overflow-y-auto scrollbar-none p-3.5 space-y-4 transition-all duration-200 ${
+        isSidebarVisibleOnMobile ? 'flex w-full absolute inset-0 z-20 md:relative md:w-[250px]' : 'hidden md:flex'
       }`}>
         <div className="space-y-4">
-          <div className="px-2 py-1">
-            <h2 className="text-[14px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-display">
-              {t('settingsTitle') || 'All settings'}
+          {/* Header Title */}
+          <div className="px-2 py-1.5 flex items-center justify-between">
+            <h2 className="text-[13px] font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-display flex items-center gap-2">
+              <Settings className="w-4 h-4 text-indigo-500" />
+              {t('settingsTitle') || 'System Settings'}
             </h2>
           </div>
 
@@ -266,24 +275,32 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                   {t(section.key) || section.title}
                 </span>
                 <div className="space-y-0.5">
-                  {menuSections[idx].items.map(item => {
+                  {section.items.map(item => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
+                    const labelText = t(item.id) !== item.id ? t(item.id) : item.label;
                     return (
                       <button
                         key={item.id}
                         onClick={() => {
                           setActiveTab(item.id);
                           setIsSidebarVisibleOnMobile(false);
+                          (window as any).playSystemSound?.('click');
                         }}
-                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-left ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left relative ${
                           isActive 
-                            ? 'bg-slate-200/80 dark:bg-slate-800 text-indigo-655 dark:text-indigo-400 shadow-xs' 
-                            : 'text-slate-655 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-900 dark:hover:text-slate-200'
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shadow-3xs font-black' 
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-455 dark:text-slate-500'}`} />
-                        <span>{t(item.id) || item.label}</span>
+                        <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                        <span className="truncate">{labelText}</span>
+                        {isActive && (
+                          <motion.div 
+                            layoutId="activeTabIndicator" 
+                            className="absolute right-2 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -293,26 +310,43 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
           </nav>
         </div>
 
-        {/* Logout Bottom Trigger */}
-        <div className="pt-2 border-t border-slate-200/40 dark:border-slate-800">
+        {/* Sidebar Footer: User Info & Logout */}
+        <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800 space-y-2">
+          {currentUser && (
+            <div className="flex items-center gap-2.5 p-2 bg-slate-100/60 dark:bg-slate-800/40 rounded-xl">
+              <SignedImage 
+                filePath={currentUser.avatar} 
+                alt={currentUser.name} 
+                className="w-8 h-8 rounded-full shrink-0 overflow-hidden shadow-2xs" 
+              />
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{currentUser.email}</p>
+              </div>
+              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                {currentUser.role || 'Member'}
+              </span>
+            </div>
+          )}
+
           <button
             onClick={() => {
               if (onLogout) onLogout();
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4 text-rose-500" />
-            <span>{t('logout') || 'Log out'}</span>
+            <span>{t('logout') !== 'logout' ? t('logout') : 'Log out'}</span>
           </button>
         </div>
       </aside>
 
-      {/* 2. Right Detail Content area */}
-      <main className="flex-1 overflow-y-auto bg-white dark:bg-slate-905 p-6 md:p-8">
+      {/* 2. Right Detail Content Area */}
+      <main className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 p-6 md:p-8">
         {/* Mobile menu toggle back button */}
         <button
           onClick={() => setIsSidebarVisibleOnMobile(true)}
-          className="md:hidden flex items-center gap-1.5 text-xs text-slate-650 dark:text-slate-300 font-bold mb-5 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+          className="md:hidden flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 font-bold mb-5 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 transition-colors cursor-pointer select-none"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>{locale === 'vi' ? 'Quay lại Cài đặt' : 'Back to Settings'}</span>
@@ -320,30 +354,97 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
         
         {/* TAB: GENERAL WORKSPACE INFO */}
         {activeTab === 'general' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-indigo-500" />
-                Workspace Settings
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure branding presets and feature parameters of your active workspace</p>
+          <div className="space-y-6 max-w-4xl text-left">
+            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200/60 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
+                  <Briefcase className="w-5 h-5 text-indigo-500" />
+                  {t('general') !== 'general' ? t('general') : 'General Workspace Settings'}
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Configure branding presets, covers, and parameters for your workspace</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowQuickCreate(!showQuickCreate)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Workspace</span>
+              </button>
             </div>
 
-            {/* General Info Card */}
+            {/* Quick Create Inline Form */}
+            <AnimatePresence>
+              {showQuickCreate && (
+                <motion.form
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  onSubmit={handleQuickCreateWorkspace}
+                  className="p-5 bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-900/40 rounded-2xl space-y-4"
+                >
+                  <h3 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">Create New Workspace</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-slate-500">Workspace Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="E.g. Product Engineering"
+                        value={newWSName}
+                        onChange={e => setNewWSName(e.target.value)}
+                        className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-slate-500">Theme Preset</label>
+                      <select
+                        value={newWSTheme}
+                        onChange={e => setNewWSTheme(e.target.value as any)}
+                        className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+                      >
+                        <option value="indigo">Apexa Violet</option>
+                        <option value="ocean">Ocean Blue</option>
+                        <option value="forest">Forest Green</option>
+                        <option value="sunset">Sunset Pink</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickCreate(false)}
+                      className="px-3.5 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
+                    >
+                      Save Workspace
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+
+            {/* Active Workspace Settings Card */}
             {(() => {
               const activeWS = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
-              if (!activeWS) return <div className="text-slate-400 italic text-xs">No active workspaces found.</div>;
+              if (!activeWS) return <div className="text-slate-400 italic text-xs">No active workspace found.</div>;
               return (
                 <div className="space-y-6">
-                  {/* Name and logo */}
+                  {/* Logo and Name card */}
                   <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-6">
                     <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
-                      {/* Workspace Logo Upload (Left/Top) */}
+                      {/* Workspace Logo Upload */}
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-500 block">Workspace Logo</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Workspace Logo</label>
                         <div className="flex items-center gap-4">
                           <div 
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-[18px] shadow-sm shrink-0 overflow-hidden relative border border-slate-200 dark:border-slate-800"
+                            className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-[20px] shadow-sm shrink-0 overflow-hidden relative border border-slate-200 dark:border-slate-800"
                             style={{
                               background: `linear-gradient(135deg, ${presets.find(p => p.id === activeWS.theme)?.hex || '#7B61FF'}, #a78bfa)`
                             }}
@@ -391,9 +492,9 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                               />
                               <label
                                 htmlFor="settings-panel-logo-file-input"
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 dark:bg-slate-805 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                               >
-                                <Upload className="w-3.5 h-3.5 text-indigo-505" />
+                                <Upload className="w-3.5 h-3.5 text-indigo-500" />
                                 <span>Upload Logo</span>
                               </label>
                               {activeWS.logoUrl && (
@@ -403,39 +504,78 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                                     onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, activeWS.coverUrl, '', activeWS.settings);
                                     if (triggerToast) triggerToast('success', 'Logo Removed', 'Workspace logo has been reset.');
                                   }}
-                                  className="px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-955/20 border border-rose-250/20 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                  className="px-3 py-2 text-xs font-bold rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 border border-rose-200/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                                 >
                                   Remove
                                 </button>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Supported formats: PNG, JPG, SVG. Maximum 2MB.</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold">Supported formats: PNG, JPG, SVG. Max 2MB.</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Workspace Name (Right/Bottom) */}
+                      {/* Workspace Name Input */}
                       <div className="space-y-2 flex-1 max-w-md">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-500">Workspace Name</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Workspace Name</label>
                         <input
                           type="text"
                           value={activeWS.name}
                           onChange={e => {
                             onUpdateWorkspace?.(activeWS.id, e.target.value, activeWS.theme, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
                           }}
-                          className="w-full px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                          className="w-full px-4 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Themes Accent */}
+                  {/* Workspace Cover Gallery Picker */}
                   <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-350">Accent Color</h4>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-500">Select accent highlight preset theme</p>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-indigo-500" />
+                        Workspace Cover Banner
+                      </h4>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">Choose a high-resolution background banner preset for workspace headers</p>
                     </div>
-                    <div className="flex gap-2.5">
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {WORKSPACE_COVERS.map(cover => {
+                        const isSelected = activeWS.coverUrl === cover.url;
+                        return (
+                          <button
+                            key={cover.id}
+                            type="button"
+                            onClick={() => {
+                              onUpdateWorkspace?.(activeWS.id, activeWS.name, activeWS.theme, cover.url, activeWS.logoUrl, activeWS.settings);
+                            }}
+                            className={`group relative h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                              isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/30 scale-[1.02]' : 'border-transparent opacity-85 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={cover.url} alt={cover.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors flex items-end p-2">
+                              <span className="text-[10px] font-bold text-white truncate">{cover.name}</span>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                                <Check className="w-3 h-3" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Workspace Themes Accent */}
+                  <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Accent Highlight Theme</h4>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">Select signature highlight theme for primary buttons and badges</p>
+                    </div>
+                    <div className="flex gap-3">
                       {presets.map(p => {
                         const isActive = activeWS.theme === p.id;
                         return (
@@ -445,9 +585,11 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                             onClick={() => {
                               onUpdateWorkspace?.(activeWS.id, activeWS.name, p.id, activeWS.coverUrl, activeWS.logoUrl, activeWS.settings);
                             }}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform cursor-pointer ${isActive ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950' : 'opacity-80'}`}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              isActive ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 shadow-md' : 'opacity-70 hover:opacity-100'
+                            }`}
                           >
-                            <span className={`w-5 h-5 rounded-full ${p.color} block`} title={p.name} />
+                            <span className={`w-6 h-6 rounded-full ${p.color} block`} title={p.name} />
                           </button>
                         );
                       })}
@@ -456,14 +598,14 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
 
                   {/* Danger Zone: Delete Workspace */}
                   {(!activeWS.user_id || activeWS.user_id === currentUser?.id) && workspaces.length > 1 && (
-                    <div className="p-6 bg-rose-50/20 dark:bg-rose-950/5 border border-rose-200/40 dark:border-rose-900/30 rounded-2xl space-y-4">
+                    <div className="p-6 bg-rose-50/30 dark:bg-rose-950/10 border border-rose-200/50 dark:border-rose-900/30 rounded-2xl space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded-xl text-rose-500">
+                        <div className="p-2.5 bg-rose-100 dark:bg-rose-950/50 rounded-xl text-rose-600 dark:text-rose-400">
                           <Trash2 className="w-5 h-5" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold text-rose-700 dark:text-rose-450">Danger Zone: Delete Workspace</h3>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Deleting a workspace deletes all associated resources and cannot be undone.</p>
+                          <h3 className="text-sm font-bold text-rose-700 dark:text-rose-400">Danger Zone: Delete Workspace</h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Permanently remove this workspace and all its underlying spaces and documents.</p>
                         </div>
                       </div>
                       <button
@@ -472,7 +614,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                           setWorkspaceToDelete(activeWS);
                           setDeleteConfirmText('');
                         }}
-                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer shadow-xs hover:scale-[1.02] active:scale-[0.98]"
                       >
                         Delete Workspace
                       </button>
@@ -488,11 +630,11 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
         {activeTab === 'people' && (
           <div className="space-y-6 text-left">
             <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
                 <Users className="w-5 h-5 text-indigo-500" />
-                Manage people
+                {t('people') !== 'people' ? t('people') : 'Member Directory & Permissions'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Invite teammates and configure workspace permissions levels</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Invite team members and configure workspace access roles</p>
             </div>
             
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-4 shadow-2xs">
@@ -505,6 +647,8 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                 onUpdateMember={onUpdateMember}
                 onDeleteMember={onDeleteMember}
                 onAddSyncLog={onAddSyncLog}
+                currentUser={currentUser}
+                onSendWorkspaceInvites={onSendWorkspaceInvites}
               />
             </div>
           </div>
@@ -514,57 +658,92 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
         {activeTab === 'ai_usage' && (
           <div className="space-y-6 max-w-3xl text-left">
             <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
                 <Brain className="w-5 h-5 text-indigo-500" />
-                Gemini AI Engine Settings
+                {t('ai_usage') !== 'ai_usage' ? t('ai_usage') : 'Gemini AI Engine Settings'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Fine-tune Google Gemini parameters for smart task generation and chat summary tools</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Fine-tune Google Gemini model parameters for smart task generation and summary tools</p>
             </div>
 
-            {/* AI Config card */}
-            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-5">
-              {/* API Key */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500 flex justify-between">
+            <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-6">
+              {/* API Key section */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex justify-between">
                   <span>Gemini API Key</span>
-                  <span className="text-[9px] font-semibold text-slate-400 normal-case">Stored securely in your local storage</span>
+                  <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 normal-case">🔒 Stored in local browser storage</span>
                 </label>
                 <div className="relative flex items-center">
                   <input
                     type={showApiKey ? "text" : "password"}
                     value={aiApiKey}
                     onChange={e => setAiApiKey(e.target.value)}
-                    placeholder="Enter API Key (e.g. AIzaSy...)"
-                    className="w-full pl-3.5 pr-10 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-105 outline-none font-mono"
+                    placeholder="Enter Google Gemini API Key (AIzaSy...)"
+                    className="w-full pl-3.5 pr-10 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none font-mono focus:ring-2 focus:ring-indigo-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 text-slate-400 hover:text-slate-650 cursor-pointer"
+                    className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   >
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Get key from Google AI Studio (aistudio.google.com)</span>
+                  <button
+                    type="button"
+                    disabled={isTestingAi}
+                    onClick={handleTestAiConnection}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {isTestingAi ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                    ) : (
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    )}
+                    <span>Test Connection</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Model */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500">AI Model</label>
-                <select
-                  value={aiModel}
-                  onChange={e => setAiModel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-805 dark:text-slate-105 outline-none cursor-pointer"
-                >
-                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Flagship - Recommended)</option>
-                  <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Reasoning & Coding)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast & Lightweight)</option>
-                </select>
+              {/* Model selection */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Gemini Model Choice</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', badge: 'Recommended', desc: 'Ultra-fast & powerful for all workspace tasks' },
+                    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', badge: 'Deep Reasoning', desc: 'Best for complex logic and code analysis' },
+                    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', badge: 'Lightweight', desc: 'Speed-optimized for simple summaries' }
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setAiModel(m.id)}
+                      className={`p-3.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        aiModel === m.id
+                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 ring-1 ring-indigo-500'
+                          : 'border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-850 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">{m.name}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">{m.desc}</p>
+                      </div>
+                      <span className="inline-block mt-3 text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 w-max">
+                        {m.badge}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Temperature */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-405 dark:text-slate-500 flex justify-between">
-                  <span>Creativity (Temperature)</span>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex justify-between">
+                  <span>Creativity Level (Temperature)</span>
                   <span className="font-mono font-bold text-indigo-500">{aiTemp.toFixed(1)}</span>
                 </label>
                 <input
@@ -574,19 +753,24 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                   step="0.1"
                   value={aiTemp}
                   onChange={e => setAiTemp(parseFloat(e.target.value))}
-                  className="w-full accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-750 rounded-lg appearance-none cursor-pointer"
+                  className="w-full accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                 />
+                <div className="flex justify-between text-[9px] text-slate-400 font-semibold">
+                  <span>Precise (0.0)</span>
+                  <span>Balanced (0.7)</span>
+                  <span>Creative (1.0)</span>
+                </div>
               </div>
 
               {/* Search Grounding */}
-              <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-805 border border-slate-200/50 dark:border-slate-700/60 rounded-xl">
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-indigo-650 dark:text-indigo-405">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-indigo-600 dark:text-indigo-400">
                     <Globe className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-705 dark:text-slate-300">Google Search Grounding</h4>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Augment queries with real-time Google search summaries</p>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Google Search Grounding</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Augment answers with live Google Web Search data</p>
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -600,12 +784,12 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                 </label>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200/40 dark:border-slate-800/80">
+              {/* Action save button */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200/40 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={handleSaveAiSettings}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Save AI Engine Settings
                 </button>
@@ -614,32 +798,71 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
           </div>
         )}
 
-
-
         {/* TAB: AUDIT LOGS */}
         {activeTab === 'audit_logs' && (
-          <div className="space-y-6 max-w-3xl text-left">
-            <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
-                <FileClock className="w-5 h-5 text-indigo-500" />
-                System Audit Logs
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Track database synchronization logs and realtime events</p>
+          <div className="space-y-6 max-w-4xl text-left">
+            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200/60 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
+                  <FileClock className="w-5 h-5 text-indigo-500" />
+                  {t('audit_logs') !== 'audit_logs' ? t('audit_logs') : 'System Audit Logs'}
+                </h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Realtime database events, synchronization logs, and security activities</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyLogs}
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedLogs ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  <span>{copiedLogs ? 'Copied' : 'Copy Logs'}</span>
+                </button>
+              </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400 space-y-2.5 max-h-[350px] overflow-y-auto">
-              <div className="text-[10px] text-slate-500 border-b border-slate-800 pb-1.5 flex items-center justify-between">
-                <span>SYSTEM CONSOLE ENGINE v1.2</span>
-                <span className="animate-pulse text-emerald-500">● LIVE CONNECTION</span>
+            {/* Log controls & search */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter logs..."
+                  value={auditSearchQuery}
+                  onChange={e => setAuditSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-750 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none"
+                />
               </div>
-              {syncLogs.length === 0 ? (
-                <div className="text-slate-500 italic">No network logs recorded. Active realtime synchronization is running.</div>
+
+              <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500">
+                {filteredLogs.length} events logged
+              </span>
+            </div>
+
+            {/* Console Log Terminal Window */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400 space-y-2.5 max-h-[420px] overflow-y-auto shadow-inner">
+              <div className="text-[10px] text-slate-500 border-b border-slate-800 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>SYSTEM AUDIT STREAM v2.4</span>
+                </div>
+                <span className="animate-pulse text-emerald-400 font-extrabold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                  LIVE
+                </span>
+              </div>
+
+              {filteredLogs.length === 0 ? (
+                <div className="text-slate-500 italic py-6 text-center">
+                  {auditSearchQuery ? 'No log entries match your filter query.' : 'No system logs recorded yet. Active realtime synchronization is running.'}
+                </div>
               ) : (
-                <div className="space-y-1">
-                  {syncLogs.map((log: any, idx) => (
-                    <div key={log.id || idx} className="flex gap-2 text-left">
-                      <span className="text-slate-500 select-none">[{log.time || new Date().toLocaleTimeString()}]</span>
-                      <span>{log.action}</span>
+                <div className="space-y-1.5">
+                  {filteredLogs.map((log: any, idx: number) => (
+                    <div key={log.id || idx} className="flex items-start gap-2.5 text-left hover:bg-slate-900/60 p-1 rounded transition-colors">
+                      <span className="text-slate-500 select-none text-[10px] shrink-0 font-mono">[{log.time || new Date().toLocaleTimeString()}]</span>
+                      <span className="text-emerald-300 break-all">{log.action || JSON.stringify(log)}</span>
                     </div>
                   ))}
                 </div>
@@ -650,13 +873,15 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
 
         {/* TAB: PERSONALIZATION PREFERENCES */}
         {activeTab === 'preferences' && (
-          <div className="space-y-6 max-w-3xl text-left">
+          <div className="space-y-6 max-w-4xl text-left">
             <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
                 <Sliders className="w-5 h-5 text-indigo-500" />
-                {t('settingsPersonal') || 'System Personalization'}
+                {t('settingsPersonal') !== 'settingsPersonal' ? t('settingsPersonal') : 'System Personalization'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('settingsDesc') || 'Customize accent preset colors, sound effects, and glass panel blur strength'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                {t('settingsDesc') !== 'settingsDesc' ? t('settingsDesc') : 'Customize theme modes, accent colors, audio haptics, and glassmorphism depth'}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -668,24 +893,27 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                       {isDarkMode ? (
                         <Moon className="w-5 h-5 text-indigo-500 animate-pulse" />
                       ) : (
-                        <Sun className="w-5 h-5 text-indigo-500 animate-pulse" />
+                        <Sun className="w-5 h-5 text-amber-500 animate-spin-slow" />
                       )}
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                         {isDarkMode ? 'Dark Mode' : 'Light Mode'}
                       </h3>
-                      <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">
-                        {isDarkMode ? 'Immersive space dark theme' : 'Crystalline space light theme'}
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        {isDarkMode ? 'Immersive space dark layout' : 'Crystalline space light theme'}
                       </p>
                     </div>
                   </div>
                   
-                  {/* Switch toggle control */}
                   <button
-                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    type="button"
+                    onClick={() => {
+                      setIsDarkMode(!isDarkMode);
+                      (window as any).playSystemSound?.('toggle');
+                    }}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
-                      isDarkMode ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+                      isDarkMode ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
                   >
                     <span
@@ -695,20 +923,24 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     />
                   </button>
                 </div>
-                <div className="p-3 bg-white dark:bg-slate-850 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/40 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                   Toggle between the signature crystalline light mode and the immersive deep dark mode layout.
                 </div>
               </div>
 
-              {/* Theme highlight color choice */}
+              {/* Accent Theme Color */}
               <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
                     <Palette className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('accentColor') || 'Accent Theme Color'}</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('accentColorDesc') || 'Choose highlight accent colors'}</p>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      {t('accentColor') !== 'accentColor' ? t('accentColor') : 'Accent Theme Color'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                      {t('accentColorDesc') !== 'accentColorDesc' ? t('accentColorDesc') : 'Personalize your representative tone color'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -717,94 +949,139 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     return (
                       <button
                         key={p.id}
-                        onClick={() => setAccentPreset(p.id as any)}
-                        className={`w-7 h-7 rounded-full transition-all cursor-pointer ${isActive ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900 scale-110' : 'opacity-80'}`}
+                        type="button"
+                        onClick={() => {
+                          setAccentPreset(p.id as any);
+                          (window as any).playSystemSound?.('click');
+                        }}
+                        className={`w-8 h-8 rounded-full transition-all cursor-pointer ${isActive ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900 scale-110 shadow-sm' : 'opacity-70 hover:opacity-100'}`}
                       >
-                        <span className={`w-5 h-5 rounded-full ${p.color} block`} />
+                        <span className={`w-6 h-6 rounded-full ${p.color} block`} title={p.name} />
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Sound effects toggle */}
+              {/* Sound Effects */}
               <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
-                    {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500" /> : <VolumeX className="w-5 h-5 text-slate-455" />}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
+                      {soundEnabled ? <Volume2 className="w-5 h-5 text-indigo-500" /> : <VolumeX className="w-5 h-5 text-slate-400" />}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {t('soundEffects') !== 'soundEffects' ? t('soundEffects') : 'Interactive Sound Effects'}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        {t('soundEffectsDesc') !== 'soundEffectsDesc' ? t('soundEffectsDesc') : 'Play subtle sounds when switching tabs, clicking buttons or completing tasks'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('soundEffects') || 'Interactive Sound Effects'}</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('soundEffectsDesc') || 'Play subtle audio haptics when doing actions'}</p>
-                  </div>
+
+                  {soundEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => (window as any).playSystemSound?.('success')}
+                      className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black hover:bg-indigo-200 transition-colors cursor-pointer"
+                    >
+                      Test Audio
+                    </button>
+                  )}
                 </div>
                 <div className="flex bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
                   <button
-                    onClick={() => setSoundEnabled(true)}
-                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${soundEnabled ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
+                    type="button"
+                    onClick={() => {
+                      setSoundEnabled(true);
+                      setTimeout(() => (window as any).playSystemSound?.('success'), 50);
+                    }}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${soundEnabled ? 'bg-white shadow-xs text-indigo-600 dark:bg-slate-800 dark:text-indigo-400 font-black' : 'text-slate-500'}`}
                   >
-                    {t('soundOn') || 'Enable sound'}
+                    {t('soundOn') !== 'soundOn' ? t('soundOn') : 'Enable sound'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSoundEnabled(false)}
-                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${!soundEnabled ? 'bg-white shadow-xs text-slate-700 dark:bg-slate-800 dark:text-slate-400' : 'text-slate-500'}`}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${!soundEnabled ? 'bg-white shadow-xs text-slate-700 dark:bg-slate-800 dark:text-slate-400 font-black' : 'text-slate-500'}`}
                   >
-                    {t('soundOff') || 'Mute'}
+                    {t('soundOff') !== 'soundOff' ? t('soundOff') : 'Mute sound'}
                   </button>
                 </div>
               </div>
 
-              {/* Glassmorphism blur depth */}
-              <div className="p-6 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
+              {/* Glassmorphism Blur Strength */}
+              <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
                     <Layers className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">{t('blurStrength') || 'Glassmorphism Blur Strength'}</h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">{t('blurStrengthDesc') || 'Adjust blur depth levels on panel containers'}</p>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      {t('blurStrength') !== 'blurStrength' ? t('blurStrength') : 'Blur Effect Strength'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                      {t('blurStrengthDesc') !== 'blurStrengthDesc' ? t('blurStrengthDesc') : 'Adjust backdrop blur depth for dialogs and elevated cards'}
+                    </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
-                  {['soft', 'default', 'immersive'].map(lvl => (
+                  {(['soft', 'default', 'immersive'] as const).map(lvl => (
                     <button
                       key={lvl}
-                      onClick={() => setBlurIntensity(lvl as any)}
-                      className={`py-1.5 text-[10px] font-extrabold capitalize rounded-lg ${blurIntensity === lvl ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
+                      type="button"
+                      onClick={() => {
+                        setBlurIntensity(lvl);
+                        (window as any).playSystemSound?.('toggle');
+                      }}
+                      className={`py-1.5 text-[10px] font-black capitalize rounded-lg transition-all cursor-pointer ${blurIntensity === lvl ? 'bg-white shadow-xs text-indigo-600 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-500'}`}
                     >
-                      {lvl === 'soft' ? (t('blurSoft') || 'Soft (8px)') : lvl === 'default' ? (t('blurDefault') || 'Default (16px)') : (t('blurImmersive') || 'Immersive (28px)')}
+                      {lvl === 'soft' 
+                        ? (t('blurSoft') !== 'blurSoft' ? t('blurSoft') : 'Soft (8px)') 
+                        : lvl === 'default' 
+                        ? (t('blurDefault') !== 'blurDefault' ? t('blurDefault') : 'Default (16px)') 
+                        : (t('blurImmersive') !== 'blurImmersive' ? t('blurImmersive') : 'Immersive (28px)')}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Language choice */}
+              {/* Language Choice */}
               <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white dark:bg-slate-800 rounded-xl">
                     <Globe className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-805 dark:text-slate-200">
-                      {t('language') || 'Language'}
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      {t('language') !== 'language' ? t('language') : 'Language'}
                     </h3>
-                    <p className="text-[11px] text-slate-455 dark:text-slate-500 mt-0.5">
-                      {t('languageDesc') || 'Choose system display language'}
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                      {t('languageDesc') !== 'languageDesc' ? t('languageDesc') : 'Choose system display language'}
                     </p>
                   </div>
                 </div>
                 <div className="flex bg-slate-200/60 dark:bg-slate-950 p-1 rounded-xl">
                   <button
-                    onClick={() => setLocale('en')}
-                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${locale === 'en' ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-505'}`}
+                    type="button"
+                    onClick={() => {
+                      setLocale('en');
+                      (window as any).playSystemSound?.('toggle');
+                    }}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${locale === 'en' ? 'bg-white shadow-xs text-indigo-600 dark:bg-slate-800 dark:text-indigo-400 font-black' : 'text-slate-500'}`}
                   >
-                    English
+                    English 🇺🇸
                   </button>
                   <button
-                    onClick={() => setLocale('vi')}
-                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg ${locale === 'vi' ? 'bg-white shadow-xs text-indigo-655 dark:bg-slate-800 dark:text-indigo-400' : 'text-slate-505'}`}
+                    type="button"
+                    onClick={() => {
+                      setLocale('vi');
+                      (window as any).playSystemSound?.('toggle');
+                    }}
+                    className={`flex-1 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${locale === 'vi' ? 'bg-white shadow-xs text-indigo-600 dark:bg-slate-800 dark:text-indigo-400 font-black' : 'text-slate-500'}`}
                   >
-                    Tiếng Việt
+                    Tiếng Việt 🇻🇳
                   </button>
                 </div>
               </div>
@@ -814,29 +1091,31 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
 
         {/* TAB: NOTIFICATIONS SUBSCRIPTION */}
         {activeTab === 'notifications' && (
-          <div className="space-y-6 max-w-3xl text-left">
+          <div className="space-y-6 max-w-4xl text-left">
             <div>
-              <h2 className="text-lg font-black text-slate-850 dark:text-slate-55 flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 font-display">
                 <Bell className="w-5 h-5 text-indigo-500" />
-                Notification Settings
+                {t('notifications') !== 'notifications' ? t('notifications') : 'Notification Settings'}
               </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Toggle specific haptic notifications and configure spam filters</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Toggle notification haptics, Do Not Disturb schedules, and event filters</p>
             </div>
 
             <div className="p-6 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800 rounded-2xl space-y-6">
               {/* Quick switches */}
               <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-200/40 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-805 dark:text-slate-250">Master Control</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Master Notifications Control</span>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => setNotificationSettings(prev => ({ ...prev, enableAll: !prev.enableAll }))}
-                    className={`px-3 py-1.5 rounded-lg text-[10.5px] font-bold ${notificationSettings.enableAll ? 'bg-indigo-500 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350'}`}
+                    className={`px-3.5 py-1.5 rounded-xl text-[10.5px] font-extrabold transition-all cursor-pointer ${notificationSettings.enableAll ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}
                   >
-                    Enable Notifications
+                    {notificationSettings.enableAll ? 'Notifications On' : 'Notifications Muted'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setNotificationSettings(prev => ({ ...prev, dndActive: !prev.dndActive }))}
-                    className={`px-3 py-1.5 rounded-lg text-[10.5px] font-bold ${notificationSettings.dndActive ? 'bg-rose-500 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350'}`}
+                    className={`px-3.5 py-1.5 rounded-xl text-[10.5px] font-extrabold transition-all cursor-pointer ${notificationSettings.dndActive ? 'bg-rose-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}
                   >
                     Do Not Disturb (DND)
                   </button>
@@ -844,18 +1123,18 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
               </div>
 
               {/* DND Duration Pause & Custom Schedules */}
-              <div className="space-y-4 pt-4 border-b border-slate-200/40 dark:border-slate-800 pb-4">
-                <h4 className="text-xs font-bold text-slate-850 dark:text-slate-200 flex items-center gap-1.5">
+              <div className="space-y-4 pt-2 border-b border-slate-200/40 dark:border-slate-800 pb-4">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                  Do Not Disturb Options (Tránh làm phiền)
+                  Do Not Disturb Options
                 </h4>
 
                 {/* 1. Temp Pause */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-2">
+                <div className="p-4 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/40 dark:border-slate-700/60 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-305">Tạm dừng thông báo (Temporary Pause)</span>
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Temporary Pause (Tạm dừng thông báo)</span>
                     {notificationSettings.dndDurationUntil && (
-                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-955/20 px-2 py-0.5 rounded-md animate-pulse">
+                      <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 rounded-md animate-pulse">
                         Active until: {new Date(notificationSettings.dndDurationUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
@@ -874,7 +1153,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                           const until = new Date(Date.now() + preset.min * 60 * 1000).toISOString();
                           setNotificationSettings(prev => ({ ...prev, dndDurationUntil: until }));
                         }}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                        className="px-3 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 transition-all cursor-pointer"
                       >
                         {preset.label}
                       </button>
@@ -887,28 +1166,28 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                         tomorrow.setHours(8, 0, 0, 0);
                         setNotificationSettings(prev => ({ ...prev, dndDurationUntil: tomorrow.toISOString() }));
                       }}
-                      className="px-2.5 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-650 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/60 transition-all cursor-pointer"
+                      className="px-3 py-1 text-[10px] font-extrabold bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 rounded-lg text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 transition-all cursor-pointer"
                     >
-                      Đến ngày mai
+                      Until Tomorrow
                     </button>
                     {notificationSettings.dndDurationUntil && (
                       <button
                         type="button"
                         onClick={() => setNotificationSettings(prev => ({ ...prev, dndDurationUntil: null }))}
-                        className="px-2.5 py-1 text-[10px] font-extrabold bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-all cursor-pointer"
+                        className="px-3 py-1 text-[10px] font-extrabold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-all cursor-pointer"
                       >
-                        Hủy tạm dừng
+                        Cancel Pause
                       </button>
                     )}
                   </div>
                 </div>
 
                 {/* 2. Schedule DND */}
-                <div className="p-4 bg-white dark:bg-slate-805 rounded-xl border border-slate-200/40 dark:border-slate-750/80 space-y-3">
+                <div className="p-4 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/40 dark:border-slate-700/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Lên lịch tránh làm phiền (Scheduled DND)</span>
-                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Tự động kích hoạt không làm phiền hàng ngày vào khung giờ cố định</span>
+                      <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">Scheduled DND (Lên lịch tự động)</span>
+                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Automatically trigger DND during quiet hours</span>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer select-none">
                       <input
@@ -917,28 +1196,28 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                         onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnabled: e.target.checked }))}
                         className="sr-only peer"
                       />
-                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-indigo-600"></div>
+                      <div className="w-8 h-4.5 bg-slate-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-600"></div>
                     </label>
                   </div>
 
                   {notificationSettings.dndScheduleEnabled && (
-                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300 animate-fadeIn">
+                    <div className="flex items-center gap-4 pt-1 text-slate-700 dark:text-slate-300">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Bắt đầu:</span>
+                        <span className="text-[10px] font-extrabold text-slate-400">Start:</span>
                         <input
                           type="time"
                           value={notificationSettings.dndScheduleStart || '22:00'}
                           onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleStart: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold text-slate-455">Kết thúc:</span>
+                        <span className="text-[10px] font-extrabold text-slate-400">End:</span>
                         <input
                           type="time"
                           value={notificationSettings.dndScheduleEnd || '07:00'}
                           onChange={e => setNotificationSettings(prev => ({ ...prev, dndScheduleEnd: e.target.value }))}
-                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer"
+                          className="px-2 py-1 text-[10.5px] font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
                         />
                       </div>
                     </div>
@@ -946,41 +1225,41 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                 </div>
 
                 {/* 3. Allow Exceptions */}
-                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-750/80 rounded-xl cursor-pointer">
+                <label className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-800/80 border border-slate-200/40 dark:border-slate-700/60 rounded-xl cursor-pointer">
                   <div className="text-left">
-                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-305">Cho phép thông báo khẩn cấp (Allow Urgent Alerts)</span>
-                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Vẫn nhận thông báo của Task có Hạn chót hoặc độ ưu tiên khẩn cấp/gấp</span>
+                    <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">Allow Urgent Alerts (Cho phép thông báo khẩn)</span>
+                    <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Deliver notifications for overdue or urgent tasks even during DND</span>
                   </div>
                   <input
                     type="checkbox"
                     checked={!!notificationSettings.dndAllowUrgent}
                     onChange={e => setNotificationSettings(prev => ({ ...prev, dndAllowUrgent: e.target.checked }))}
-                    className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                    className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
                   />
                 </label>
               </div>
 
               {/* Frequency limits */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Frequency Spam Filter</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Frequency Spam Filter</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     { id: 'all', label: 'All Updates', desc: 'Show all notifications immediately.' },
-                    { id: 'throttled', label: 'Throttled (3s)', desc: 'Group consecutive updates.' },
-                    { id: 'minimal', label: 'Minimal (Essential)', desc: 'Only show high priority alerts.' }
+                    { id: 'throttled', label: 'Throttled (3s)', desc: 'Group rapid consecutive updates.' },
+                    { id: 'minimal', label: 'Minimal', desc: 'Only high priority alerts.' }
                   ].map(f => (
-                    <label key={f.id} className="p-3.5 rounded-xl bg-white dark:bg-slate-805 border border-slate-200/50 dark:border-slate-700/60 cursor-pointer flex flex-col justify-between">
+                    <label key={f.id} className={`p-3.5 rounded-xl bg-white dark:bg-slate-800 border transition-all cursor-pointer flex flex-col justify-between ${notificationSettings.frequencyLimit === f.id ? 'border-indigo-500 shadow-xs' : 'border-slate-200/50 dark:border-slate-700/60'}`}>
                       <div className="flex items-center gap-2">
                         <input
                           type="radio"
                           name="freq"
                           checked={notificationSettings.frequencyLimit === f.id}
                           onChange={() => setNotificationSettings(prev => ({ ...prev, frequencyLimit: f.id as any }))}
-                          className="text-indigo-505 w-3.5 h-3.5 cursor-pointer"
+                          className="text-indigo-600 w-3.5 h-3.5 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-805 dark:text-slate-200">{f.label}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{f.label}</span>
                       </div>
-                      <p className="text-[10px] text-slate-450 dark:text-slate-500 mt-1">{f.desc}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">{f.desc}</p>
                     </label>
                   ))}
                 </div>
@@ -988,7 +1267,7 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
 
               {/* Event Subscriptions */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-805 dark:text-slate-350">Event Type Subscriptions</h4>
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Event Subscriptions</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { key: 'enableAssignments', label: 'New Assignments' },
@@ -997,13 +1276,13 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                     { key: 'enableStatusChanges', label: 'Status Transitions' },
                     { key: 'enableSystemNotify', label: 'System Action Logs' }
                   ].map(evt => (
-                    <label key={evt.key} className="flex items-center justify-between p-3 bg-white dark:bg-slate-805 border border-slate-200/40 dark:border-slate-700/60 rounded-xl cursor-pointer">
+                    <label key={evt.key} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/80 border border-slate-200/40 dark:border-slate-700/60 rounded-xl cursor-pointer">
                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{evt.label}</span>
                       <input
                         type="checkbox"
                         checked={!!(notificationSettings as any)[evt.key]}
                         onChange={e => setNotificationSettings(prev => ({ ...prev, [evt.key]: e.target.checked }))}
-                        className="rounded text-indigo-550 w-4 h-4 cursor-pointer"
+                        className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
                       />
                     </label>
                   ))}
@@ -1014,56 +1293,57 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
         )}
       </main>
 
-      {/* 3. Secure Delete Workspace Confirmation Modal */}
+      {/* Delete Workspace Confirmation Modal */}
       <AnimatePresence>
         {workspaceToDelete && (
-          <div className="fixed inset-0 z-50 bg-slate-955/60 backdrop-blur-sm flex items-center justify-center p-4 text-left">
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 text-left">
             <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
-              <div className="p-6 border-b border-rose-100 dark:border-rose-950/30 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/10">
-                <div className="flex items-center gap-2 text-rose-650 dark:text-rose-455">
+              <div className="p-6 border-b border-rose-100 dark:border-rose-950/30 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/20">
+                <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
                   <AlertTriangle className="w-5 h-5 text-rose-500 animate-bounce" />
-                  <span className="font-display font-black text-rose-650 dark:text-rose-405 text-base">Confirm Workspace Deletion</span>
+                  <span className="font-display font-black text-rose-700 dark:text-rose-400 text-base">Confirm Workspace Deletion</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setWorkspaceToDelete(null)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-850 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer"
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
               <div className="p-6 space-y-4 font-sans text-xs">
-                <p className="text-slate-655 dark:text-slate-300 leading-relaxed">
-                  This action <strong>cannot be undone</strong>. All data related to the workspace <strong className="text-slate-800 dark:text-slate-100">"{workspaceToDelete.name}"</strong>, including tasks, wiki summaries, and chats, will be permanently deleted from this device and the cloud.
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  This action <strong>cannot be undone</strong>. Workspace <strong className="text-slate-900 dark:text-slate-100">"{workspaceToDelete.name}"</strong> and its associated spaces will be permanently deleted.
                 </p>
 
-                <div className="bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/25 p-3.5 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300">
-                  Please type the exact name of the workspace below to confirm you want to delete it:
-                  <div className="mt-1.5 font-mono bg-amber-500/5 dark:bg-black/20 p-1 px-2 rounded border border-amber-550/20 text-center text-xs select-all text-amber-800 dark:text-amber-250 font-black">
+                <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-2xl text-[11px] text-amber-800 dark:text-amber-300">
+                  Please type the workspace name below to confirm:
+                  <div className="mt-1 font-mono bg-white dark:bg-slate-950 p-1 px-2 rounded border border-amber-500/30 text-center text-xs select-all font-black">
                     {workspaceToDelete.name}
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="confirm_ws_name_input" className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Enter the Workspace name to confirm</label>
+                  <label htmlFor="confirm_ws_name_input" className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Workspace Name</label>
                   <input
                     id="confirm_ws_name_input"
                     type="text"
                     required
-                    placeholder={`E.g., ${workspaceToDelete.name}`}
+                    placeholder={`Type "${workspaceToDelete.name}"`}
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    className="w-full px-4 py-3 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-750 focus:border-rose-500 focus:bg-white dark:focus:bg-slate-900 outline-none dark:text-slate-100 font-semibold"
+                    className="w-full px-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-rose-500 outline-none font-semibold text-slate-900 dark:text-slate-100"
                     autoComplete="off"
                   />
                 </div>
               </div>
 
-              <div className="p-4 px-6 bg-slate-50 dark:bg-slate-850 border-t border-slate-105 dark:border-slate-800/80 flex items-center justify-end gap-3">
+              <div className="p-4 px-6 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setWorkspaceToDelete(null)}
-                  className="px-4 py-2 hover:bg-slate-150 dark:hover:bg-slate-800 rounded-xl text-[11px] font-extrabold text-slate-505 dark:text-slate-400 cursor-pointer"
+                  className="px-4 py-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-[11px] font-extrabold text-slate-600 dark:text-slate-400 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1079,8 +1359,8 @@ CREATE POLICY "Allow select workspaces for workspace members" ON public.workspac
                   }}
                   className={`px-5 py-2.5 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 ${
                     deleteConfirmText === workspaceToDelete.name
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                      : 'bg-slate-150 dark:bg-slate-800 text-slate-455 dark:text-slate-600 cursor-not-allowed'
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-500/10 cursor-pointer'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                   }`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />

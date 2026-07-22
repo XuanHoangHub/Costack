@@ -2217,7 +2217,7 @@ export default function ChatRoom({
                                 href={msg.attachment.filePath} 
                                 download={msg.attachment.name}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 transition-colors shrink-0 flex items-center justify-center cursor-pointer"
                               >
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -2750,7 +2750,7 @@ export default function ChatRoom({
                             href={file.filePath} 
                             download={file.name}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer shrink-0"
                           >
                             <ArrowRight className="w-3.5 h-3.5" />

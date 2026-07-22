@@ -341,8 +341,7 @@ export default function TaskGanttView({
                       {assignee && (
                         <SignedImage filePath={assignee.avatar}
                           className="w-5 h-5 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0"
-                          alt={assignee.name}
-                          fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(assignee.name)}`} />
+                          alt={assignee.name} />
                       )}
                     </div>
                   );

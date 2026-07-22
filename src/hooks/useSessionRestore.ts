@@ -6,6 +6,7 @@ import { useWorkspaceStore } from '@/store';
 import { useNotificationStore } from '@/store';
 import { useUiStore } from '@/store';
 import { usePomodoroStore } from '@/store';
+import { safeJsonParse } from '@/lib/security';
 
 export function useSessionRestore() {
   const setCurrentUser = useAuthStore((s) => s.setCurrentUser);
@@ -24,9 +25,9 @@ export function useSessionRestore() {
     try {
       const savedSession = localStorage.getItem('avaxa_session');
       if (savedSession) {
-        const { user, expiresAt } = JSON.parse(savedSession);
-        if (Date.now() < expiresAt) {
-          setCurrentUser(user);
+        const parsed = safeJsonParse<{ user: any; expiresAt: number } | null>(savedSession, null);
+        if (parsed && parsed.user && typeof parsed.expiresAt === 'number' && Date.now() < parsed.expiresAt) {
+          setCurrentUser(parsed.user);
         } else {
           localStorage.removeItem('avaxa_session');
         }
@@ -36,9 +37,25 @@ export function useSessionRestore() {
     }
 
     try {
+      const savedDark = localStorage.getItem('avaxa_dark_mode');
+      if (savedDark !== null) {
+        const isDark = savedDark === 'true';
+        useUiStore.getState().setIsDarkMode(isDark);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      }
+    } catch (e) {}
+
+    try {
       const saved = localStorage.getItem('avaxa_accent_preset');
       if (saved === 'ocean' || saved === 'forest' || saved === 'sunset' || saved === 'indigo') {
-        setAccentPreset(saved);
+        setAccentPreset(saved as any);
+        useUiStore.getState().setAccentPreset(saved as any);
       }
     } catch (e) {
       console.error('Error restoring color preset:', e);

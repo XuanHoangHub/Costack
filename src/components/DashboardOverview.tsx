@@ -401,7 +401,7 @@ function DashboardOverview({
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="p-12 text-center rounded-3xl border-2 border-dashed border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3"
+          className="p-12 text-center rounded-3xl glass-panel space-y-3"
         >
           <ListTodo className="w-10 h-10 text-slate-300 mx-auto animate-bounce" />
           <h3 className="font-bold text-slate-855 dark:text-slate-100">{t('noTasksFound') || 'Chưa có dữ liệu phân tích'}</h3>

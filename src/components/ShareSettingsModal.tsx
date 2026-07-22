@@ -214,13 +214,11 @@ export default function ShareSettingsModal({
                 {/* Always show Owner as Editor (Read Only Owner Row) */}
                 <div className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="relative shrink-0">
-                      <img 
-                        src={currentUser?.avatar || "https://api.dicebear.com/7.x/adventurer/svg?seed=owner"} 
+                      <SignedImage 
+                        filePath={currentUser?.avatar} 
                         className="w-7 h-7 rounded-full border border-slate-200 object-cover" 
-                        alt="Owner" 
+                        alt={currentUser?.name || "Owner"} 
                       />
-                    </div>
                     <div className="text-left min-w-0">
                       <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">
                         {currentUser?.name || "Workspace Owner"}

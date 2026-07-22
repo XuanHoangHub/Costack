@@ -611,7 +611,7 @@ export function useAppActions() {
       const newInvite: WorkspaceInvitation = {
         id: inviteId,
         workspaceId: activeWsId,
-        workspaceName: currentWS?.name || 'Avaxa Workspace',
+        workspaceName: currentWS?.name || 'Apexa Workspace',
         email: cleanEmail,
         role: (role as any) || 'member',
         invitedBy: currentUser?.email || 'admin',
@@ -642,11 +642,11 @@ export function useAppActions() {
       }
 
       if (typeof window !== 'undefined') {
-        const localInvitesRaw = localStorage.getItem('avaxa_workspace_invitations');
+        const localInvitesRaw = localStorage.getItem('apexa_workspace_invitations');
         const localInvites: WorkspaceInvitation[] = localInvitesRaw ? JSON.parse(localInvitesRaw) : [];
         const filtered = localInvites.filter(i => i.id !== inviteId);
-        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify([newInvite, ...filtered]));
-        window.dispatchEvent(new CustomEvent('avaxa-invitation-updated', { detail: newInvite }));
+        localStorage.setItem('apexa_workspace_invitations', JSON.stringify([newInvite, ...filtered]));
+        window.dispatchEvent(new CustomEvent('apexa-invitation-updated', { detail: newInvite }));
       }
     }
 
@@ -670,10 +670,10 @@ export function useAppActions() {
     }
 
     if (typeof window !== 'undefined') {
-      const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+      const storedRaw = localStorage.getItem('apexa_workspace_invitations');
       if (storedRaw) {
         const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
-        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'accepted' as const } : i)));
+        localStorage.setItem('apexa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'accepted' as const } : i)));
       }
     }
 
@@ -746,10 +746,10 @@ export function useAppActions() {
     }
 
     if (typeof window !== 'undefined') {
-      const storedRaw = localStorage.getItem('avaxa_workspace_invitations');
+      const storedRaw = localStorage.getItem('apexa_workspace_invitations');
       if (storedRaw) {
         const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
-        localStorage.setItem('avaxa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'declined' as const } : i)));
+        localStorage.setItem('apexa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'declined' as const } : i)));
       }
     }
 
@@ -819,7 +819,7 @@ export function useAppActions() {
     if (!currentUser?.id) return;
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+      localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
     }
 
     if (!isOffline) {
@@ -1060,7 +1060,7 @@ export function useAppActions() {
 
   const handleTogglePremium = useCallback((status: boolean) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('avaxa_premium', String(status));
+      localStorage.setItem('apexa_premium', String(status));
     }
     if (currentUser) {
       const updatedUser = { ...currentUser, isPremium: status };
@@ -1071,7 +1071,7 @@ export function useAppActions() {
         expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
       };
       if (typeof window !== 'undefined') {
-        localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
+        localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
       }
 
       useMemberStore.getState().updateMember({ ...currentUser, isPremium: status });
@@ -1084,9 +1084,9 @@ export function useAppActions() {
         });
       }
 
-      addSyncLog(status ? 'Successfully activated Avaxa Premium Pro' : 'Cancelled Avaxa Premium Pro subscription');
+      addSyncLog(status ? 'Successfully activated Apexa Premium Pro' : 'Cancelled Apexa Premium Pro subscription');
       if (status) {
-        triggerToast({ id: generateId(), type: 'success', title: 'Premium Pro Upgrade! 🎉', message: 'Welcome to Avaxa Premium! Unlocked all advanced features.', duration: 4000 });
+        triggerToast({ id: generateId(), type: 'success', title: 'Premium Pro Upgrade! 🎉', message: 'Welcome to Apexa Premium! Unlocked all advanced features.', duration: 4000 });
       } else {
         triggerToast({ id: generateId(), type: 'info', title: 'Account Downgraded', message: 'Account has been downgraded to the Free tier.', duration: 4000 });
       }

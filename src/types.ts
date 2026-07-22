@@ -258,7 +258,7 @@ export interface TeamMemberCursor {
   y: number;
 }
 
-// ─── Avaxa Base (Bitable-style no-code database) ───
+// ─── Apexa Base (Bitable-style no-code database) ───
 
 export type BaseFieldType =
   | 'text' | 'long_text' | 'number' | 'single_select' | 'multi_select'

@@ -111,7 +111,6 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                     filePath={member.avatar}
                     className="w-full h-full object-cover"
                     alt={member.name}
-                    fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.name)}`}
                   />
                 </div>
                 <div

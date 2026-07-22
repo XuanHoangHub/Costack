@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, Brain, Bot, Send, X, FileText, CheckSquare, 
   TrendingUp, AlertTriangle, Users, ArrowRight, Check, Play, HelpCircle, Loader2,
-  Mic, MicOff, Globe, Volume2, VolumeX
+  Mic, MicOff, Globe, Volume2, VolumeX, Copy
 } from 'lucide-react';
 import { Task, Document, User } from '../types';
 import { callAiApi } from '@/lib/aiClient';
@@ -37,6 +37,13 @@ export default function AvaxaBrainAssistant({
   const [queryInput, setQueryInput] = useState('');
   const [responseText, setResponseText] = useState<string>('');
   const [isAiFallbackActive, setIsAiFallbackActive] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const handleCopyText = (text: string) => {
+    if (typeof window === 'undefined') return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   
   // Voice transcription state variables
   const [isListening, setIsListening] = useState(false);
@@ -386,7 +393,7 @@ Based on current information, here is a quick summary:
             subtasks: ["Write unit tests", "Fix CSS/JS bugs", "Deploy live update"]
           }
         ]);
-        onAddSyncLog(`Apexa AI suggested 3 tasks (Offline Fallback)`);
+        onAddSyncLog(`Apexa AI planned 3 tasks (Offline Fallback)`);
       }, 700);
       return;
     }
@@ -511,6 +518,32 @@ Based on current information, here is a quick summary:
 
   return (
     <>
+      {/* Custom Styles for Shimmer Skeleton Loader */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes assistant-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .animate-shimmer-fast {
+          background: linear-gradient(90deg, 
+            rgba(226, 232, 240, 0.4) 25%, 
+            rgba(203, 213, 225, 0.8) 50%, 
+            rgba(226, 232, 240, 0.4) 75%
+          );
+          background-size: 200% 100%;
+          animation: assistant-shimmer 1.5s infinite linear;
+        }
+        .dark .animate-shimmer-fast {
+          background: linear-gradient(90deg, 
+            rgba(30, 41, 59, 0.4) 25%, 
+            rgba(71, 85, 105, 0.8) 50%, 
+            rgba(30, 41, 59, 0.4) 75%
+          );
+          background-size: 200% 100%;
+          animation: assistant-shimmer 1.5s infinite linear;
+        }
+      `}} />
+
       {/* PERSISTENT FLOATING BUTTON (Apexa AI Icon) */}
       <div className="fixed right-6 bottom-6 z-40">
         <motion.button
@@ -521,15 +554,9 @@ Based on current information, here is a quick summary:
             if (documents.length > 0 && !selectedDocId) setSelectedDocId(documents[0].id);
             if (tasks.length > 0 && !selectedTaskId) setSelectedTaskId(tasks[0].id);
           }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          animate={{
-            boxShadow: isOpen 
-              ? "0 0 0 4px rgba(99, 102, 241, 0.2)" 
-              : ["0 4px 20px rgba(99,102,241,0.3)", "0 4px 24px rgba(236,72,153,0.5)", "0 4px 20px rgba(99,102,241,0.3)"]
-          }}
-          transition={{ repeat: Infinity, duration: 3 }}
-          className="w-13 h-13 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-xl cursor-pointer relative"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-650 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_4px_24px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_30px_rgba(236,72,153,0.55)] cursor-pointer relative z-10"
           title="Apexa AI Assistant"
         >
           {isOpen ? (
@@ -537,12 +564,15 @@ Based on current information, here is a quick summary:
           ) : (
             <>
               <Brain className="w-6 h-6 shrink-0" />
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-pink-500 rounded-full border border-white text-[8px] font-bold flex items-center justify-center">
+              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-pink-500 border border-white dark:border-slate-900 text-[8px] font-extrabold flex items-center justify-center rounded-full shadow-md text-white">
                 AI
               </div>
             </>
           )}
         </motion.button>
+        {!isOpen && (
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-650 to-pink-500 animate-ping opacity-25 -z-0 scale-95 pointer-events-none" />
+        )}
       </div>
 
       {/* SLIDE-IN DRAWER PANEL FROM RIGHT */}
@@ -555,7 +585,7 @@ Based on current information, here is a quick summary:
               animate={{ opacity: 0.3 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-slate-900 z-40 cursor-default"
+              className="fixed inset-0 bg-slate-955 z-40 cursor-default"
             />
 
             {/* AI Assistant Drawer Container */}
@@ -565,25 +595,32 @@ Based on current information, here is a quick summary:
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0.9 }}
               transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-              className="fixed right-0 top-0 bottom-0 w-full sm:w-[460px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700/80 shadow-2xl z-40 flex flex-col overflow-hidden"
+              className="fixed right-0 top-0 bottom-0 w-full sm:w-[480px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border-l border-slate-200/80 dark:border-slate-800/80 shadow-[-10px_0_50px_-15px_rgba(99,102,241,0.15)] z-40 flex flex-col overflow-hidden"
             >
               {/* Drawer Header */}
-              <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white flex items-center justify-between border-b border-indigo-900">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-505 bg-indigo-50/10 flex items-center justify-center text-indigo-400">
+              <div className="p-4 bg-slate-950 text-white flex items-center justify-between border-b border-slate-805 relative overflow-hidden shrink-0">
+                {/* Decorative glowing gradient sphere in the header background */}
+                <div className="absolute top-[-50px] left-[20%] w-[150px] h-[150px] bg-indigo-500/10 rounded-full blur-[40px] pointer-events-none" />
+                <div className="absolute top-[-30px] right-[10%] w-[100px] h-[100px] bg-pink-500/10 rounded-full blur-[30px] pointer-events-none" />
+
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
                     <Sparkles className="w-5 h-5 text-indigo-300 animate-pulse" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-black font-display tracking-tight flex items-center gap-1.5 text-white">
+                    <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-white font-display">
                       Apexa AI
-                      <span className="bg-indigo-500/20 text-indigo-300 text-[8px] font-extrabold px-1.5 py-0.5 rounded border border-indigo-500/30">Gemini 3.5</span>
+                      <span className="flex items-center gap-1.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-extrabold px-2 py-0.5 rounded-full border border-indigo-500/30 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Gemini 3.5
+                      </span>
                     </h2>
-                    <p className="text-[10px] text-slate-300">Smart project coordination AI assistant</p>
+                    <p className="text-[10px] text-slate-400">Smart project coordination AI assistant</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-white transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-900/50 hover:bg-slate-850 border border-slate-800 flex items-center justify-center text-slate-450 hover:text-white transition-all cursor-pointer relative z-10"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -591,14 +628,14 @@ Based on current information, here is a quick summary:
 
               {/* Offline mode warn notification bar */}
               {isOffline && (
-                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-xs text-amber-700">
+                <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 flex items-center gap-2 text-[10px] font-bold text-amber-650 shrink-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span>Network is offline. Some AI features have been switched to local fallback mode.</span>
                 </div>
               )}
 
               {/* Navigation Tabs bar inside Drawer */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 p-1 gap-1">
+              <div className="flex border-b border-slate-150 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-900/40 p-1.5 gap-1.5 relative shrink-0">
                 {[
                   { id: 'query', label: 'Ask Progress', icon: TrendingUp },
                   { id: 'summarize', label: 'Wiki Summary', icon: FileText },
@@ -613,34 +650,37 @@ Based on current information, here is a quick summary:
                       onClick={() => {
                         setActiveTab(tab.id as TabType);
                       }}
-                      className={`flex-1 py-2 px-1 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        isActive 
-                          ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm border border-slate-205 border-indigo-100' 
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-50 hover:bg-slate-100/50'
-                      }`}
+                      className="flex-1 py-2 px-1 rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer relative"
                     >
-                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-600' : 'text-slate-400 dark:text-slate-500'}`} />
-                      <span>{tab.label}</span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="active_ai_tab"
+                          className="absolute inset-0 bg-white dark:bg-slate-800 rounded-xl shadow-[0_2px_8px_rgba(99,102,241,0.08)] border border-slate-200/50 dark:border-slate-700/50"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors duration-200 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-450 dark:text-slate-400'}`} />
+                      <span className={`relative z-10 transition-colors duration-200 ${isActive ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-550 dark:text-slate-400'}`}>{tab.label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* DRAWER CONTENT DISPLAY - WITH INDIVIDUAL TABS SCROLLABLE */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col">
+              {/* DRAWER CONTENT DISPLAY - WITH INDIVIDUAL TABS SCROLLABLE INTERNALLY */}
+              <div className="flex-1 overflow-hidden p-5 flex flex-col relative">
                 {(isOffline || isAiFallbackActive) && (
-                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal">
+                  <div className="p-3.5 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>⚠️ Offline / AI Simulation Mode:</strong> Apexa AI is operating in simulation mode because the server is offline or the access key (GEMINI_API_KEY) is not set. The analysis results shown below are sample data for testing.
+                      <strong>⚠️ Offline / AI Simulation Mode:</strong> Apexa AI is operating in simulation mode because the server is offline or the access key (GEMINI_API_KEY) is not set.
                     </div>
                   </div>
                 )}
                 
                 {/* --- TAB 1: QUERY STATUS --- */}
                 {activeTab === 'query' && (
-                  <div className="space-y-4 flex flex-col flex-1">
-                    <div className="space-y-1.5">
+                  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                    <div className="space-y-1.5 shrink-0">
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quick analysis requests</label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
@@ -655,40 +695,64 @@ Based on current information, here is a quick summary:
                               setQueryInput(btn.q);
                               handleQuery(btn.q);
                             }}
-                            className="p-2.5 text-left border border-slate-150 hover:border-indigo-200 hover:bg-indigo-50/30 rounded-xl transition-all cursor-pointer group text-[10px] leading-tight flex flex-col justify-between h-16 bg-white dark:bg-slate-900"
+                            className="p-3 text-left border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/30 dark:hover:border-indigo-500/30 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 rounded-xl transition-all duration-350 cursor-pointer group text-[10px] leading-snug flex flex-col justify-between h-16 bg-white dark:bg-slate-900/50 shadow-xs hover:shadow-[0_4px_15px_rgba(99,102,241,0.06)] relative overflow-hidden"
                           >
-                            <span className="font-semibold text-slate-800 dark:text-slate-550 group-hover:text-indigo-600 transition-colors">{btn.text}</span>
-                            <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-normal flex items-center gap-1">
-                              Ask question <ArrowRight className="w-2.5 h-2.5 transition-transform group-hover:translate-x-0.5" />
+                            <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500/0 group-hover:bg-indigo-500 transition-all duration-300" />
+                            <span className="font-bold text-slate-800 dark:text-slate-300 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors duration-250">{btn.text}</span>
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
+                              Ask question <ArrowRight className="w-2.5 h-2.5 transition-transform duration-300 group-hover:translate-x-1 text-slate-350 group-hover:text-indigo-500" />
                             </span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="relative flex-1 flex flex-col min-h-[160px]">
-                      {/* Results display console */}
-                      <div className="flex-1 p-4 rounded-xl border border-slate-150 bg-slate-50/50 flex flex-col justify-start overflow-y-auto max-h-[240px]">
+                    {/* Chat console view (flex-1) */}
+                    <div className="flex-1 min-h-0 flex flex-col">
+                      <div className="flex-1 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md flex flex-col justify-start overflow-y-auto shadow-xs">
                         {loading ? (
-                          <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
-                            <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Apexa AI is analyzing your project workload...</span>
+                          <div className="w-full space-y-4 py-4 px-2 m-auto">
+                            <div className="flex items-center gap-2 text-indigo-500 font-extrabold text-[10px] uppercase tracking-wider animate-pulse justify-center">
+                              <Bot className="w-4 h-4 animate-bounce" />
+                              <span>Apexa AI is analyzing workload...</span>
+                            </div>
+                            <div className="space-y-3 max-w-sm mx-auto">
+                              <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-full" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-5/6 mx-auto" />
+                            </div>
                           </div>
                         ) : responseText ? (
-                          <div className="space-y-1 relative pr-8">
-                            <button
-                              onClick={() => handleToggleSpeech(responseText)}
-                              className="absolute top-0 right-0 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
-                              title={playingSpeech ? "Mute speech" : "Read message out loud"}
-                            >
-                              {playingSpeech ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
-                            </button>
-                            {renderMarkdown(responseText)}
+                          <div className="space-y-4">
+                            <div className="flex gap-3 items-start">
+                              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+                                <Bot className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 space-y-2.5 relative pr-8 bg-slate-50/50 dark:bg-slate-800/20 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                                <div className="absolute top-2 right-2 flex gap-1">
+                                  <button
+                                    onClick={() => handleCopyText(responseText)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
+                                    title={copied ? "Copied!" : "Copy response"}
+                                  >
+                                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleSpeech(responseText)}
+                                    className="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
+                                    title={playingSpeech ? "Mute speech" : "Read message out loud"}
+                                  >
+                                    {playingSpeech ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                                {renderMarkdown(responseText)}
+                              </div>
+                            </div>
                           </div>
                         ) : (
-                          <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-1.5">
-                            <HelpCircle className="w-6 h-6 text-slate-350 mx-auto" />
-                            <p className="text-[10px] font-bold">Search & Analyze Project Info</p>
+                          <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-2">
+                            <HelpCircle className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
+                            <p className="text-[10px] font-extrabold text-slate-700 dark:text-slate-350">Search & Analyze Project Info</p>
                             <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Select a quick suggest option above or type any question about the task list in the input bar below.</p>
                           </div>
                         )}
@@ -698,31 +762,31 @@ Based on current information, here is a quick summary:
 
                     {/* Voice audio listening active feedback */}
                     {isListening && (
-                      <div className="p-2 border border-rose-105 bg-rose-50/50 rounded-xl flex items-center gap-2 animate-pulse">
+                      <div className="p-3 border border-rose-100 bg-rose-50/50 dark:bg-rose-955/20 rounded-xl flex items-center gap-2 animate-pulse shrink-0">
                         <span className="flex h-2.5 w-2.5 relative">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
                         </span>
-                        <span className="text-[10px] font-bold text-rose-700">Listening to voice (Vietnamese vi-VN)... Speak now!</span>
+                        <span className="text-[10px] font-extrabold text-rose-700 dark:text-rose-400">Listening to voice (vi-VN)... Speak now!</span>
                       </div>
                     )}
 
                     {recognitionError && (
-                      <div className="p-2 border border-rose-100 bg-rose-50 text-[10px] text-rose-600 rounded-xl font-medium flex items-center gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
+                      <div className="p-2 border border-rose-100 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/20 text-[10px] text-rose-600 dark:text-rose-400 rounded-xl font-semibold flex items-center gap-1.5 shrink-0">
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
                         <span>{recognitionError}</span>
                       </div>
                     )}
 
                     {/* Query Custom input block */}
-                    <div className="flex gap-2 items-center bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-sm focus-within:border-indigo-400 transition-colors">
+                    <div className="shrink-0 bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-805 rounded-2xl shadow-md focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-505 transition-all flex gap-2 items-center">
                       <button
                         type="button"
                         onClick={toggleListening}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                        className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center cursor-pointer transition-all shrink-0 ${
                           isListening 
                             ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-200' 
-                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400'
+                            : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-550 dark:text-slate-400'
                         }`}
                         title={isListening ? "Listening... Click to stop" : "Voice Input (Mic)"}
                       >
@@ -737,16 +801,16 @@ Based on current information, here is a quick summary:
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleQuery();
                         }}
-                        className="flex-1 px-1 py-2 text-xs text-slate-800 dark:text-slate-50 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        className="flex-1 px-1 py-2 text-xs text-slate-800 dark:text-slate-50 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-transparent font-medium"
                         disabled={isListening}
                       />
                       <button
                         type="button"
                         onClick={() => setSearchWeb(!searchWeb)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                        className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center cursor-pointer transition-all shrink-0 ${
                           searchWeb 
-                            ? 'bg-indigo-50 border border-indigo-400 text-indigo-605 dark:bg-indigo-950/30 dark:text-indigo-400' 
-                            : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400'
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-650 dark:text-indigo-400 shadow-xs' 
+                            : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-500 dark:text-slate-400'
                         }`}
                         title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
                       >
@@ -756,8 +820,8 @@ Based on current information, here is a quick summary:
                       <button
                         onClick={() => handleQuery()}
                         disabled={loading || !queryInput.trim() || isListening}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-white cursor-pointer select-none transition-colors shrink-0 ${
-                          (queryInput.trim() && !isListening) ? 'bg-indigo-605 hover:bg-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                        className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center text-white cursor-pointer select-none transition-all shrink-0 ${
+                          (queryInput.trim() && !isListening) ? 'bg-indigo-650 hover:bg-indigo-700 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-550 cursor-not-allowed'
                         }`}
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -769,8 +833,8 @@ Based on current information, here is a quick summary:
 
                 {/* --- TAB 2: SUMMARIZE WIKI DOC --- */}
                 {activeTab === 'summarize' && (
-                  <div className="space-y-4 flex-1 flex flex-col">
-                    <div className="space-y-2">
+                  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                    <div className="space-y-2 shrink-0">
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Select system document</label>
                       <select
                         value={selectedDocId}
@@ -778,7 +842,7 @@ Based on current information, here is a quick summary:
                           setSelectedDocId(e.target.value);
                           setDocSummary('');
                         }}
-                        className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-medium outline-none focus:border-indigo-400 shadow-sm"
+                        className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-805 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-semibold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 shadow-sm"
                       >
                         {documents.length === 0 ? (
                           <option value="">No documents available</option>
@@ -790,7 +854,7 @@ Based on current information, here is a quick summary:
                       </select>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 shrink-0">
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">AI Action Options</label>
                       <div className="flex gap-2">
                         {[
@@ -802,7 +866,7 @@ Based on current information, here is a quick summary:
                             key={index}
                             onClick={() => handleSummarizeDoc(act.action)}
                             disabled={!selectedDocId || loading}
-                            className="flex-1 py-2 px-1 text-[10px] font-extrabold bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-150 text-indigo-700 rounded-lg transition-colors cursor-pointer"
+                            className="flex-1 py-2.5 px-1 text-[10px] font-extrabold bg-indigo-50/60 dark:bg-indigo-950/20 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/40 border border-indigo-150/40 dark:border-indigo-900/30 text-indigo-755 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
                           >
                             {act.label}
                           </button>
@@ -810,15 +874,38 @@ Based on current information, here is a quick summary:
                       </div>
                     </div>
 
-                    <div className="flex-1 min-h-[160px] flex flex-col">
-                      <div className="flex-1 p-4 rounded-xl border border-slate-150 bg-slate-50/50 flex flex-col overflow-y-auto max-h-[300px]">
+                    <div className="flex-1 min-h-0 flex flex-col">
+                      <div className="flex-1 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md flex flex-col overflow-y-auto shadow-xs">
                         {loading ? (
-                          <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
-                            <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse">Apexa AI is editing document using Gemini algorithms...</span>
+                          <div className="m-auto w-full space-y-4 py-4 px-2">
+                            <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
+                              <Bot className="w-4 h-4 animate-bounce" />
+                              <span>Apexa AI is processing using Gemini...</span>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-full" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-5/6 mx-auto" />
+                            </div>
                           </div>
                         ) : docSummary ? (
-                          <div className="space-y-1">
+                          <div className="space-y-1 relative pr-8">
+                            <div className="absolute top-0 right-0 flex gap-1">
+                              <button
+                                onClick={() => handleCopyText(docSummary)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
+                                title={copied ? "Copied!" : "Copy document"}
+                              >
+                                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                              <button
+                                onClick={() => handleToggleSpeech(docSummary)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
+                                title={playingSpeech ? "Mute speech" : "Read message out loud"}
+                              >
+                                {playingSpeech ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
                             {renderMarkdown(docSummary)}
                           </div>
                         ) : (
@@ -837,8 +924,8 @@ Based on current information, here is a quick summary:
 
                 {/* --- TAB 3: SUBTASK GENERATOR --- */}
                 {activeTab === 'subtasks' && (
-                  <div className="space-y-4 flex-1 flex flex-col">
-                    <div className="space-y-2">
+                  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+                    <div className="space-y-2 shrink-0">
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Select Main Task</label>
                       <select
                         value={selectedTaskId}
@@ -847,7 +934,7 @@ Based on current information, here is a quick summary:
                           setSuggestedSubtasks([]);
                           setSubtasksApplied(false);
                         }}
-                        className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-medium outline-none focus:border-indigo-400 shadow-sm"
+                        className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-805 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-semibold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 shadow-sm"
                       >
                         {tasks.length === 0 ? (
                           <option value="">No tasks available</option>
@@ -862,11 +949,11 @@ Based on current information, here is a quick summary:
                     <button
                       onClick={handleGenerateSubtasks}
                       disabled={!selectedTaskId || loading}
-                      className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                      className="w-full py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-650 disabled:cursor-not-allowed border border-indigo-650/10 shrink-0"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
                           <span>Apexa AI is extracting subtasks...</span>
                         </>
                       ) : (
@@ -877,32 +964,42 @@ Based on current information, here is a quick summary:
                       )}
                     </button>
 
-                    <div className="flex-1 min-h-[160px] flex flex-col">
-                      <div className="flex-1 p-4 rounded-xl border border-slate-150 bg-slate-50/50 flex flex-col overflow-y-auto max-h-[250px]">
-                        {suggestedSubtasks.length > 0 ? (
+                    <div className="flex-1 min-h-0 flex flex-col">
+                      <div className="flex-1 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md flex flex-col overflow-y-auto shadow-xs">
+                        {loading ? (
+                          <div className="m-auto w-full space-y-4 py-4 px-2">
+                            <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
+                              <Bot className="w-4 h-4 animate-bounce" />
+                              <span>Analyzing Task structure...</span>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-full" />
+                            </div>
+                          </div>
+                        ) : suggestedSubtasks.length > 0 ? (
                           <div className="space-y-3">
                             <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Suggested subtasks list:</span>
                             <div className="space-y-2">
                               {suggestedSubtasks.map((st, i) => (
-                                <div key={i} className="flex gap-2 items-center p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 shadow-sm">
-                                  <div className="w-5 h-5 rounded bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-100 shrink-0">
+                                <div key={i} className="flex gap-2.5 items-center p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                                  <div className="w-5 h-5 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center text-[10px] font-black text-indigo-650 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 shrink-0">
                                     {i + 1}
                                   </div>
-                                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-tight">{st}</span>
+                                  <span className="text-xs text-slate-750 dark:text-slate-200 font-semibold leading-snug">{st}</span>
                                 </div>
                               ))}
                             </div>
 
-                            {/* Applied indicator or button action */}
                             {subtasksApplied ? (
-                              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-center text-xs font-semibold flex items-center justify-center gap-1.5 animate-fade-in">
-                                <Check className="w-4 h-4 text-emerald-600" />
+                              <div className="p-3 bg-emerald-50 dark:bg-emerald-955/10 border border-emerald-205 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-450 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-fade-in shadow-xs">
+                                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-450" />
                                 <span>Successfully applied to task!</span>
                               </div>
                             ) : (
                               <button
                                 onClick={applySubtasksToTask}
-                                className="w-full py-2 px-3 mt-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-[10px] rounded-lg transition-colors border border-emerald-200 cursor-pointer text-center"
+                                className="w-full py-2 px-3 mt-2 bg-emerald-50 dark:bg-emerald-955/10 hover:bg-emerald-100 dark:hover:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 font-extrabold text-[10px] rounded-lg transition-colors border border-emerald-200/50 dark:border-emerald-900/30 cursor-pointer text-center shadow-xs"
                               >
                                 + Apply this list to my Task
                               </button>
@@ -920,10 +1017,11 @@ Based on current information, here is a quick summary:
                   </div>
                 )}
 
+
                 {/* --- TAB 4: AI TASK GENERATOR --- */}
                 {activeTab === 'generate-tasks' && (
-                  <div className="space-y-4 flex-1 flex flex-col font-sans">
-                    <div className="space-y-1.5">
+                  <div className="flex-1 flex flex-col overflow-hidden space-y-4 font-sans">
+                    <div className="space-y-1.5 shrink-0">
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quick Suggested Ideas</label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
@@ -938,18 +1036,19 @@ Based on current information, here is a quick summary:
                               setTaskPrompt(btn.q);
                               handleGenerateTasks(btn.q);
                             }}
-                            className="p-2 border border-slate-150 hover:border-indigo-200 hover:bg-indigo-50/30 rounded-xl transition-all cursor-pointer group text-[10px] leading-tight flex flex-col justify-between h-14 bg-white dark:bg-slate-900 text-left"
+                            className="p-3 text-left border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/30 dark:hover:border-indigo-500/30 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 rounded-xl transition-all duration-350 cursor-pointer group text-[10px] leading-snug flex flex-col justify-between h-14 bg-white dark:bg-slate-900/50 shadow-xs hover:shadow-[0_4px_15px_rgba(99,102,241,0.06)] relative overflow-hidden"
                           >
-                            <span className="font-semibold text-slate-800 dark:text-slate-50 group-hover:text-indigo-600 transition-colors">{btn.text}</span>
-                            <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-normal flex items-center gap-1">
-                              Select proposal <ArrowRight className="w-2.5 h-2.5 transition-transform group-hover:translate-x-0.5" />
+                            <span className="font-bold text-slate-850 dark:text-slate-350 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors duration-200">{btn.text}</span>
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
+                              Select proposal 
+                              <ArrowRight className="w-2.5 h-2.5 transition-transform duration-300 group-hover:translate-x-1 text-slate-350 group-hover:text-indigo-500" />
                             </span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="flex gap-2 items-center bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-sm focus-within:border-indigo-400 transition-colors">
+                    <div className="shrink-0 bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-md focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all flex gap-2 items-center">
                       <input
                         type="text"
                         placeholder="Describe goal to generate tasks via AI..."
@@ -958,39 +1057,46 @@ Based on current information, here is a quick summary:
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleGenerateTasks();
                         }}
-                        className="flex-1 px-2 py-2 text-xs text-slate-800 dark:text-slate-50 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-transparent"
+                        className="flex-1 px-2 py-2 text-xs text-slate-850 dark:text-slate-50 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-transparent font-medium"
                       />
                       <button
                         onClick={() => handleGenerateTasks()}
                         disabled={loading || !taskPrompt.trim()}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-white cursor-pointer select-none transition-colors shrink-0 ${
-                          (taskPrompt.trim()) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                        className={`w-8.5 h-8.5 rounded-xl flex items-center justify-center text-white cursor-pointer select-none transition-all shrink-0 ${
+                          (taskPrompt.trim()) ? 'bg-indigo-650 hover:bg-indigo-700 shadow-sm' : 'bg-slate-105 dark:bg-slate-800 text-slate-400 dark:text-slate-550 cursor-not-allowed'
                         }`}
                       >
                         <Send className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    <div className="flex-1 min-h-[160px] flex flex-col">
-                      <div className="flex-1 p-3 rounded-xl border border-slate-150 bg-slate-50/50 flex flex-col overflow-y-auto max-h-[340px]">
+                    <div className="flex-1 min-h-0 flex flex-col">
+                      <div className="flex-1 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md flex flex-col overflow-y-auto shadow-xs">
                         {loading ? (
-                          <div className="m-auto flex flex-col items-center gap-2 p-6 text-center">
-                            <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium animate-pulse font-sans">Apexa AI is planning detailed tasks...</span>
+                          <div className="m-auto w-full space-y-4 py-4 px-2">
+                            <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
+                              <Bot className="w-4 h-4 animate-bounce" />
+                              <span>Apexa AI is planning detailed tasks...</span>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-full" />
+                              <div className="h-3 animate-shimmer-fast rounded-lg w-5/6 mx-auto" />
+                            </div>
                           </div>
                         ) : generatedTasks.length > 0 ? (
                           <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 font-sans">Suggested {generatedTasks.length} tasks:</span>
+                            <div className="flex justify-between items-center bg-slate-55 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/50">
+                              <span className="text-[10px] font-bold text-slate-555 dark:text-slate-400 font-sans">Suggested {generatedTasks.length} tasks:</span>
                               {tasksCreated ? (
-                                <div className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 font-sans">
-                                  <Check className="w-3 h-3" />
+                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-450 flex items-center gap-1 font-sans">
+                                  <Check className="w-3.5 h-3.5" />
                                   <span>Successfully added!</span>
                                 </div>
                               ) : (
                                 <button
                                   onClick={applyGeneratedTasks}
-                                  className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[9px] rounded-lg transition-colors cursor-pointer font-sans"
+                                  className="py-1.5 px-3 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-[9px] rounded-lg transition-colors cursor-pointer font-sans shadow-xs"
                                 >
                                   + Add all to project
                                 </button>
@@ -999,13 +1105,13 @@ Based on current information, here is a quick summary:
 
                             <div className="space-y-3">
                               {generatedTasks.map((t, idx) => (
-                                <div key={idx} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2 text-left">
+                                <div key={idx} className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/85 dark:border-slate-800 shadow-xs space-y-2 text-left hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
                                   <div className="flex justify-between items-start">
                                     <span className="text-xs font-bold text-slate-850 dark:text-slate-100 font-sans leading-tight">{t.title}</span>
                                     <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase border shrink-0 ${
-                                      t.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' :
-                                      t.priority === 'high' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30' :
-                                      t.priority === 'medium' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30' :
+                                      t.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-955/20 dark:text-rose-450 dark:border-rose-900/30' :
+                                      t.priority === 'high' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-955/20 dark:text-amber-450 dark:border-amber-900/30' :
+                                      t.priority === 'medium' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-955/20 dark:text-indigo-400 dark:border-indigo-900/30' :
                                       'bg-slate-50 text-slate-650 border-slate-200 dark:bg-slate-850 dark:text-slate-400 dark:border-slate-800'
                                     }`}>
                                       {t.priority}
@@ -1013,8 +1119,8 @@ Based on current information, here is a quick summary:
                                   </div>
                                   <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal font-sans">{t.description}</p>
                                   
-                                  <div className="flex flex-wrap gap-1.5 items-center">
-                                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-medium mr-1 font-sans">⏱️ {t.hoursEstimate} giờ</span>
+                                  <div className="flex flex-wrap gap-1.5 items-center pt-1">
+                                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-semibold mr-1 font-sans flex items-center gap-1">⏱️ {t.hoursEstimate} giờ</span>
                                     {t.tags && t.tags.map((tag: string, tagIdx: number) => (
                                       <span key={tagIdx} className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold font-sans">
                                         #{tag}
@@ -1023,12 +1129,12 @@ Based on current information, here is a quick summary:
                                   </div>
 
                                   {t.subtasks && t.subtasks.length > 0 && (
-                                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1">
-                                      <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-550 block font-sans">Subtasks list:</span>
-                                      <div className="space-y-0.5">
+                                    <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 block font-sans">Subtasks list:</span>
+                                      <div className="space-y-1">
                                         {t.subtasks.map((st: string, stIdx: number) => (
-                                          <div key={stIdx} className="flex gap-1 items-center text-[9px] text-slate-600 dark:text-slate-350 font-sans">
-                                            <span className="text-indigo-400 shrink-0">•</span>
+                                          <div key={stIdx} className="flex gap-1.5 items-center text-[9px] text-slate-600 dark:text-slate-350 font-sans">
+                                            <span className="text-indigo-400 dark:text-indigo-500 shrink-0">•</span>
                                             <span>{st}</span>
                                           </div>
                                         ))}
@@ -1041,7 +1147,7 @@ Based on current information, here is a quick summary:
                           </div>
                         ) : (
                           <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-2">
-                            <Sparkles className="w-6 h-6 text-indigo-400 mx-auto animate-pulse" />
+                            <Sparkles className="w-6 h-6 text-indigo-450 mx-auto animate-pulse" />
                             <p className="text-[10px] font-bold font-sans">Automated Task Planner</p>
                             <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal font-sans">Enter your project goal (e.g. "Design a finance app") and AI will automatically break it down into detailed tasks, complete with subtasks and estimations.</p>
                           </div>
@@ -1054,9 +1160,9 @@ Based on current information, here is a quick summary:
               </div>
 
               {/* Drawer Footer and credits */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                <span className="flex items-center gap-1">
-                  <Bot className="w-3.5 h-3.5 text-indigo-500" />
+              <div className="p-4 border-t border-slate-150 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+                <span className="flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
                   Apexa AI Engine Active
                 </span>
                 <span>Powered by Gemini API</span>

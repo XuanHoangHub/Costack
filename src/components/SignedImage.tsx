@@ -33,7 +33,7 @@ const isDefaultAvatar = (path?: string) => {
 };
 
 const getInitial = (filePath?: string, fallback?: string, alt?: string): string => {
-  if (alt && alt !== 'Avaxa Storage File' && alt !== 'Workspace avatar' && alt.trim() !== '') {
+  if (alt && alt !== 'Apexa Storage File' && alt !== 'Workspace avatar' && alt.trim() !== '') {
     return alt.trim().charAt(0).toUpperCase();
   }
   
@@ -79,11 +79,11 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
       return;
     }
 
-    // Direct web or base64 URLs
+    // Direct web or base64 image URLs
     if (
       filePath.startsWith('http://') || 
       filePath.startsWith('https://') || 
-      filePath.startsWith('data:')
+      (filePath.startsWith('data:image/') && !filePath.includes('html'))
     ) {
       setSrc(filePath);
       return;
@@ -157,7 +157,7 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     <img 
       id={id} 
       src={src || fallback} 
-      alt={alt || 'Avaxa Storage File'} 
+      alt={alt || 'Apexa Storage File'} 
       className={className}
       style={style}
       {...props} 

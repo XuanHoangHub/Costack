@@ -646,7 +646,7 @@ export default function SpacePage({
   // Load task ordering
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`avaxa_task_order_${currentWorkspaceId}`);
+      const saved = localStorage.getItem(`apexa_task_order_${currentWorkspaceId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -666,7 +666,7 @@ export default function SpacePage({
       if (newIds.length === 0) return prev;
       const updated = [...prev, ...newIds];
       try {
-        localStorage.setItem(`avaxa_task_order_${currentWorkspaceId}`, JSON.stringify(updated));
+        localStorage.setItem(`apexa_task_order_${currentWorkspaceId}`, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -951,7 +951,7 @@ export default function SpacePage({
       const data = await res.json();
       if (data.success && data.text) {
         setAiSummary(data.text);
-        localStorage.setItem(`avaxa_task_ai_summary_${task.id}`, data.text);
+        localStorage.setItem(`apexa_task_ai_summary_${task.id}`, data.text);
         onAddSyncLog(`AI summary for "${task.title}"`);
       }
     } catch (err) {
@@ -2790,10 +2790,10 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4 text-left">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Bot className="w-5 h-5 text-indigo-500 animate-pulse" />
-              <span>Avaxa AI Generator</span>
+              <span>Apexa AI Generator</span>
             </h3>
             <div className="space-y-4 max-w-lg">
-              <p className="text-xs text-slate-500 leading-relaxed">Let Avaxa AI analyze your workspace context, suggest new lists, or generate workflow structures dynamically.</p>
+              <p className="text-xs text-slate-500 leading-relaxed">Let Apexa AI analyze your workspace context, suggest new lists, or generate workflow structures dynamically.</p>
               <div className="flex gap-2">
                 <input type="text" placeholder="e.g. Generate a content marketing list with 5 tasks" className="w-full bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100" />
                 <button onClick={() => alert("AI generation started!")} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-colors shrink-0">Generate</button>
@@ -3055,7 +3055,7 @@ export default function SpacePage({
             {loadingAiPriority ? (
               <div className="text-center py-10 space-y-3">
                 <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
-                <p className="text-xs text-slate-400 font-bold">Avaxa AI is calculating urgency factors...</p>
+                <p className="text-xs text-slate-400 font-bold">Apexa AI is calculating urgency factors...</p>
               </div>
             ) : (
               <div className="space-y-4 text-xs font-semibold text-slate-600 dark:text-slate-350">

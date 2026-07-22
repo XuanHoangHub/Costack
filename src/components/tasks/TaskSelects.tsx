@@ -256,7 +256,7 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
       {members.map(m => (
         <button key={m.id} type="button" onClick={() => toggleAssignee(m.id)}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${valueIds.includes(m.id) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} />
           <span className="truncate">{m.name}</span>
           {valueIds.includes(m.id) && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
         </button>
@@ -278,14 +278,14 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
           {valueIds.length > 1 ? (
             <div className="relative w-full h-full">
               {assignees.slice(0, 2).map((m, idx) => (
-                <SignedImage key={m.id} filePath={m.avatar} className={`absolute w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover ${idx === 0 ? 'left-0' : 'right-0'}`} alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+                <SignedImage key={m.id} filePath={m.avatar} className={`absolute w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover ${idx === 0 ? 'left-0' : 'right-0'}`} alt={m.name} />
               ))}
               {valueIds.length > 2 && (
                 <span className="absolute right-0 bottom-0 inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-[10px] text-white border border-white dark:border-slate-950">+{valueIds.length - 2}</span>
               )}
             </div>
           ) : primaryAssignee ? (
-            <SignedImage filePath={primaryAssignee.avatar} className="w-full h-full rounded-full object-cover" alt={primaryAssignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(primaryAssignee.name)}`} />
+            <SignedImage filePath={primaryAssignee.avatar} className="w-full h-full rounded-full object-cover" alt={primaryAssignee.name} />
           ) : (
             <div className="w-full h-full rounded-full bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">+</div>
           )}
@@ -297,13 +297,13 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
             {valueIds.length > 1 ? (
               <div className="flex -space-x-1.5 items-center">
                 {assignees.slice(0, 2).map(m => (
-                  <SignedImage key={m.id} filePath={m.avatar} className="w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+                  <SignedImage key={m.id} filePath={m.avatar} className="w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover shrink-0" alt={m.name} />
                 ))}
                 <span className="text-[11px] truncate">{displayLabel}</span>
               </div>
             ) : primaryAssignee ? (
               <>
-                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={primaryAssignee.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(primaryAssignee.name)}`} />
+                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={primaryAssignee.name} />
                 <span className="truncate">{primaryAssignee.name}</span>
               </>
             ) : (
@@ -1519,7 +1519,7 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
       {members.map(m => (
         <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`} />
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} />
           <span className="truncate">{m.name}</span>
         </button>
       ))}

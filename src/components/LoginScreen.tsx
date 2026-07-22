@@ -153,7 +153,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         onLoginSuccess({
           name: displayName,
           email: sessionUser?.email || email,
-          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
           role: 'member',
           status: 'online'
         }, rememberMe);
@@ -171,7 +171,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         onLoginSuccess({
           name: displayName,
           email: sessionUser?.email || email,
-          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`,
+          avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
           role: userRole,
           status: 'online'
         }, rememberMe);
@@ -226,7 +226,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       onLoginSuccess({
         name: selected.name,
         email: selected.email,
-        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selected.name)}`,
+        avatar: '',
         role: selected.role as 'admin' | 'member',
         status: 'online'
       }, rememberMe);

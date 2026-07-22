@@ -343,7 +343,7 @@ export default function TeamDirectory({
         department: 'd-eng',
         bio: 'No biography updated yet.',
         joinedDate: formattedJoinedDate,
-        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar: '',
         role: finalRole,
         status: 'online',
         workspaceIds: [activeWorkspaceId]
@@ -459,7 +459,6 @@ export default function TeamDirectory({
                             filePath={m.avatar} 
                             className="w-7 h-7 rounded-full object-cover border border-slate-100 dark:border-slate-800"
                             alt={m.name}
-                            fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(m.name)}`}
                           />
                           <div className="min-w-0 text-left">
                             <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{m.name}</p>
@@ -526,7 +525,6 @@ export default function TeamDirectory({
                     filePath={me.avatar}
                     className="w-12 h-12 rounded-full border-2 border-indigo-500/30 object-cover shrink-0 select-none bg-slate-50 dark:bg-slate-900"
                     alt={me.name}
-                    fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(me.name)}`}
                   />
                   <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[me.status as keyof typeof statusColors]} shrink-0 shadow-xs`} />
                 </div>
@@ -865,7 +863,6 @@ export default function TeamDirectory({
                           filePath={member.avatar} 
                           className="w-14 h-14 rounded-full bg-slate-50 dark:bg-slate-850 border-2 border-slate-200 dark:border-slate-800 group-hover/avatar:border-indigo-500/40 p-0.5 object-cover shrink-0 select-none group-hover/avatar:brightness-90 transition-all duration-300 ring-4 ring-indigo-500/0 group-hover/avatar:ring-indigo-500/10" 
                           alt={member.name} 
-                          fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.name)}`}
                         />
                         <label className="absolute inset-x-0 bottom-0 bg-black/60 rounded-b-full py-0.5 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
                           <span className="text-[8px] text-white font-extrabold select-none scale-90">EDIT PHOTO</span>
@@ -990,7 +987,7 @@ export default function TeamDirectory({
             
             {/* Visual Header */}
             <div className="w-full border-b border-slate-200/50 dark:border-slate-800/60 pb-4 text-center">
-              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Avaxa Corporate Hierarchy</span>
+              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Apexa Corporate Hierarchy</span>
               <h3 className="text-base font-black text-slate-850 dark:text-slate-100 mt-0.5">Dynamic Organizational Flow</h3>
             </div>
 
@@ -1012,8 +1009,8 @@ export default function TeamDirectory({
                       {/* Leader profile block */}
                       {manager && (
                         <div className="mt-3.5 pt-3 border-t border-white/20 flex items-center gap-2 text-left justify-start">
-                          <img 
-                            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(manager.name)}`} 
+                          <SignedImage 
+                            filePath={manager.avatar} 
                             className="w-7 h-7 rounded-full bg-white/10 p-0.5 object-cover" 
                             alt={manager.name} 
                           />
@@ -1046,8 +1043,8 @@ export default function TeamDirectory({
                               
                               {deptManager && (
                                 <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 justify-start text-left">
-                                  <img 
-                                    src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(deptManager.name)}`} 
+                                  <SignedImage 
+                                    filePath={deptManager.avatar} 
                                     className="w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-900 border object-cover" 
                                     alt={deptManager.name} 
                                   />
@@ -1087,8 +1084,8 @@ export default function TeamDirectory({
                                     
                                     {teamLeader && (
                                       <div className="mt-2.5 flex items-center gap-1.5">
-                                        <img 
-                                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(teamLeader.name)}`} 
+                                        <SignedImage 
+                                          filePath={teamLeader.avatar} 
                                           className="w-5 h-5 rounded-full object-cover bg-slate-200 dark:bg-slate-800" 
                                           alt={teamLeader.name} 
                                         />
@@ -1227,8 +1224,8 @@ export default function TeamDirectory({
                     {/* Member header card */}
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <img 
-                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.name)}`} 
+                        <SignedImage 
+                          filePath={member.avatar} 
                           className="w-10 h-10 rounded-full border border-slate-200 object-cover" 
                           alt={member.name} 
                         />
@@ -1318,7 +1315,6 @@ export default function TeamDirectory({
                       filePath={selectedMember.avatar} 
                       className="w-12 h-12 rounded-full border border-slate-250 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 object-cover" 
                       alt={selectedMember.name} 
-                      fallback={`https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(selectedMember.name)}`}
                     />
                     <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
                       <Upload className="w-3.5 h-3.5 text-white" />

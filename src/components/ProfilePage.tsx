@@ -71,7 +71,7 @@ function ProfilePage({
 
     // Load skills
     try {
-      const savedSkills = localStorage.getItem('avaxa_user_skills');
+      const savedSkills = localStorage.getItem('apexa_user_skills');
       if (savedSkills) {
         setSkills(JSON.parse(savedSkills));
       }
@@ -198,10 +198,10 @@ function ProfilePage({
       user: updatedUser,
       expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 1 month
     };
-    localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
+    localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
 
     // Save skills
-    localStorage.setItem('avaxa_user_skills', JSON.stringify(skills));
+    localStorage.setItem('apexa_user_skills', JSON.stringify(skills));
 
     const myJoinedDate = members.find(m => m.id === 'user')?.joinedDate || '2026';
     const updatedMemberObj: User = {
@@ -548,7 +548,7 @@ function ProfilePage({
                   {t('account') || 'Account'}
                 </span>
                 <span className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                  {currentUser.isPremium ? 'Avaxa Premium Pro' : (locale === 'vi' ? 'Gói miễn phí (Free Tier)' : 'Free Tier Package')}
+                  {currentUser.isPremium ? 'Apexa Premium Pro' : (locale === 'vi' ? 'Gói miễn phí (Free Tier)' : 'Free Tier Package')}
                 </span>
               </div>
               <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
