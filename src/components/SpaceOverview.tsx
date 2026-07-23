@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import SignedImage from './SignedImage';
+import { useUiStore } from '../store/uiStore';
 
 
 // ── Theme color map ──
@@ -538,15 +539,17 @@ export default function SpaceOverview({
                   initial={{ opacity: 0, x: 8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: 0.3 + i * 0.05 }}
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors"
+                  onClick={() => useUiStore.getState().setViewingMemberProfileId(member.id)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group/spm"
+                  title={`Xem hồ sơ của ${member.name}`}
                 >
                   <SignedImage 
                     filePath={member.avatar} 
                     alt={member.name} 
-                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm shrink-0"
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm shrink-0 group-hover/spm:scale-105 transition-transform"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-slate-800 truncate">{member.name}</div>
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover/spm:text-indigo-600 dark:group-hover/spm:text-indigo-400 transition-colors truncate">{member.name}</div>
                     <div className="text-[10px] text-slate-400">{member.taskCount} task{member.taskCount !== 1 ? 's' : ''} assigned</div>
                   </div>
                   <div 
@@ -574,8 +577,9 @@ export default function SpaceOverview({
                       key={m.id}
                       filePath={m.avatar} 
                       alt={m.name}
-                      className="w-6 h-6 rounded-full border-2 border-white"
-                      title={m.name}
+                      onClick={() => useUiStore.getState().setViewingMemberProfileId(m.id)}
+                      className="w-6 h-6 rounded-full border-2 border-white cursor-pointer hover:scale-110 hover:z-10 transition-all"
+                      title={`Xem hồ sơ của ${m.name}`}
                     />
                   ))}
                   {activeMembers.length > 5 && (

@@ -7,6 +7,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
 import SignedImage from '../SignedImage';
+import { useUiStore } from '../../store/uiStore';
 import { useTaskStore } from '../../store/taskStore';
 import {
   GripVertical,
@@ -1308,12 +1309,29 @@ export default function TaskDetailsPanel({
                     return (
                       <motion.div key={item.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
                         className="flex items-start gap-3.5 relative">
-                        <div className="relative shrink-0 z-10 ring-4 ring-white dark:ring-slate-900">
+                        <div 
+                          onClick={() => {
+                            const foundMember = members.find(m => m.name === item.userName || m.id === (item as any).userId);
+                            if (foundMember) useUiStore.getState().setViewingMemberProfileId(foundMember.id);
+                          }}
+                          className="relative shrink-0 z-10 ring-4 ring-white dark:ring-slate-900 cursor-pointer hover:opacity-85 transition-opacity"
+                          title={`Xem hồ sơ của ${item.userName}`}
+                        >
                           <SignedImage filePath={item.avatar} className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-800 object-cover" alt={item.userName} />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5 text-left">
                           <div className="flex items-center gap-2 mb-1 text-[11.5px]">
-                            <span className="font-extrabold text-slate-850 dark:text-slate-100">{item.userName}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const foundMember = members.find(m => m.name === item.userName || m.id === (item as any).userId);
+                                if (foundMember) useUiStore.getState().setViewingMemberProfileId(foundMember.id);
+                              }}
+                              className="font-extrabold text-slate-850 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors text-left"
+                              title={`Xem hồ sơ của ${item.userName}`}
+                            >
+                              {item.userName}
+                            </button>
                             <span className="text-[9.5px] text-slate-400 font-medium">{item.timestamp}</span>
                           </div>
                           <div className="p-3.5 rounded-2xl rounded-tl-none bg-slate-50/50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800/80 text-[12px] text-slate-655 dark:text-slate-300 leading-relaxed font-semibold shadow-3xs">

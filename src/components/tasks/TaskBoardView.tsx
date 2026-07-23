@@ -1310,7 +1310,7 @@ export default function TaskBoardView({
 
         {/* Board Main Area */}
         {boardSwimlaneBy === 'none' ? (
-          <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar select-none">
+          <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll snap-x snap-mandatory select-none px-1">
             {columns.map(col => {
               const colMeta = getColumnMeta(col);
               const colTasks = boardState.columns[col]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
@@ -1319,7 +1319,7 @@ export default function TaskBoardView({
               return (
                 <div 
                   key={col} 
-                  className={`min-w-[290px] w-[290px] flex-shrink-0 bg-slate-50/30 dark:bg-slate-900/15 backdrop-blur-md p-4 rounded-2xl flex flex-col gap-3 transition-all duration-300 border border-slate-200/40 dark:border-slate-800/40 shadow-[0_4px_18px_rgba(15,23,42,0.01)] hover:border-slate-300 dark:hover:border-slate-700/60 hover:shadow-[0_8px_24px_rgba(15,23,42,0.02)] ${
+                  className={`min-w-[285px] sm:min-w-[290px] w-[285px] sm:w-[290px] flex-shrink-0 snap-center bg-slate-50/30 dark:bg-slate-900/15 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl flex flex-col gap-3 transition-all duration-300 border border-slate-200/40 dark:border-slate-800/40 shadow-[0_4px_18px_rgba(15,23,42,0.01)] hover:border-slate-300 dark:hover:border-slate-700/60 hover:shadow-[0_8px_24px_rgba(15,23,42,0.02)] ${
                     isOverColumn ? 'ring-2 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-955/15 border-indigo-400/40' : ''
                   }`}
                 >

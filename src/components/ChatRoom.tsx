@@ -12,10 +12,11 @@ import {
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff,
   Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar,
-  BarChart3, Download, Eye, Vote, HelpCircle
+  BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
+import { useUiStore } from '../store/uiStore';
 
 const VoiceMessagePlayer = ({ filePath, duration }: { filePath: string; duration?: number }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -154,16 +155,16 @@ const formatLineMarkdown = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|@\w[\w\s]*?\b)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-black text-slate-900 dark:text-slate-100">{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
-      return <em key={i} className="italic text-slate-700 font-semibold">{part.slice(1, -1)}</em>;
+      return <em key={i} className="italic text-slate-700 dark:text-slate-300 font-semibold">{part.slice(1, -1)}</em>;
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-250/20 text-indigo-700 font-mono text-[10px] font-bold mx-0.5">{part.slice(1, -1)}</code>;
+      return <code key={i} className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-250/20 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-bold mx-0.5">{part.slice(1, -1)}</code>;
     }
     if (part.startsWith('@') && part.length > 1) {
-      return <span key={i} className="px-1 py-0.5 rounded-md bg-blue-50 text-blue-600 font-bold text-[11px] cursor-pointer hover:bg-blue-100 transition-colors">{part}</span>;
+      return <span key={i} className="px-1 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold text-[11px] cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors">{part}</span>;
     }
     return part;
   });
@@ -176,7 +177,7 @@ const formatMessageContent = (text: string) => {
     if (line.trim().startsWith('>')) {
       const content = line.substring(line.indexOf('>') + 1).trim();
       return (
-        <div key={idx} className="pl-3 py-1 border-l-3 border-indigo-400 bg-slate-50/50 rounded-r-lg text-slate-500 italic my-1">
+        <div key={idx} className="pl-3 py-1 border-l-3 border-indigo-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-r-lg text-slate-500 dark:text-slate-400 italic my-1">
           {formatLineMarkdown(content)}
         </div>
       );
@@ -204,6 +205,7 @@ export default function ChatRoom({
   setViewType
 }: ChatRoomProps) {
   const { t } = useTranslation();
+  const setViewingMemberProfileId = useUiStore((s) => s.setViewingMemberProfileId);
   // Navigation & Channels
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
@@ -213,6 +215,8 @@ export default function ChatRoom({
 
   // Custom Channel Management states
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
+  const [showNewDmModal, setShowNewDmModal] = useState(false);
+  const [dmSearchQuery, setDmSearchQuery] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
   const [channelScope, setChannelScope] = useState<'workspace' | 'space'>('workspace');
@@ -923,10 +927,8 @@ ${channelMessagesText}`;
                 { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${forcedChannelName || 'channel'}.`, timestamp: 'Vừa xong' }
               ];
             } else if (isDm) {
-              const memberId = activeChannelId.split('-').pop();
-              const member = members.find(m => m.id === memberId);
               defaultMsgs = [
-                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${member ? member.name : 'thành viên này'}.`, timestamp: 'Vừa xong' }
+                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${dmMember ? dmMember.name : 'thành viên này'}.`, timestamp: 'Vừa xong' }
               ];
             } else if (isSpace) {
               defaultMsgs = [
@@ -1259,13 +1261,26 @@ ${channelMessagesText}`;
     const file = e.dataTransfer.files?.[0];
     if (file) {
       const isImg = file.type.startsWith('image/');
-      const fileUrl = isImg ? URL.createObjectURL(file) : '#';
-      setSelectedFile({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: fileUrl
-      });
+      if (isImg) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const fileUrl = (ev.target?.result as string) || '';
+          setSelectedFile({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: fileUrl
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setSelectedFile({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: '#'
+        });
+      }
       triggerToast?.('success', 'File Dropped 📎', `Ready to send: ${file.name}`);
     }
   };
@@ -1702,13 +1717,34 @@ ${channelMessagesText}`;
 
   // Resolve DM member if activeChannelId is a DM
   const isDm = activeChannelId.includes(':dm-');
-  let dmMember: User | undefined;
-  if (isDm) {
-    const memberId = activeChannelId.split('-').pop();
-    dmMember = members.find(m => m.id === memberId);
-  }
+  const currentUserId = currentUser?.id || 'user';
 
-  const isSelfDm = isDm && (activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) || activeChannelId.endsWith('-user-user') || dmMember?.id === currentUser.id);
+  const dmMember = useMemo(() => {
+    if (!isDm) return undefined;
+    const dmPart = activeChannelId.substring(activeChannelId.indexOf(':dm-') + 4);
+    
+    // Find matching member from members list
+    const found = members.find(m => {
+      if (m.id === currentUserId || m.id === `user-${currentUserId}` || `user-${m.id}` === currentUserId) return false;
+      const cleanId = m.id.replace(/^user-/, '');
+      return dmPart.includes(m.id) || (cleanId !== '' && dmPart.includes(cleanId));
+    });
+
+    if (found) return found;
+
+    // Fallback: search by member ID in dmPart
+    return members.find(m => {
+      if (m.id === currentUserId || m.id === `user-${currentUserId}`) return false;
+      const cleanId = m.id.replace(/^user-/, '');
+      return dmPart.endsWith(m.id) || (cleanId !== '' && dmPart.endsWith(cleanId));
+    });
+  }, [isDm, activeChannelId, members, currentUserId]);
+
+  const isSelfDm = isDm && (
+    activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) ||
+    activeChannelId.endsWith('-user-user') ||
+    (dmMember ? (dmMember.id === currentUser.id || dmMember.id === `user-${currentUser.id}`) : false)
+  );
 
   // Resolve Space channel if activeChannelId is a Space Channel
   const isSpaceChan = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
@@ -1770,11 +1806,11 @@ ${channelMessagesText}`;
   }
 
   return (
-    <div className="flex min-h-[500px] h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full rounded-3xl bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
+    <div className="flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#07080c] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
       {!forcedChannelId && (
-        <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/90 flex flex-col justify-between shrink-0 text-left ${
+        <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#07080c] flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
@@ -2005,12 +2041,20 @@ ${channelMessagesText}`;
 
             {/* Direct Messages Section */}
             <div>
-              <div className="px-2 mb-1.5 mt-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Direct Messages</span>
+              <div className="flex items-center justify-between px-2 mb-1.5 mt-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Direct Messages</span>
+                <button 
+                  onClick={() => setShowNewDmModal(true)}
+                  className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                  title="Nhắn tin với thành viên"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="space-y-0.5">
                 {members.filter(m => m.id !== currentUser.id && m.id !== 'user').map(member => {
-                  const sortedIds = ['user', member.id].sort();
+                  const myId = currentUser.id || 'user';
+                  const sortedIds = [myId, member.id].sort();
                   const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
                   const isActive = activeChannelId === dmChannelId;
                   
@@ -2038,47 +2082,22 @@ ${channelMessagesText}`;
               </div>
             </div>
 
-            {/* AI Assistant Section */}
-            <div>
-              <div className="px-2 mb-1.5 mt-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">AI Assistant</span>
-              </div>
-              <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.id === `${workspaceId}:avaxa-brain-ai`).map(c => {
-                  const isActive = c.id === activeChannelId;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setActiveChannelId(c.id)}
-                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border relative overflow-hidden group ${
-                        isActive 
-                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/10 border-amber-200/50 dark:border-amber-900/30 text-amber-705 dark:text-amber-400' 
-                          : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      <Sparkles className="w-4 h-4 shrink-0 text-amber-500 animate-pulse" />
-                      <span className="truncate">{c.name}</span>
-                      <span className="absolute -top-1 -right-1 text-[7px] text-amber-500 opacity-60">✨</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+
 
           </div>
         </div>
 
         {/* Sidebar Footer Bar */}
-        <div className="px-4 py-2.5 bg-slate-100/30 border-t border-slate-200/60 flex items-center justify-between shrink-0 text-slate-400 select-none">
+        <div className="px-4 py-2.5 bg-slate-100/30 dark:bg-[#07080c] border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 text-slate-400 dark:text-slate-500 select-none">
           <div className="flex items-center gap-3">
-            <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+            <button type="button" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
               <Plus className="w-4 h-4" />
             </button>
-            <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+            <button type="button" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
               <Clock className="w-4 h-4" />
             </button>
           </div>
-          <button type="button" className="hover:text-slate-650 transition-colors cursor-pointer">
+          <button type="button" className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
             <Settings className="w-4 h-4" />
           </button>
         </div>
@@ -2088,7 +2107,7 @@ ${channelMessagesText}`;
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
-        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-slate-900 ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
+        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-[#07080c] ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
           isMobileChatActive ? 'flex' : 'hidden md:flex'
         }`}
         onDragOver={handleDragOver}
@@ -2109,7 +2128,7 @@ ${channelMessagesText}`;
         )}
         
         {/* Chat header */}
-        <header className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col shrink-0">
+        <header className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#07080c]/90 backdrop-blur-md flex flex-col shrink-0">
           {/* Top row */}
           <div className="px-5 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -2127,7 +2146,11 @@ ${channelMessagesText}`;
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 animate-pulse"></span>
                 </div>
               ) : isDm && dmMember ? (
-                <div className="relative shrink-0 flex">
+                <div 
+                  onClick={() => setViewingMemberProfileId(dmMember.id)}
+                  className="relative shrink-0 flex cursor-pointer hover:opacity-85 transition-opacity"
+                  title={`Xem hồ sơ của ${dmMember.name}`}
+                >
                   <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8.5 h-8.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white animate-fadeIn object-cover" />
                   <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                 </div>
@@ -2138,7 +2161,11 @@ ${channelMessagesText}`;
               )}
               
               <div className="text-left min-w-0 flex items-center gap-2">
-                <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-none truncate">
+                <h2 
+                  onClick={() => isDm && dmMember && setViewingMemberProfileId(dmMember.id)}
+                  className={`text-sm font-black text-slate-800 dark:text-slate-100 leading-none truncate ${isDm && dmMember ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors' : ''}`}
+                  title={isDm && dmMember ? `Xem hồ sơ của ${dmMember.name}` : undefined}
+                >
                   {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
                 </h2>
                 {isEditableChannel && (
@@ -2335,13 +2362,31 @@ ${channelMessagesText}`;
                     <Bot className="w-4.5 h-4.5 animate-pulse" />
                   </div>
                 ) : (
-                  <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setViewingMemberProfileId(msg.senderId)}
+                    className="rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer transition-transform active:scale-95 hover:opacity-85 group/avatar shrink-0"
+                    title={`Xem hồ sơ của ${msg.senderName}`}
+                  >
+                    <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" />
+                  </button>
                 )}
 
                 {/* Message Body */}
                 <div className="flex-1 min-w-0 text-left space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-black ${msg.isAi ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>{msg.senderName}</span>
+                    {msg.isAi ? (
+                      <span className="text-[11px] font-black text-indigo-650 dark:text-indigo-400">{msg.senderName}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setViewingMemberProfileId(msg.senderId)}
+                        className="text-[11px] font-black text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors text-left"
+                        title={`Xem hồ sơ của ${msg.senderName}`}
+                      >
+                        {msg.senderName}
+                      </button>
+                    )}
                     <span className="text-[9px] text-slate-450 dark:text-slate-500 font-mono">{msg.timestamp}</span>
                     {isMe && (
                       <span className="flex items-center gap-0.5 ml-1 select-none group/ticks relative" title={isOffline ? "Sent (Offline)" : "Read by team"}>
@@ -2390,7 +2435,7 @@ ${channelMessagesText}`;
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-700 leading-relaxed font-medium break-words">
+                    <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium break-words">
                       {formatMessageContent(msg.content)}
                       
                       {msg.attachment && (
@@ -2401,10 +2446,11 @@ ${channelMessagesText}`;
                               duration={msg.attachment.duration} 
                             />
                           ) : msg.attachment.isImage ? (
-                            <div className="relative rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-[240px] shadow-xs group/img bg-slate-50">
-                              <img 
-                                src={msg.attachment.filePath} 
+                            <div className="relative rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 max-w-[240px] shadow-xs group/img bg-slate-50 dark:bg-slate-800">
+                              <SignedImage 
+                                filePath={msg.attachment.filePath} 
                                 alt={msg.attachment.name}
+                                bucket="chat-attachments"
                                 className="max-w-[240px] max-h-[180px] object-cover hover:scale-[1.02] transition-transform duration-200"
                               />
                               <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-end justify-between p-2">
@@ -2412,13 +2458,13 @@ ${channelMessagesText}`;
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-150 max-w-sm hover:bg-indigo-50/20 hover:border-indigo-200/50 transition-colors">
-                              <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 max-w-sm hover:bg-indigo-50/20 dark:hover:bg-indigo-950/40 hover:border-indigo-200/50 dark:hover:border-indigo-800/50 transition-colors">
+                              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
                                 <Globe className="w-5 h-5" />
                               </div>
                               <div className="min-w-0 flex-1 text-left">
-                                <span className="block text-xs font-bold text-slate-800 truncate">{msg.attachment.name}</span>
-                                <span className="block text-[9.5px] text-slate-400 font-bold mt-0.5 uppercase tracking-wider font-mono">
+                                <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{msg.attachment.name}</span>
+                                <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 uppercase tracking-wider font-mono">
                                   {msg.attachment.size ? `${(msg.attachment.size / 1024).toFixed(1)} KB` : 'FILE'}
                                 </span>
                               </div>
@@ -2427,7 +2473,7 @@ ${channelMessagesText}`;
                                 download={msg.attachment.name}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 transition-colors shrink-0 flex items-center justify-center cursor-pointer"
+                                className="p-2 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-300 transition-colors shrink-0 flex items-center justify-center cursor-pointer"
                               >
                                 <ArrowRight className="w-3.5 h-3.5" />
                               </a>
@@ -2647,17 +2693,17 @@ ${channelMessagesText}`;
 
         {/* Attachment preview box */}
         {selectedFile && (
-          <div className="px-4 py-2 border-t border-slate-150 bg-slate-50/50 flex items-center justify-between gap-3 animate-slideUp">
+          <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-3 animate-slideUp">
             <div className="flex items-center gap-2 min-w-0">
               {selectedFile.type.startsWith('image/') ? (
-                <img src={selectedFile.url} className="w-9 h-9 rounded-lg object-cover border border-slate-200 bg-white" alt="" />
+                <SignedImage filePath={selectedFile.url} alt={selectedFile.name} bucket="chat-attachments" className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" />
               ) : (
-                <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+                <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
                   <Globe className="w-4.5 h-4.5" />
                 </div>
               )}
               <div className="min-w-0 text-left">
-                <span className="block text-xs font-bold text-slate-700 truncate">{selectedFile.name}</span>
+                <span className="block text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{selectedFile.name}</span>
                 <span className="block text-[9.5px] text-slate-400 font-bold font-mono">{(selectedFile.size / 1024).toFixed(1)} KB</span>
               </div>
             </div>
@@ -2691,8 +2737,8 @@ ${channelMessagesText}`;
         )}
 
                 {/* Mockup-style unified rich editor box card */}
-        <div className="p-4 bg-white/90 dark:bg-slate-950/80 border-t border-slate-200/60 dark:border-slate-800/80 backdrop-blur-md shrink-0">
-          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl p-3 bg-white dark:bg-slate-900 transition-all shadow-sm flex flex-col gap-2 select-text">
+        <div className="px-3.5 py-2.5 bg-white/90 dark:bg-[#07080c]/90 border-t border-slate-200/60 dark:border-slate-800/80 backdrop-blur-md shrink-0">
+          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl px-3 py-2 bg-white dark:bg-[#0e0f17] transition-all shadow-sm flex flex-col gap-1.5 select-text">
             
             {/* Selected file preview widget */}
             {selectedFile && (
@@ -2735,7 +2781,7 @@ ${channelMessagesText}`;
                         ? "Ask Avaxa Brain AI..." 
                         : `Write to ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}, press 'space' for AI...`
                   }
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none min-h-[48px] custom-scrollbar focus:ring-0 p-0"
+                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none min-h-[38px] custom-scrollbar focus:ring-0 p-0"
                   onKeyDown={e => {
                     if (showCommandDropdown && filteredCommands.length > 0) {
                       if (e.key === 'ArrowDown') {
@@ -2819,20 +2865,33 @@ ${channelMessagesText}`;
                 const file = e.target.files?.[0];
                 if (file) {
                   const isImg = file.type.startsWith('image/');
-                  const fileUrl = isImg ? URL.createObjectURL(file) : '#';
-                  setSelectedFile({
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    url: fileUrl
-                  });
+                  if (isImg) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const fileUrl = (ev.target?.result as string) || '';
+                      setSelectedFile({
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        url: fileUrl
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    setSelectedFile({
+                      name: file.name,
+                      size: file.size,
+                      type: file.type,
+                      url: '#'
+                    });
+                  }
                   triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
                 }
               }}
             />
 
             {/* Bottom Row Utilities and Actions */}
-            <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100/60 dark:border-slate-800/60">
+            <div className="flex items-center justify-between mt-0.5 pt-1 border-t border-slate-100/60 dark:border-slate-800/60">
               {/* Left Utilities */}
               <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 select-none">
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Add File">
@@ -2857,16 +2916,16 @@ ${channelMessagesText}`;
                   <span className="text-[9px] font-black leading-none border border-slate-350 dark:border-slate-700 px-1 py-0.5 rounded">GIF</span>
                 </button>
                 <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Video Meeting">
-                  <span className="text-sm">📹</span>
+                  <Video className="w-3.5 h-3.5" />
                 </button>
                 <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Checklist">
-                  <span className="text-sm">☑️</span>
+                  <CheckSquare className="w-3.5 h-3.5" />
                 </button>
                 <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Template">
-                  <span className="text-sm">📝</span>
+                  <FileText className="w-3.5 h-3.5" />
                 </button>
                 <button type="button" className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Automation & Integrations">
-                  <span className="text-sm">⚡</span>
+                  <Zap className="w-3.5 h-3.5" />
                 </button>
               </div>
 
@@ -2948,16 +3007,21 @@ ${channelMessagesText}`;
                 {activeSidebarTab === 'members' && (
                   <div className="space-y-2">
                     {members.map(m => (
-                      <div key={m.id} className="flex items-center gap-2.5 p-1 rounded-lg">
+                      <div 
+                        key={m.id} 
+                        onClick={() => setViewingMemberProfileId(m.id)}
+                        className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group/m"
+                        title={`Xem hồ sơ của ${m.name}`}
+                      >
                         <div className="relative shrink-0 flex">
-                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn" />
+                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn group-hover/m:scale-105 transition-transform" />
                           <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
                             m.status === 'online' ? 'bg-emerald-500 animate-pulse' :
                             m.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
                           }`} />
                         </div>
                         <div className="min-w-0 leading-none">
-                          <span className="text-[11px] font-bold text-slate-700 block truncate">{m.name}</span>
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block truncate group-hover/m:text-indigo-600 dark:group-hover/m:text-indigo-400 transition-colors">{m.name}</span>
                           <span className="text-[8px] text-slate-400 font-medium block mt-0.5">{m.role === 'admin' ? 'PM' : 'Developer'}</span>
                         </div>
                       </div>
@@ -3007,7 +3071,7 @@ ${channelMessagesText}`;
                               <Mic className="w-4 h-4" />
                             </div>
                           ) : file.isImage ? (
-                            <img src={file.filePath} className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-slate-50 shrink-0" alt="" />
+                            <SignedImage filePath={file.filePath} alt={file.name} bucket="chat-attachments" className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-slate-50 shrink-0" />
                           ) : (
                             <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
                               <Globe className="w-4 h-4" />
@@ -3060,8 +3124,15 @@ ${channelMessagesText}`;
               {/* Parent Message Bubble */}
               <div className="p-3 bg-indigo-50/30 border border-indigo-100/50 rounded-2xl shrink-0 text-left">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <SignedImage filePath={activeThreadMessage.senderAvatar} alt={activeThreadMessage.senderName} className="w-5.5 h-5.5 rounded-full object-cover" />
-                  <span className="text-[11px] font-bold text-slate-700">{activeThreadMessage.senderName}</span>
+                  <button
+                    type="button"
+                    onClick={() => setViewingMemberProfileId(activeThreadMessage.senderId)}
+                    className="flex items-center gap-2 focus:outline-none cursor-pointer group/threadparent text-left"
+                    title={`Xem hồ sơ của ${activeThreadMessage.senderName}`}
+                  >
+                    <SignedImage filePath={activeThreadMessage.senderAvatar} alt={activeThreadMessage.senderName} className="w-5.5 h-5.5 rounded-full object-cover group-hover/threadparent:opacity-85 transition-opacity" />
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover/threadparent:text-indigo-600 dark:group-hover/threadparent:text-indigo-400 transition-colors">{activeThreadMessage.senderName}</span>
+                  </button>
                   <span className="text-[9px] text-slate-400 ml-auto font-medium">{activeThreadMessage.timestamp}</span>
                 </div>
                 <div className="text-xs text-slate-700 leading-normal font-medium break-words">
@@ -3073,13 +3144,27 @@ ${channelMessagesText}`;
               <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin">
                 {messages.filter(m => m.parentId === activeThreadMessage.id).map(reply => (
                   <div key={reply.id} className="flex gap-2.5 items-start text-left p-1 rounded-lg">
-                    <SignedImage filePath={reply.senderAvatar} alt={reply.senderName} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white" />
+                    <button
+                      type="button"
+                      onClick={() => setViewingMemberProfileId(reply.senderId)}
+                      className="focus:outline-none cursor-pointer shrink-0"
+                      title={`Xem hồ sơ của ${reply.senderName}`}
+                    >
+                      <SignedImage filePath={reply.senderAvatar} alt={reply.senderName} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 dark:border-slate-700 object-cover bg-white dark:bg-slate-800 hover:opacity-85 transition-opacity" />
+                    </button>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[11px] font-bold text-slate-800">{reply.senderName}</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewingMemberProfileId(reply.senderId)}
+                          className="text-[11px] font-bold text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors text-left"
+                          title={`Xem hồ sơ của ${reply.senderName}`}
+                        >
+                          {reply.senderName}
+                        </button>
                         <span className="text-[8.5px] text-slate-400 font-medium">{reply.timestamp}</span>
                       </div>
-                      <div className="text-xs text-slate-700 mt-1 font-medium leading-relaxed break-words bg-white p-2 rounded-2xl border border-slate-150 inline-block">
+                      <div className="text-xs text-slate-700 dark:text-slate-200 mt-1 font-medium leading-relaxed break-words bg-white dark:bg-slate-800/90 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-700 inline-block">
                         {formatMessageContent(reply.content)}
                       </div>
                     </div>
@@ -3380,8 +3465,12 @@ ${channelMessagesText}`;
                   <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target Space</label>
                   <select 
                     value={convertTaskSpaceId}
-                    onChange={e => handleSpaceChange(e.target.value)}
-                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                    onChange={e => {
+                      setConvertTaskSpaceId(e.target.value);
+                      const sel = spaces.find(s => s.id === e.target.value);
+                      if (sel && sel.lists.length > 0) setConvertTaskListId(sel.lists[0].id);
+                    }}
+                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
                   >
                     {spaces.filter(s => s.workspaceId === workspaceId || !s.workspaceId).map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -3393,7 +3482,7 @@ ${channelMessagesText}`;
                   <select 
                     value={convertTaskListId}
                     onChange={e => setConvertTaskListId(e.target.value)}
-                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-355 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
+                    className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
                   >
                     {spaces.find(s => s.id === convertTaskSpaceId)?.lists?.map(l => (
                       <option key={l.id} value={l.id}>{l.name}</option>
@@ -3624,6 +3713,93 @@ ${channelMessagesText}`;
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Direct Message Modal */}
+      <AnimatePresence>
+        {showNewDmModal && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden space-y-4 text-left"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-indigo-500" />
+                  Nhắn tin với thành viên
+                </h3>
+                <button 
+                  onClick={() => { setShowNewDmModal(false); setDmSearchQuery(''); }}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Search bar */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input 
+                  type="text"
+                  value={dmSearchQuery}
+                  onChange={e => setDmSearchQuery(e.target.value)}
+                  placeholder="Tìm theo tên, email hoặc phòng ban..."
+                  className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-955 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold"
+                />
+              </div>
+
+              {/* Member List */}
+              <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
+                {members
+                  .filter(m => m.id !== currentUser.id && m.id !== 'user')
+                  .filter(m => 
+                    !dmSearchQuery.trim() || 
+                    m.name.toLowerCase().includes(dmSearchQuery.toLowerCase()) || 
+                    (m.email && m.email.toLowerCase().includes(dmSearchQuery.toLowerCase())) ||
+                    (m.department && m.department.toLowerCase().includes(dmSearchQuery.toLowerCase()))
+                  )
+                  .map(member => {
+                    const myId = currentUser.id || 'user';
+                    const sortedIds = [myId, member.id].sort();
+                    const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+
+                    return (
+                      <div 
+                        key={member.id}
+                        onClick={() => {
+                          setActiveChannelId(dmChannelId);
+                          setShowNewDmModal(false);
+                          setDmSearchQuery('');
+                          triggerToast?.('info', 'Trò chuyện trực tiếp 💬', `Đã mở khung chat với ${member.name}`);
+                        }}
+                        className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 hover:border-indigo-200 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            <SignedImage filePath={member.avatar} alt={member.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                              member.status === 'online' ? 'bg-emerald-500' :
+                              member.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
+                            }`}></span>
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{member.name}</h4>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">{member.role || 'Member'} {member.department ? `• ${member.department}` : ''}</p>
+                          </div>
+                        </div>
+
+                        <span className="px-3 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10.5px] font-extrabold text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all shadow-xs shrink-0">
+                          Nhắn tin
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
             </motion.div>
           </div>
         )}

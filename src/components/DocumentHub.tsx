@@ -241,7 +241,7 @@ export default function DocumentHub({
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full items-center justify-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 text-slate-400 dark:text-slate-500 font-semibold gap-2 select-none">
+      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 text-slate-400 dark:text-slate-500 font-semibold gap-2 select-none">
         <Sparkles className="w-5 h-5 animate-pulse text-indigo-500" />
         Đang tải không gian tài liệu...
       </div>
@@ -249,7 +249,7 @@ export default function DocumentHub({
   }
 
   return (
-    <div className="flex h-[calc(100vh-125px)] md:h-[calc(100vh-105px)] w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-[0_4px_25px_rgba(0,0,0,0.012)] overflow-hidden font-sans select-none text-slate-800">
+    <div className="flex h-full w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-[0_4px_25px_rgba(0,0,0,0.012)] overflow-hidden font-sans select-none text-slate-800">
       
       {/* Page Tree Navigation Sidebar */}
       <PageTreeSidebar 

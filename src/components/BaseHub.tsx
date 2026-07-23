@@ -491,28 +491,28 @@ export default function BaseHub({
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+                className="relative bg-white dark:bg-[#07080c] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col z-50"
               >
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                   <div>
-                    <h2 className="text-base font-black text-slate-800">Choose a template</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">Start with a pre-built structure or blank canvas</p>
+                    <h2 className="text-base font-black text-slate-800 dark:text-slate-100">Choose a template</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Start with a pre-built structure or blank canvas</p>
                   </div>
-                  <button type="button" onClick={() => setShowTemplateModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg cursor-pointer">
-                    <X className="w-4 h-4 text-slate-400" />
+                  <button type="button" onClick={() => setShowTemplateModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+                    <X className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 custom-scrollbar">
                   {BASE_TEMPLATES.map(template => (
                     <button
                       key={template.id}
                       type="button"
                       onClick={() => handleCreateFromTemplate(template.id)}
-                      className="text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer group"
+                      className="text-left p-4 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0d0e19] hover:border-indigo-500/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-all cursor-pointer group shadow-3xs"
                     >
                       <span className="text-2xl">{template.emoji}</span>
-                      <h3 className="text-sm font-black text-slate-800 mt-2 group-hover:text-indigo-600">{template.name}</h3>
-                      <p className="text-[11px] text-slate-400 mt-1">{template.description}</p>
+                      <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 mt-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{template.name}</h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-normal">{template.description}</p>
                     </button>
                   ))}
                 </div>

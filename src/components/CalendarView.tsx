@@ -424,10 +424,10 @@ export default function CalendarView({
 
   const getPriorityStyle = (priority: Priority) => {
     switch (priority) {
-      case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-955/20', text: 'text-rose-650 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-100 dark:border-rose-900/40' };
-      case 'high': return { bg: 'bg-orange-50 dark:bg-orange-955/20', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-100 dark:border-orange-900/40' };
-      case 'medium': return { bg: 'bg-indigo-50 dark:bg-indigo-955/20', text: 'text-indigo-650 dark:text-indigo-400', dot: 'bg-indigo-500', border: 'border-indigo-100 dark:border-indigo-900/40' };
-      default: return { bg: 'bg-slate-50 dark:bg-slate-800/40', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-100 dark:border-slate-800' };
+      case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-100 dark:border-rose-800/60' };
+      case 'high': return { bg: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-100 dark:border-orange-800/60' };
+      case 'medium': return { bg: 'bg-indigo-50 dark:bg-indigo-950/40', text: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500', border: 'border-indigo-100 dark:border-indigo-800/60' };
+      default: return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-100 dark:border-slate-800' };
     }
   };
 
@@ -445,7 +445,7 @@ export default function CalendarView({
             className="w-full lg:w-72 flex flex-col gap-5 shrink-0 text-left overflow-hidden pr-1"
           >
             {/* Google Calendar Connection Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
+            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
               
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
@@ -455,8 +455,8 @@ export default function CalendarView({
                
               {gcalConnected ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-150 dark:border-indigo-900/60">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-650 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-150 dark:border-indigo-900/60">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
                     <div className="min-w-0">
                       <span className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 truncate">{gcalUserEmail}</span>
                       <span className="block text-[8px] text-indigo-400 font-extrabold uppercase mt-0.5">Đã kết nối</span>
@@ -464,7 +464,7 @@ export default function CalendarView({
                   </div>
                   <button 
                     onClick={handleConnectGcal}
-                    className="w-full py-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-250/60 dark:border-slate-700/60 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-455 transition-colors cursor-pointer text-center"
+                    className="w-full py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-400 transition-colors cursor-pointer text-center"
                   >
                     Ngắt kết nối
                   </button>
@@ -472,8 +472,8 @@ export default function CalendarView({
               ) : syncingGcal ? (
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between text-[10px] font-black">
-                    <span className="text-slate-500 dark:text-slate-455 animate-pulse">Đang đồng bộ...</span>
-                    <span className="font-mono text-indigo-605 dark:text-indigo-400">{syncProgress}%</span>
+                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">Đang đồng bộ...</span>
+                    <span className="font-mono text-indigo-600 dark:text-indigo-400">{syncProgress}%</span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <motion.div 
@@ -491,16 +491,16 @@ export default function CalendarView({
               ) : (
                 <button 
                   onClick={handleConnectGcal}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-900 dark:bg-white hover:bg-slate-850 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-900 dark:bg-indigo-600/20 dark:border dark:border-indigo-500/40 hover:bg-slate-850 dark:hover:bg-indigo-600/30 text-white dark:text-indigo-300 font-bold text-xs shadow-xs transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-600" />
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-400" />
                   <span>Đồng bộ Google Calendar</span>
                 </button>
               )}
             </div>
 
             {/* Filter Toggle Pills */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
                 <span>Bộ lọc hiển thị</span>
@@ -518,11 +518,11 @@ export default function CalendarView({
                     className={`w-full flex items-center justify-between p-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
                       item.state
                         ? item.color === 'indigo'
-                          ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400'
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 shadow-3xs'
                           : item.color === 'emerald'
-                          ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-rose-50/60 dark:bg-rose-955/20 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-850'
+                          ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 shadow-3xs'
+                          : 'bg-rose-50/80 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-3xs'
+                        : 'bg-white dark:bg-[#0d0e15] border-slate-200/80 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
                     <span className="flex items-center gap-2.5">
@@ -535,7 +535,7 @@ export default function CalendarView({
                     </span>
                     {item.count !== null && (
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
-                        item.state ? 'bg-white/80 dark:bg-slate-800/80 shadow-3xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                        item.state ? 'bg-white/90 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-3xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                       }`}>
                         {item.count}
                       </span>
@@ -550,7 +550,7 @@ export default function CalendarView({
                 <select 
                   value={priorityFilter} 
                   onChange={e => setPriorityFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs font-bold text-slate-650 dark:text-slate-300 cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#0d0e15] border border-slate-200 dark:border-slate-700 outline-none text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
                 >
                   <option value="all">Tất cả độ ưu tiên</option>
                   <option value="urgent">Khẩn cấp (Urgent)</option>
@@ -562,7 +562,7 @@ export default function CalendarView({
             </div>
 
             {/* Unscheduled Tasks Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex-1 min-h-[250px] flex flex-col overflow-hidden">
+            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs flex-1 min-h-[250px] flex flex-col overflow-hidden">
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-3">
                 <ListPlus className="w-3.5 h-3.5" />
                 <span>Chưa lên lịch ({unscheduledTasks.length})</span>
@@ -572,7 +572,7 @@ export default function CalendarView({
                 {unscheduledTasks.length === 0 ? (
                   <div className="py-10 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
                     <Check className="w-5 h-5 mx-auto text-emerald-500 stroke-[3px]" />
-                    <p className="text-[10px] font-black text-slate-650 dark:text-slate-300">Tuyệt vời!</p>
+                    <p className="text-[10px] font-black text-slate-700 dark:text-slate-300">Tuyệt vời!</p>
                     <p className="text-[9px]">Mọi việc đã được lên lịch.</p>
                   </div>
                 ) : (
@@ -587,15 +587,15 @@ export default function CalendarView({
                         whileHover={{ scale: 1.02, x: 2 }}
                         className="py-2.5 group cursor-grab active:cursor-grabbing hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded-xl transition-all px-2 border border-transparent hover:border-slate-100 dark:hover:border-slate-800 flex items-start gap-2.5"
                       >
-                        <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 mt-0.5 shrink-0 cursor-grab" />
+                        <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600 mt-0.5 shrink-0 cursor-grab" />
                         <div className="flex-1 min-w-0 text-left">
                           <div className="flex items-start gap-2 justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
                             <span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
                               {t.priority}
                             </span>
                           </div>
-                          {t.description && <p className="text-[9.5px] text-slate-400 dark:text-slate-550 truncate mt-0.5">{t.description}</p>}
+                          {t.description && <p className="text-[9.5px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{t.description}</p>}
                         </div>
                       </motion.div>
                     );
@@ -614,17 +614,17 @@ export default function CalendarView({
       {/* Sidebar Toggle Button */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="hidden lg:flex items-center justify-center w-6 h-10 rounded-r-2xl border border-l-0 border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-400 hover:text-slate-600 dark:hover:text-slate-250 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
+        className="hidden lg:flex items-center justify-center w-6 h-10 rounded-r-2xl border border-l-0 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
         title={isSidebarOpen ? "Thu gọn sidebar" : "Mở rộng sidebar"}
       >
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Main Calendar Views */}
-      <div className="flex-1 p-5.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col gap-4 min-w-0">
+      <div className="flex-1 p-5.5 rounded-3xl bg-white dark:bg-[#07080c] border border-slate-200/80 dark:border-slate-800/60 shadow-xs flex flex-col gap-4 min-w-0">
         
         {/* Calendar Navigation Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white capitalize">
               {viewMode === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
@@ -633,9 +633,9 @@ export default function CalendarView({
               {viewMode === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
               {viewMode === 'schedule' && `Lịch trình chi tiết`}
             </h2>
-            <div className="flex items-center gap-0.5 border border-slate-200/80 dark:border-slate-700/60 p-0.5 rounded-xl bg-slate-50 dark:bg-slate-950/40">
+            <div className="flex items-center gap-0.5 border border-slate-200/80 dark:border-slate-800/80 p-0.5 rounded-xl bg-slate-50 dark:bg-[#0e0f17]">
               <button onClick={handlePrev} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
-              <button onClick={handleToday} className="px-3 py-1 rounded-lg text-[9.5px] font-black uppercase hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-650 dark:text-slate-305">Hôm nay</button>
+              <button onClick={handleToday} className="px-3 py-1 rounded-lg text-[9.5px] font-black uppercase hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-700 dark:text-slate-300">Hôm nay</button>
               <button onClick={handleNext} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
@@ -650,16 +650,16 @@ export default function CalendarView({
                 placeholder="Tìm công việc..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8.5 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 placeholder-slate-400 outline-none w-40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold"
+                className="pl-8.5 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0e0f17] placeholder-slate-400 outline-none w-40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold"
               />
             </div>
 
             {/* Me vs Team Switch Slider */}
-            <div className="flex bg-slate-100 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 relative select-none">
+            <div className="flex bg-slate-100 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 relative select-none">
               <button 
                 onClick={() => setIsMeMode(true)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
-                  isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-450 dark:text-slate-450 hover:text-slate-700'
+                  isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                 }`}
               >
                 <UserCheck className="w-3 h-3" /> Của tôi
@@ -667,7 +667,7 @@ export default function CalendarView({
               <button 
                 onClick={() => setIsMeMode(false)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
-                  !isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-455 dark:text-slate-455 hover:text-slate-700'
+                  !isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                 }`}
               >
                 <Users className="w-3 h-3" /> Cả nhóm
@@ -675,7 +675,7 @@ export default function CalendarView({
             </div>
 
             {/* View Select Mode Slider */}
-            <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none relative">
+            <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none relative">
               {[
                 { id: 'month', label: 'Tháng' },
                 { id: 'week', label: 'Tuần' },
@@ -709,9 +709,9 @@ export default function CalendarView({
           
           {/* A. MONTH VIEW */}
           {viewMode === 'month' && (
-            <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 min-w-[720px]">
+            <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800/40 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800/60 min-w-[720px]">
               {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map(header => (
-                <div key={header} className="bg-slate-50/80 dark:bg-slate-950/30 py-3 text-center text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase select-none">
+                <div key={header} className="bg-slate-50/80 dark:bg-[#07080c] py-3 text-center text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase select-none">
                   {header}
                 </div>
               ))}
@@ -730,14 +730,14 @@ export default function CalendarView({
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, dateStr)}
                     onClick={() => handleGridCellClick(dateStr)}
-                    className={`min-h-[110px] bg-white dark:bg-slate-900 p-2.5 relative flex flex-col gap-1.5 transition-all duration-200 border-r border-b border-slate-100 dark:border-slate-850/60 group text-left ${
-                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-350 dark:text-slate-605 opacity-30'
-                    } ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-950/10' : ''} ${isDragOver ? 'bg-indigo-50/40 dark:bg-indigo-950/20 ring-2 ring-indigo-500/30 dark:ring-indigo-500/20 z-10' : 'hover:bg-slate-50/40 dark:hover:bg-slate-850/20'}`}
+                    className={`min-h-[110px] bg-white dark:bg-[#07080c] p-2.5 relative flex flex-col gap-1.5 transition-all duration-200 border-r border-b border-slate-100 dark:border-slate-800/70 group text-left ${
+                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-350 dark:text-slate-600 opacity-40 bg-slate-50/40 dark:bg-[#040406]'
+                    } ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-950/25' : ''} ${isDragOver ? 'bg-indigo-50/40 dark:bg-indigo-950/30 ring-2 ring-indigo-500/40 dark:ring-indigo-500/30 z-10' : 'hover:bg-slate-50/40 dark:hover:bg-slate-800/30'}`}
                   >
                     {/* Day Number Header */}
                     <div className="flex justify-between items-center select-none">
                       <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                        isToday ? 'bg-indigo-650 text-white shadow-md font-black' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-805 dark:group-hover:text-white'
+                        isToday ? 'bg-indigo-600 text-white shadow-md font-black' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white'
                       }`}>{day.date.getDate()}</span>
                       
                       <button 
@@ -776,8 +776,8 @@ export default function CalendarView({
                             whileHover={{ scale: 1.02 }}
                             className={`px-2 py-1 rounded-lg text-[9px] font-extrabold truncate border-l-[3px] border-r border-t border-b flex items-center gap-1.5 shadow-3xs cursor-grab active:cursor-grabbing transition-all ${
                               task.status === 'completed' 
-                                ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900 text-emerald-650 dark:text-emerald-500 line-through font-bold' 
-                                : 'bg-white dark:bg-slate-850 border-slate-150 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-700'
+                                ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 line-through font-bold' 
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-600'
                             }`}
                             style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
                           >
@@ -808,7 +808,7 @@ export default function CalendarView({
                         <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">
                           {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
                         </span>
-                        <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-indigo-650 text-white shadow-md font-black' : 'text-slate-700 dark:text-slate-200'}`}>
+                        <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-indigo-600 text-white shadow-md font-black' : 'text-slate-700 dark:text-slate-200'}`}>
                           {day.getDate()}
                         </span>
                       </div>
@@ -844,10 +844,10 @@ export default function CalendarView({
                         }}
                       >
                         <span className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1.25 shrink-0 shadow-sm relative flex">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-450 opacity-75" />
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
                         </span>
-                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs border-t border-dashed border-rose-350 dark:border-rose-700" />
+                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs border-t border-dashed border-rose-400 dark:border-rose-700" />
                       </div>
                     );
                   }
@@ -887,7 +887,7 @@ export default function CalendarView({
                           onDrop={e => handleDrop(e, dateStr, hour)}
                           onClick={() => handleGridCellClick(dateStr, hour)}
                           className={`bg-white dark:bg-slate-900 min-h-[52px] p-1.5 relative flex flex-col gap-1 transition-all duration-150 ${
-                            isDragOver ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-400/40 ring-2 ring-indigo-500/20 z-10' : 'hover:bg-slate-50/30 dark:hover:bg-slate-850/10'
+                            isDragOver ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-400/40 ring-2 ring-indigo-500/20 z-10' : 'hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                           }`}
                         >
                           {hourEvents.map((evt, idx) => (
@@ -916,8 +916,8 @@ export default function CalendarView({
                                 whileHover={{ scale: 1.02 }}
                                 className={`px-2 py-1 rounded-lg text-[9px] font-black border-l-[3px] border-r border-t border-b flex items-center gap-2 shadow-3xs cursor-grab active:cursor-grabbing hover:scale-[1.01] transition-all truncate ${
                                   task.status === 'completed' 
-                                    ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-500 line-through font-bold' 
-                                    : 'bg-white dark:bg-slate-850 border-slate-150 dark:border-slate-800 text-slate-700 dark:text-slate-250 hover:border-indigo-500 dark:hover:border-indigo-800'
+                                    ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 line-through font-bold' 
+                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-indigo-500 dark:hover:border-indigo-600'
                                 }`}
                                 style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
                               >
@@ -982,7 +982,7 @@ export default function CalendarView({
                     <div key={idx} className="space-y-3">
                       <div className="flex items-center gap-2.5 select-none">
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          isToday ? 'bg-indigo-650 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                          isToday ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                         }`}>
                           {isToday ? 'Hôm nay' : ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
                         </span>
@@ -1001,12 +1001,12 @@ export default function CalendarView({
                               key={item.id || itemIdx}
                               onClick={() => setSelectedTask(item)}
                               whileHover={{ scale: 1.01 }}
-                              className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-800 rounded-2xl shadow-3xs hover:shadow-2xs cursor-pointer transition-all flex items-start gap-3 justify-between"
+                              className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-700 rounded-2xl shadow-3xs hover:shadow-2xs cursor-pointer transition-all flex items-start gap-3 justify-between"
                             >
                               <div className="space-y-1.5 min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                                    isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350'
+                                    isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                                   }`}>
                                     {isGoogleEvent ? 'Sự kiện' : 'Công việc'}
                                   </span>
@@ -1021,7 +1021,7 @@ export default function CalendarView({
                               </div>
 
                               <div className="text-right shrink-0 flex flex-col justify-between h-full space-y-2">
-                                <span className="text-[9px] font-bold text-slate-450 dark:text-slate-500 font-mono flex items-center gap-0.5">
+                                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono flex items-center gap-0.5">
                                   <Clock className="w-3 h-3 text-slate-400" />
                                   {isGoogleEvent 
                                     ? new Date(item.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) 
@@ -1061,7 +1061,7 @@ export default function CalendarView({
               
               <div className="flex justify-between items-start mb-4">
                 <span className={`text-[8.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
-                  (selectedTask as any).isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350'
+                  (selectedTask as any).isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}>
                   {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Avaxa Task'}
                 </span>
@@ -1104,7 +1104,7 @@ export default function CalendarView({
                     <select
                       value={selectedTask.priority}
                       onChange={e => handleModalUpdateField('priority', e.target.value as Priority)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-250 cursor-pointer font-bold"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 cursor-pointer font-bold"
                     >
                       <option value="low">Thấp</option>
                       <option value="medium">Trung bình</option>
@@ -1122,7 +1122,7 @@ export default function CalendarView({
                     <select
                       value={selectedTask.status}
                       onChange={e => handleModalUpdateField('status', e.target.value as TaskStatus)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-255 cursor-pointer font-bold"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 cursor-pointer font-bold"
                     >
                       <option value="todo">Cần làm</option>
                       <option value="inprogress">Đang thực hiện</option>
@@ -1140,7 +1140,7 @@ export default function CalendarView({
                     <select
                       value={selectedTask.assigneeId || ''}
                       onChange={e => handleModalUpdateField('assigneeId', e.target.value || null)}
-                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-250 cursor-pointer font-bold"
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 outline-none bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 cursor-pointer font-bold"
                     >
                       <option value="">Chưa phân công</option>
                       {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -1151,13 +1151,13 @@ export default function CalendarView({
                 {/* Editable Description */}
                 {!(selectedTask as any).isGoogleEvent ? (
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-slate-450 dark:text-slate-500">Mô tả chi tiết</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">Mô tả chi tiết</label>
                     <textarea
                       value={selectedTask.description || ''}
                       onChange={e => handleModalUpdateField('description', e.target.value)}
                       rows={3}
                       placeholder="Viết mô tả cho công việc này..."
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none resize-none font-semibold text-slate-600 dark:text-slate-350 transition-colors focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none resize-none font-semibold text-slate-600 dark:text-slate-300 transition-colors focus:border-indigo-500"
                     />
                   </div>
                 ) : (
@@ -1193,7 +1193,7 @@ export default function CalendarView({
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-indigo-650 dark:text-indigo-400" />
+                  <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">Lên lịch: {clickedDate} lúc {clickedHour}:00</h3>
                 </div>
                 <button onClick={() => setShowAddModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"><X className="w-4 h-4" /></button>
@@ -1201,13 +1201,13 @@ export default function CalendarView({
 
               <form onSubmit={handleCreateQuickItem} className="space-y-4 text-xs text-left">
                 {/* Switch Type Option */}
-                <div className="grid grid-cols-2 gap-1 bg-slate-105 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none">
+                <div className="grid grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-950/40 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none">
                   <button type="button" onClick={() => setCreateType('task')}
-                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'task' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-2xs border border-slate-200/10' : 'text-slate-450 dark:text-slate-500 hover:text-slate-700'}`}>
+                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'task' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs border border-slate-200/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
                     Công việc mới
                   </button>
                   <button type="button" onClick={() => setCreateType('event')}
-                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'event' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-450 shadow-2xs border border-slate-200/10' : 'text-slate-450 dark:text-slate-500 hover:text-slate-700'}`}>
+                    className={`py-1.5 rounded-lg text-[10px] font-black text-center cursor-pointer transition-all ${createType === 'event' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-2xs border border-slate-200/10' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
                     Sự kiện Google
                   </button>
                 </div>
@@ -1229,7 +1229,7 @@ export default function CalendarView({
                     <div className="space-y-1.5 text-left">
                       <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Độ ưu tiên</label>
                       <select value={quickPriority} onChange={e => setQuickPriority(e.target.value as any)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-250">
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-200">
                         <option value="low">Thấp</option>
                         <option value="medium">Trung bình</option>
                         <option value="high">Cao</option>
@@ -1239,7 +1239,7 @@ export default function CalendarView({
                     <div className="space-y-1.5 text-left">
                       <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Người phụ trách</label>
                       <select value={quickAssigneeId} onChange={e => setQuickAssigneeId(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-250">
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none cursor-pointer font-bold text-slate-700 dark:text-slate-200">
                         <option value="">Chưa phân công</option>
                         {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
@@ -1260,7 +1260,7 @@ export default function CalendarView({
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Màu nhãn</label>
                       <select value={quickEventColor} onChange={e => setQuickEventColor(e.target.value)}
-                        className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-black text-slate-700 dark:text-slate-250">
+                        className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-black text-slate-700 dark:text-slate-200">
                         <option value="#7B61FF" style={{ color: '#7B61FF' }}>Indigo</option>
                         <option value="#10b981" style={{ color: '#10b981' }}>Emerald</option>
                         <option value="#ef4444" style={{ color: '#ef4444' }}>Rose</option>
@@ -1272,12 +1272,12 @@ export default function CalendarView({
 
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setShowAddModal(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer text-center"
+                    className="flex-1 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer text-center"
                   >
                     Hủy bỏ
                   </button>
                   <button type="submit"
-                    className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white dark:text-slate-905 bg-slate-900 dark:bg-white hover:bg-slate-850 dark:hover:bg-slate-100 shadow-sm transition-colors cursor-pointer text-center font-black"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-extrabold text-white dark:text-slate-900 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 shadow-sm transition-colors cursor-pointer text-center font-black"
                   >
                     Xếp lịch
                   </button>

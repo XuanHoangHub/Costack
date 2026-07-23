@@ -62,6 +62,10 @@ interface UiState {
   viewingMemberProfileId: string | null;
   setViewingMemberProfileId: (id: string | null) => void;
 
+  // Mobile drawer state
+  isMobileSidebarOpen: boolean;
+  setIsMobileSidebarOpen: (open: boolean) => void;
+
   sidebarOrder: string[];
 
   setActiveTab: (tab: string) => void;
@@ -180,9 +184,11 @@ export const useUiStore = create<UiState>()(
       editWSTheme: 'indigo',
       showPomoSettings: false,
       viewingMemberProfileId: null,
+      isMobileSidebarOpen: false,
       sidebarOrder: ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'],
 
       setActiveTab: (activeTab) => set({ activeTab }),
+      setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
       setIsMainSidebarCollapsed: (isMainSidebarCollapsed) => set({ isMainSidebarCollapsed }),
       setIsSearchOpen: (isSearchOpen) => set({ isSearchOpen }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),

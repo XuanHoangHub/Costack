@@ -545,8 +545,8 @@ export default function TaskTableView({
   };
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[calc(100vh-220px)] bg-white dark:bg-slate-900/40">
-      <table className="w-full">
+    <div className="overflow-x-auto custom-touch-scroll rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[calc(100vh-220px)] bg-white dark:bg-slate-900/40">
+      <table className="w-full min-w-[640px]">
         <thead>
           <tr className="bg-slate-50/30 dark:bg-slate-900/10 border-b border-slate-200/65 dark:border-slate-800/60">
             <th className="w-10 px-4 py-3 border-b border-slate-200/65 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/10 text-center">

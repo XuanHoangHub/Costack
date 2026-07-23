@@ -271,7 +271,7 @@ export default function GoalsHub({
   const linkableTasks = tasks.filter(t => t.workspaceId === workspaceId || !t.workspaceId);
 
   return (
-    <div className="space-y-6 text-slate-800 dark:text-slate-100">
+    <div className="space-y-6 text-slate-800 dark:text-slate-100 min-h-full pb-8">
       
       {/* Upper Glassmorphic Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -51,18 +51,18 @@ const ComponentLoading = () => (
 const DashboardOverview = dynamic(() => import('../components/DashboardOverview'), { loading: ComponentLoading });
 const SpacePage = dynamic(() => import('../components/SpacePage'), { loading: ComponentLoading });
 const CalendarView = dynamic(() => import('../components/CalendarView'), { loading: ComponentLoading });
-const Whiteboard = dynamic(() => import('../components/Whiteboard'), { loading: ComponentLoading });
-const WhiteboardHub = dynamic(() => import('../components/WhiteboardHub'), { loading: ComponentLoading });
+const Whiteboard = dynamic(() => import('../components/Whiteboard'), { loading: ComponentLoading, ssr: false });
+const WhiteboardHub = dynamic(() => import('../components/WhiteboardHub'), { loading: ComponentLoading, ssr: false });
 const ChatRoom = dynamic(() => import('../components/ChatRoom'), { loading: ComponentLoading });
 const TeamDirectory = dynamic(() => import('../components/TeamDirectory'), { loading: ComponentLoading });
-const AvaxaBrainAssistant = dynamic(() => import('../components/AvaxaBrainAssistant'), { loading: ComponentLoading });
+const AvaxaBrainAssistant = dynamic(() => import('../components/AvaxaBrainAssistant'), { loading: ComponentLoading, ssr: false });
 const SettingsPanel = dynamic(() => import('../components/SettingsPanel'), { loading: ComponentLoading });
 const ProfilePage = dynamic(() => import('../components/ProfilePage'), { loading: ComponentLoading });
 const ProductivityHub = dynamic(() => import('../components/ProductivityHub'), { loading: ComponentLoading });
 const WorkspaceSettingsModal = dynamic(() => import('../components/WorkspaceSettingsModal'), { loading: ComponentLoading });
 const BaseHub = dynamic(() => import('../components/BaseHub'), { loading: ComponentLoading });
 const InboxView = dynamic(() => import('../components/InboxView'), { loading: ComponentLoading });
-const AnalyticsHub = dynamic(() => import('../components/AnalyticsHub'), { loading: ComponentLoading });
+const AnalyticsHub = dynamic(() => import('../components/AnalyticsHub'), { loading: ComponentLoading, ssr: false });
 const GoalsHub = dynamic(() => import('../components/GoalsHub'), { loading: ComponentLoading });
 
 import { 
@@ -71,7 +71,7 @@ import {
   Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
   Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
-  BarChart3, Target
+  BarChart3, Target, Menu
 } from 'lucide-react';
 
 import {
@@ -154,6 +154,8 @@ export default function App() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>('general');
   const isMainSidebarCollapsed = useUiStore((s) => s.isMainSidebarCollapsed);
   const setIsMainSidebarCollapsed = useUiStore((s) => s.setIsMainSidebarCollapsed);
+  const isMobileSidebarOpen = useUiStore((s) => s.isMobileSidebarOpen);
+  const setIsMobileSidebarOpen = useUiStore((s) => s.setIsMobileSidebarOpen);
   const accentPreset = useUiStore((s) => s.accentPreset);
   const setAccentPreset = useUiStore((s) => s.setAccentPreset);
   const userStatus = useUiStore((s) => s.userStatus);
@@ -3524,7 +3526,7 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-white dark:bg-black text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 w-full h-full bg-slate-50 dark:bg-[#07080c] text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
       
             {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
       <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none" />
@@ -3532,8 +3534,43 @@ export default function App() {
       <div className="liquid-blob blob-3 animate-liquid-1 pointer-events-none" />
 
       {/* Dynamic Glass Top Header Status Strip (Spans 100% width across the top) */}
-      <header className="ios27-glass relative z-40 flex items-center border-b border-slate-200/40 dark:border-slate-800/60 min-h-[62px] shrink-0 shadow-sm transition-all duration-300">
-        {/* Left header switcher section */}
+      <header className="bg-white dark:bg-[#090a12] relative z-40 flex items-center border-b border-slate-200/80 dark:border-slate-800/80 h-[54px] shrink-0 transition-all duration-200">
+        {/* Mobile header trigger & workspace badge (< md screens) */}
+        <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
+            title="Open Navigation Menu"
+          >
+            <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          </button>
+          
+          <div 
+            onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/70 dark:bg-slate-850/60 border border-slate-200/60 dark:border-slate-800 cursor-pointer max-w-[130px] select-none"
+          >
+            <div 
+              className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden"
+              style={!currentWorkspace?.logoUrl ? {
+                background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                            currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                            currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                            'linear-gradient(135deg, #7B61FF, #6D55FE)',
+              } : undefined}
+            >
+              {currentWorkspace?.logoUrl ? (
+                <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+              ) : (
+                <span>{currentWorkspace?.initial || 'A'}</span>
+              )}
+            </div>
+            <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
+              {currentWorkspace?.name || 'Avaxa'}
+            </span>
+          </div>
+        </div>
+
+        {/* Left header switcher section (desktop) */}
         <div className={`hidden md:flex items-center justify-between py-2 shrink-0 border-r border-slate-200/40 dark:border-slate-800/60 transition-all duration-350 ease-in-out relative ${
           isMainSidebarCollapsed ? 'w-[80px] px-1 justify-center' : 'w-[260px] px-4'
         }`}>
@@ -4167,7 +4204,7 @@ export default function App() {
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
                 className={`cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border rounded-2xl transition-all select-none shadow-3xs ${
-                  currentUser.isPremium ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-slate-205/60 dark:border-slate-805/60'
+                  currentUser.isPremium ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-slate-200/60 dark:border-slate-800/60'
                 }`}
               >
                 <div className="relative shrink-0 flex">
@@ -4213,7 +4250,7 @@ export default function App() {
                     >
                       {/* User Info Header with Role */}
                       <div className="px-2.5 py-2.5 mb-1.5 bg-slate-50/50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800/50 flex flex-col rounded-xl">
-                        <span className="font-extrabold text-xs text-slate-805 dark:text-slate-100 truncate">{currentUser.name}</span>
+                        <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate">{currentUser.name}</span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{currentUser.email}</span>
                         <span className="text-[9px] text-indigo-650 dark:text-indigo-400 font-extrabold uppercase mt-2 bg-indigo-50 dark:bg-indigo-950/50 w-max px-2 py-0.5 rounded-md">
                           {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
@@ -4357,10 +4394,10 @@ export default function App() {
       <div className="flex-1 flex flex-row min-h-0 overflow-hidden relative">
 
       {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
-      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-705 dark:text-slate-200 ios27-glass rounded-3xl m-2 my-2.5 border border-white/60 dark:border-white/10 shadow-xl transition-all duration-350 ease-in-out cursor-default [&_*]:cursor-default ${
+      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-700 dark:text-slate-200 bg-white dark:bg-[#090a12] border-r border-slate-200/80 dark:border-slate-800/80 transition-all duration-200 ease-in-out cursor-default [&_*]:cursor-default ${
         isMainSidebarCollapsed 
-          ? 'w-[76px] px-2 py-4 space-y-3' 
-          : 'w-[250px] px-3.5 py-4 space-y-4'
+          ? 'w-[68px] px-2 py-3 space-y-3' 
+          : 'w-[240px] px-3 py-3 space-y-4'
       }`}>
         
         <div className={`h-full flex flex-col justify-between ${isMainSidebarCollapsed ? 'space-y-3' : 'space-y-6'}`}>
@@ -4457,320 +4494,7 @@ export default function App() {
             </div>
           </div>
 
-            {/* Widget Area: Pomodoro & Sprint Compact */}
-            <div className={`border-t border-slate-200/20 dark:border-slate-800/20 ${
-              isMainSidebarCollapsed ? 'space-y-2 px-0.5 pt-2' : 'space-y-3 px-1 pt-2'
-            }`}>
-              {isMainSidebarCollapsed ? (
-                <>
-                  {/* Collapsed Pomodoro Timer */}
-                  <div className="group rounded-xl bg-slate-50 dark:bg-slate-950/20 p-1.5 flex flex-col items-center justify-center gap-1 border border-slate-200/50 dark:border-slate-805/50 relative">
-                    <div className={`p-1 rounded-lg flex items-center justify-center transition-all ${
-                      pomodoroMode === 'work' ? 'bg-indigo-50 text-[var(--avaxa-text)] ' + (pomodoroActive ? 'animate-pulse' : '') :
-                      pomodoroMode === 'short' ? 'bg-emerald-50 text-emerald-600' :
-                      'bg-sky-50 text-sky-600'
-                    }`}>
-                      <Timer className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="font-mono text-[9px] font-black text-slate-805 dark:text-slate-105 leading-none block">
-                      {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
-                    </span>
-                    <div className="flex gap-1 items-center mt-0.5">
-                      {pomodoroActive ? (
-                        <button 
-                          onClick={handlePausePomodoro} 
-                          className="p-1 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-md cursor-pointer transition-all border border-amber-200" 
-                          title="Pause"
-                        >
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={handleStartPomodoro} 
-                          className="p-1 hover:scale-105 rounded-md cursor-pointer text-white"
-                          style={{ background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))' }}
-                          title="Start"
-                        >
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Collapsed Sprint Progress */}
-                  <div className="py-2 rounded-xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 flex flex-col items-center justify-center gap-1" title="Sprint Progress">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                    <span className="text-slate-800 dark:text-slate-200 font-extrabold text-[9px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200/50 shadow-xs">
-                      {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
-                    </span>
-                  </div>
-
-                  {/* Collapsed Themes Grid */}
-                  <div className="p-1.5 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl gap-1" title="Theme Color">
-                    <div className="grid grid-cols-2 gap-1">
-                      {[
-                        { id: 'indigo', color: 'bg-indigo-500' },
-                        { id: 'ocean', color: 'bg-sky-500' },
-                        { id: 'forest', color: 'bg-emerald-500' },
-                        { id: 'sunset', color: 'bg-orange-500' }
-                      ].map(theme => (
-                        <button
-                          key={theme.id}
-                          onClick={() => setAccentPreset(theme.id as any)}
-                          className={`w-2.5 h-2.5 rounded-full transition-all outline outline-offset-1 cursor-pointer ${
-                            accentPreset === theme.id 
-                              ? 'scale-110 outline-slate-450 shadow-xs' 
-                              : 'outline-transparent hover:scale-110 hover:outline-slate-200'
-                          } ${theme.color}`}
-                          title={theme.id}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="group rounded-2xl border border-slate-200/50 bg-slate-50 dark:bg-slate-950/20 p-3 relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-                    {/* Visual Accent */}
-                    {pomodoroActive && (
-                      <motion.div 
-                        layoutId="pomodoroActiveBorder"
-                        className="absolute top-0 left-0 w-1 h-full animate-pulse"
-                        style={{ background: 'var(--avaxa-primary)' }}
-                      />
-                    )}
-
-                    {/* Mode Selector Segmented Control grid */}
-                    <div className="grid grid-cols-3 gap-0.5 bg-slate-105/85 p-0.5 rounded-lg border border-slate-200/30 select-none mb-2.5">
-                      {[
-                        { id: 'work', label: 'Work' },
-                        { id: 'short', label: 'Short Break' },
-                        { id: 'long', label: 'Long Break' }
-                      ].map(m => (
-                        <button
-                          key={m.id}
-                          onClick={() => handleSwitchPomodoroMode(m.id as any)}
-                          className={`text-[9px] font-bold py-1 rounded-md transition-all cursor-pointer text-center ${
-                            pomodoroMode === m.id
-                              ? 'bg-white text-slate-850 shadow-xs border border-slate-200/20'
-                              : 'text-slate-455 hover:text-slate-700 hover:bg-white/40'
-                          }`}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-xl flex items-center justify-center transition-all ${
-                          pomodoroMode === 'work' ? 'bg-indigo-50 text-[var(--avaxa-text)] ' + (pomodoroActive ? 'animate-pulse' : '') :
-                          pomodoroMode === 'short' ? 'bg-emerald-50 text-emerald-600' :
-                          'bg-sky-50 text-sky-600'
-                        }`}>
-                          <Timer className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest leading-none mb-1">
-                            {pomodoroMode === 'work' ? 'TẬP TRUNG' : pomodoroMode === 'short' ? 'NGHỈ NGẮN' : 'NGHỈ DÀI'}
-                          </span>
-                          <span className="font-mono text-base font-black text-slate-805 tracking-tight leading-none block">
-                            {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Controls */}
-                      <div className="flex gap-1 items-center">
-                        <button 
-                          onClick={() => setShowPomoSettings(!showPomoSettings)} 
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                            showPomoSettings 
-                              ? 'bg-slate-100 text-indigo-650 border-slate-200' 
-                              : 'text-slate-400 hover:bg-slate-50 border-transparent hover:border-slate-100'
-                          }`}
-                          title="Cấu hình khoảng thời gian"
-                        >
-                          <Settings className="w-3.5 h-3.5" />
-                        </button>
-
-                        {pomodoroActive ? (
-                          <button 
-                            onClick={handlePausePomodoro} 
-                            className="p-1.5 bg-amber-55 hover:bg-amber-100 text-amber-600 rounded-lg transition-all cursor-pointer border border-amber-200/50 shadow-xs flex items-center justify-center animate-pulse" 
-                            title="Dừng"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={handleStartPomodoro} 
-                            className="p-1.5 hover:scale-105 rounded-lg transition-all cursor-pointer text-white shadow-sm flex items-center justify-center border border-transparent"
-                            style={{ 
-                              background: 'linear-gradient(135deg, var(--avaxa-primary), var(--avaxa-primary-hover))',
-                              boxShadow: '0 4px 10px rgba(var(--avaxa-primary-rgb), 0.2)'
-                            }} 
-                            title="Start"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                          </button>
-                        )}
-                        <button 
-                          onClick={handleStopPomodoro} 
-                          className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-100" 
-                          title="Cancel"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Inline Collapsible Pomodoro Settings Popover Panel */}
-                    <AnimatePresence>
-                      {showPomoSettings && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden mt-2 border-t border-slate-100 dark:border-slate-800/20 pt-2.5 space-y-2.5"
-                          id="pomodoro_inner_settings_popover"
-                        >
-                          <div className="text-[9px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                            <span>Duration (Minutes)</span>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div className="space-y-0.5">
-                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Focus</label>
-                              <input 
-                                type="number"
-                                min="1"
-                                max="180"
-                                value={workDuration}
-                                onChange={(e) => {
-                                  const v = Math.max(1, Math.min(180, Number(e.target.value) || 25));
-                                  handleUpdatePomoDurations(v, shortBreakDuration, longBreakDuration);
-                                }}
-                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                              />
-                            </div>
-
-                            <div className="space-y-0.5">
-                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Short Break</label>
-                              <input 
-                                type="number"
-                                min="1"
-                                max="60"
-                                value={shortBreakDuration}
-                                onChange={(e) => {
-                                  const v = Math.max(1, Math.min(60, Number(e.target.value) || 5));
-                                  handleUpdatePomoDurations(workDuration, v, longBreakDuration);
-                                }}
-                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                              />
-                            </div>
-
-                            <div className="space-y-0.5">
-                              <label className="block text-[8px] font-extrabold text-slate-400 uppercase">Long Break</label>
-                              <input 
-                                type="number"
-                                min="1"
-                                max="120"
-                                value={longBreakDuration}
-                                onChange={(e) => {
-                                  const v = Math.max(1, Math.min(120, Number(e.target.value) || 15));
-                                  handleUpdatePomoDurations(workDuration, shortBreakDuration, v);
-                                }}
-                                className="w-full text-[10px] font-mono font-bold px-1.5 py-1 text-slate-700 bg-slate-50 border border-slate-200/60 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Presets Quick Actions */}
-                          <div className="flex gap-1 pt-0.5 justify-end">
-                            <button
-                              onClick={() => handleUpdatePomoDurations(25, 5, 15)}
-                              className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
-                            >
-                              Default (25/5/15)
-                            </button>
-                            <button
-                              onClick={() => handleUpdatePomoDurations(50, 10, 20)}
-                              className="text-[8px] font-extrabold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-150 text-slate-550 transition-colors cursor-pointer"
-                            >
-                              High (50/10/20)
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Sprint Progress Compact */}
-                  <div className="px-2.5 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950/20 border border-slate-105 space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-455">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Sprint Progress
-                      </span>
-                      <span className="text-slate-800 dark:text-slate-200 font-extrabold text-[10px] bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200/50 shadow-xs">
-                        {tasks.filter(t => t.status === 'completed').length}/{tasks.length}
-                      </span>
-                    </div>
-                    
-                    <div className="relative">
-                      <div className="h-2 bg-slate-200/70 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="h-full rounded-full"
-                          style={{ background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))' }}
-                        />
-                      </div>
-                      {/* Glowing layer */}
-                      <div 
-                        className="absolute inset-0 h-2 blur-md opacity-25 rounded-full overflow-hidden"
-                        style={{ 
-                          background: 'linear-gradient(to right, var(--avaxa-primary), var(--avaxa-gradient-end))',
-                          width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0}%`
-                        }} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Compact Themes & Accent Selectors */}
-                  <div className="px-2.5 py-2 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20 border border-slate-105 rounded-xl">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Theme Color</span>
-                    <div className="flex gap-2">
-                      {[
-                        { id: 'indigo', color: 'bg-indigo-500', glow: 'shadow-indigo-500/20' },
-                        { id: 'ocean', color: 'bg-sky-500', glow: 'shadow-sky-500/20' },
-                        { id: 'forest', color: 'bg-emerald-500', glow: 'shadow-emerald-500/20' },
-                        { id: 'sunset', color: 'bg-orange-500', glow: 'shadow-orange-500/20' }
-                      ].map(theme => (
-                        <button
-                          key={theme.id}
-                          onClick={() => setAccentPreset(theme.id as any)}
-                          className={`w-4 h-4 rounded-full transition-all outline outline-offset-2 relative cursor-pointer ${
-                            accentPreset === theme.id 
-                              ? 'scale-110 outline-slate-400 shadow-md ' + theme.glow 
-                              : 'outline-transparent hover:scale-110 hover:outline-slate-200'
-                          } ${theme.color}`}
-                          title={theme.id}
-                        >
-                          {accentPreset === theme.id && (
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <span className="w-1 h-1 rounded-full bg-white animate-ping" />
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
 
           </div>
         </div>
@@ -4784,23 +4508,23 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'base';
           
           return (
-            <main className={`flex-1 relative ${
-              isSpaceTab 
-                ? 'h-full overflow-hidden' 
-                : 'overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-6'
-            }`}>
-              <AnimatePresence mode="wait" initial={false}>
+            <main className="flex-1 relative w-full h-full overflow-hidden">
+              <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.08, ease: "easeOut" }}
                   id={`workspace_container_${activeTab}`}
-                  className={`will-change-transform transform-gpu ${isSpaceTab ? "w-full h-full" : "space-y-4 md:space-y-6 w-full max-w-none px-1 lg:px-3"}`}
+                  className={`will-change-transform transform-gpu w-full h-full ${
+                    isSpaceTab 
+                      ? 'overflow-hidden' 
+                      : 'overflow-y-auto p-4 md:p-6 pb-12 custom-scrollbar'
+                  }`}
                 >
                   {activeTab === 'dashboard' && (
                     <DashboardOverview
@@ -4973,7 +4697,7 @@ export default function App() {
 
                   {activeTab === 'chat' && (
                     <ChatRoom
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      members={members.filter(m => !m.workspaceIds || m.workspaceIds.length === 0 || m.workspaceIds.includes(activeWorkspaceId))}
                       currentUser={currentUser}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
@@ -4988,7 +4712,7 @@ export default function App() {
                   )}
 
                   {activeTab === 'docs' && (
-                    <div className="w-full h-full p-4 md:p-5">
+                    <div className="w-full h-full">
                       <DocumentHub
                         docs={currentWorkspaceDocs}
                         currentUser={currentUser}
@@ -5049,6 +4773,13 @@ export default function App() {
                       onAddSyncLog={addSyncLog}
                       currentUser={currentUser}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
+                      onStartChat={(memberId) => {
+                        const myId = currentUser?.id || 'user';
+                        const sortedIds = [myId, memberId].sort();
+                        const dmChannelId = `${activeWorkspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+                        setInitialSelectedChannelId(dmChannelId);
+                        setActiveTab('chat');
+                      }}
                     />
                   )}
 
@@ -5120,26 +4851,178 @@ export default function App() {
 
       </div>
 
+      {/* ── Mobile Responsive Sidebar Drawer Sheet ── */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 md:hidden cursor-pointer"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              className="fixed inset-y-0 left-0 w-[295px] max-w-[85vw] bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-r border-slate-200/80 dark:border-slate-800/80 z-50 md:hidden flex flex-col justify-between p-4 shadow-2xl overflow-y-auto custom-touch-scroll"
+            >
+              <div className="space-y-4">
+                {/* Header with Workspace logo & close button */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+                  <div 
+                    className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0"
+                    onClick={() => {
+                      setShowWorkspaceMenu(!showWorkspaceMenu);
+                    }}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm shrink-0 overflow-hidden"
+                      style={!currentWorkspace?.logoUrl ? {
+                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                    'linear-gradient(135deg, #7B61FF, #6D55FE)',
+                      } : undefined}
+                    >
+                      {currentWorkspace?.logoUrl ? (
+                        <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                      ) : (
+                        <span>{currentWorkspace?.initial || 'A'}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-extrabold text-slate-900 dark:text-slate-100 text-sm truncate flex items-center gap-1">
+                        <span>{currentWorkspace?.name || 'Avaxa'}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      </div>
+                      <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">
+                        {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Navigation Items List */}
+                <div className="space-y-1 py-1">
+                  <div className="px-2 text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                    NAVIGATION
+                  </div>
+                  {orderedItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          isActive
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 shadow-3xs'
+                            : 'text-slate-650 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <Icon size={20} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'} />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {item.count !== undefined && item.count > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">
+                            {item.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Widgets section: Pomodoro Timer */}
+                <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2">
+                  <div className="px-2 text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    FOCUS TIMER
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Timer className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-mono text-xs font-black text-slate-800 dark:text-slate-100">
+                        {Math.floor(pomodoroTime / 60).toString().padStart(2, '0')}:{(pomodoroTime % 60).toString().padStart(2, '0')}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setPomodoroActive(!pomodoroActive)}
+                      className={`p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        pomodoroActive 
+                          ? 'bg-rose-100 text-rose-600 dark:bg-rose-955/40 dark:text-rose-400' 
+                          : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-955/40 dark:text-indigo-400'
+                      }`}
+                    >
+                      {pomodoroActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer actions */}
+              <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800/60 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <SignedImage filePath={currentUser?.avatar} className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700" alt={currentUser?.name || 'User'} />
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate max-w-[120px]">
+                        {currentUser?.name || 'User'}
+                      </div>
+                      <div className="text-[9.5px] text-slate-400 truncate max-w-[120px]">
+                        {currentUser?.email}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Toggle Theme"
+                  >
+                    {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+                  </button>
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Bottom Navigation Bar replacing sidebar on mobile */}
-      <nav className="md:hidden shrink-0 liquid-glass flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom)] border-t border-slate-200/50 dark:border-slate-800">
+      <nav className="md:hidden shrink-0 liquid-glass flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom,8px)] border-t border-slate-200/50 dark:border-slate-800">
          {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'tasks', label: 'Tasks', icon: Briefcase },
           { id: 'chat', label: 'Chat', icon: MessageSquare },
           { id: 'base', label: 'Base', icon: Database },
-          { id: 'whiteboard', label: 'Whiteboard', icon: Grid },
-          { id: 'settings', label: 'Settings', icon: Settings },
+          { id: 'docs', label: 'Docs', icon: FileText },
+          { id: 'more_menu', label: 'More', icon: Menu },
         ].map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isMore = item.id === 'more_menu';
+          const isActive = !isMore && activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => {
-                setActiveTab(item.id);
-                addSyncLog(`Bottom menu: Switched to ${item.label}`);
+                if (isMore) {
+                  setIsMobileSidebarOpen(true);
+                } else {
+                  setActiveTab(item.id);
+                  addSyncLog(`Bottom menu: Switched to ${item.label}`);
+                }
               }}
-              className="flex-1 flex flex-col items-center justify-center p-1.5 gap-1 relative cursor-pointer"
+              className="flex-1 flex flex-col items-center justify-center p-1.5 gap-1 relative cursor-pointer active:scale-95 transition-transform"
             >
               {isActive && (
                 <motion.div
@@ -5736,9 +5619,9 @@ export default function App() {
         {showAddListSpaceId && (
           <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddListSpaceId(null)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-2xl p-6 overflow-hidden z-10 text-left">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-105">
-                <h3 className="text-sm font-bold text-slate-800">Create New Task List</h3>
+            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden z-10 text-left">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Create New Task List</h3>
                 <button onClick={() => setShowAddListSpaceId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50"><X className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleAddList} className="space-y-4">
@@ -5891,7 +5774,7 @@ export default function App() {
 
               <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
 
-              <span className="text-xs font-mono font-bold text-slate-805 dark:text-slate-100 tabular-nums">
+              <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-100 tabular-nums">
                 {formatTimerDuration(activeTimerElapsed)}
               </span>
 
@@ -5900,7 +5783,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleTogglePauseGlobalTimer}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-805 text-slate-550 dark:text-slate-400 rounded-lg cursor-pointer transition-colors"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg cursor-pointer transition-colors"
                   title={isTimerPaused ? 'Resume' : 'Pause'}
                 >
                   {isTimerPaused ? <Play className="w-3.5 h-3.5 fill-current text-indigo-500" /> : <Pause className="w-3.5 h-3.5 fill-current text-indigo-500" />}
@@ -5927,6 +5810,14 @@ export default function App() {
         onSelectTask={(task) => {
           setActiveTab('tasks');
         }}
+      />
+
+      <PricingModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        currentUser={currentUser}
+        triggerToast={triggerToast}
+        addSyncLog={addSyncLog}
       />
 
       </div>

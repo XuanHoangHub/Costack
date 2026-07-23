@@ -79,11 +79,13 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
       return;
     }
 
-    // Direct web or base64 image URLs
+    // Direct web, blob, relative or base64 image URLs
     if (
       filePath.startsWith('http://') || 
       filePath.startsWith('https://') || 
-      (filePath.startsWith('data:image/') && !filePath.includes('html'))
+      filePath.startsWith('blob:') ||
+      filePath.startsWith('data:') ||
+      filePath.startsWith('/')
     ) {
       setSrc(filePath);
       return;

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
+import { useUiStore } from '../store/uiStore';
 import InviteModal from './InviteModal';
 import { useUserPresence } from '../hooks/useUserPresence';
 
@@ -33,6 +34,7 @@ interface TeamDirectoryProps {
   onAddSyncLog: (action: string) => void;
   currentUser?: any;
   onSendWorkspaceInvites?: (emails: string[], role: string) => void;
+  onStartChat?: (memberId: string) => void;
 }
 
 const DEPARTMENTS = [
@@ -47,25 +49,22 @@ const getDeptBadge = (deptId?: string) => {
     case 'd-hq': return { label: 'dept_hq_badge', icon: '🏢', class: 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-455' };
     case 'd-eng': return { label: 'dept_eng_badge', icon: '💻', class: 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-455' };
     case 'd-design': return { label: 'dept_design_badge', icon: '🎨', class: 'bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-455' };
-    case 'd-growth': return { label: 'dept_growth_badge', icon: '📈', class: 'bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-455' };
-    default: return { label: 'dept_general_badge', icon: '👥', class: 'bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-slate-500 dark:text-slate-405' };
+    case 'd-growth': return { label: 'dept_growth_badge', icon: '📈', class: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-455' };
+    default: return { label: 'General Member', icon: '⚡', class: 'bg-slate-500/10 border border-slate-500/20 text-slate-700 dark:text-slate-400' };
   }
 };
 
 const maskEmail = (email?: string) => {
-  if (!email) return '';
-  const parts = email.split('@');
-  if (parts.length < 2) return email;
-  const name = parts[0];
-  const domain = parts[1];
-  const showLen = Math.min(2, name.length);
-  return `${name.slice(0, showLen)}***@${domain}`;
+  if (!email || !email.includes('@')) return '••••••••@••••.com';
+  const [user, domain] = email.split('@');
+  const userMasked = user.length > 2 ? user.slice(0, 2) + '••••' : user + '••••';
+  return `${userMasked}@${domain}`;
 };
 
 const maskPhone = (phone?: string) => {
-  if (!phone || phone.trim() === '') return '';
+  if (!phone) return '••••••••••';
   const clean = phone.trim();
-  if (clean.length <= 4) return '••••';
+  if (clean.length <= 4) return '••••' + clean;
   return '••••••••' + clean.slice(-3);
 };
 
@@ -79,7 +78,8 @@ export default function TeamDirectory({
   onDeleteMember,
   onAddSyncLog,
   currentUser,
-  onSendWorkspaceInvites
+  onSendWorkspaceInvites,
+  onStartChat
 }: TeamDirectoryProps) {
   const { t, locale } = useTranslation();
   // Top-level Team OS sub-tab state
@@ -948,15 +948,27 @@ export default function TeamDirectory({
                   <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
                     <span className="text-[10px] text-slate-400 font-medium">Joined {member.joinedDate || '2026'}</span>
                     
-                    {!isCurrentUser && activeTab === 'workspace' && (
-                      <button
-                        onClick={() => handleRemoveFromWorkspace(member)}
-                        className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
-                        title="Dismiss from Workspace"
-                      >
-                        <UserMinus className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {!isCurrentUser && onStartChat && (
+                        <button
+                          onClick={() => onStartChat(member.id)}
+                          className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border border-indigo-200/50 dark:border-indigo-800/50 text-[10.5px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-3xs"
+                          title="Nhắn tin trực tiếp"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>Nhắn tin</span>
+                        </button>
+                      )}
+                      {!isCurrentUser && activeTab === 'workspace' && (
+                        <button
+                          onClick={() => handleRemoveFromWorkspace(member)}
+                          className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
+                          title="Dismiss from Workspace"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );

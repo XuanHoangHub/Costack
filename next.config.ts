@@ -33,6 +33,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  compress: true,
+  poweredByHeader: false,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
   experimental: {
     optimizePackageImports: [
       'lucide-react',
@@ -40,7 +45,11 @@ const nextConfig: NextConfig = {
       'recharts',
       'motion',
       '@dnd-kit/core',
-      '@dnd-kit/sortable'
+      '@dnd-kit/sortable',
+      '@tiptap/react',
+      '@tiptap/core',
+      'zustand',
+      '@supabase/supabase-js'
     ],
   },
   async headers() {

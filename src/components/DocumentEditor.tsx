@@ -6,9 +6,10 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
-import * as Y from 'yjs';
+import { Doc, applyUpdate, encodeStateAsUpdate } from 'yjs';
+import { yCursorPlugin } from '@tiptap/y-tiptap';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import { supabase } from '../supabaseClient';
 import { 
@@ -25,17 +26,80 @@ interface DocumentEditorProps {
   onUpdateCoverAndIcon: (coverUrl: string | null, icon: string | null) => void;
 }
 
+const awarenessStatesToArray = (states: Map<number, any>) => {
+  return Array.from(states.entries()).map(([key, value]) => {
+    return {
+      clientId: key,
+      ...value.user,
+    };
+  });
+};
+
+// Custom Collaboration Cursor Extension built on @tiptap/y-tiptap's yCursorPlugin
+const CollaborationCursor = Extension.create({
+  name: 'collaborationCursor',
+  addOptions() {
+    return {
+      provider: null,
+      user: {
+        name: null,
+        color: null,
+      },
+      render: (user: any) => {
+        const cursor = document.createElement('span');
+        cursor.classList.add('collaboration-cursor__caret');
+        cursor.setAttribute('style', `border-color: ${user.color}`);
+        const label = document.createElement('div');
+        label.classList.add('collaboration-cursor__label');
+        label.setAttribute('style', `background-color: ${user.color}`);
+        label.insertBefore(document.createTextNode(user.name || 'Anonymous'), null);
+        cursor.insertBefore(label, null);
+        return cursor;
+      },
+    };
+  },
+  addStorage() {
+    return {
+      users: [],
+    };
+  },
+  addProseMirrorPlugins() {
+    if (!this.options.provider || !this.options.provider.awareness) {
+      return [];
+    }
+    return [
+      yCursorPlugin(
+        (() => {
+          this.options.provider.awareness.setLocalStateField('user', this.options.user);
+          this.storage.users = awarenessStatesToArray(this.options.provider.awareness.states);
+          this.options.provider.awareness.on('update', () => {
+            if (this.options.provider?.awareness) {
+              this.storage.users = awarenessStatesToArray(this.options.provider.awareness.states);
+            }
+          });
+          return this.options.provider.awareness;
+        })(),
+        {
+          cursorBuilder: this.options.render,
+        }
+      ),
+    ];
+  },
+});
+
 // Custom Supabase Broadcast Yjs Provider for Peer-to-Peer Realtime Collaboration
 class SupabaseYjsProvider {
-  doc: Y.Doc;
+  doc: any;
   channelName: string;
   channel: any;
   awareness: Awareness;
   userId: string;
   userName: string;
   userColor: string;
+  private updateHandler: (update: Uint8Array, origin: any) => void;
+  private awarenessHandler: (data: any) => void;
 
-  constructor(doc: Y.Doc, channelName: string, userId: string, userName: string, userColor: string, userAvatar: string) {
+  constructor(doc: any, channelName: string, userId: string, userName: string, userColor: string, userAvatar: string) {
     this.doc = doc;
     this.channelName = channelName;
     this.userId = userId;
@@ -56,13 +120,13 @@ class SupabaseYjsProvider {
     // Wire up listeners
     this.channel
       .on('broadcast', { event: 'yjs-update' }, (payload: any) => {
-        if (payload.payload.sender !== this.userId) {
+        if (payload.payload?.sender !== this.userId && this.doc) {
           const update = new Uint8Array(Buffer.from(payload.payload.update, 'base64'));
-          Y.applyUpdate(this.doc, update, this);
+          applyUpdate(this.doc, update, this);
         }
       })
       .on('broadcast', { event: 'yjs-awareness' }, (payload: any) => {
-        if (payload.payload.sender !== this.userId) {
+        if (payload.payload?.sender !== this.userId && this.awareness) {
           const update = new Uint8Array(Buffer.from(payload.payload.update, 'base64'));
           applyAwarenessUpdate(this.awareness, update, this);
         }
@@ -80,9 +144,9 @@ class SupabaseYjsProvider {
 
     // Handle incoming sync requests
     this.channel.on('broadcast', { event: 'yjs-request-sync' }, (payload: any) => {
-      if (payload.payload.sender !== this.userId) {
+      if (payload.payload?.sender !== this.userId && this.doc) {
         // Send state vector update
-        const stateVector = Y.encodeStateAsUpdate(this.doc);
+        const stateVector = encodeStateAsUpdate(this.doc);
         this.channel.send({
           type: 'broadcast',
           event: 'yjs-update',
@@ -106,7 +170,7 @@ class SupabaseYjsProvider {
     });
 
     // Listen to local Yjs changes and broadcast them
-    this.doc.on('update', (update: Uint8Array, origin: any) => {
+    this.updateHandler = (update: Uint8Array, origin: any) => {
       if (origin !== this) {
         const updateBase64 = Buffer.from(update).toString('base64');
         this.channel.send({
@@ -118,10 +182,11 @@ class SupabaseYjsProvider {
           }
         });
       }
-    });
+    };
+    this.doc.on('update', this.updateHandler);
 
     // Listen to local awareness state changes and broadcast them
-    this.awareness.on('update', ({ added, updated, removed }: any) => {
+    this.awarenessHandler = ({ added, updated, removed }: any) => {
       const changedClients = [...added, ...updated, ...removed];
       if (changedClients.length > 0) {
         const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
@@ -135,13 +200,20 @@ class SupabaseYjsProvider {
           }
         });
       }
-    });
+    };
+    this.awareness.on('update', this.awarenessHandler);
   }
 
   destroy() {
-    this.doc.off('update', () => {});
-    this.awareness.off('update', () => {});
-    supabase.removeChannel(this.channel);
+    if (this.doc) {
+      this.doc.off('update', this.updateHandler);
+    }
+    if (this.awareness) {
+      this.awareness.off('update', this.awarenessHandler);
+    }
+    if (this.channel) {
+      supabase.removeChannel(this.channel);
+    }
   }
 }
 
@@ -189,15 +261,16 @@ export default function DocumentEditor({
   }, []);
 
   // Initialize Y.Doc & custom Yjs Supabase Broadcast provider
-  const yDoc = useMemo(() => new Y.Doc(), []);
+  const yDoc = useMemo(() => new Doc(), []);
+
   const provider = useMemo(() => {
     return new SupabaseYjsProvider(
       yDoc,
       `doc-collab-${documentId}`,
-      currentUser.id || 'user',
-      currentUser.name || 'Anonymous User',
+      currentUser?.id || 'user',
+      currentUser?.name || 'Anonymous User',
       userColor,
-      currentUser.avatar || ''
+      currentUser?.avatar || ''
     );
   }, [yDoc, documentId, currentUser, userColor]);
 
@@ -236,9 +309,8 @@ export default function DocumentEditor({
         setDocDetails(data);
         
         // Initialize Y.Doc with current content if Y.Doc is empty
-        if (data.content && data.content.content && yDoc.getXmlFragment('prosemirror').length === 0) {
+        if (data.content && data.content.content && yDoc && typeof yDoc.getXmlFragment === 'function' && yDoc.getXmlFragment('prosemirror').length === 0) {
           // Pre-populate content state vector
-          // (Tiptap handles Yjs content mapping through the Collaboration extension)
         }
       }
 
@@ -280,12 +352,11 @@ export default function DocumentEditor({
     };
   }, [documentId, yDoc, provider]);
 
-  // Tiptap editor initialization
-  const editor = useEditor({
-    extensions: [
+  // Tiptap editor extensions
+  const editorExtensions = useMemo(() => {
+    const baseExtensions: any[] = [
       StarterKit.configure({
-        // Disable history since Collaboration handles undo/redo stack
-        history: false,
+        history: yDoc && typeof yDoc.getXmlFragment === 'function' ? false : undefined,
       } as any),
       Placeholder.configure({
         placeholder: "Nhấn '/' để chọn các loại khối văn bản...",
@@ -294,18 +365,30 @@ export default function DocumentEditor({
       TaskItem.configure({
         nested: true,
       }),
-      Collaboration.configure({
-        document: yDoc,
-      }),
-      CollaborationCursor.configure({
-        provider: provider,
-        user: {
-          name: currentUser.name || 'Anonymous User',
-          color: userColor,
-          avatar: currentUser.avatar || '',
-        },
-      }),
-    ],
+    ];
+
+    if (yDoc && typeof yDoc.getXmlFragment === 'function') {
+      baseExtensions.push(
+        Collaboration.configure({
+          document: yDoc,
+        }),
+        CollaborationCursor.configure({
+          provider: provider,
+          user: {
+            name: currentUser?.name || 'Anonymous User',
+            color: userColor,
+            avatar: currentUser?.avatar || '',
+          },
+        })
+      );
+    }
+
+    return baseExtensions;
+  }, [yDoc, provider, currentUser, userColor]);
+
+  // Tiptap editor initialization
+  const editor = useEditor({
+    extensions: editorExtensions,
     editorProps: {
       attributes: {
         class: 'prose prose-sm dark:prose-invert focus:outline-none max-w-none text-xs font-medium text-slate-800 dark:text-slate-205 min-h-[400px] select-text',

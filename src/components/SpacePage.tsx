@@ -1071,7 +1071,7 @@ export default function SpacePage({
             }}
             exit={{ width: 0, opacity: 0 }}
             transition={isResizing ? { duration: 0 } : { duration: 0.2, ease: 'easeInOut' }}
-            className={`h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col overflow-hidden shrink-0 ${
+            className={`h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shrink-0 ${
               isMobileSidebarOpen
                 ? 'fixed inset-y-0 left-0 z-50 shadow-2xl w-[280px] max-w-[85vw] flex'
                 : 'hidden md:flex'
@@ -1637,7 +1637,7 @@ export default function SpacePage({
 
       {/* Main Page Workspace Content Container (Right) */}
       <div className="flex-grow flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/80 flex flex-col relative z-30 select-none shadow-3xs">
+        <header className="shrink-0 bg-white dark:bg-[#07080c]/90 border-b border-slate-200/60 dark:border-slate-800/80 flex flex-col relative z-30 select-none shadow-3xs">
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
           <div className="flex items-center justify-between px-5 py-2 relative flex-wrap gap-3 min-h-[48px]">
             
@@ -1841,8 +1841,8 @@ export default function SpacePage({
 
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
-              {/* View Switcher Tabs (Scrollable inline with breadcrumbs) */}
-              <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200/30 dark:border-slate-800/30 overflow-x-auto scrollbar-none max-w-fit shrink-0">
+              {/* View Switcher Tabs (Segmented Glass Pill Controls) */}
+              <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-[#0d0e15] p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto scrollbar-none max-w-fit shrink-0 shadow-3xs">
                 {staticTabs.map(tab => {
                   const TabIcon = tab.icon;
                   const isActive = activeTabId === tab.id;
@@ -1858,13 +1858,13 @@ export default function SpacePage({
                         setActiveTabId(tab.id);
                         setActiveView(tab.viewId);
                       }}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                      className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                         isActive
-                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-705/30'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-800/20'
+                          ? 'bg-white dark:bg-indigo-600/25 text-indigo-650 dark:text-indigo-300 shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-550 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                       <span>{tab.label}</span>
                       {['gantt', 'timeline', 'workload', 'mindmap', 'ai'].includes(tab.viewId) && !currentUser?.isPremium && (
                         <span className="text-[7px] font-black text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded-md leading-none shadow-3xs">PRO</span>
@@ -2144,7 +2144,7 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt views) ── */}
       {['list', 'board', 'table', 'gantt'].includes(activeView) && (
-        <div className="shrink-0 bg-white dark:bg-slate-900/40 border-b border-slate-200/50 dark:border-slate-800/60 px-5 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-3xs">
+        <div className="shrink-0 bg-white dark:bg-[#07080c]/90 border-b border-slate-200/50 dark:border-slate-800/60 px-5 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-3xs">
           
           {/* Search task input */}
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl px-3 py-1.5 flex-1 max-w-sm">
@@ -2645,7 +2645,7 @@ export default function SpacePage({
 
         {/* Timeline View */}
         {activeView === 'timeline' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
+          <div className="bg-white dark:bg-[#07080c]/90 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500" />
               <span>Timeline view</span>
