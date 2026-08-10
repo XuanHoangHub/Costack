@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { 
@@ -23,7 +23,7 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -316,7 +316,7 @@ function KanbanCard({
                       ))}
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-[9px] dark:bg-slate-800/40 dark:border-slate-800/80">👤</div>
+                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center dark:bg-slate-800/40 dark:border-slate-800/80"><UserIcon className="w-3 h-3" /></div>
                   )}
                   {task.commentsCount > 0 && (
                     <span className="flex items-center gap-0.5 ml-1">
@@ -670,7 +670,7 @@ export default function TaskBoardView({
     avatar?: string;
   }
 
-  const getColumnMeta = (colKey: string): BoardColumnMeta => {
+  const getColumnMeta = useCallback((colKey: string): BoardColumnMeta => {
     if (boardGroupBy === 'status') {
       const meta = dynamicStatusMeta[colKey];
       return meta 
@@ -691,7 +691,7 @@ export default function TaskBoardView({
       badgeText: 'text-indigo-650 dark:text-indigo-400 font-extrabold',
       avatar: user?.avatar
     };
-  };
+  }, [boardGroupBy, dynamicStatusMeta, dynamicPriorityMeta, locale, members]);
 
   const getSwimlaneMeta = (rowKey: string): BoardColumnMeta => {
     if (boardSwimlaneBy === 'status') {
@@ -794,7 +794,7 @@ export default function TaskBoardView({
       columns: cols,
       columnOrder: columns
     });
-  }, [filteredTasks, boardGroupBy, boardSwimlaneBy, columns, swimlaneRows]);
+  }, [filteredTasks, boardGroupBy, boardSwimlaneBy, columns, swimlaneRows, getColumnMeta]);
 
   const submitInlineEdit = (task: Task) => {
     if (inlineEditTitle.trim() && inlineEditTitle.trim() !== task.title) {
@@ -1174,7 +1174,7 @@ export default function TaskBoardView({
                       ))}
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center text-[9px] dark:bg-slate-800/40 dark:border-slate-800/80">👤</div>
+                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center dark:bg-slate-800/40 dark:border-slate-800/80"><UserIcon className="w-3 h-3" /></div>
                   )}
                   {task.commentsCount > 0 && (
                     <span className="flex items-center gap-0.5 ml-1">

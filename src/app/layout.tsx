@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import SecurityGuard from "@/components/SecurityGuard";
 
-const inter = Inter({
+const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -28,7 +29,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         <Script
@@ -77,7 +78,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-white dark:bg-black text-slate-900 dark:text-slate-100`}>
+      <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)]`}>
         <SecurityGuard />
         <TranslationProvider>
           {children}

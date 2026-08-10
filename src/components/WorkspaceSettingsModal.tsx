@@ -32,6 +32,7 @@ interface WorkspaceSettingsModalProps {
   workspacesCount: number;
   onUpdateMember?: (member: User) => void;
   onAddMember?: (member: Omit<User, 'id'>) => void;
+  onSendWorkspaceInvites?: (emails: string[], role: string) => void;
 }
 
 export default function WorkspaceSettingsModal({
@@ -44,7 +45,8 @@ export default function WorkspaceSettingsModal({
   members,
   workspacesCount,
   onUpdateMember,
-  onAddMember
+  onAddMember,
+  onSendWorkspaceInvites
 }: WorkspaceSettingsModalProps) {
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>('general');
@@ -81,10 +83,10 @@ export default function WorkspaceSettingsModal({
 
   // Theme presets
   const themePresets = [
-    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
-    { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', hex: '#0ea5e9' },
-    { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', hex: '#10b981' },
-    { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', hex: '#f43f5e' }
+    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', ring: 'ring-indigo-500', hex: '#7B61FF' },
+    { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', ring: 'ring-sky-500', hex: '#0ea5e9' },
+    { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', ring: 'ring-emerald-500', hex: '#10b981' },
+    { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', ring: 'ring-rose-500', hex: '#f43f5e' }
   ] as const;
 
   const isCustomTheme = !themePresets.some(t => t.id === theme);
@@ -277,15 +279,26 @@ export default function WorkspaceSettingsModal({
   };
 
   const handleSendInvites = async (emails: string[], role: string) => {
+    if (onSendWorkspaceInvites) {
+      onSendWorkspaceInvites(emails, role);
+      setShowInviteModal(false);
+      setTimeout(() => fetchInvitations(), 500);
+      return;
+    }
+
+    if (!workspace) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const invitedBy = session?.user?.id ? `user-${session.user.id}` : 'system';
+      const invitedBy = currentUser?.id || session?.user?.id || 'system';
+      const inviterName = currentUser?.name || 'Workspace Admin';
 
       const newRecords = emails.map(email => ({
         workspace_id: workspace.id,
-        email,
+        workspace_name: workspace.name,
+        email: email.trim().toLowerCase(),
         role: role as any,
         invited_by: invitedBy,
+        invited_by_name: inviterName,
         status: 'pending'
       }));
 
@@ -301,10 +314,11 @@ export default function WorkspaceSettingsModal({
             id: generateId(),
             type: 'success',
             title: 'Invitation Sent',
-            message: `Link for ${record.email}: ${window.location.origin}/?invite_token=${record.token}`,
-            duration: 10000
+            message: `Link for ${record.email}: ${window.location.origin}/?invite_token=${record.token || record.id}`,
+            duration: 8000
           });
         });
+        window.dispatchEvent(new CustomEvent('apexa-invitation-updated'));
       } else {
         console.error('Error inserting invitations:', error);
       }
@@ -634,7 +648,7 @@ export default function WorkspaceSettingsModal({
                               key={t.id}
                               type="button"
                               onClick={() => handleThemeChange(t.id)}
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform cursor-pointer ${theme === t.id ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900' : 'opacity-80 hover:scale-105'}`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform cursor-pointer ${theme === t.id ? `scale-110 ring-2 ${t.ring} ring-offset-2 dark:ring-offset-slate-900` : 'opacity-80 hover:scale-105'}`}
                               title={t.name}
                             >
                               <span className={`w-5 h-5 rounded-full ${t.color} block`} />
@@ -655,7 +669,7 @@ export default function WorkspaceSettingsModal({
                             />
                             {isCustomTheme && (
                               <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[8px] font-bold">
-                                ✓
+                                <Check className="w-2.5 h-2.5" />
                               </span>
                             )}
                           </div>

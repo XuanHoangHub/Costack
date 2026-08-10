@@ -6,6 +6,7 @@ import {
   Settings, Folder, FolderOpen, MoreVertical, Copy, RefreshCw, Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { renderSpaceIcon } from './EmojiIconPicker';
 
 interface PageTreeDoc {
   id: string;
@@ -120,9 +121,9 @@ export default function PageTreeSidebar({
               </button>
             )}
 
-            {/* Document icon or emoji */}
-            <span className="text-xs shrink-0 flex items-center justify-center min-w-[14px]">
-              {doc.icon ? doc.icon : <FileText className="w-3.5 h-3.5" />}
+            {/* Document icon or emoji mapped to Lucide SVG */}
+            <span className="shrink-0 flex items-center justify-center min-w-[14px]">
+              {doc.icon ? renderSpaceIcon(doc.icon, "w-3.5 h-3.5 text-slate-500 dark:text-slate-400") : <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />}
             </span>
 
             {/* Title */}

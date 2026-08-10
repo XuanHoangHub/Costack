@@ -42,6 +42,29 @@ export function useAppActions() {
     const newId = `w-${Date.now()}`;
     const newWS = { id: newId, name, theme, initial, coverUrl };
 
+    const createDefaultSpaceForWorkspace = (wsId: string, wsName: string, wsTheme: string) => {
+      const defaultSpace: Space = {
+        id: `sp-${Date.now()}`,
+        name: `${wsName} Space`,
+        emoji: '🚀',
+        themeColor: wsTheme === 'ocean' ? '#0891b2' : wsTheme === 'forest' ? '#047857' : wsTheme === 'sunset' ? '#e11d48' : '#6366f1',
+        workspaceId: wsId,
+        lists: [
+          { id: `l-${Date.now()}-1`, name: 'To Do' },
+          { id: `l-${Date.now()}-2`, name: 'In Progress' },
+          { id: `l-${Date.now()}-3`, name: 'Completed' }
+        ],
+        statuses: [
+          { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' },
+          { id: 'inprogress', label: 'IN PROGRESS', color: '#3b82f6', type: 'inprogress' },
+          { id: 'review', label: 'IN REVIEW', color: '#a855f7', type: 'review' },
+          { id: 'completed', label: 'COMPLETE', color: '#22c55e', type: 'completed' }
+        ]
+      };
+      setSpaces(prev => [...prev, defaultSpace]);
+      return defaultSpace;
+    };
+
     if (currentUser && !isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -73,6 +96,10 @@ export function useAppActions() {
             if (!alreadyHas) {
               setWorkspaces([...current, data[0]]);
             }
+            createDefaultSpaceForWorkspace(data[0].id, name, theme);
+            useWorkspaceStore.getState().setActiveWorkspaceId(data[0].id);
+            useSpaceStore.getState().setActiveSpaceId(null);
+            useSpaceStore.getState().setActiveListId(null);
             triggerToast({ id: generateId(), type: 'success', title: 'Success', message: `Created new workspace: ${name}`, duration: 4000 });
             addSyncLog(`Synchronized new workspace: ${name} to Supabase`);
             return;
@@ -85,9 +112,13 @@ export function useAppActions() {
 
     const currentWS = useWorkspaceStore.getState().workspaces;
     setWorkspaces([...currentWS, newWS]);
+    createDefaultSpaceForWorkspace(newId, name, theme);
+    useWorkspaceStore.getState().setActiveWorkspaceId(newId);
+    useSpaceStore.getState().setActiveSpaceId(null);
+    useSpaceStore.getState().setActiveListId(null);
     triggerToast({ id: generateId(), type: 'success', title: 'Success', message: `Created and switched to new workspace: ${name}`, duration: 4000 });
     addSyncLog(`Saved new workspace offline: ${name}`);
-  }, [currentUser, isOffline, setWorkspaces, triggerToast, addSyncLog]);
+  }, [currentUser, isOffline, setWorkspaces, setSpaces, triggerToast, addSyncLog]);
 
   const handleUpdateWorkspace = useCallback(async (id: string, name: string, theme: string, coverUrl?: string, logoUrl?: string, settings?: any) => {
     const initial = name.charAt(0).toUpperCase();
@@ -250,7 +281,7 @@ export function useAppActions() {
           triggerToast({
             id: generateId(),
             type: 'success',
-            title: 'Task Completed! 🎉',
+            title: 'Task Completed!',
             message: `Member has completed the task: "${updated.title}".`,
             duration: 4000
           });
@@ -474,7 +505,7 @@ export function useAppActions() {
           const payload = {
             id: baseWithWs.id,
             name: baseWithWs.name,
-            emoji: baseWithWs.emoji || '📋',
+            emoji: baseWithWs.emoji || 'ClipboardList',
             description: baseWithWs.description || '',
             tables: baseWithWs.tables,
             active_table_id: baseWithWs.activeTableId || null,
@@ -501,7 +532,7 @@ export function useAppActions() {
           const payload = {
             id: withTimestamp.id,
             name: withTimestamp.name,
-            emoji: withTimestamp.emoji || '📋',
+            emoji: withTimestamp.emoji || 'ClipboardList',
             description: withTimestamp.description || '',
             tables: withTimestamp.tables,
             active_table_id: withTimestamp.activeTableId || null,
@@ -675,6 +706,7 @@ export function useAppActions() {
         const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
         localStorage.setItem('apexa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'accepted' as const } : i)));
       }
+      window.dispatchEvent(new CustomEvent('apexa-invitation-updated', { detail: { inviteId, status: 'accepted' } }));
     }
 
     // Fetch the workspace from Supabase and add to store if not already present
@@ -731,7 +763,7 @@ export function useAppActions() {
     triggerToast({
       id: generateId(),
       type: 'success',
-      title: 'Invitation Accepted! 🎉',
+      title: 'Invitation Accepted!',
       message: `Welcome! You have joined workspace "${targetWS?.name || 'Workspace'}".`,
       duration: 4000
     });
@@ -751,6 +783,7 @@ export function useAppActions() {
         const parsed: WorkspaceInvitation[] = JSON.parse(storedRaw);
         localStorage.setItem('apexa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'declined' as const } : i)));
       }
+      window.dispatchEvent(new CustomEvent('apexa-invitation-updated', { detail: { inviteId, status: 'declined' } }));
     }
 
     triggerToast({
@@ -889,7 +922,7 @@ export function useAppActions() {
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
       name: name.trim(),
-      emoji: emoji || '📦',
+      emoji: emoji || 'Package',
       themeColor: themeColor || 'indigo',
       workspaceId: activeWorkspaceId,
       lists: [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
@@ -1086,7 +1119,7 @@ export function useAppActions() {
 
       addSyncLog(status ? 'Successfully activated Apexa Premium Pro' : 'Cancelled Apexa Premium Pro subscription');
       if (status) {
-        triggerToast({ id: generateId(), type: 'success', title: 'Premium Pro Upgrade! 🎉', message: 'Welcome to Apexa Premium! Unlocked all advanced features.', duration: 4000 });
+        triggerToast({ id: generateId(), type: 'success', title: 'Premium Pro Upgrade!', message: 'Welcome to Apexa Premium! Unlocked all advanced features.', duration: 4000 });
       } else {
         triggerToast({ id: generateId(), type: 'info', title: 'Account Downgraded', message: 'Account has been downgraded to the Free tier.', duration: 4000 });
       }
@@ -1136,7 +1169,7 @@ export function useAppActions() {
     openSpaceSettings: useCallback((space: any) => {
       useUiStore.getState().setShowSpaceSettingsId(space.id);
       useUiStore.getState().setEditSpaceName(space.name);
-      useUiStore.getState().setEditSpaceEmoji(space.emoji || '📦');
+      useUiStore.getState().setEditSpaceEmoji(space.emoji || 'Package');
       useUiStore.getState().setEditSpaceColor(space.themeColor || 'indigo');
       useUiStore.getState().setEditSpaceClickApps(space.clickApps || { subtasks: true, priorities: true });
       useUiStore.getState().setEditSpaceStatuses(space.statuses || [

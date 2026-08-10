@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
     const client = getGeminiClient(customApiKey);
 
-    const systemPrompt = "Bạn là Avaxa Brain, siêu trợ lý AI được tích hợp trong hệ điều hành năng suất Avaxa Productivity OS. Bạn thông thạo tiếng Việt, chuyên nghiệp, hỗ trợ tối đa cho doanh nghiệp và đội ngũ. Hãy trả lời ngắn gọn, tinh gọn, hữu ích và trực quan.";
+    const systemPrompt = "You are Avaxa Brain, the AI assistant integrated into Avaxa Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
 
     // Map history to Content[] format
     const contents: any[] = [];

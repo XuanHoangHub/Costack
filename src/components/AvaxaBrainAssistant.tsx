@@ -20,6 +20,8 @@ interface AvaxaBrainAssistantProps {
   onAddSyncLog: (action: string) => void;
 }
 
+import { useTranslation } from '../contexts/TranslationContext';
+
 type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
 
 export default function AvaxaBrainAssistant({
@@ -31,6 +33,7 @@ export default function AvaxaBrainAssistant({
   onAddTask,
   onAddSyncLog
 }: AvaxaBrainAssistantProps) {
+  const { t, locale } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('query');
   const [loading, setLoading] = useState(false);
@@ -1120,7 +1123,7 @@ Based on current information, here is a quick summary:
                                   <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal font-sans">{t.description}</p>
                                   
                                   <div className="flex flex-wrap gap-1.5 items-center pt-1">
-                                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-semibold mr-1 font-sans flex items-center gap-1">⏱️ {t.hoursEstimate} giờ</span>
+                                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-semibold mr-1 font-sans flex items-center gap-1">⏱️ {t.hoursEstimate} {locale === 'vi' ? 'giờ' : 'hrs'}</span>
                                     {t.tags && t.tags.map((tag: string, tagIdx: number) => (
                                       <span key={tagIdx} className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-bold font-sans">
                                         #{tag}

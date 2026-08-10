@@ -15,7 +15,7 @@ import {
   Trash2, Users, Sparkles, Database, Code, 
   Copy, Sliders, Type, Plus, Info, MousePointer, 
   Hand, ZoomIn, ZoomOut, Maximize2, Download, ArrowUpRight,
-  Brain, Loader2, Bot, Globe, Check
+  Brain, Loader2, Bot, Globe, Check, Layout, FileJson, Image as ImageIcon, Layers, X
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 
@@ -128,6 +128,78 @@ export default function Whiteboard({
   const [brushColor, setBrushColor] = useState('#6366f1');
   const [brushWidth, setBrushWidth] = useState(4);
   const [stickyText, setStickyText] = useState('Idea Note');
+  // Board Templates & Canvas background states
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [bgStyle, setBgStyle] = useState<'grid' | 'dots' | 'dark' | 'plain'>('grid');
+  const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // JSON Export / Import
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(elements, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `whiteboard-data-${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    onAddSyncLog("Exported whiteboard JSON data");
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (Array.isArray(parsed)) {
+          setElements(parsed);
+          onAddSyncLog("Imported whiteboard JSON data");
+        }
+      } catch (err) {}
+    };
+    reader.readAsText(file);
+  };
+
+  // Preset Board Templates loader
+  const handleLoadBoardTemplate = (type: 'kanban' | 'swot' | 'mindmap' | 'userjourney') => {
+    let newElements: WhiteboardElement[] = [];
+    const now = Date.now();
+
+    if (type === 'kanban') {
+      newElements = [
+        { id: `k-1-${now}`, type: 'sticky', x: 50, y: 50, width: 140, height: 140, color: '#fef08a', text: 'CẦN LÀM (TO DO)\n\n- Thiết kế UI\n- Viết API docs' },
+        { id: `k-2-${now}`, type: 'sticky', x: 220, y: 50, width: 140, height: 140, color: '#bfdbfe', text: 'ĐANG LÀM (IN PROGRESS)\n\n- Tích hợp AI Assistant\n- Review Code' },
+        { id: `k-3-${now}`, type: 'sticky', x: 390, y: 50, width: 140, height: 140, color: '#bbf7d0', text: 'HOÀN THÀNH (DONE)\n\n- Khởi tạo repo\n- Setup Supabase' }
+      ];
+    } else if (type === 'swot') {
+      newElements = [
+        { id: `s-1-${now}`, type: 'sticky', x: 50, y: 50, width: 150, height: 130, color: '#bbf7d0', text: 'STRENGTHS (Điểm mạnh)\n\n- Đội ngũ nhạy bén\n- Công nghệ tiên tiến' },
+        { id: `s-2-${now}`, type: 'sticky', x: 230, y: 50, width: 150, height: 130, color: '#fecaca', text: 'WEAKNESSES (Điểm yếu)\n\n- Tài nguyên hạn chế\n- Tiến độ gấp' },
+        { id: `s-3-${now}`, type: 'sticky', x: 50, y: 200, width: 150, height: 130, color: '#bfdbfe', text: 'OPPORTUNITIES (Cơ hội)\n\n- Thị trường mở rộng\n- Nhu cầu AI tăng cao' },
+        { id: `s-4-${now}`, type: 'sticky', x: 230, y: 200, width: 150, height: 130, color: '#fef08a', text: 'THREATS (Thách thức)\n\n- Đối thủ cạnh tranh\n- Biến động thị trường' }
+      ];
+    } else if (type === 'mindmap') {
+      newElements = [
+        { id: `m-0-${now}`, type: 'circle', x: 200, y: 150, width: 120, height: 80, color: '#6366f1', text: 'PROJECT CORE' },
+        { id: `m-1-${now}`, type: 'sticky', x: 40, y: 40, width: 120, height: 100, color: '#fef08a', text: 'Design UI/UX' },
+        { id: `m-2-${now}`, type: 'sticky', x: 360, y: 40, width: 120, height: 100, color: '#bfdbfe', text: 'Backend API' },
+        { id: `m-3-${now}`, type: 'sticky', x: 40, y: 260, width: 120, height: 100, color: '#bbf7d0', text: 'Analytics Engine' },
+        { id: `m-4-${now}`, type: 'sticky', x: 360, y: 260, width: 120, height: 100, color: '#fecaca', text: 'Deployment' }
+      ];
+    } else if (type === 'userjourney') {
+      newElements = [
+        { id: `uj-1-${now}`, type: 'sticky', x: 40, y: 80, width: 130, height: 120, color: '#bfdbfe', text: 'DISCOVER (Khám phá)\n\n- Tìm kiếm Google\n- Xem quảng cáo' },
+        { id: `uj-2-${now}`, type: 'sticky', x: 190, y: 80, width: 130, height: 120, color: '#fef08a', text: 'TRY (Trải nghiệm)\n\n- Đăng ký dùng thử\n- Tạo dự án đầu tiên' },
+        { id: `uj-3-${now}`, type: 'sticky', x: 340, y: 80, width: 130, height: 120, color: '#bbf7d0', text: 'BUY (Mua dịch vụ)\n\n- Nâng cấp Pro Plan\n- Thanh toán thẻ' },
+        { id: `uj-4-${now}`, type: 'sticky', x: 490, y: 80, width: 130, height: 120, color: '#fecaca', text: 'LOVE (Gắn bó)\n\n- Giới thiệu bạn bè\n- Đánh giá 5 sao' }
+      ];
+    }
+
+    setElements(prev => [...prev, ...newElements]);
+    setShowTemplateModal(false);
+    onAddSyncLog(`Loaded Whiteboard Template: ${type.toUpperCase()}`);
+  };
 
   // Zoom & Pan states for Miro navigation feel
   const [zoom, setZoom] = useState(1);
@@ -1959,12 +2031,12 @@ export default function Whiteboard({
 
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { id: 'st-yellow', color: '#fef08a', text: '💡 New Idea', label: 'Idea' },
-              { id: 'st-blue', color: '#bae6fd', text: '🚀 New Plan', label: 'Action' },
-              { id: 'st-green', color: '#bbf7d0', text: '✅ Approved', label: 'Approve' },
-              { id: 'st-orange', color: '#fed7aa', text: '🔍 Revision Needed', label: 'Review' },
-              { id: 'st-pink', color: '#fbcfe8', text: '🎯 Project Goal', label: 'Goal' },
-              { id: 'st-red', color: '#fecaca', text: '⚠️ Risk identified', label: 'Risk' }
+              { id: 'st-yellow', color: '#fef08a', text: 'New Idea', label: 'Idea' },
+              { id: 'st-blue', color: '#bae6fd', text: 'New Plan', label: 'Action' },
+              { id: 'st-green', color: '#bbf7d0', text: 'Approved', label: 'Approve' },
+              { id: 'st-orange', color: '#fed7aa', text: 'Revision Needed', label: 'Review' },
+              { id: 'st-pink', color: '#fbcfe8', text: 'Project Goal', label: 'Goal' },
+              { id: 'st-red', color: '#fecaca', text: 'Risk identified', label: 'Risk' }
             ].map((st) => (
               <div
                 key={st.id}
@@ -2062,6 +2134,15 @@ export default function Whiteboard({
             </button>
 
             <button
+              onClick={() => setShowTemplateModal(true)}
+              className="py-2 px-3 text-xs font-extrabold rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-900/60"
+              title="Chọn mẫu sơ đồ"
+            >
+              <Layout className="w-3.5 h-3.5" />
+              <span>Mẫu Sơ đồ</span>
+            </button>
+
+            <button
               id="btn_ai_analyst"
               onClick={handleOpenAiAnalyst}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-650 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer flex items-center justify-center animate-pulse"
@@ -2078,6 +2159,22 @@ export default function Whiteboard({
             >
               <Download className="w-4.5 h-4.5" />
             </button>
+
+            <button
+              onClick={handleExportJSON}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer"
+              title="Xuất dữ liệu dạng JSON"
+            >
+              <FileJson className="w-4.5 h-4.5" />
+            </button>
+
+            <input 
+              type="file"
+              ref={jsonFileInputRef}
+              onChange={handleImportJSON}
+              accept=".json"
+              className="hidden"
+            />
 
             <button
               id="btn_clear_whiteboard"
@@ -2441,6 +2538,54 @@ export default function Whiteboard({
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Board Templates Selector Modal */}
+      <AnimatePresence>
+        {showTemplateModal && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <motion.div 
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden space-y-4 text-left"
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <Layout className="w-5 h-5 text-indigo-500" />
+                  {locale === 'vi' ? 'Mẫu Sơ đồ Bảng vẽ (Whiteboard Templates)' : 'Whiteboard Templates'}
+                </h3>
+                <button 
+                  onClick={() => setShowTemplateModal(false)}
+                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1 scrollbar-thin">
+                {[
+                  { id: 'kanban', title: 'Kanban Board', desc: locale === 'vi' ? 'Cần làm, Đang làm, Hoàn thành' : 'To Do, In Progress, Done', color: 'from-amber-500/10 to-emerald-500/10' },
+                  { id: 'swot', title: 'SWOT Analysis', desc: 'Strengths, Weaknesses, Opportunities, Threats', color: 'from-blue-500/10 to-indigo-500/10' },
+                  { id: 'mindmap', title: 'Mind Map', desc: locale === 'vi' ? 'Ý tưởng trung tâm kết nối nhánh phụ' : 'Central idea connecting sub-branches', color: 'from-purple-500/10 to-pink-500/10' },
+                  { id: 'userjourney', title: 'User Journey Map', desc: 'Discover, Try, Buy, Love', color: 'from-emerald-500/10 to-teal-500/10' }
+                ].map((tmpl) => (
+                  <div 
+                    key={tmpl.id}
+                    onClick={() => handleLoadBoardTemplate(tmpl.id as any)}
+                    className={`p-4 rounded-2xl bg-gradient-to-br ${tmpl.color} border border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-500 transition-all cursor-pointer space-y-1.5 group`}
+                  >
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{tmpl.title}</h4>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">{tmpl.desc}</p>
+                    <span className="inline-block text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 pt-1 group-hover:translate-x-1 transition-transform">
+                      {locale === 'vi' ? 'Nạp mẫu này →' : 'Load Template →'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

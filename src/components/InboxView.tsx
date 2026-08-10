@@ -103,6 +103,10 @@ export default function InboxView({
   const filteredNotifications = useMemo(() => {
     const now = Date.now();
     return notificationsList.filter(n => {
+      // 0. Workspace Isolation Filter
+      const matchesWorkspace = !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+      if (!matchesWorkspace) return false;
+
       // 1. Text Search Filter
       const matchesSearch = 
         n.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,7 +167,7 @@ export default function InboxView({
       if (!a.pinned && b.pinned) return 1;
       return 0;
     });
-  }, [notificationsList, activeTab, searchQuery, filterType, tasks, currentUser]);
+  }, [notificationsList, activeTab, searchQuery, filterType, tasks, currentUser, getAssociatedTaskId]);
 
   // Grouping updates on the same task into a single collapsible card thread
   const groupedNotifications = useMemo(() => {
@@ -217,16 +221,16 @@ export default function InboxView({
       if (!aPinned && bPinned) return 1;
       return 0;
     });
-  }, [filteredNotifications, tasks]);
+  }, [filteredNotifications, getAssociatedTaskId]);
 
   // Actions
-  const handleToggleRead = (id: string) => {
+  const handleToggleRead = useCallback((id: string) => {
     setNotificationsList(prev => prev.map(n => 
       n.id === id ? { ...n, read: !n.read } : n
     ));
-  };
+  }, [setNotificationsList]);
 
-  const handleClear = (id: string) => {
+  const handleClear = useCallback((id: string) => {
     setNotificationsList(prev => prev.map(n => 
       n.id === id ? { ...n, cleared: true } : n
     ));
@@ -234,7 +238,7 @@ export default function InboxView({
       setSelectedNotificationId(null);
     }
     if (triggerToast) triggerToast('success', 'Cleared Notification', 'Notification cleared and moved to archive.');
-  };
+  }, [selectedNotificationId, setNotificationsList, triggerToast]);
 
   const handleRestore = (id: string) => {
     setNotificationsList(prev => prev.map(n => 
@@ -249,7 +253,7 @@ export default function InboxView({
     ));
   };
 
-  const handleSnooze = (id: string, durationHours: number) => {
+  const handleSnooze = useCallback((id: string, durationHours: number) => {
     const snoozeTime = Date.now() + durationHours * 60 * 60 * 1000;
     setNotificationsList(prev => prev.map(n => 
       n.id === id ? { ...n, snoozedUntil: snoozeTime } : n
@@ -258,8 +262,8 @@ export default function InboxView({
       setSelectedNotificationId(null);
     }
     setShowSnoozeDropdownId(null);
-    if (triggerToast) triggerToast('success', 'Snoozed Notification', `Snoozed for ${durationHours} hours.`);
-  };
+    if (triggerToast) triggerToast('info', 'Notification Snoozed', `Snoozed for ${durationHours} hours.`);
+  }, [selectedNotificationId, setNotificationsList, triggerToast]);
 
   const handleClearSnooze = (id: string) => {
     setNotificationsList(prev => prev.map(n => 
@@ -329,7 +333,7 @@ export default function InboxView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeKeys, selectedNotificationId]);
+  }, [activeKeys, selectedNotificationId, handleClear, handleSnooze, handleToggleRead]);
 
   // Local Task Attachment & AI utilities for details panel
   const handleAttachmentUpload = async (task: Task, e: React.ChangeEvent<HTMLInputElement> | File) => {
@@ -522,7 +526,7 @@ export default function InboxView({
                 {tab.label}
                 {(() => {
                   const now = Date.now();
-                  const count = notificationsList.filter(n => {
+                  const notifCount = notificationsList.filter(n => {
                     const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
                     const isCleared = n.cleared === true;
 
@@ -543,9 +547,11 @@ export default function InboxView({
                     return !n.read;
                   }).length;
 
-                  return count > 0 ? (
+                  const totalCount = notifCount + ((tab.id === 'all' || tab.id === 'unread') ? workspaceInvitations.length : 0);
+
+                  return totalCount > 0 ? (
                     <span className="absolute -top-1 -right-0.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-indigo-500 text-white text-[7.5px] font-black flex items-center justify-center border border-white dark:border-slate-800">
-                      {count}
+                      {totalCount}
                     </span>
                   ) : null;
                 })()}
@@ -558,39 +564,58 @@ export default function InboxView({
         <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar min-h-0">
           {/* Workspace Invitations Section */}
           {workspaceInvitations.length > 0 && (
-            <div className="mb-4 space-y-2.5 border-b border-slate-100 dark:border-slate-800/80 pb-4 shrink-0">
-              <div className="flex items-center gap-1.5 px-1 mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Workspace Invitations ({workspaceInvitations.length})</span>
+            <div className="mb-4 space-y-2.5 border-b border-slate-200/60 dark:border-slate-800/80 pb-4 shrink-0">
+              <div className="flex items-center justify-between px-1 mb-1">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                  <span className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">
+                    Lời mời Workspace ({workspaceInvitations.length})
+                  </span>
+                </div>
+                <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
+                  Cần phản hồi
+                </span>
               </div>
               {workspaceInvitations.map(inv => (
                 <div 
                   key={inv.id} 
-                  className="p-3.5 bg-indigo-50/20 dark:bg-indigo-950/5 border border-indigo-100/40 dark:border-indigo-900/15 rounded-2xl flex flex-col gap-3 shadow-3xs"
+                  className="p-3.5 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border border-indigo-200/70 dark:border-indigo-800/50 rounded-2xl flex flex-col gap-3 shadow-xs hover:shadow-md transition-all"
                 >
                   <div className="flex items-start justify-between gap-2.5">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
-                        <h5 className="text-[11.5px] font-black text-slate-850 dark:text-slate-100 truncate">{inv.workspaceName}</h5>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
+                        <h5 className="text-[13px] font-black text-slate-850 dark:text-slate-100 truncate">
+                          {inv.workspaceName || 'Workspace mới'}
+                        </h5>
+                        <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-700/50">
+                          {inv.role}
+                        </span>
                       </div>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 leading-normal">
-                        You have been invited to join as <span className="font-extrabold uppercase text-indigo-500">{inv.role}</span>.
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1.5 leading-snug">
+                        <strong className="text-slate-800 dark:text-slate-100">{inv.invitedByName || inv.invitedBy || 'Quản trị viên'}</strong> đã mời bạn tham gia workspace này với vai trò <span className="font-extrabold uppercase text-indigo-600 dark:text-indigo-400">{inv.role}</span>.
                       </p>
+                      {inv.createdAt && (
+                        <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-1">
+                          {new Date(inv.createdAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-2 justify-end pt-1 border-t border-indigo-100/50 dark:border-indigo-900/30">
                     <button 
                       onClick={() => onDeclineInvite?.(inv.id)}
-                      className="px-3 py-1 text-[10px] font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850 hover:text-slate-700 border border-slate-200 dark:border-slate-800 cursor-pointer transition-colors"
+                      className="px-3.5 py-1.5 text-[11px] font-bold rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-800 cursor-pointer transition-all flex items-center gap-1.5"
                     >
-                      Decline
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Từ chối</span>
                     </button>
                     <button 
                       onClick={() => onAcceptInvite?.(inv.id, inv.workspaceId, inv.role)}
-                      className="px-3 py-1 text-[10px] font-black rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-colors shadow-2xs shadow-indigo-200"
+                      className="px-4 py-1.5 text-[11px] font-black rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white cursor-pointer transition-all shadow-md shadow-indigo-500/20 flex items-center gap-1.5"
                     >
-                      Accept
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Tham gia ngay</span>
                     </button>
                   </div>
                 </div>

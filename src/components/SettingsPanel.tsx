@@ -213,10 +213,10 @@ export default function SettingsPanel({
   };
 
   const presets = [
-    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', hex: '#7B61FF' },
-    { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', hex: '#0ea5e9' },
-    { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', hex: '#10b981' },
-    { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', hex: '#f43f5e' }
+    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', ring: 'ring-indigo-500', hex: '#7B61FF' },
+    { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', ring: 'ring-sky-500', hex: '#0ea5e9' },
+    { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', ring: 'ring-emerald-500', hex: '#10b981' },
+    { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', ring: 'ring-rose-500', hex: '#f43f5e' }
   ] as const;
 
   // Sidebar Menu Definition
@@ -905,14 +905,14 @@ export default function SettingsPanel({
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      {t('accentColor') !== 'accentColor' ? t('accentColor') : 'Accent Theme Color'}
+                      {t('accentColor') !== 'accentColor' ? t('accentColor') : 'Accent Highlight Theme'}
                     </h3>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                      {t('accentColorDesc') !== 'accentColorDesc' ? t('accentColorDesc') : 'Personalize your representative tone color'}
+                      {t('accentColorDesc') !== 'accentColorDesc' ? t('accentColorDesc') : 'Select signature highlight theme for primary buttons and badges'}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-4 pt-1">
                   {presets.map(p => {
                     const isActive = accentPreset === p.id;
                     return (
@@ -923,9 +923,14 @@ export default function SettingsPanel({
                           setAccentPreset(p.id as any);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className={`w-8 h-8 rounded-full transition-all cursor-pointer ${isActive ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900 scale-110 shadow-sm' : 'opacity-70 hover:opacity-100'}`}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                          isActive 
+                            ? `ring-2 ring-offset-2 ${p.ring} dark:ring-offset-slate-900 scale-110 shadow-sm` 
+                            : 'opacity-70 hover:opacity-100 hover:scale-105'
+                        }`}
+                        title={p.name}
                       >
-                        <span className={`w-6 h-6 rounded-full ${p.color} block`} title={p.name} />
+                        <span className={`w-6 h-6 rounded-full ${p.color} block shadow-inner`} />
                       </button>
                     );
                   })}
@@ -1208,16 +1213,45 @@ export default function SettingsPanel({
                 </label>
               </div>
 
+              {/* Smart Selective Filtering Card */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-xs">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                        {locale === 'vi' ? 'Lọc Thông Báo Tinh Gọn (Smart Selective Filter)' : 'Smart Selective Notification Filter'}
+                      </h4>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {locale === 'vi' 
+                          ? 'Tự động bỏ qua các thông báo hành động nhỏ (đổi màu, lưu cài đặt, đổi chế độ). Chỉ hiện popup cho hạn chót, công việc được gán, bình luận và cảnh báo quan trọng.'
+                          : 'Automatically suppress minor routine popups. Only show toasts for deadlines, assignments, comments, and critical warnings.'}
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!notificationSettings.onlyImportant}
+                    onChange={e => setNotificationSettings(prev => ({ ...prev, onlyImportant: e.target.checked }))}
+                    className="rounded text-indigo-600 w-4.5 h-4.5 cursor-pointer shrink-0"
+                  />
+                </div>
+              </div>
+
               {/* Frequency limits */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Frequency Spam Filter</h4>
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {locale === 'vi' ? 'Tần suất hiển thị (Spam Filter)' : 'Frequency Spam Filter'}
+                </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { id: 'all', label: 'All Updates', desc: 'Show all notifications immediately.' },
-                    { id: 'throttled', label: 'Throttled (3s)', desc: 'Group rapid consecutive updates.' },
-                    { id: 'minimal', label: 'Minimal', desc: 'Only high priority alerts.' }
+                    { id: 'throttled', label: locale === 'vi' ? 'Tinh gọn (Khuyên dùng)' : 'Selective (Recommended)', desc: locale === 'vi' ? 'Lọc hành động phụ, giãn cách thông báo 3s.' : 'Group consecutive updates and filter minor popups.' },
+                    { id: 'minimal', label: locale === 'vi' ? 'Khẩn cấp (Minimal)' : 'Minimal', desc: locale === 'vi' ? 'Chỉ hiện hạn chót và cảnh báo khẩn.' : 'Only high priority alerts and deadlines.' },
+                    { id: 'all', label: locale === 'vi' ? 'Tất cả hành động' : 'All Updates', desc: locale === 'vi' ? 'Hiện tất cả thông báo không qua bộ lọc.' : 'Show all notification popups immediately.' }
                   ].map(f => (
-                    <label key={f.id} className={`p-3.5 rounded-xl bg-white dark:bg-slate-800 border transition-all cursor-pointer flex flex-col justify-between ${notificationSettings.frequencyLimit === f.id ? 'border-indigo-500 shadow-xs' : 'border-slate-200/50 dark:border-slate-700/60'}`}>
+                    <label key={f.id} className={`p-3.5 rounded-xl bg-white dark:bg-slate-800 border transition-all cursor-pointer flex flex-col justify-between ${notificationSettings.frequencyLimit === f.id ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-xs' : 'border-slate-200/50 dark:border-slate-700/60'}`}>
                       <div className="flex items-center gap-2">
                         <input
                           type="radio"

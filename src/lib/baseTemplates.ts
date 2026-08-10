@@ -84,7 +84,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'blank',
     name: 'Blank Base',
-    emoji: '📋',
+    emoji: 'ClipboardList',
     description: 'Start from scratch with a single table',
     build: () => {
       const nameFieldId = uid();
@@ -95,7 +95,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'Untitled Base',
-        emoji: '📋',
+        emoji: 'ClipboardList',
         description: '',
         tables: [table],
         activeTableId: table.id,
@@ -107,7 +107,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'crm',
     name: 'CRM',
-    emoji: '🤝',
+    emoji: 'Handshake',
     description: 'Track leads, contacts and sales pipeline',
     build: () => {
       const nameId = uid();
@@ -137,7 +137,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'CRM Pipeline',
-        emoji: '🤝',
+        emoji: 'Handshake',
         description: 'Customer relationship management',
         tables: [table],
         activeTableId: table.id,
@@ -149,7 +149,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'project',
     name: 'Project Management',
-    emoji: '🚀',
+    emoji: 'Rocket',
     description: 'Plan sprints, track milestones and deliverables',
     build: () => {
       const nameId = uid();
@@ -173,7 +173,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'Project Tracker',
-        emoji: '🚀',
+        emoji: 'Rocket',
         description: 'Agile project management',
         tables: [table],
         activeTableId: table.id,
@@ -185,7 +185,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'inventory',
     name: 'Inventory',
-    emoji: '📦',
+    emoji: 'Package',
     description: 'Track stock levels, SKUs and suppliers',
     build: () => {
       const nameId = uid();
@@ -211,7 +211,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'Inventory Tracker',
-        emoji: '📦',
+        emoji: 'Package',
         description: 'Warehouse & stock management',
         tables: [table],
         activeTableId: table.id,
@@ -223,7 +223,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'hr',
     name: 'HR & Recruitment',
-    emoji: '👥',
+    emoji: 'Users',
     description: 'Manage candidates, interviews and hiring pipeline',
     build: () => {
       const nameId = uid();
@@ -249,7 +249,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'Recruitment Pipeline',
-        emoji: '👥',
+        emoji: 'Users',
         description: 'Hiring & talent management',
         tables: [table],
         activeTableId: table.id,
@@ -261,7 +261,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
   {
     id: 'task_tracker',
     name: 'Task Tracker',
-    emoji: '✅',
+    emoji: 'CheckSquare',
     description: 'Simple task list with status and due dates',
     build: () => {
       const nameId = uid();
@@ -281,7 +281,7 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       return {
         id: bid(),
         name: 'Task Tracker',
-        emoji: '✅',
+        emoji: 'CheckSquare',
         description: 'Personal & team task tracking',
         tables: [table],
         activeTableId: table.id,

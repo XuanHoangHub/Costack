@@ -6,6 +6,7 @@ import { X, Mail, Phone, Calendar, Briefcase, MessageSquare, CheckCircle2, Clock
 import { useMemberStore } from '@/store/memberStore';
 import { useTaskStore } from '@/store/taskStore';
 import { useUiStore } from '@/store/uiStore';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import SignedImage from './SignedImage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { User, Task } from '@/types';
@@ -41,6 +42,8 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   const members = useMemberStore((s) => s.members);
   const tasks = useTaskStore((s) => s.tasks);
   const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const setInitialSelectedChannelId = useUiStore((s) => s.setInitialSelectedChannelId);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
   if (!memberId) return null;
 
@@ -69,6 +72,10 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
   const handleOpenChat = () => {
     onClose();
+    const currentUserId = 'user';
+    const sortedIds = [currentUserId, member.id].sort();
+    const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+    setInitialSelectedChannelId(dmChannelId);
     setActiveTab('chat');
   };
 

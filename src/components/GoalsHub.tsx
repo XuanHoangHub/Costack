@@ -7,8 +7,9 @@ import SignedImage from './SignedImage';
 import { 
   Target, Plus, Trash2, Calendar, User as UserIcon, CheckSquare, 
   ChevronRight, Sparkles, Trophy, PlusCircle, Check, X, ArrowUpRight, 
-  Sliders, TrendingUp, AlertCircle, BarChart3, HelpCircle
+  Sliders, TrendingUp, AlertCircle, BarChart3, HelpCircle, Download, FileText, Filter, Layers
 } from 'lucide-react';
+import { callAiApi } from '@/lib/aiClient';
 
 export interface GoalTarget {
   id: string;
@@ -154,7 +155,73 @@ export default function GoalsHub({
       if (selectedGoal?.id === goalId) {
         setSelectedGoal(null);
       }
-      if (onAddSyncLog) onAddSyncLog(`Deleted Goal: "${title}"`);
+    }
+  };
+
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  // Export OKRs Report as Markdown file
+  const handleExportOkrReport = () => {
+    let report = `# 🎯 BÁO CÁO MỤC TIÊU VÀ KẾT QUẢ THEN CHỐT (OKRs)\n\nNgày xuất: ${new Date().toLocaleDateString('vi-VN')}\nWorkspace ID: ${workspaceId}\n\n---\n\n`;
+
+    goals.forEach((goal, i) => {
+      const overall = getGoalProgress(goal);
+      report += `### ${i + 1}. ${goal.title} (${overall}% Hoàn thành)\n`;
+      if (goal.description) report += `> ${goal.description}\n\n`;
+      report += `**Các chỉ số Key Results:**\n`;
+      
+      goal.targets.forEach(t => {
+        const prog = getTargetProgress(t);
+        report += `- [${prog === 100 ? 'x' : ' '}] ${t.title} (${prog}%)\n`;
+      });
+      report += `\n`;
+    });
+
+    const blob = new Blob([report], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `okr-report-${Date.now()}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+    if (triggerToast) triggerToast('success', 'Báo cáo OKRs 🎯', 'Đã tải xuống tập tin okr-report.md.');
+  };
+
+  // AI Key Result Advisor
+  const handleAiSuggestKeyResults = async () => {
+    if (!selectedGoal) return;
+    setIsAiGenerating(true);
+
+    try {
+      const response = await callAiApi('/api/ai/subtasks', {
+        title: selectedGoal.title,
+        description: selectedGoal.description || ''
+      });
+      const data = await response.json();
+      
+      if (data.success && Array.isArray(data.subtasks)) {
+        const generatedTargets: GoalTarget[] = data.subtasks.map((st: string, idx: number) => ({
+          id: `gt-ai-${Date.now()}-${idx}`,
+          title: st,
+          type: 'boolean',
+          completed: false
+        }));
+
+        const updatedGoals = goals.map(g => {
+          if (g.id === selectedGoal.id) {
+            const updatedGoal = { ...g, targets: [...g.targets, ...generatedTargets] };
+            setSelectedGoal(updatedGoal);
+            return updatedGoal;
+          }
+          return g;
+        });
+
+        saveGoals(updatedGoals);
+        if (triggerToast) triggerToast('success', 'AI Key Results ✨', `Đã gợi ý thêm ${generatedTargets.length} chỉ số cho mục tiêu.`);
+      }
+    } catch (err) {
+    } finally {
+      setIsAiGenerating(false);
     }
   };
 
@@ -328,13 +395,22 @@ export default function GoalsHub({
           <h2 className="text-lg font-black tracking-tight">Objectives & Key Results</h2>
           <p className="text-[10px] font-bold text-slate-405">Track and coordinate team goals with task targets.</p>
         </div>
-        <button
-          onClick={() => setShowCreateGoalModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-indigo-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
-          style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
-        >
-          <Plus className="w-4 h-4" /> Create Goal
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportOkrReport}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
+            title="Xuất Báo cáo OKRs (.md)"
+          >
+            <Download className="w-3.5 h-3.5" /> Xuất Báo cáo
+          </button>
+          <button
+            onClick={() => setShowCreateGoalModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-indigo-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+          >
+            <Plus className="w-4 h-4" /> Create Goal
+          </button>
+        </div>
       </div>
 
       {/* Grid of goals */}
@@ -507,14 +583,25 @@ export default function GoalsHub({
               <div className="space-y-2.5">
                 <div className="flex justify-between items-center">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450">Key Results & Targets</h4>
-                  {!showAddTargetForm && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setShowAddTargetForm(true)}
-                      className="text-[9px] font-black text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer"
+                      onClick={handleAiSuggestKeyResults}
+                      disabled={isAiGenerating}
+                      className="text-[9px] font-black text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-lg border border-indigo-200/60"
+                      title="Gợi ý Key Results bằng Gemini AI"
                     >
-                      <PlusCircle className="w-3.5 h-3.5" /> Add Target
+                      <Sparkles className={`w-3.5 h-3.5 ${isAiGenerating ? 'animate-spin' : ''}`} />
+                      <span>{isAiGenerating ? 'AI đang tạo...' : 'AI Key Results'}</span>
                     </button>
-                  )}
+                    {!showAddTargetForm && (
+                      <button
+                        onClick={() => setShowAddTargetForm(true)}
+                        className="text-[9px] font-black text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" /> Add Target
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Inline form to add target */}

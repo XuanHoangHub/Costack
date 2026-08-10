@@ -14,10 +14,11 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protoc
 import { supabase } from '../supabaseClient';
 import { 
   Bold, Italic, Strikethrough, Code, Link, Sparkles, Smile, Image as ImageIcon,
-  MessageSquare, User, Check, Send, CheckSquare, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Table2, Trash2
+  MessageSquare, User, Check, Send, CheckSquare, List, ListOrdered, Quote, Heading1, Heading2, Heading3, Table2, Trash2, Download, FileText, Copy, FileCode, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMemberStore } from '@/store/memberStore';
+import { callAiApi } from '@/lib/aiClient';
 
 interface DocumentEditorProps {
   documentId: string;
@@ -539,6 +540,51 @@ export default function DocumentEditor({
     }
   };
 
+  const [showAiMenu, setShowAiMenu] = useState(false);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+
+  // Export Document as Markdown file
+  const handleExportMarkdown = () => {
+    if (!editor) return;
+    const textContent = editor.getText();
+    const blob = new Blob([`# ${docDetails?.title || 'Document'}\n\n${textContent}`], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${docDetails?.title || 'document'}-${Date.now()}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // AI Assist Writer
+  const handleAiAction = async (action: 'expand' | 'summarize' | 'translate' | 'formal') => {
+    if (!editor) return;
+    const currentText = editor.getText().trim();
+    if (!currentText) return;
+
+    setIsAiProcessing(true);
+    setShowAiMenu(false);
+
+    let instruction = '';
+    if (action === 'expand') instruction = 'Hãy tiếp tục viết và phát triển thêm các ý chính cho tài liệu sau:';
+    else if (action === 'summarize') instruction = 'Hãy tóm tắt ngắn gọn tài liệu sau thành các gạch đầu dòng súc tích:';
+    else if (action === 'translate') instruction = 'Hãy dịch toàn bộ nội dung tài liệu sau sang Tiếng Anh chuẩn mực:';
+    else if (action === 'formal') instruction = 'Hãy chỉnh sửa tài liệu sau theo văn phong trang trọng, chuyên nghiệp:';
+
+    try {
+      const response = await callAiApi('/api/ai/document', {
+        message: `${instruction}\n\n"${currentText}"`
+      });
+      const data = await response.json();
+      if (data.success && data.text) {
+        editor.chain().focus().setContent(editor.getHTML() + `<p>${data.text}</p>`).run();
+      }
+    } catch (err) {
+    } finally {
+      setIsAiProcessing(false);
+    }
+  };
+
   const handleDeleteComment = async (commentId: string) => {
     await supabase
       .from('document_comments')
@@ -647,6 +693,74 @@ export default function DocumentEditor({
             placeholder="Chưa có tiêu đề"
             className="w-full bg-transparent border-0 outline-none font-black text-2xl md:text-3xl placeholder-slate-300 text-slate-850 dark:text-white"
           />
+        </div>
+
+        {/* Document Action Bar */}
+        <div className="flex items-center justify-between gap-3 mt-2 select-none">
+          <div className="flex items-center gap-2">
+            {/* AI Assistant Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAiMenu(!showAiMenu)}
+                disabled={isAiProcessing}
+                className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/60 hover:bg-indigo-100 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
+                <span>{isAiProcessing ? 'AI đang soạn...' : 'AI Writer'}</span>
+              </button>
+
+              {showAiMenu && (
+                <div className="absolute left-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-40 space-y-1 text-left">
+                  <button 
+                    onClick={() => handleAiAction('expand')}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer"
+                  >
+                    ✨ Viết tiếp & Phát triển ý
+                  </button>
+                  <button 
+                    onClick={() => handleAiAction('summarize')}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer"
+                  >
+                    📝 Tóm tắt nội dung
+                  </button>
+                  <button 
+                    onClick={() => handleAiAction('translate')}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer"
+                  >
+                    🌐 Dịch sang Tiếng Anh
+                  </button>
+                  <button 
+                    onClick={() => handleAiAction('formal')}
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer"
+                  >
+                    👔 Đổi văn phong Trang trọng
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Export Markdown Button */}
+            <button
+              onClick={handleExportMarkdown}
+              className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Xuất file Markdown (.md)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Word Count & Reading Time Stats */}
+          {editor && (() => {
+            const words = editor.getText().trim().split(/\s+/).filter(Boolean).length;
+            const readTime = Math.max(1, Math.ceil(words / 200));
+            return (
+              <div className="flex items-center gap-2 text-[10.5px] font-bold text-slate-400">
+                <span>{words} từ</span>
+                <span>•</span>
+                <span>{readTime} phút đọc</span>
+              </div>
+            );
+          })()}
         </div>
 
         <div className="h-px bg-slate-100 dark:bg-slate-800 my-4 shrink-0" />

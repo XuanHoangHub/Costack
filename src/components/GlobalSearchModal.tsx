@@ -150,6 +150,20 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
+      id: 'open-ai',
+      name: '/ai',
+      label: 'Launch Avaxa Brain AI Assistant',
+      description: 'Ask AI, summarize workspace, generate tasks or PRDs',
+      icon: Sparkles,
+      action: () => {
+        if (typeof document !== 'undefined') {
+          const aiBtn = document.getElementById('btn_apexa_ai_float');
+          if (aiBtn) aiBtn.click();
+        }
+        addSyncLog('Command: Launched Avaxa Brain AI Assistant');
+      },
+    },
+    {
       id: 'goto-whiteboard',
       name: '/whiteboard',
       label: 'Open Whiteboard',

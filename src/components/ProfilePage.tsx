@@ -91,7 +91,7 @@ function ProfilePage({
       isFirstMountRef.current = false;
       setSaveStatus('saved');
     }
-  }, [currentUser, members]);
+  }, [currentUser, members, skills]);
 
   // Statistics calculation
   const myTasks = tasks.filter(t => t.assigneeId === 'user' || (t.assigneeIds && t.assigneeIds.includes('user')));
@@ -293,7 +293,7 @@ function ProfilePage({
     await triggerSave();
 
     if (triggerToast) {
-      triggerToast('success', 'Đã lưu thay đổi 👤', 'Hồ sơ người dùng của bạn đã được cập nhật thành công!');
+      triggerToast('success', 'Đã lưu thay đổi', 'Hồ sơ người dùng của bạn đã được cập nhật thành công!');
     }
     if ((window as any).playSystemSound) {
       (window as any).playSystemSound('success');
@@ -569,7 +569,7 @@ function ProfilePage({
                   if ((window as any).showPremiumModal) {
                     (window as any).showPremiumModal();
                   } else if (triggerToast) {
-                    triggerToast('info', locale === 'vi' ? 'Thông báo 📁' : 'Notification 📁', locale === 'vi' ? 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.' : 'Please use a Premium account to access all features.');
+                    triggerToast('info', locale === 'vi' ? 'Thông báo' : 'Notification', locale === 'vi' ? 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.' : 'Please use a Premium account to access all features.');
                   }
                 }}
                 className={`w-full py-3 rounded-2xl text-xs font-black tracking-wide text-center transition-all duration-200 cursor-pointer shadow-sm ${

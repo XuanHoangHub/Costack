@@ -243,7 +243,7 @@ export function useSupabaseSync() {
             const bases = dbBases.map(b => ({
               id: b.id,
               name: b.name,
-              emoji: b.emoji || '📋',
+              emoji: b.emoji || 'ClipboardList',
               description: b.description || '',
               tables: b.tables || [],
               activeTableId: b.active_table_id || undefined,
@@ -282,7 +282,7 @@ export function useSupabaseSync() {
               const formattedSpaces = finalSpaces.map(s => ({
                 id: s.id,
                 name: s.name,
-                emoji: s.emoji || '📦',
+                emoji: s.emoji || 'Package',
                 themeColor: s.theme_color || 'indigo',
                 workspaceId: s.workspace_id,
                 user_id: s.user_id,
@@ -336,7 +336,7 @@ export function useSupabaseSync() {
               {
                 id: 's-w1-personal',
                 name: 'Personal Space',
-                emoji: '🧘',
+                emoji: 'Activity',
                 themeColor: 'indigo',
                 workspaceId: 'w1',
                 lists: [
@@ -348,7 +348,7 @@ export function useSupabaseSync() {
               {
                 id: 's-w2-product',
                 name: 'Product Space',
-                emoji: '🔮',
+                emoji: 'Sparkles',
                 themeColor: 'indigo',
                 workspaceId: 'w2',
                 lists: [
@@ -360,7 +360,7 @@ export function useSupabaseSync() {
               {
                 id: 's-w2-marketing',
                 name: 'Marketing Space',
-                emoji: '📢',
+                emoji: 'Megaphone',
                 themeColor: 'rose',
                 workspaceId: 'w2',
                 lists: [
@@ -659,9 +659,35 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
 
     const handleUpdate = () => loadInvitations();
     window.addEventListener('apexa-invitation-updated', handleUpdate);
-    return () => window.removeEventListener('apexa-invitation-updated', handleUpdate);
-  }, [loadInvitations]);
+
+    let channel: any = null;
+    if (!isOffline && currentUserEmail) {
+      try {
+        channel = supabase
+          .channel(`workspace-invites-${currentUserEmail.trim().toLowerCase()}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'workspace_invitations',
+            filter: `email=eq.${currentUserEmail.trim().toLowerCase()}`
+          }, () => {
+            loadInvitations();
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('Realtime channel subscribe error for invitations:', e);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('apexa-invitation-updated', handleUpdate);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [loadInvitations, currentUserEmail, isOffline]);
 
   return { invitations, refreshInvitations: loadInvitations };
 }
+
 

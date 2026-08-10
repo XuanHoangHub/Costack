@@ -57,7 +57,7 @@ export default function WhiteboardHub({
           name: wb.name,
           spaceId: space.id,
           spaceName: space.name,
-          spaceEmoji: space.emoji || '📦',
+          spaceEmoji: space.emoji || 'Package',
           folderId: wb.folderId
         });
       });
@@ -381,7 +381,7 @@ export default function WhiteboardHub({
                   >
                     <option value="">Select a space...</option>
                     {workspaceSpaces.map(s => (
-                      <option key={s.id} value={s.id}>{s.emoji || '📦'} {s.name}</option>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </div>

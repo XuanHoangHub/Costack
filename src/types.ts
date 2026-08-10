@@ -213,6 +213,7 @@ export interface ChatMessage {
     filePath: string;
     size: number;
     isImage: boolean;
+    type?: string;
     isVoice?: boolean;
     duration?: number;
     isPoll?: boolean;
@@ -222,6 +223,9 @@ export interface ChatMessage {
       text: string;
       votes: string[];
     }[];
+    isVideoMeet?: boolean;
+    meetingUrl?: string;
+    meetingTitle?: string;
   };
   parentId?: string;
   isPinned?: boolean;

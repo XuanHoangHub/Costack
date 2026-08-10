@@ -11,6 +11,7 @@ import {
 
 import SignedImage from './SignedImage';
 import { useUiStore } from '../store/uiStore';
+import { renderSpaceIcon } from './EmojiIconPicker';
 
 
 // ── Theme color map ──
@@ -259,10 +260,10 @@ export default function SpaceOverview({
         <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div 
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-slate-100"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-sm border border-slate-100 dark:border-slate-800"
               style={{ background: theme.accentLight }}
             >
-              {space.emoji || '📦'}
+              {renderSpaceIcon(space.emoji || 'Package', "w-7 h-7 text-indigo-600 dark:text-indigo-400")}
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
@@ -613,12 +614,12 @@ export default function SpaceOverview({
 
           <div className="grid grid-cols-2 gap-2">
             {[
-              { key: 'subtasks', label: 'Subtasks', icon: '📋' },
-              { key: 'priorities', label: 'Priorities', icon: '🎯' },
-              { key: 'customFields', label: 'Custom Fields', icon: '🧩' },
-              { key: 'timeTracking', label: 'Time Tracking', icon: '⏱️' },
-              { key: 'multipleAssignees', label: 'Multi Assignees', icon: '👥' },
-              { key: 'relationships', label: 'Relationships', icon: '🔗' },
+              { key: 'subtasks', label: 'Subtasks', icon: 'ListTodo' },
+              { key: 'priorities', label: 'Priorities', icon: 'Target' },
+              { key: 'customFields', label: 'Custom Fields', icon: 'Sliders' },
+              { key: 'timeTracking', label: 'Time Tracking', icon: 'Clock' },
+              { key: 'multipleAssignees', label: 'Multi Assignees', icon: 'Users' },
+              { key: 'relationships', label: 'Relationships', icon: 'Link' },
             ].map(app => {
               const isEnabled = space.clickApps?.[app.key as keyof typeof space.clickApps];
               return (
@@ -630,7 +631,7 @@ export default function SpaceOverview({
                       : 'bg-slate-50 text-slate-400 border border-slate-100'
                   }`}
                 >
-                  <span className="text-sm">{app.icon}</span>
+                  {renderSpaceIcon(app.icon, "w-4 h-4 text-indigo-500 shrink-0")}
                   <span className="truncate">{app.label}</span>
                   {isEnabled && <CheckCircle2 className="w-3 h-3 ml-auto text-emerald-500 shrink-0" />}
                 </div>

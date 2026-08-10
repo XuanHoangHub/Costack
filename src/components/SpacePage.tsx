@@ -20,7 +20,7 @@ import {
   Volume2, VolumeX, Timer, Sparkles, Pin, Tag, Hash, MoreHorizontal, ChevronDown,
   Folder, FolderOpen, Share2, ChevronRight, Star, Eye, ChevronsLeft, FileText, GanttChart, HelpCircle, EyeOff, Check, Cog, User as UserIcon, RefreshCw,
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone
-, Flag, Lock, Shield } from 'lucide-react';
+, Flag, Lock, Shield, Rocket } from 'lucide-react';
 import ShareSettingsModal from './ShareSettingsModal';
 import { renderSpaceIcon } from './EmojiIconPicker';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect, BulkStatusSelect, BulkAssigneeSelect, BulkPrioritySelect } from './tasks/TaskSelects';
@@ -368,6 +368,7 @@ export default function SpacePage({
   const [newChanScope, setNewChanScope] = useState<'space' | 'folder' | 'list'>('space');
   const [showAllSpacesToggle, setShowAllSpacesToggle] = useState(true);
   const [showArchivedToggle, setShowArchivedToggle] = useState(false);
+  const [expandedSpaceIds, setExpandedSpaceIds] = useState<Record<string, boolean>>({});
   useEffect(() => {
     const currentList = activeSpace.lists?.find(l => l.id === activeListId);
     if (currentList) {
@@ -1131,7 +1132,9 @@ export default function SpacePage({
                 }).filter(hasSpaceAccess).map(space => {
                   const isSpaceActive = activeSpaceId === space.id && activeListId === null;
                   const isAnyChildActive = activeSpaceId === space.id;
-                  const isExpanded = isSpacesExpanded;
+                  const isExpanded = expandedSpaceIds[space.id] !== undefined 
+                    ? expandedSpaceIds[space.id] 
+                    : (activeSpaceId === space.id || isSpacesExpanded);
 
                   const themeBgColors: Record<string, string> = {
                     indigo: 'bg-[#7B61FF]',
@@ -1155,26 +1158,49 @@ export default function SpacePage({
                               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-850 dark:hover:text-slate-200'
                         }`}
                       >
-                        <div className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        {/* Accordion Chevron Toggle + Space Icon + Space Name */}
+                        <div 
+                          className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                           onClick={() => {
                             if (setActiveSpaceId) setActiveSpaceId(space.id);
                             if (setActiveListId) setActiveListId(null);
                             setActiveFolderId(null);
                             setActiveView('overview');
+                            setExpandedSpaceIds(prev => ({
+                              ...prev,
+                              [space.id]: !isExpanded
+                            }));
                             onAddSyncLog(`Entered Space: ${space.name}`);
                           }}
                         >
+                          {/* Chevron Arrow toggle button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedSpaceIds(prev => ({
+                                ...prev,
+                                [space.id]: !isExpanded
+                              }));
+                            }}
+                            className="p-0.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all cursor-pointer shrink-0"
+                            title={isExpanded ? "Collapse Space" : "Expand Space"}
+                          >
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
+                          </button>
+
                           {/* Space Icon */}
                           {space.emoji && space.emoji !== '📦' ? (
-                            renderSpaceIcon(space.emoji, "w-4.5 h-4.5 text-indigo-550 dark:text-indigo-400")
+                            renderSpaceIcon(space.emoji, "w-4.5 h-4.5 text-indigo-550 dark:text-indigo-400 shrink-0")
                           ) : (
                             <div className={`w-4.5 h-4.5 rounded-lg flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-3xs ${bgClass}`}>
                               {initialLetter}
                             </div>
                           )}
-                          <span className="truncate">{space.name}</span>
-                          {space.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-1" />}
+                          <span className="truncate font-extrabold">{space.name}</span>
+                          {space.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
                         </div>
+
                         {/* Space Hover actions */}
                         <div className="opacity-0 group-hover/space:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
                           <button
@@ -1230,10 +1256,14 @@ export default function SpacePage({
                           {activeSpaceId === space.id && (
                             <button
                               onClick={() => onAddListSpace?.(space.id)}
-                              className="w-full flex items-center gap-1.5 py-1 px-2 rounded-lg text-[10px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 transition-all cursor-pointer mb-1"
+                              className="w-full flex items-center justify-between py-1.5 px-2.5 rounded-xl border border-dashed border-slate-200/90 dark:border-slate-800 text-[11px] font-extrabold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-all duration-200 cursor-pointer mb-2 shadow-2xs group/addlist"
                             >
-                              <Plus className="w-3 h-3" />
-                              <span>New List</span>
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-4 h-4 rounded-md bg-slate-100 dark:bg-slate-800 group-hover/addlist:bg-indigo-100 dark:group-hover/addlist:bg-indigo-900/60 text-slate-500 group-hover/addlist:text-indigo-600 dark:group-hover/addlist:text-indigo-300 flex items-center justify-center transition-colors">
+                                  <Plus className="w-3 h-3 stroke-[2.5]" />
+                                </div>
+                                <span>New List</span>
+                              </div>
                             </button>
                           )}
                           
@@ -1314,95 +1344,111 @@ export default function SpacePage({
                                 {isFolderOpen && (
                                   <div className="pl-3.5 space-y-0.5 ml-2 mt-0.5">
                                     {folderLists.map(list => {
-                                      const isListActive = activeSpaceId === space.id && activeListId === list.id;
-                                      const taskCount = tasks.filter(t => t.listId === list.id).length;
-                                      return (
-                                        <div 
-                                          key={list.id}
-                                          className={`w-full group/list flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left relative ${
-                                            isListActive
-                                              ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
-                                              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10'
-                                          }`}
-                                        >
-                                          {/* List name click area */}
-                                          <div 
-                                            onClick={() => {
-                                              if (setActiveSpaceId) setActiveSpaceId(space.id);
-                                              if (setActiveListId) setActiveListId(list.id);
-                                              setActiveFolderId(null);
-                                              setActiveView('table');
-                                              onAddSyncLog(`Entered List: ${list.name}`);
-                                            }}
-                                            className="flex-1 flex items-center gap-1.5 min-w-0 cursor-pointer"
-                                          >
-                                            <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span className="truncate">{list.name}</span>
-                                            {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-505 shrink-0 ml-1" />}
-                                          </div>
-                                          
-                                          {/* Task count or hover actions */}
-                                          <div className="flex items-center gap-1 shrink-0 relative">
-                                            {/* Hover Actions */}
-                                            <div className="opacity-0 group-hover/list:opacity-100 flex items-center gap-0.5 transition-all">
-                                              <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  const rect = e.currentTarget.getBoundingClientRect();
-                                                  if (activeListSettings?.id === list.id) {
-                                                    setActiveListSettings(null);
-                                                  } else {
-                                                    setActiveListSettings({
-                                                      id: list.id,
-                                                      spaceId: space.id,
-                                                      folderId: folder.id,
-                                                      x: rect.left,
-                                                      y: rect.bottom + 4
-                                                    });
-                                                  }
-                                                  setActiveSpaceMenu(null);
-                                                  setActiveSpaceSettings(null);
-                                                  setActiveListMenu(null);
-                                                }}
-                                                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-                                                title="Settings"
-                                              >
-                                                <MoreHorizontal className="w-3 h-3" />
-                                              </button>
-                                              
-                                              <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  const rect = e.currentTarget.getBoundingClientRect();
-                                                  if (activeListMenu?.id === list.id) {
-                                                    setActiveListMenu(null);
-                                                  } else {
-                                                    setActiveListMenu({
-                                                      id: list.id,
-                                                      spaceId: space.id,
-                                                      folderId: folder.id,
-                                                      x: rect.left,
-                                                      y: rect.bottom + 4
-                                                    });
-                                                  }
-                                                  setActiveSpaceMenu(null);
-                                                  setActiveSpaceSettings(null);
-                                                }}
-                                                className="p-0.5 hover:bg-slate-205 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-                                                title="Quick Create"
-                                              >
-                                                <Plus className="w-3.5 h-3.5" />
-                                              </button>
-                                            </div>
-                                            
-                                            {/* Count (shown when not hovering) */}
-                                            <span className="text-[10px] text-slate-455 font-semibold pl-1 shrink-0 group-hover/list:hidden">{taskCount}</span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                       const isListActive = activeSpaceId === space.id && activeListId === list.id;
+                                       const taskCount = tasks.filter(t => t.listId === list.id).length;
+                                       return (
+                                         <div 
+                                           key={list.id}
+                                           className={`w-full group/list flex items-center justify-between py-1.5 px-2 rounded-xl text-xs transition-all duration-200 text-left relative overflow-hidden ${
+                                             isListActive
+                                               ? 'bg-gradient-to-r from-indigo-50/90 via-slate-50/60 to-white dark:from-indigo-950/50 dark:via-slate-900 dark:to-slate-900/80 border border-indigo-200/70 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-300 font-black shadow-2xs'
+                                               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100 font-bold border border-transparent'
+                                           }`}
+                                         >
+                                           {isListActive && (
+                                             <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-gradient-to-b from-indigo-500 to-violet-600 shadow-xs shadow-indigo-500/40" />
+                                           )}
+
+                                           {/* List name click area */}
+                                           <div 
+                                             onClick={() => {
+                                               if (setActiveSpaceId) setActiveSpaceId(space.id);
+                                               if (setActiveListId) setActiveListId(list.id);
+                                               setActiveFolderId(null);
+                                               setActiveView('table');
+                                               onAddSyncLog(`Entered List: ${list.name}`);
+                                             }}
+                                             className="flex-1 flex items-center gap-2 min-w-0 cursor-pointer"
+                                           >
+                                             <div className={`w-5.5 h-5.5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                               isListActive 
+                                                 ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300' 
+                                                 : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 group-hover/list:text-slate-600 dark:group-hover/list:text-slate-200'
+                                             }`}>
+                                               <List className="w-3.5 h-3.5 stroke-[2.2]" />
+                                             </div>
+                                             <span className="truncate">{list.name}</span>
+                                             {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
+                                           </div>
+                                           
+                                           {/* Task count or hover actions */}
+                                           <div className="flex items-center gap-1 shrink-0 relative">
+                                             {/* Hover Actions */}
+                                             <div className="opacity-0 group-hover/list:opacity-100 flex items-center gap-0.5 transition-all">
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   const rect = e.currentTarget.getBoundingClientRect();
+                                                   if (activeListSettings?.id === list.id) {
+                                                     setActiveListSettings(null);
+                                                   } else {
+                                                     setActiveListSettings({
+                                                       id: list.id,
+                                                       spaceId: space.id,
+                                                       folderId: folder.id,
+                                                       x: rect.left,
+                                                       y: rect.bottom + 4
+                                                     });
+                                                   }
+                                                   setActiveSpaceMenu(null);
+                                                   setActiveSpaceSettings(null);
+                                                   setActiveListMenu(null);
+                                                 }}
+                                                 className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
+                                                 title="Settings"
+                                               >
+                                                 <MoreHorizontal className="w-3.5 h-3.5" />
+                                               </button>
+                                               
+                                               <button
+                                                 type="button"
+                                                 onClick={(e) => {
+                                                   e.stopPropagation();
+                                                   const rect = e.currentTarget.getBoundingClientRect();
+                                                   if (activeListMenu?.id === list.id) {
+                                                     setActiveListMenu(null);
+                                                   } else {
+                                                     setActiveListMenu({
+                                                       id: list.id,
+                                                       spaceId: space.id,
+                                                       folderId: folder.id,
+                                                       x: rect.left,
+                                                       y: rect.bottom + 4
+                                                     });
+                                                   }
+                                                   setActiveSpaceMenu(null);
+                                                   setActiveSpaceSettings(null);
+                                                 }}
+                                                 className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
+                                                 title="Quick Create"
+                                               >
+                                                 <Plus className="w-3.5 h-3.5" />
+                                               </button>
+                                             </div>
+                                             
+                                             {/* Count (shown when not hovering) */}
+                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 group-hover/list:hidden transition-colors ${
+                                               isListActive 
+                                                 ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50' 
+                                                 : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500'
+                                             }`}>
+                                               {taskCount}
+                                             </span>
+                                           </div>
+                                         </div>
+                                       );
+                                     })}
 
                                     {folderDocs.map(doc => {
                                       return (
@@ -1453,12 +1499,16 @@ export default function SpacePage({
                             return (
                               <div 
                                 key={list.id}
-                                className={`w-full group/list flex items-center justify-between py-1 px-2 rounded-lg text-xs font-bold transition-all text-left relative ${
+                                className={`w-full group/list flex items-center justify-between py-1.5 px-2 rounded-xl text-xs transition-all duration-200 text-left relative overflow-hidden ${
                                   isListActive
-                                    ? 'text-indigo-650 dark:text-indigo-400 font-extrabold bg-indigo-50/50 dark:bg-indigo-950/10'
-                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-850 dark:hover:bg-slate-800/10'
+                                    ? 'bg-gradient-to-r from-indigo-50/90 via-slate-50/60 to-white dark:from-indigo-950/50 dark:via-slate-900 dark:to-slate-900/80 border border-indigo-200/70 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-300 font-black shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100 font-bold border border-transparent'
                                 }`}
                               >
+                                {isListActive && (
+                                  <div className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-gradient-to-b from-indigo-500 to-violet-600 shadow-xs shadow-indigo-500/40" />
+                                )}
+
                                 {/* List name click area */}
                                 <div 
                                   onClick={() => {
@@ -1468,11 +1518,17 @@ export default function SpacePage({
                                     setActiveView('table');
                                     onAddSyncLog(`Entered List: ${list.name}`);
                                   }}
-                                  className="flex-1 flex items-center gap-1.5 min-w-0 cursor-pointer"
+                                  className="flex-1 flex items-center gap-2 min-w-0 cursor-pointer"
                                 >
-                                  <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                  <div className={`w-5.5 h-5.5 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                                    isListActive 
+                                      ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300' 
+                                      : 'bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 group-hover/list:text-slate-600 dark:group-hover/list:text-slate-200'
+                                  }`}>
+                                    <List className="w-3.5 h-3.5 stroke-[2.2]" />
+                                  </div>
                                   <span className="truncate">{list.name}</span>
-                                  {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-550 shrink-0 ml-1" />}
+                                  {list.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
                                 </div>
                                 
                                 {/* Task count or hover actions */}
@@ -1499,10 +1555,10 @@ export default function SpacePage({
                                         setActiveSpaceSettings(null);
                                         setActiveListMenu(null);
                                       }}
-                                      className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
                                       title="Settings"
                                     >
-                                      <MoreHorizontal className="w-3 h-3" />
+                                      <MoreHorizontal className="w-3.5 h-3.5" />
                                     </button>
                                     
                                     <button
@@ -1524,7 +1580,7 @@ export default function SpacePage({
                                         setActiveSpaceMenu(null);
                                         setActiveSpaceSettings(null);
                                       }}
-                                      className="p-0.5 hover:bg-slate-205 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                                      className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
                                       title="Quick Create"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
@@ -1532,7 +1588,13 @@ export default function SpacePage({
                                   </div>
                                   
                                   {/* Count (shown when not hovering) */}
-                                  <span className="text-[10px] text-slate-455 font-semibold pl-1 shrink-0 group-hover/list:hidden">{taskCount}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 group-hover/list:hidden transition-colors ${
+                                    isListActive 
+                                      ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50' 
+                                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500'
+                                  }`}>
+                                    {taskCount}
+                                  </span>
                                 </div>
                               </div>
                             );
@@ -3516,19 +3578,19 @@ export default function SpacePage({
                     <button
                       type="button"
                       onClick={() => setNewChanScope('space')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
                         newChanScope === 'space'
                           ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-655 dark:text-indigo-400'
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      🚀 Space
+                      <Rocket className="w-3.5 h-3.5" /> Space
                     </button>
                     <button
                       type="button"
                       disabled={!activeFolderId}
                       onClick={() => setNewChanScope('folder')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
                         !activeFolderId ? 'opacity-40 cursor-not-allowed' : ''
                       } ${
                         newChanScope === 'folder'
@@ -3536,13 +3598,13 @@ export default function SpacePage({
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      📁 Folder
+                      <Folder className="w-3.5 h-3.5" /> Folder
                     </button>
                     <button
                       type="button"
                       disabled={!activeListId}
                       onClick={() => setNewChanScope('list')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
                         !activeListId ? 'opacity-40 cursor-not-allowed' : ''
                       } ${
                         newChanScope === 'list'
@@ -3550,7 +3612,7 @@ export default function SpacePage({
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      📋 List
+                      <List className="w-3.5 h-3.5" /> List
                     </button>
                   </div>
                 </div>
@@ -3648,186 +3710,232 @@ export default function SpacePage({
         return (
           <Portal>
             <div className="fixed inset-0 z-40" onClick={() => setActiveSpaceSettings(null)} />
-            <div 
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, type: 'spring', stiffness: 420, damping: 28 }}
               style={{ 
                 position: 'fixed', 
                 top: activeSpaceSettings.y, 
-                left: Math.min(activeSpaceSettings.x, typeof window !== 'undefined' ? window.innerWidth - 225 : activeSpaceSettings.x)
+                left: Math.min(activeSpaceSettings.x, typeof window !== 'undefined' ? window.innerWidth - 250 : activeSpaceSettings.x)
               }}
-              className="w-[215px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden text-xs py-1.5 animate-fadeIn"
+              className="w-[245px] bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-50 text-left font-sans select-none overflow-hidden text-xs p-2 space-y-1"
             >
-              {/* Favorite */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  alert("Added Space to favorites!");
-                }}
-                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Star className="w-3.5 h-3.5 text-slate-450" />
-                  <span className="font-bold">Favorite</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-              </button>
+              {/* Group 1: General Shortcuts */}
+              <div className="space-y-0.5">
+                {/* Favorite */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    alert("Added Space to favorites!");
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-amber-100 dark:group-hover/item:bg-amber-950/50 group-hover/item:text-amber-500 transition-colors shrink-0">
+                      <Star className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">Favorite</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-amber-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                </button>
 
-              {/* Rename */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  const newName = prompt("Rename Space:", space.name);
-                  if (newName?.trim()) {
-                    const updated = spaces.map(s => s.id === space.id ? { ...s, name: newName.trim() } : s);
-                    onSaveSpaces?.(updated);
-                    onAddSyncLog(`Renamed Space "${space.name}" to "${newName.trim()}"`);
-                  }
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <Pencil className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Rename</span>
-              </button>
-
-              {/* Copy Link */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  if (typeof window !== 'undefined') {
-                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}`);
-                  }
-                  onAddSyncLog(`Copied space link for space ${space.name}`);
-                  alert("Copied Space link to clipboard!");
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <LinkIcon className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Copy link</span>
-              </button>
-
-              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-              {/* Create new */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  setActiveSpaceMenu({
-                    id: space.id,
-                    x: activeSpaceSettings.x - 20,
-                    y: activeSpaceSettings.y
-                  });
-                }}
-                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Plus className="w-3.5 h-3.5 text-slate-450" />
-                  <span className="font-bold">Create new</span>
-                </div>
-                <ChevronRight className="w-3 h-3 text-slate-450" />
-              </button>
-
-              {/* Color & Icon */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Color & Icon options can be set inside Workspace settings."); }}
-                className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Droplet className="w-3.5 h-3.5 text-slate-455" />
-                  <span className="font-bold">Color & Icon</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-455" />
-              </button>
-
-              {/* Automations */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Automations dashboard loaded."); }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <Zap className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Automations</span>
-              </button>
-
-              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-              {/* Hide Space */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space hidden from sidebar."); }}
-                className="w-full px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-              >
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-202">
-                  <EyeOff className="w-3.5 h-3.5 text-slate-450" />
-                  <span className="font-bold">Hide Space</span>
-                </div>
-                <span className="block text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium leading-tight">
-                  You'll retain access to this Space, but it won't show in your sidebar
-                </span>
-              </button>
-
-              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-              {/* Duplicate */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  const newSpace = { ...space, id: `s-${Date.now()}`, name: `${space.name} (Copy)` };
-                  onSaveSpaces?.([...spaces, newSpace]);
-                  onAddSyncLog(`Duplicated Space "${space.name}"`);
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5 text-slate-455" />
-                <span className="font-bold">Duplicate</span>
-              </button>
-
-              {/* Archive */}
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space archived successfully."); }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer"
-              >
-                <Archive className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Archive</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSpaceSettings(null);
-                  triggerConfirm({
-                    title: 'Xóa không gian làm việc',
-                    description: `Bạn có chắc chắn muốn xóa Space "${space.name}"? Tất cả các thư mục, danh sách và công việc trong Space này cũng sẽ bị xóa vĩnh viễn.`,
-                    onConfirm: () => {
-                      const updated = spaces.filter(s => s.id !== space.id);
+                {/* Rename */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    const newName = prompt("Rename Space:", space.name);
+                    if (newName?.trim()) {
+                      const updated = spaces.map(s => s.id === space.id ? { ...s, name: newName.trim() } : s);
                       onSaveSpaces?.(updated);
-                      if (activeSpaceId === space.id) {
-                        if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
-                        if (setActiveListId) setActiveListId(null);
-                      }
-                      onAddSyncLog(`Deleted Space "${space.name}"`);
+                      onAddSyncLog(`Renamed Space "${space.name}" to "${newName.trim()}"`);
                     }
-                  });
-                }}
-                className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                <span className="font-bold">Delete</span>
-              </button>
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Rename</span>
+                  </div>
+                </button>
 
-              {/* Sharing & Permissions bottom button */}
-              <div className="p-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
+                {/* Copy Link */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}`);
+                    }
+                    onAddSyncLog(`Copied space link for space ${space.name}`);
+                    alert("Copied Space link to clipboard!");
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <LinkIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Copy link</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Group 2: Create & Automations */}
+              <div className="space-y-0.5">
+                {/* Create new */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    setActiveSpaceMenu({
+                      id: space.id,
+                      x: activeSpaceSettings.x - 20,
+                      y: activeSpaceSettings.y
+                    });
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <Plus className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Create new</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                </button>
+
+                {/* Color & Icon */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Color & Icon options can be set inside Workspace settings."); }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <Droplet className="w-3.5 h-3.5 text-indigo-500" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Color & Icon</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
+                </button>
+
+                {/* Automations */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Automations dashboard loaded."); }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-violet-100 dark:group-hover/item:bg-violet-950/50 group-hover/item:text-violet-500 transition-colors shrink-0">
+                      <Zap className="w-3.5 h-3.5 text-violet-500 fill-violet-500/20" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-violet-600 dark:group-hover/item:text-violet-400 transition-colors">Automations</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+              {/* Group 3: Space Visibility & Actions */}
+              <div className="space-y-0.5">
+                {/* Hide Space */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space hidden from sidebar."); }}
+                  className="w-full p-2 rounded-2xl text-left hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-slate-200 dark:group-hover/item:bg-slate-700 transition-colors shrink-0">
+                      <EyeOff className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <span className="font-extrabold text-[12px] text-slate-700 dark:text-slate-200 block group-hover/item:text-slate-900 dark:group-hover/item:text-white transition-colors">Hide Space</span>
+                      <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
+                        You'll retain access to this Space, but it won't show in your sidebar
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Duplicate */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    const newSpace = { ...space, id: `s-${Date.now()}`, name: `${space.name} (Copy)` };
+                    onSaveSpaces?.([...spaces, newSpace]);
+                    onAddSyncLog(`Duplicated Space "${space.name}"`);
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <Copy className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Duplicate</span>
+                  </div>
+                </button>
+
+                {/* Archive */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space archived successfully."); }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
+                      <Archive className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Archive</span>
+                  </div>
+                </button>
+
+                {/* Delete */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    triggerConfirm({
+                      title: 'Xóa không gian làm việc',
+                      description: `Bạn có chắc chắn muốn xóa Space "${space.name}"? Tất cả các thư mục, danh sách và công việc trong Space này cũng sẽ bị xóa vĩnh viễn.`,
+                      onConfirm: () => {
+                        const updated = spaces.filter(s => s.id !== space.id);
+                        onSaveSpaces?.(updated);
+                        if (activeSpaceId === space.id) {
+                          if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
+                          if (setActiveListId) setActiveListId(null);
+                        }
+                        onAddSyncLog(`Deleted Space "${space.name}"`);
+                      }
+                    });
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-2xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-all duration-150 group/item"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center text-rose-500 group-hover/item:bg-rose-100 dark:group-hover/item:bg-rose-900/60 transition-colors shrink-0">
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    </div>
+                    <span className="font-extrabold text-[12px]">Delete</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 4: Sharing & Permissions CTA */}
+              <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -3840,12 +3948,13 @@ export default function SpacePage({
                     setSharingTargetShareSettings(space.shareSettings || {});
                     setSharingModalOpen(true);
                   }}
-                  className="w-full py-2 bg-[#007fff] hover:bg-blue-650 text-white font-extrabold text-center rounded-lg transition-colors cursor-pointer block text-xs"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black text-xs shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  Sharing & Permissions
+                  <Shield className="w-3.5 h-3.5 text-white/90" />
+                  <span>Sharing & Permissions</span>
                 </button>
               </div>
-            </div>
+            </motion.div>
           </Portal>
         );
       })()}

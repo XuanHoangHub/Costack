@@ -375,7 +375,7 @@ export default function TaskTableView({
       return 0;
     });
     return sorted;
-  }, [filteredTasks, sortCol, sortDir]);
+  }, [filteredTasks, sortCol, sortDir, customFields]);
 
   const allSelected = sortedTasks.length > 0 && sortedTasks.every(t => selectedTaskIds.includes(t.id));
   const visibleCustomFields = customFields.filter(cf => activeFields.includes(cf.name));

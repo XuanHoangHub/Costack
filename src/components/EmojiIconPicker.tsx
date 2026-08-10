@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { Search, Sparkles, Smile, Image as ImageIcon } from 'lucide-react';
+import { Search, LayoutGrid } from 'lucide-react';
 
 interface EmojiIconPickerProps {
   value: string;
@@ -10,46 +10,99 @@ interface EmojiIconPickerProps {
   className?: string;
 }
 
-const EMOJIS = [
-  // Work & Productivity
-  { char: '📦', name: 'box' }, { char: '📋', name: 'clipboard' }, { char: '📅', name: 'calendar' }, 
-  { char: '⏱️', name: 'timer' }, { char: '📊', name: 'chart' }, { char: '📁', name: 'folder' }, 
-  { char: '📝', name: 'note' }, { char: '💻', name: 'laptop' }, { char: '🎯', name: 'target' }, 
-  { char: '💡', name: 'idea' }, { char: '🧠', name: 'brain' }, { char: '🚀', name: 'rocket' },
-  // Collaboration & Success
-  { char: '🧘', name: 'meditate' }, { char: '🔮', name: 'crystal' }, { char: '📢', name: 'announcement' }, 
-  { char: '🤝', name: 'handshake' }, { char: '🎉', name: 'celebrate' }, { char: '✨', name: 'sparkle' }, 
-  { char: '🔥', name: 'fire' }, { char: '⭐', name: 'star' }, { char: '🏆', name: 'trophy' }, 
-  { char: '🥇', name: 'medal' }, { char: '🎨', name: 'art' }, { char: '🎵', name: 'music' },
-  // Tools & Flags
-  { char: '🔑', name: 'key' }, { char: '🛡️', name: 'shield' }, { char: '📌', name: 'pin' }, 
-  { char: '🏷️', name: 'tag' }, { char: '🔗', name: 'link' }, { char: '⚡', name: 'lightning' }, 
-  { char: '📞', name: 'phone' }, { char: '🚩', name: 'flag' }, { char: '❤️', name: 'heart' }, 
-  { char: '🔍', name: 'search' }, { char: '🔔', name: 'bell' }, { char: '⚙️', name: 'gear' }
+// Map legacy emoji strings to modern single-color Lucide Icons
+export const EMOJI_TO_LUCIDE_MAP: Record<string, string> = {
+  '📦': 'Package',
+  '📋': 'ClipboardList',
+  '📅': 'Calendar',
+  '⏱️': 'Timer',
+  '⏱': 'Timer',
+  '📊': 'BarChart3',
+  '📁': 'Folder',
+  '📝': 'FileText',
+  '💻': 'Laptop',
+  '🎯': 'Target',
+  '💡': 'Lightbulb',
+  '🧠': 'Brain',
+  '🚀': 'Rocket',
+  '🧘': 'Activity',
+  '🔮': 'Sparkles',
+  '📢': 'Megaphone',
+  '🤝': 'Handshake',
+  '🎉': 'Sparkles',
+  '✨': 'Sparkles',
+  '🔥': 'Flame',
+  '⭐': 'Star',
+  '🏆': 'Trophy',
+  '🥇': 'Award',
+  '🎨': 'Palette',
+  '🎵': 'Music',
+  '🔑': 'Key',
+  '🛡️': 'Shield',
+  '🛡': 'Shield',
+  '📌': 'Pin',
+  '🏷️': 'Tag',
+  '🏷': 'Tag',
+  '🔗': 'Link',
+  '⚡': 'Zap',
+  '📞': 'Phone',
+  '🚩': 'Flag',
+  '❤️': 'Heart',
+  '❤': 'Heart',
+  '🔍': 'Search',
+  '🔔': 'Bell',
+  '⚙️': 'Settings',
+  '⚙': 'Settings',
+  '👥': 'Users',
+  '✅': 'CheckSquare',
+  '⚠️': 'AlertTriangle',
+  '💪': 'Shield',
+  '💳': 'CreditCard',
+  '🔴': 'AlertOctagon',
+  '🟠': 'AlertTriangle',
+  '🟡': 'CircleDot',
+  '⚪': 'Circle',
+};
+
+// Clean categories of monochromatic Lucide Icons
+export const ICON_CATEGORIES = [
+  {
+    name: 'Work & Projects',
+    icons: ['Package', 'ClipboardList', 'Folder', 'FolderOpen', 'FileText', 'Calendar', 'Clock', 'Timer', 'Kanban', 'Table', 'GanttChart', 'List', 'CheckSquare']
+  },
+  {
+    name: 'Strategy & Intelligence',
+    icons: ['Target', 'Lightbulb', 'Brain', 'Rocket', 'Sparkles', 'Activity', 'BarChart3', 'Compass', 'Zap', 'Trophy', 'Award', 'Star']
+  },
+  {
+    name: 'Team & Communication',
+    icons: ['Users', 'Handshake', 'Megaphone', 'Mail', 'Phone', 'Bell', 'Heart', 'Shield', 'Key', 'Lock']
+  },
+  {
+    name: 'Tools & Controls',
+    icons: ['Settings', 'Sliders', 'SlidersHorizontal', 'Pin', 'Tag', 'Link', 'Palette', 'Search', 'CreditCard', 'Music', 'Laptop', 'Flame']
+  }
 ];
 
-const ICONS = [
-  'Inbox', 'CheckSquare', 'List', 'Kanban', 'Table', 'Calendar', 'Sliders', 'GanttChart', 'Clock', 'Timer',
-  'Sparkles', 'Shield', 'Key', 'Folder', 'Compass', 'Tag', 'Users', 'Activity', 'Brain', 'Link',
-  'Droplet', 'Zap', 'Phone', 'Flag', 'Heart', 'Map', 'Award', 'Trophy', 'SlidersHorizontal', 'Star',
-  'HelpCircle', 'Eye', 'EyeOff', 'Volume2', 'VolumeX', 'Plus', 'Pencil', 'Trash2', 'FolderOpen', 'Mail'
-];
+export const ALL_ICONS = Array.from(new Set(ICON_CATEGORIES.flatMap(cat => cat.icons)));
 
 export const renderSpaceIcon = (iconStr: string, className = "w-4 h-4") => {
-  if (!iconStr) return null;
-  if (iconStr.length <= 2) {
-    return <span className="text-sm shrink-0 leading-none select-none">{iconStr}</span>;
-  }
-  const IconComponent = (LucideIcons as any)[iconStr];
+  if (!iconStr) return <LucideIcons.Package className={`${className} shrink-0`} />;
+
+  // Resolve legacy emoji or direct icon name
+  const targetName = EMOJI_TO_LUCIDE_MAP[iconStr] || iconStr;
+  const IconComponent = (LucideIcons as any)[targetName];
+
   if (IconComponent) {
     return <IconComponent className={`${className} shrink-0`} />;
   }
-  return <span className="text-sm shrink-0 leading-none select-none">{iconStr}</span>;
+
+  return <LucideIcons.Package className={`${className} shrink-0`} />;
 };
 
 export default function EmojiIconPicker({ value, onChange, className = "" }: EmojiIconPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'emoji' | 'icon'>('emoji');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -68,22 +121,23 @@ export default function EmojiIconPicker({ value, onChange, className = "" }: Emo
     };
   }, [isOpen]);
 
-  const filteredEmojis = useMemo(() => {
-    if (!searchQuery.trim()) return EMOJIS;
-    const query = searchQuery.toLowerCase();
-    return EMOJIS.filter(e => e.name.includes(query) || e.char.includes(query));
-  }, [searchQuery]);
-
   const filteredIcons = useMemo(() => {
-    if (!searchQuery.trim()) return ICONS;
+    let sourceIcons = ALL_ICONS;
+    if (activeCategory !== 'All') {
+      const cat = ICON_CATEGORIES.find(c => c.name === activeCategory);
+      if (cat) sourceIcons = cat.icons;
+    }
+    if (!searchQuery.trim()) return sourceIcons;
     const query = searchQuery.toLowerCase();
-    return ICONS.filter(name => name.toLowerCase().includes(query));
-  }, [searchQuery]);
+    return ALL_ICONS.filter(name => name.toLowerCase().includes(query));
+  }, [searchQuery, activeCategory]);
 
-  const handleSelect = (val: string) => {
-    onChange(val);
+  const handleSelect = (iconName: string) => {
+    onChange(iconName);
     setIsOpen(false);
   };
+
+  const selectedIconName = EMOJI_TO_LUCIDE_MAP[value] || value;
 
   return (
     <div className={`relative inline-block ${className}`} ref={popoverRef}>
@@ -92,41 +146,21 @@ export default function EmojiIconPicker({ value, onChange, className = "" }: Emo
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:bg-slate-100/50 dark:hover:bg-slate-900 transition-all shadow-3xs cursor-pointer select-none active:scale-[0.96]"
-        title="Chọn Icon hoặc Emoji"
+        title="Chọn Biểu tượng (Icon)"
       >
-        {renderSpaceIcon(value, "w-5 h-5 text-indigo-500")}
+        {renderSpaceIcon(value, "w-5 h-5 text-indigo-600 dark:text-indigo-400")}
       </button>
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-2xl shadow-2xl p-3.5 z-[99] animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute left-0 top-full mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3.5 z-[99] animate-in fade-in slide-in-from-top-1 duration-200">
           
-          {/* Tab Selection */}
-          <div className="flex bg-slate-50 dark:bg-slate-955 p-1 rounded-xl gap-1 mb-3">
-            <button
-              type="button"
-              onClick={() => { setActiveTab('emoji'); setSearchQuery(''); }}
-              className={`flex-1 py-1.5 rounded-lg text-[10.5px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeTab === 'emoji'
-                  ? 'bg-white dark:bg-slate-850 text-indigo-650 dark:text-indigo-400 shadow-3xs'
-                  : 'text-slate-400 hover:text-slate-655 dark:hover:text-slate-350'
-              }`}
-            >
-              <Smile className="w-3.5 h-3.5" />
-              <span>Emojis</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('icon'); setSearchQuery(''); }}
-              className={`flex-1 py-1.5 rounded-lg text-[10.5px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                activeTab === 'icon'
-                  ? 'bg-white dark:bg-slate-855 text-indigo-650 dark:text-indigo-400 shadow-3xs'
-                  : 'text-slate-400 hover:text-slate-655 dark:hover:text-slate-350'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>Icons</span>
-            </button>
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+              <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
+              Chọn Biểu Tượng SVG
+            </span>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Monochromatic</span>
           </div>
 
           {/* Search Box */}
@@ -135,66 +169,71 @@ export default function EmojiIconPicker({ value, onChange, className = "" }: Emo
             <input
               type="text"
               autoFocus
-              placeholder={activeTab === 'emoji' ? "Tìm kiếm emoji..." : "Tìm kiếm icon..."}
+              placeholder="Tìm kiếm icon (VD: Rocket, Folder)..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 rounded-xl pl-8.5 pr-3.5 py-1.5 text-xs font-semibold outline-none text-slate-800 dark:text-slate-100 focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl pl-8.5 pr-3 py-1.5 text-xs font-medium outline-none text-slate-800 dark:text-slate-100 focus:border-indigo-500 transition-colors"
             />
           </div>
 
-          {/* Emoji Grid */}
-          {activeTab === 'emoji' && (
-            <div className="max-h-48 overflow-y-auto custom-scrollbar pr-0.5">
-              {filteredEmojis.length === 0 ? (
-                <div className="text-center text-slate-400 italic text-[11px] py-6">Không tìm thấy emoji tương ứng</div>
-              ) : (
-                <div className="grid grid-cols-6 gap-2">
-                  {filteredEmojis.map(emoji => (
-                    <button
-                      key={emoji.char}
-                      type="button"
-                      onClick={() => handleSelect(emoji.char)}
-                      className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-lg transition-colors cursor-pointer select-none active:scale-90"
-                      title={emoji.name}
-                    >
-                      {emoji.char}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Category Chips */}
+          <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setActiveCategory('All')}
+              className={`px-2 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                activeCategory === 'All'
+                  ? 'bg-indigo-500 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              Tất cả
+            </button>
+            {ICON_CATEGORIES.map(cat => (
+              <button
+                key={cat.name}
+                type="button"
+                onClick={() => setActiveCategory(cat.name)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  activeCategory === cat.name
+                    ? 'bg-indigo-500 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
 
           {/* Icon Grid */}
-          {activeTab === 'icon' && (
-            <div className="max-h-48 overflow-y-auto custom-scrollbar pr-0.5">
-              {filteredIcons.length === 0 ? (
-                <div className="text-center text-slate-400 italic text-[11px] py-6">Không tìm thấy icon tương ứng</div>
-              ) : (
-                <div className="grid grid-cols-6 gap-2">
-                  {filteredIcons.map(name => {
-                    const IconComponent = (LucideIcons as any)[name];
-                    if (!IconComponent) return null;
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => handleSelect(name)}
-                        className={`w-8 h-8 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 flex items-center justify-center text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer select-none active:scale-90 border ${
-                          value === name
-                            ? 'border-indigo-500 bg-indigo-500/5 text-indigo-605 dark:text-indigo-400'
-                            : 'border-transparent'
-                        }`}
-                        title={name}
-                      >
-                        <IconComponent className="w-4 h-4" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          <div className="max-h-52 overflow-y-auto custom-scrollbar pr-0.5">
+            {filteredIcons.length === 0 ? (
+              <div className="text-center text-slate-400 italic text-[11px] py-8">Không tìm thấy icon phù hợp</div>
+            ) : (
+              <div className="grid grid-cols-6 gap-2">
+                {filteredIcons.map(name => {
+                  const IconComponent = (LucideIcons as any)[name];
+                  if (!IconComponent) return null;
+                  const isSelected = selectedIconName === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => handleSelect(name)}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer select-none active:scale-95 border ${
+                        isSelected
+                          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                          : 'border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                      title={name}
+                    >
+                      <IconComponent className="w-4.5 h-4.5" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
         </div>
       )}

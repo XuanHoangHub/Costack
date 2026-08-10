@@ -22,6 +22,7 @@ import SignedImage from './SignedImage';
 import { useUiStore } from '../store/uiStore';
 import InviteModal from './InviteModal';
 import { useUserPresence } from '../hooks/useUserPresence';
+import { renderSpaceIcon } from './EmojiIconPicker';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -38,19 +39,19 @@ interface TeamDirectoryProps {
 }
 
 const DEPARTMENTS = [
-  { id: 'd-hq', label: 'Executive Headquarters', icon: '🏢' },
-  { id: 'd-eng', label: 'Engineering & Technology', icon: '💻' },
-  { id: 'd-design', label: 'Design & Product Experience', icon: '🎨' },
-  { id: 'd-growth', label: 'Marketing & Sales Growth', icon: '📈' },
+  { id: 'd-hq', label: 'Executive Headquarters', icon: 'Building2' },
+  { id: 'd-eng', label: 'Engineering & Technology', icon: 'Laptop' },
+  { id: 'd-design', label: 'Design & Product Experience', icon: 'Palette' },
+  { id: 'd-growth', label: 'Marketing & Sales Growth', icon: 'TrendingUp' },
 ];
 
 const getDeptBadge = (deptId?: string) => {
   switch (deptId) {
-    case 'd-hq': return { label: 'dept_hq_badge', icon: '🏢', class: 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-455' };
-    case 'd-eng': return { label: 'dept_eng_badge', icon: '💻', class: 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-455' };
-    case 'd-design': return { label: 'dept_design_badge', icon: '🎨', class: 'bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-455' };
-    case 'd-growth': return { label: 'dept_growth_badge', icon: '📈', class: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-455' };
-    default: return { label: 'General Member', icon: '⚡', class: 'bg-slate-500/10 border border-slate-500/20 text-slate-700 dark:text-slate-400' };
+    case 'd-hq': return { label: 'dept_hq_badge', icon: 'Building2', class: 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-455' };
+    case 'd-eng': return { label: 'dept_eng_badge', icon: 'Laptop', class: 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-455' };
+    case 'd-design': return { label: 'dept_design_badge', icon: 'Palette', class: 'bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-455' };
+    case 'd-growth': return { label: 'dept_growth_badge', icon: 'TrendingUp', class: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-455' };
+    default: return { label: 'General Member', icon: 'Zap', class: 'bg-slate-500/10 border border-slate-500/20 text-slate-700 dark:text-slate-400' };
   }
 };
 
@@ -604,7 +605,7 @@ export default function TeamDirectory({
                               maxLength={3}
                               value={statusEmj}
                               onChange={(e) => setStatusEmj(e.target.value)}
-                              placeholder="🚀"
+                              placeholder="Available"
                               className="w-10 px-2 py-2 text-center text-sm rounded-xl border border-slate-250 dark:border-slate-808 bg-white dark:bg-slate-900 outline-none text-slate-800 dark:text-slate-100 font-semibold"
                             />
                             <input
@@ -912,7 +913,7 @@ export default function TeamDirectory({
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550">{t('department') || 'Department'}:</span>
                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border flex items-center gap-1 shadow-3xs ${deptBadge.class}`}>
-                        <span>{deptBadge.icon}</span>
+                        {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
                         <span>{t(deptBadge.label) || deptBadge.label}</span>
                       </span>
                     </div>
@@ -1050,7 +1051,7 @@ export default function TeamDirectory({
                           <div key={dept.id} className="flex flex-col items-center space-y-6">
                             {/* Department Box */}
                             <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-md w-56 text-center hover:border-indigo-500/40 dark:hover:border-indigo-400/40 transition-all duration-300">
-                              <span className="text-xs">{getDeptBadge(dept.id).icon}</span>
+                              <div className="flex justify-center mb-1">{renderSpaceIcon(getDeptBadge(dept.id).icon, "w-4 h-4 text-indigo-500")}</div>
                               <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 mt-1">{t('dept_' + dept.id + '_name') || dept.name}</h5>
                               
                               {deptManager && (

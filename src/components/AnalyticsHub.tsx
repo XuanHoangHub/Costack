@@ -14,6 +14,8 @@ import {
   PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 
+import { useTranslation } from '../contexts/TranslationContext';
+
 interface AnalyticsHubProps {
   tasks: Task[];
   members: User[];
@@ -27,6 +29,7 @@ export default function AnalyticsHub({
   spaces = [],
   activeWorkspaceId
 }: AnalyticsHubProps) {
+  const { t, locale } = useTranslation();
   const [selectedSpaceId, setSelectedSpaceId] = useState<string>('all');
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7days' | '30days' | 'all'>('all');
   const [selectedMetric, setSelectedMetric] = useState<'count' | 'hours'>('count');
@@ -422,9 +425,13 @@ export default function AnalyticsHub({
       {stats.total === 0 ? (
         <div className="p-16 text-center rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
           <TrendingUp className="w-12 h-12 text-slate-305 dark:text-slate-600 mx-auto animate-bounce" />
-          <h3 className="font-extrabold text-slate-850 dark:text-slate-100 text-lg">Chưa tìm thấy dữ liệu phân tích</h3>
+          <h3 className="font-extrabold text-slate-850 dark:text-slate-100 text-lg">
+            {locale === 'vi' ? 'Chưa tìm thấy dữ liệu phân tích' : 'No Analytics Data Found'}
+          </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            Không tìm thấy công việc nào khớp với bộ lọc Space và Thời gian hiện tại. Hãy tạo các nhiệm vụ mới hoặc thay đổi bộ lọc.
+            {locale === 'vi' 
+              ? 'Không tìm thấy công việc nào khớp với bộ lọc Space và Thời gian hiện tại. Hãy tạo các nhiệm vụ mới hoặc thay đổi bộ lọc.'
+              : 'No tasks match the current Space and Timeframe filters. Create new tasks or adjust your filters.'}
           </p>
         </div>
       ) : (
@@ -435,9 +442,11 @@ export default function AnalyticsHub({
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-6">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <LineChart className="w-4.5 h-4.5 text-indigo-500" />
-                <span>Xu Hướng Hoàn Thành Công Việc Tuần Này</span>
+                <span>{locale === 'vi' ? 'Xu Hướng Hoàn Thành Công Việc Tuần Này' : 'Weekly Task Completion Trend'}</span>
               </h3>
-              <p className="text-[11px] text-slate-450 dark:text-slate-500">So sánh số lượng task được tạo mới và hoàn thành theo ngày</p>
+              <p className="text-[11px] text-slate-450 dark:text-slate-500">
+                {locale === 'vi' ? 'So sánh số lượng task được tạo mới và hoàn thành theo ngày' : 'Comparison of newly created vs completed tasks by day'}
+              </p>
             </div>
 
             <div className="h-[280px] w-full">
@@ -457,8 +466,8 @@ export default function AnalyticsHub({
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Area type="monotone" dataKey="Đã tạo" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityCreated)" />
-                  <Area type="monotone" dataKey="Hoàn thành" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityDone)" />
+                  <Area type="monotone" dataKey="Đã tạo" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityCreated)" name={locale === 'vi' ? 'Đã tạo' : 'Created'} />
+                  <Area type="monotone" dataKey="Hoàn thành" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityDone)" name={locale === 'vi' ? 'Hoàn thành' : 'Completed'} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, paddingTop: 15 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -470,9 +479,11 @@ export default function AnalyticsHub({
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <PieIcon className="w-4.5 h-4.5 text-indigo-500" />
-                <span>Trạng Thái Công Việc</span>
+                <span>{locale === 'vi' ? 'Trạng Thái Công Việc' : 'Task Status Distribution'}</span>
               </h3>
-              <p className="text-[11px] text-slate-450 dark:text-slate-500">Phân bố công việc theo trạng thái xử lý</p>
+              <p className="text-[11px] text-slate-450 dark:text-slate-500">
+                {locale === 'vi' ? 'Phân bố công việc theo trạng thái xử lý' : 'Breakdown of tasks by status'}
+              </p>
             </div>
 
             <div className="flex items-center justify-center py-6 relative">
@@ -480,15 +491,16 @@ export default function AnalyticsHub({
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statusChartData.length > 0 ? statusChartData : [{ name: 'Trống', value: 1, color: '#e2e8f0' }]}
+                      data={statusChartData.length > 0 ? statusChartData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
                       innerRadius={50}
                       outerRadius={68}
                       paddingAngle={4}
                       dataKey="value"
+                      isAnimationActive={false}
                     >
-                      {(statusChartData.length > 0 ? statusChartData : [{ name: 'Trống', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
+                      {(statusChartData.length > 0 ? statusChartData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -497,7 +509,9 @@ export default function AnalyticsHub({
               </div>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-2">
                 <span className="text-3xl font-black text-slate-800 dark:text-slate-100 leading-none">{stats.total}</span>
-                <span className="text-[9px] text-slate-450 dark:text-slate-500 uppercase tracking-widest font-black mt-1">Tổng Task</span>
+                <span className="text-[9px] text-slate-450 dark:text-slate-500 uppercase tracking-widest font-black mt-1">
+                  {locale === 'vi' ? 'Tổng Task' : 'Total Tasks'}
+                </span>
               </div>
             </div>
 
@@ -521,9 +535,11 @@ export default function AnalyticsHub({
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-6">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <Compass className="w-4.5 h-4.5 text-indigo-500" />
-                <span>Năng Suất Giữa Các Space</span>
+                <span>{locale === 'vi' ? 'Năng Suất Giữa Các Space' : 'Space Productivity'}</span>
               </h3>
-              <p className="text-[11px] text-slate-450 dark:text-slate-500">So sánh số lượng công việc của từng Space</p>
+              <p className="text-[11px] text-slate-450 dark:text-slate-500">
+                {locale === 'vi' ? 'So sánh số lượng công việc của từng Space' : 'Comparison of task counts per space'}
+              </p>
             </div>
 
             <div className="h-[250px] w-full">
@@ -533,8 +549,8 @@ export default function AnalyticsHub({
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Bar dataKey="Tổng số" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={20} name="Tổng đầu việc" />
-                  <Bar dataKey="Hoàn thành" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} name="Đã hoàn thành" />
+                  <Bar dataKey="Tổng số" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={20} name={locale === 'vi' ? 'Tổng đầu việc' : 'Total Tasks'} />
+                  <Bar dataKey="Hoàn thành" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} name={locale === 'vi' ? 'Đã hoàn thành' : 'Completed Tasks'} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, paddingTop: 15 }} />
                 </BarChart>
               </ResponsiveContainer>
@@ -546,14 +562,16 @@ export default function AnalyticsHub({
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-4">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <Users className="w-4.5 h-4.5 text-indigo-500" />
-                <span>Chỉ Số Phân Phối Kỹ Năng & Nỗ Lực</span>
+                <span>{locale === 'vi' ? 'Chỉ Số Phân Phối Kỹ Năng & Nỗ Lực' : 'Skill & Effort Distribution'}</span>
               </h3>
-              <p className="text-[11px] text-slate-450 dark:text-slate-500">Hiệu suất và sự cống hiến thực tế của từng nhân viên</p>
+              <p className="text-[11px] text-slate-450 dark:text-slate-500">
+                {locale === 'vi' ? 'Hiệu suất và sự cống hiến thực tế của từng nhân viên' : 'Performance and effort metrics per member'}
+              </p>
             </div>
 
             {memberPerformanceData.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-xs text-slate-400 py-12">
-                Chưa có dữ liệu thành viên đóng góp
+                {locale === 'vi' ? 'Chưa có dữ liệu thành viên đóng góp' : 'No member contribution data yet'}
               </div>
             ) : (
               <div className="h-[250px] w-full flex items-center justify-center">
@@ -562,8 +580,8 @@ export default function AnalyticsHub({
                     <PolarGrid stroke="rgba(226, 232, 240, 0.4)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8 }} />
-                    <Radar name="Hiệu suất (%)" dataKey="Hiệu suất" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} />
-                    <Radar name="Số giờ đã log" dataKey="Số giờ" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                    <Radar name={locale === 'vi' ? 'Hiệu suất (%)' : 'Performance (%)'} dataKey="Hiệu suất" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} />
+                    <Radar name={locale === 'vi' ? 'Số giờ đã log' : 'Logged Hours'} dataKey="Số giờ" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
                     <Tooltip content={<CustomChartTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: 9, fontWeight: 700, paddingTop: 10 }} />
                   </RadarChart>
@@ -593,13 +611,16 @@ export default function AnalyticsHub({
                     {topPerformer.member.name}
                   </h4>
                   <p className="text-xs text-slate-505 dark:text-slate-400 leading-normal">
-                    Hoàn thành xuất sắc <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} công việc</span> và đóng góp <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} giờ làm việc thực tế</span> trong khoảng thời gian này.
+                    {locale === 'vi'
+                      ? <>Hoàn thành xuất sắc <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} công việc</span> và đóng góp <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} giờ làm việc thực tế</span> trong khoảng thời gian này.</>
+                      : <>Successfully completed <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} tasks</span> and contributed <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} hours</span> during this timeframe.</>
+                    }
                   </p>
                 </div>
               </motion.div>
             ) : (
               <div className="p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-400">
-                Chưa đủ số liệu xếp hạng thành viên cống hiến
+                {locale === 'vi' ? 'Chưa đủ số liệu xếp hạng thành viên cống hiến' : 'Insufficient data for top contributor ranking'}
               </div>
             )}
 
@@ -617,15 +638,15 @@ export default function AnalyticsHub({
                   Workspace Health Score
                 </span>
                 <h4 className="text-base font-black text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-1.5">
-                  <span>Chỉ số hoạt động:</span>
+                  <span>{locale === 'vi' ? 'Chỉ số hoạt động:' : 'Activity index:'}</span>
                   <span className="text-emerald-650 dark:text-emerald-400 font-extrabold">{stats.completionRate}%</span>
                 </h4>
                 <p className="text-xs text-slate-505 dark:text-slate-400 leading-normal">
                   {stats.completionRate >= 80 
-                    ? 'Tuyệt vời! Workspace đang hoạt động hết công suất và các nhiệm vụ được giải quyết nhanh chóng.' 
+                    ? (locale === 'vi' ? 'Tuyệt vời! Workspace đang hoạt động hết công suất và các nhiệm vụ được giải quyết nhanh chóng.' : 'Excellent! Workspace is operating at high speed and tasks are being completed quickly.')
                     : stats.completionRate >= 50 
-                    ? 'Ổn định. Hãy tập trung giải quyết các công việc đang ở trạng thái In Progress và Review.' 
-                    : 'Cảnh báo. Tiến độ hoàn thành khá chậm, đề xuất phân bổ lại tài nguyên và đôn đốc các thành viên.'}
+                    ? (locale === 'vi' ? 'Ổn định. Hãy tập trung giải quyết các công việc đang ở trạng thái In Progress và Review.' : 'Stable. Focus on resolving tasks currently in Progress and Review status.')
+                    : (locale === 'vi' ? 'Cảnh báo. Tiến độ hoàn thành khá chậm, đề xuất phân bổ lại tài nguyên và đôn đốc các thành viên.' : 'Warning. Completion rate is slow. Consider reallocating resources and pushing deadlines.')}
                 </p>
               </div>
             </motion.div>

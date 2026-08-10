@@ -18,7 +18,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useAuthStore } from '@/store/authStore';
 
-import dynamic from 'next/dynamic';
+import { NavItem } from '@/components/ui';
 import LoginScreen from '../components/LoginScreen';
 import EmojiIconPicker from '../components/EmojiIconPicker';
 import DocumentHub from '../components/DocumentHub';
@@ -31,19 +31,21 @@ import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { AutomationRulesModal } from '../components/AutomationRulesModal';
 import { ExportDataModal } from '../components/ExportDataModal';
 import { PricingModal } from '../components/PricingModal';
+import dynamic from 'next/dynamic';
 
 const ComponentLoading = () => (
-  <div className="w-full h-full p-4 md:p-6 space-y-4 animate-pulse">
+  <div className="w-full h-full p-4 md:p-6 space-y-4 animate-pulse cu-page-enter">
     <div className="flex items-center justify-between">
-      <div className="h-7 bg-slate-200/70 dark:bg-slate-800/70 rounded-2xl w-48" />
-      <div className="h-8 bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl w-32" />
+      <div className="h-7 bg-[var(--cu-surface-3)] rounded-[var(--cu-radius-lg)] w-48" />
+      <div className="h-8 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)] w-32" />
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
-      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
-      <div className="h-28 bg-slate-200/50 dark:bg-slate-800/50 rounded-3xl" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="h-28 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)]" />
+      <div className="h-28 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)]" />
+      <div className="h-28 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)]" />
+      <div className="h-28 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)] hidden lg:block" />
     </div>
-    <div className="h-72 bg-slate-200/40 dark:bg-slate-800/40 rounded-3xl" />
+    <div className="h-72 bg-[var(--cu-surface-2)] rounded-[var(--cu-radius-lg)]" />
   </div>
 );
 
@@ -71,7 +73,7 @@ import {
   Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
   Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
-  BarChart3, Target, Menu
+  BarChart3, Target, Menu, Globe
 } from 'lucide-react';
 
 import {
@@ -85,7 +87,8 @@ import {
   ChartBar as PhChartBar,
   Target as PhTarget,
   Table as PhTable,
-  Users as PhUsers
+  Users as PhUsers,
+  Robot as PhBot
 } from '@phosphor-icons/react';
 
 const checkIsDndActive = (settings: any) => {
@@ -137,7 +140,7 @@ const getShortLabel = (label: string) => {
 const DEFAULT_SIDEBAR_ORDER = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'goals'];
 
 export default function App() {
-  const { t, locale } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
@@ -556,6 +559,7 @@ export default function App() {
   const setNewSpaceIsPrivate = useUiStore((s) => s.setNewSpaceIsPrivate);
   const newSpacePermission = useUiStore((s) => s.newSpacePermission);
   const setNewSpacePermission = useUiStore((s) => s.setNewSpacePermission);
+  const [showSpacePermissionMenu, setShowSpacePermissionMenu] = useState(false);
 
   // Localized Space Settings Modal States - consumed from useUiStore
   const editSpaceName = useUiStore((s) => s.editSpaceName);
@@ -951,7 +955,7 @@ export default function App() {
 
     // Mark as loaded so subsequent state updates save back to localStorage
     isLoaded.current = true;
-  }, [setAccentPreset, setBlurIntensity, setLongBreakDuration, setNotificationSettings, setPomodoroTime, setShortBreakDuration, setSoundEnabled, setWorkDuration]);
+  }, [setAccentPreset, setBlurIntensity, setLongBreakDuration, setNotificationSettings, setPomodoroTime, setShortBreakDuration, setSoundEnabled, setWorkDuration, updateCurrentUser]);
 
   // Pomodoro timer handlers
   const handleStartPomodoro = () => {
@@ -1194,16 +1198,12 @@ export default function App() {
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
       chat: { label: t('chat') || 'Chat', icon: PhChat },
       docs: { label: t('docs') || 'Docs', icon: PhFileText },
-      base: { label: t('base') || 'Avaxa Base', icon: PhTable },
       tasks: { label: t('space') || 'Space', icon: PhBriefcase },
-      analytics: { label: t('analytics') || 'Analytics', icon: PhChartBar },
-      goals: { label: t('goals') || 'Goals (OKRs)', icon: PhTarget },
-      team: { label: 'Team OS', icon: PhUsers }
     };
   }, [notificationsList, t]);
 
   const orderedItems = useMemo(() => {
-    const defaultOrder = ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks', 'analytics', 'goals', 'team'];
+    const defaultOrder = ['dashboard', 'inbox', 'tasks', 'calendar', 'chat', 'docs'];
     const currentOrder = [...sidebarOrder];
     defaultOrder.forEach((id) => {
       if (!currentOrder.includes(id)) {
@@ -1224,7 +1224,6 @@ export default function App() {
   }, [sidebarOrder, sidebarItemsMeta]);
 
   // Filtered lists for the Global Search modal
-  /* eslint-disable react-hooks/preserve-manual-memoization */
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
@@ -1234,7 +1233,6 @@ export default function App() {
       t.description.toLowerCase().includes(query)
     );
   }, [tasks, activeWorkspaceId, searchQuery]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const filteredDocs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1299,6 +1297,26 @@ export default function App() {
       }
     }
 
+    // Smart Filter: Always suppress minor routine UI actions that already have clear visual feedback
+    const isRoutineAction = 
+      titleLower.includes('settings saved') ||
+      titleLower.includes('updated successfully') ||
+      titleLower.includes('timer stopped') ||
+      titleLower.includes('display options') ||
+      titleLower.includes('date & time format') ||
+      titleLower.includes('interface density') ||
+      titleLower.includes('tùy chọn') ||
+      titleLower.includes('định dạng') ||
+      msgLower.includes('updated space configurations') ||
+      msgLower.includes('no time was logged') ||
+      msgLower.includes('chuyển sang') ||
+      msgLower.includes('tự động');
+
+    if (isRoutineAction && (notificationSettings.onlyImportant || notificationSettings.frequencyLimit !== 'all')) {
+      console.log(`[Notification Suppressed - Routine UI Action]: ${title}`);
+      return;
+    }
+
     // Filter tag updates click annoyances
     if ((titleLower.includes('nhãn') || msgLower.includes('nhãn') || titleLower.includes('lọc')) && !notificationSettings.enableFilteringTags) {
       return;
@@ -1325,15 +1343,26 @@ export default function App() {
       return;
     }
 
-    // If important filter is on, only allow high/urgent/critical indicators
+    // If important filter is on, only allow high/urgent/critical indicators, deadlines, assignments, errors, or milestones
     if (notificationSettings.onlyImportant) {
-      const isImportant = type === 'deadline' || 
-                          type === 'assignment' || 
-                          titleLower.includes('gấp') || 
-                          titleLower.includes('quan trọng') || 
-                          msgLower.includes('hoàn tất!') || 
-                          titleLower.includes('hạn chót') || 
-                          titleLower.includes('cảnh báo');
+      const isImportant = 
+        type === 'deadline' || 
+        type === 'assignment' || 
+        type === 'comment' ||
+        type === 'message' ||
+        titleLower.includes('gấp') || 
+        titleLower.includes('urgent') ||
+        titleLower.includes('quan trọng') || 
+        titleLower.includes('important') ||
+        titleLower.includes('hạn chót') || 
+        titleLower.includes('deadline') ||
+        titleLower.includes('error') ||
+        titleLower.includes('lỗi') ||
+        titleLower.includes('warning') ||
+        titleLower.includes('cảnh báo') ||
+        titleLower.includes('upgrade') ||
+        titleLower.includes('invitation') ||
+        titleLower.includes('họp');
       if (!isImportant) return;
     }
 
@@ -1402,6 +1431,17 @@ export default function App() {
       duration: notificationSettings.toastDuration
     });
   }, [pomodoroActive, notificationSettings, addToast, setNotificationsList]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const inviteToken = params.get('invite_token');
+      if (inviteToken) {
+        setActiveTab('inbox');
+        triggerToast('info', 'Workspace Invitation', 'You have a pending workspace invitation in your Inbox!');
+      }
+    }
+  }, [setActiveTab, triggerToast]);
 
   // Auto-scan tasks for upcoming deadlines and alert user via Toast on login
   useEffect(() => {
@@ -1483,7 +1523,6 @@ export default function App() {
   }, [currentUser, setMembers]);
 
   // Memoized workspace item collections for high rendering performance
-  /* eslint-disable react-hooks/preserve-manual-memoization */
   const currentWorkspaceTasks = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
     const mapped = mapTasksToSpaces(tasks);
@@ -1510,7 +1549,6 @@ export default function App() {
   const currentWorkspaceSpaces = useMemo(() => {
     return spaces.filter(s => s.workspaceId === activeWorkspaceId);
   }, [spaces, activeWorkspaceId]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   // Auto-save member workspace mappings to localStorage
   useEffect(() => {
@@ -2665,6 +2703,30 @@ export default function App() {
     const newId = `w-${Date.now()}`;
     const newWS = { id: newId, name, theme, initial, coverUrl };
 
+    // Helper to create default isolated space for new workspace
+    const createDefaultSpaceForWorkspace = (wsId: string, wsName: string, wsTheme: string) => {
+      const defaultSpace: Space = {
+        id: `sp-${Date.now()}`,
+        name: `${wsName} Space`,
+        emoji: '🚀',
+        themeColor: wsTheme === 'ocean' ? '#0891b2' : wsTheme === 'forest' ? '#047857' : wsTheme === 'sunset' ? '#e11d48' : '#6366f1',
+        workspaceId: wsId,
+        lists: [
+          { id: `l-${Date.now()}-1`, name: 'To Do' },
+          { id: `l-${Date.now()}-2`, name: 'In Progress' },
+          { id: `l-${Date.now()}-3`, name: 'Completed' }
+        ],
+        statuses: [
+          { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' },
+          { id: 'inprogress', label: 'IN PROGRESS', color: '#3b82f6', type: 'inprogress' },
+          { id: 'review', label: 'IN REVIEW', color: '#a855f7', type: 'review' },
+          { id: 'completed', label: 'COMPLETE', color: '#22c55e', type: 'completed' }
+        ]
+      };
+      setSpaces(prev => [...prev, defaultSpace]);
+      return defaultSpace;
+    };
+
     if (currentUser && !isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -2706,7 +2768,10 @@ export default function App() {
               if (alreadyHas) return prev;
               return [...prev, mappedSaved];
             });
+            createDefaultSpaceForWorkspace(saved.id, name, theme);
             setActiveWorkspaceId(saved.id);
+            setActiveSpaceId(null);
+            setActiveListId(null);
             setAccentPreset(saved.theme as any);
             triggerToast('success', 'Success', `Created new workspace: ${name}`);
             addSyncLog(`Synchronized new workspace: ${name} to Supabase`);
@@ -2728,7 +2793,10 @@ export default function App() {
       }
       return updated;
     });
+    createDefaultSpaceForWorkspace(newId, name, theme);
     setActiveWorkspaceId(newId);
+    setActiveSpaceId(null);
+    setActiveListId(null);
     setAccentPreset(theme as any);
     triggerToast('success', 'Success', `Created and switched to new workspace: ${name}`);
     addSyncLog(`Saved new workspace offline: ${name}`);
@@ -3526,15 +3594,14 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-slate-50 dark:bg-[#07080c] text-slate-800 dark:text-slate-50 flex flex-col overflow-hidden font-sans select-none">
+    <div className="fixed inset-0 w-full h-full cu-page-bg text-[var(--cu-text-primary)] flex flex-col overflow-hidden font-sans select-none">
       
-            {/* Background glow graphics mapping a modern desk layout with geometric balance blobs */}
-      <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none" />
-      <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none" />
-      <div className="liquid-blob blob-3 animate-liquid-1 pointer-events-none" />
+      {/* Subtle ambient background */}
+      <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none opacity-30" />
+      <div className="liquid-blob blob-2 animate-liquid-2 pointer-events-none opacity-20" />
 
-      {/* Dynamic Glass Top Header Status Strip (Spans 100% width across the top) */}
-      <header className="bg-white dark:bg-[#090a12] relative z-40 flex items-center border-b border-slate-200/80 dark:border-slate-800/80 h-[54px] shrink-0 transition-all duration-200">
+      {/* ClickUp-style Top Header */}
+      <header className="cu-header relative z-40 flex items-center shrink-0 transition-all duration-200">
         {/* Mobile header trigger & workspace badge (< md screens) */}
         <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
           <button
@@ -3571,8 +3638,8 @@ export default function App() {
         </div>
 
         {/* Left header switcher section (desktop) */}
-        <div className={`hidden md:flex items-center justify-between py-2 shrink-0 border-r border-slate-200/40 dark:border-slate-800/60 transition-all duration-350 ease-in-out relative ${
-          isMainSidebarCollapsed ? 'w-[80px] px-1 justify-center' : 'w-[260px] px-4'
+        <div className={`hidden md:flex items-center justify-between py-2 shrink-0 border-r border-[var(--cu-border)] transition-all duration-350 ease-in-out relative ${
+          isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-1 justify-center' : 'w-[var(--cu-sidebar-width)] px-3'
         }`}>
           <div className={`flex items-center relative flex-1 min-w-0 ${isMainSidebarCollapsed ? 'justify-center' : 'gap-2 px-1'}`}>
             {isMainSidebarCollapsed ? (
@@ -3653,41 +3720,55 @@ export default function App() {
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setShowWorkspaceMenu(false)} />
                   <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                    transition={{ duration: 0.2, type: "spring", stiffness: 350, damping: 25 }}
-                    className={`absolute top-full mt-2 w-[245px] p-2.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl z-30 space-y-2.5 text-left origin-top ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2, type: "spring", stiffness: 380, damping: 26 }}
+                    className={`absolute top-full mt-2 w-[270px] max-w-[calc(100vw-1.5rem)] p-3 bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
                   >
-                    {/* Active Workspace Header Card */}
-                    <div className="flex items-center gap-3 px-1 py-1">
-                      <div 
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md shrink-0 select-none overflow-hidden"
-                        style={!currentWorkspace?.logoUrl ? {
-                          background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                      currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                      currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                      'linear-gradient(135deg, #FF0033, #CC0022)',
-                        } : undefined}
-                      >
-                        {currentWorkspace?.logoUrl ? (
-                          <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                        ) : (
-                          <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A'}</span>
-                        )}
-                      </div>
-                      <div className="leading-tight min-w-0 flex-1">
-                        <div className="font-black text-slate-900 dark:text-slate-50 text-[14px] truncate tracking-tight">
-                          {currentWorkspace?.name || 'Avaxa'}
+                    {/* Active Workspace Hero Card */}
+                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-slate-50/60 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900/90 border border-indigo-100 dark:border-indigo-900/40 shadow-xs group overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-400/5 rounded-full blur-xl pointer-events-none" />
+                      
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-indigo-500/15 shrink-0 select-none overflow-hidden ring-2 ring-white dark:ring-slate-800 transition-transform duration-300 group-hover:scale-[1.03]"
+                          style={!currentWorkspace?.logoUrl ? {
+                            background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                        currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                        currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                        'linear-gradient(135deg, #FF0033, #CC0022)',
+                          } : undefined}
+                        >
+                          {currentWorkspace?.logoUrl ? (
+                            <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                          ) : (
+                            <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A'}</span>
+                          )}
                         </div>
-                        <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 flex items-center gap-1">
-                          <span>{currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}</span>
+
+                        <div className="leading-tight min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-slate-900 dark:text-slate-50 text-[14.5px] truncate tracking-tight">
+                              {currentWorkspace?.name || 'Avaxa'}
+                            </span>
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0" title="Active Workspace">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </span>
+                          </div>
+                          
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100/80 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5 text-indigo-500 fill-indigo-500/30" />
+                              {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Quick Setting & People actions */}
-                    <div className="grid grid-cols-2 gap-2 px-0.5 pt-1">
+                    {/* Quick Settings & People actions */}
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -3695,9 +3776,9 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('general');
                         }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-all shadow-3xs"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
                       >
-                        <Settings className="w-4 h-4 text-slate-500" />
+                        <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
                         <span>Settings</span>
                       </button>
                       <button
@@ -3707,9 +3788,9 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('people');
                         }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-all shadow-3xs"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
                       >
-                        <Users className="w-4 h-4 text-slate-500" />
+                        <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
                         <span>People</span>
                       </button>
                     </div>
@@ -3717,12 +3798,15 @@ export default function App() {
                     {/* Workspaces list subsection */}
                     {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
                       <>
-                        <div className="border-t border-slate-150 dark:border-slate-800/80 my-1" />
-                        <div className="space-y-1.5 px-0.5">
-                          <div className="px-1 text-[9px] font-black font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                            OTHER WORKSPACES
+                        <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
+                        <div className="space-y-1.5">
+                          <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                            <span>Other Workspaces</span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold text-slate-500">
+                              {workspaces.filter(w => w.id !== activeWorkspaceId).length}
+                            </span>
                           </div>
-                          <div className="max-h-[140px] overflow-y-auto space-y-1 pr-0.5 scrollbar-none">
+                          <div className="max-h-[150px] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
                             {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
                               <button
                                 key={w.id}
@@ -3731,10 +3815,10 @@ export default function App() {
                                   setShowWorkspaceMenu(false);
                                   handleWorkspaceChange(w.id);
                                 }}
-                                className="w-full flex items-center gap-3 p-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50/50 dark:hover:bg-slate-800/80 border border-transparent hover:border-indigo-150 dark:hover:border-slate-700 cursor-pointer transition-all text-left group"
+                                className="w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-slate-100/90 hover:to-indigo-50/50 dark:hover:from-slate-800/80 dark:hover:to-slate-800/40 border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700 cursor-pointer transition-all duration-200 text-left group/ws"
                               >
                                 <div 
-                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-2xs group-hover:scale-105 transition-transform"
+                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-2xs group-hover/ws:scale-105 transition-transform duration-200"
                                   style={!w.logoUrl ? {
                                     background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                                                 w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
@@ -3748,7 +3832,8 @@ export default function App() {
                                     <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
                                   )}
                                 </div>
-                                <span className="truncate flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors font-extrabold">{w.name}</span>
+                                <span className="truncate flex-1 group-hover/ws:text-indigo-600 dark:group-hover/ws:text-indigo-400 transition-colors font-extrabold">{w.name}</span>
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/ws:opacity-100 group-hover/ws:translate-x-0 -translate-x-1 transition-all duration-200 shrink-0" />
                               </button>
                             ))}
                           </div>
@@ -3756,7 +3841,7 @@ export default function App() {
                       </>
                     )}
 
-                    <div className="border-t border-slate-150 dark:border-slate-800/80 my-1" />
+                    <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
 
                     {/* Create workspace button */}
                     <button
@@ -3765,9 +3850,11 @@ export default function App() {
                         setShowWorkspaceMenu(false);
                         setShowAddWorkspaceModal(true);
                       }}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-2xl border border-dashed border-indigo-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 cursor-pointer transition-all shadow-3xs"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-indigo-500/10 group/create"
                     >
-                      <Plus className="w-4 h-4 font-bold" />
+                      <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center group-hover/create:scale-110 transition-transform duration-200">
+                        <Plus className="w-3.5 h-3.5 font-bold text-indigo-600 dark:text-indigo-300" />
+                      </div>
                       <span>Create Workspace</span>
                     </button>
                   </motion.div>
@@ -3851,7 +3938,7 @@ export default function App() {
                     setIsSearchOpen(true);
                     setTimeout(() => searchInputRef.current?.focus(), 80);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-1.5 rounded-full bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/50 text-slate-400 dark:text-slate-500 hover:bg-slate-100/60 dark:hover:bg-slate-850/50 transition-all outline-none text-[11px] font-medium hover:text-slate-500 dark:hover:text-slate-400 cursor-pointer shadow-3xs ${ringColor}`}
+                  className={`w-full flex items-center justify-between px-4 py-1.5 cu-search-bar text-[var(--cu-text-muted)] hover:text-[var(--cu-text-secondary)] cursor-pointer outline-none text-[12px] font-medium shadow-none`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     <Search className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
@@ -3908,31 +3995,35 @@ export default function App() {
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowDisplayOptionsMenu(false)} />
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                          initial={{ opacity: 0, scale: 0.94, y: 10 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-4 z-50 text-left space-y-4 font-sans backdrop-blur-xl"
+                          exit={{ opacity: 0, scale: 0.94, y: 10 }}
+                          transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                          className="absolute right-0 top-full mt-2 w-80 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] p-5 z-50 text-left space-y-4.5 font-sans backdrop-blur-2xl"
                         >
-                          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center gap-2">
-                              <Sliders className="w-4 h-4 text-indigo-500" />
-                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                                {locale === 'vi' ? 'Tùy chọn hiển thị' : 'Display Options'}
+                          {/* Popover Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-500 border border-sky-500/20 shadow-2xs">
+                                <Sliders className="w-4 h-4" />
+                              </div>
+                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">
+                                {locale === 'vi' ? 'Tùy chọn hiển thị' : 'DISPLAY OPTIONS'}
                               </h4>
                             </div>
                             <button 
+                              type="button"
                               onClick={() => setShowDisplayOptionsMenu(false)} 
-                              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
 
                           {/* Date Format Section */}
                           <div className="space-y-2">
-                            <label className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                              {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time Format'}
+                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest block">
+                              {locale === 'vi' ? 'Định dạng ngày & giờ' : 'DATE & TIME FORMAT'}
                             </label>
                             <div className="space-y-1">
                               {[
@@ -3941,71 +4032,89 @@ export default function App() {
                                 { id: 'full', label: locale === 'vi' ? 'Chi tiết (Wed, Jul 22, 2026)' : 'Full (Wed, Jul 22, 2026)', icon: '📆' },
                                 { id: 'vi', label: locale === 'vi' ? 'Chuẩn Tiếng Việt (T2, 22/07)' : 'Vietnamese Format (T2, 22/07)', icon: '🇻🇳' },
                                 { id: 'numeric', label: locale === 'vi' ? 'Số ISO (2026-07-22)' : 'ISO Numeric (2026-07-22)', icon: '🔢' }
-                              ].map(fmt => (
-                                <button
-                                  key={fmt.id}
-                                  onClick={() => {
-                                    setDateFormat(fmt.id as any);
-                                    (window as any).playSystemSound?.('click');
-                                  }}
-                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-bold transition-all ${
-                                    dateFormat === fmt.id
-                                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
-                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 truncate">
-                                    <span>{fmt.icon}</span>
-                                    <span className="truncate">{fmt.label}</span>
-                                  </div>
-                                  {dateFormat === fmt.id && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
-                                </button>
-                              ))}
+                              ].map(fmt => {
+                                const isSelected = dateFormat === fmt.id;
+                                return (
+                                  <button
+                                    key={fmt.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setDateFormat(fmt.id as any);
+                                      (window as any).playSystemSound?.('click');
+                                    }}
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-sky-500/12 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-300/40 dark:border-sky-700/50 shadow-2xs font-extrabold'
+                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 truncate">
+                                      <span className="text-sm">{fmt.icon}</span>
+                                      <span className="truncate">{fmt.label}</span>
+                                    </div>
+                                    {isSelected && (
+                                      <Check className="w-4 h-4 text-sky-500 dark:text-sky-400 shrink-0 stroke-[3]" />
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
 
                           {/* UI Density Options */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                            <label className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                              {locale === 'vi' ? 'Mật độ hiển thị UI' : 'Interface Density'}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest block">
+                              {locale === 'vi' ? 'Mật độ hiển thị UI' : 'INTERFACE DENSITY'}
                             </label>
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="grid grid-cols-2 gap-2 bg-slate-100/60 dark:bg-slate-950/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
                               <button
-                                onClick={() => setUiDensity('comfortable')}
-                                className={`p-2 rounded-xl text-center text-xs font-extrabold transition-all border ${
+                                type="button"
+                                onClick={() => {
+                                  setUiDensity('comfortable');
+                                  (window as any).playSystemSound?.('toggle');
+                                }}
+                                className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                   uiDensity === 'comfortable'
-                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
-                                    : 'text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                    ? 'bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-md border border-sky-200/60 dark:border-sky-800/60'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                                 }`}
                               >
-                                {locale === 'vi' ? '🌿 Vừa vặn' : '🌿 Comfortable'}
+                                <span>🌿</span>
+                                <span>{locale === 'vi' ? 'Vừa vặn' : 'Comfortable'}</span>
                               </button>
                               <button
-                                onClick={() => setUiDensity('compact')}
-                                className={`p-2 rounded-xl text-center text-xs font-extrabold transition-all border ${
+                                type="button"
+                                onClick={() => {
+                                  setUiDensity('compact');
+                                  (window as any).playSystemSound?.('toggle');
+                                }}
+                                className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                   uiDensity === 'compact'
-                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
-                                    : 'text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                    ? 'bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-md border border-sky-200/60 dark:border-sky-800/60'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                                 }`}
                               >
-                                {locale === 'vi' ? '⚡️ Tối giản' : '⚡️ Compact'}
+                                <span>⚡</span>
+                                <span>{locale === 'vi' ? 'Tối giản' : 'Compact'}</span>
                               </button>
                             </div>
                           </div>
 
                           {/* Quick Theme Switch */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                            <span className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                              {locale === 'vi' ? 'Chế độ Dark/Light' : 'Theme Mode'}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">
+                              {locale === 'vi' ? 'Chế độ giao diện' : 'THEME MODE'}
                             </span>
                             <button
+                              type="button"
                               onClick={() => {
                                 setIsDarkMode(!isDarkMode);
                                 (window as any).playSystemSound?.('click');
                               }}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:scale-105 transition-transform"
+                              className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-all cursor-pointer shadow-2xs active:scale-95"
                             >
-                              {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                              <span>{isDarkMode ? '🌙' : '☀️'}</span>
+                              <span>{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
                             </button>
                           </div>
                         </motion.div>
@@ -4030,6 +4139,21 @@ export default function App() {
                 <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
               </motion.button>
             )}
+
+            {/* Quick 1-Click Language Switcher Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextLocale = locale === 'vi' ? 'en' : 'vi';
+                setLocale(nextLocale);
+                (window as any).playSystemSound?.('toggle');
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-slate-200/60 dark:border-slate-800/60 text-xs font-black cursor-pointer shadow-3xs"
+              title={locale === 'vi' ? 'Chuyển sang Tiếng Anh (English)' : 'Switch to Vietnamese (Tiếng Việt)'}
+            >
+              <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="uppercase text-[11px] font-mono tracking-tight font-extrabold">{locale === 'vi' ? 'VI 🇻🇳' : 'EN 🇺🇸'}</span>
+            </button>
 
             {/* Quick 1-Click Dark Mode Toggle */}
             <button
@@ -4393,11 +4517,11 @@ export default function App() {
       {/* Below Header row wrapper container */}
       <div className="flex-1 flex flex-row min-h-0 overflow-hidden relative">
 
-      {/* Modern responsive Sidebar Navigation drawer (desktop view) */}
-      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative text-slate-700 dark:text-slate-200 bg-white dark:bg-[#090a12] border-r border-slate-200/80 dark:border-slate-800/80 transition-all duration-200 ease-in-out cursor-default [&_*]:cursor-default ${
+      {/* ClickUp-style Sidebar Navigation */}
+      <div className={`hidden md:flex flex-col justify-between shrink-0 z-20 relative cu-sidebar transition-all duration-200 ease-in-out cursor-default [&_*]:cursor-default ${
         isMainSidebarCollapsed 
-          ? 'w-[68px] px-2 py-3 space-y-3' 
-          : 'w-[240px] px-3 py-3 space-y-4'
+          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3 space-y-3' 
+          : 'w-[var(--cu-sidebar-width)] px-2.5 py-3 space-y-4'
       }`}>
         
         <div className={`h-full flex flex-col justify-between ${isMainSidebarCollapsed ? 'space-y-3' : 'space-y-6'}`}>
@@ -4407,16 +4531,21 @@ export default function App() {
               {/* ClickUp Sidebar Hierarchy */}
               <div className={`relative flex flex-col pt-1 ${isMainSidebarCollapsed ? 'space-y-2 px-0.5' : 'space-y-3 px-1'}`}>
                 
-                <div className={isMainSidebarCollapsed ? 'space-y-1.5' : 'space-y-0.5'}>
+                <div className={isMainSidebarCollapsed ? 'space-y-1' : 'space-y-0.5'}>
                   {orderedItems.map((item) => {
-                    const Icon = item.icon;
                     const isActive = item.id === 'tasks'
                       ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
                       : (activeTab === item.id);
                     return (
-                      <button
+                      <NavItem
                         key={item.id}
-                        draggable
+                        icon={item.icon}
+                        label={item.label}
+                        shortLabel={getShortLabel(item.label)}
+                        isActive={isActive}
+                        count={item.count}
+                        collapsed={isMainSidebarCollapsed}
+                        style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
                         onDragStart={(e) => handleDragStart(e, item.id)}
                         onDragOver={(e) => handleDragOver(e, item.id)}
                         onDragLeave={handleDragLeave}
@@ -4434,57 +4563,18 @@ export default function App() {
                           }
                           addSyncLog(`Switched to: ${item.label}`);
                         }}
-                        title={isMainSidebarCollapsed ? item.label : undefined}
-                        className={`group w-full transition-all cursor-default active:cursor-default relative flex ${
-                          isMainSidebarCollapsed 
-                            ? 'flex-col items-center justify-center py-2 px-1 rounded-xl gap-1 text-[9.5px] font-bold text-center' 
-                            : 'py-1.5 px-3 rounded-xl text-xs font-bold items-center gap-2.5'
-                        } ${
-                          isActive 
-                            ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-xs' 
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200'
-                        } border border-transparent`}
-                        style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
-                      >
-                        {dragOverItemId === item.id && dragOverSide && (
+                        dragIndicator={dragOverItemId === item.id && dragOverSide ? (
                           <div
-                            className={`absolute left-0 right-0 h-[2px] bg-indigo-500 dark:bg-indigo-400 pointer-events-none z-30 transition-all ${
+                            className={`absolute left-0 right-0 h-[2px] bg-[var(--cu-primary)] pointer-events-none z-30 transition-all ${
                               dragOverSide === 'top' 
                                 ? 'top-0 -translate-y-1/2' 
                                 : 'bottom-0 translate-y-1/2'
                             }`}
                           >
-                            <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-500 dark:bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+                            <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[var(--cu-primary)] shadow-[0_0_8px_rgba(123,104,238,0.6)]" />
                           </div>
-                        )}
-                        <Icon
-                          size={isMainSidebarCollapsed ? 22 : 20}
-                          weight={isActive ? 'duotone' : 'regular'}
-                          className={`shrink-0 transition-all duration-200 ${
-                            isActive
-                              ? 'text-indigo-550 dark:text-indigo-400'
-                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                          } ${
-                            !isMainSidebarCollapsed ? 'group-hover:translate-x-1.5' : 'group-hover:scale-110'
-                          }`}
-                        />
-                        <span className={`truncate w-full block text-center ${
-                          isMainSidebarCollapsed 
-                            ? 'text-[9.5px] leading-tight max-w-full font-medium' 
-                            : 'group-hover:translate-x-1.5 transition-transform text-left'
-                        }`}>
-                          {isMainSidebarCollapsed ? getShortLabel(item.label) : item.label}
-                        </span>
-                        {item.count !== undefined && item.count > 0 && (
-                          <span className={
-                            isMainSidebarCollapsed 
-                                ? "absolute top-1 right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-sm"
-                                : "ml-auto w-4.5 h-4.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce"
-                          }>
-                            {item.count}
-                          </span>
-                        )}
-                      </button>
+                        ) : undefined}
+                      />
                     );
                   })}
               </div>
@@ -4508,10 +4598,10 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'base';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox';
           
           return (
-            <main className="flex-1 relative w-full h-full overflow-hidden">
+            <main className="flex-1 relative w-full h-full overflow-hidden cu-content-area">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div
                   key={activeTab}
@@ -4545,25 +4635,7 @@ export default function App() {
                     />
                   )}
 
-                  {activeTab === 'analytics' && (
-                    <AnalyticsHub
-                      tasks={currentWorkspaceTasks}
-                      members={currentWorkspaceMembers}
-                      spaces={currentWorkspaceSpaces}
-                      activeWorkspaceId={activeWorkspaceId}
-                    />
-                  )}
 
-                  {activeTab === 'goals' && (
-                    <GoalsHub
-                      tasks={tasks}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
-                      workspaceId={activeWorkspaceId}
-                      currentUser={currentUser}
-                      onAddSyncLog={addSyncLog}
-                      triggerToast={triggerToast}
-                    />
-                  )}
 
                   {activeTab === 'inbox' && (
                     <InboxView
@@ -4727,61 +4799,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {activeTab === 'base' && (
-                    <BaseHub
-                      bases={currentWorkspaceBases}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
-                      isOffline={isOffline}
-                      spaces={spaces}
-                      tasks={tasks}
-                      onAddBase={handleAddBase}
-                      onUpdateBase={handleUpdateBase}
-                      onDeleteBase={handleDeleteBase}
-                      onAddSpace={(space) => {
-                        const newSpace: Space = {
-                          ...space,
-                          id: space.id || `s-${Date.now()}`,
-                          lists: space.lists?.length ? space.lists : [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
-                          statuses: space.statuses?.length ? space.statuses : [
-                            { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
-                            { id: 'inprogress', label: 'In Progress', color: '#6366f1', type: 'inprogress' },
-                            { id: 'review', label: 'Review', color: '#f59e0b', type: 'review' },
-                            { id: 'completed', label: 'Done', color: '#10b981', type: 'completed' },
-                          ],
-                          clickApps: space.clickApps || { subtasks: true, priorities: true },
-                        };
-                        handleSaveSpaces([...spaces, newSpace]);
-                        triggerToast('success', 'New Space Created', `Created space "${newSpace.name}"`);
-                        addSyncLog(`Created new Space: "${newSpace.name}" from BaseHub`);
-                      }}
-                      onUpdateSpace={(space) => handleSaveSpaces([...spaces.map(s => s.id === space.id ? space : s)])}
-                      onDeleteSpace={handleDeleteSpace}
-                      onAddSyncLog={addSyncLog}
-                      triggerToast={triggerToast}
-                    />
-                  )}
 
-                  {activeTab === 'team' && (
-                    <TeamDirectory
-                      members={members}
-                      tasks={tasks}
-                      workspaces={workspaces}
-                      activeWorkspaceId={activeWorkspaceId}
-                      onAddMember={handleAddMember}
-                      onUpdateMember={handleUpdateMember}
-                      onDeleteMember={handleDeleteMember}
-                      onAddSyncLog={addSyncLog}
-                      currentUser={currentUser}
-                      onSendWorkspaceInvites={handleSendWorkspaceInvites}
-                      onStartChat={(memberId) => {
-                        const myId = currentUser?.id || 'user';
-                        const sortedIds = [myId, memberId].sort();
-                        const dmChannelId = `${activeWorkspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
-                        setInitialSelectedChannelId(dmChannelId);
-                        setActiveTab('chat');
-                      }}
-                    />
-                  )}
 
                   {activeTab === 'profile' && (
                     <ProfilePage
@@ -4867,7 +4885,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              className="fixed inset-y-0 left-0 w-[295px] max-w-[85vw] bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-r border-slate-200/80 dark:border-slate-800/80 z-50 md:hidden flex flex-col justify-between p-4 shadow-2xl overflow-y-auto custom-touch-scroll"
+              className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-[var(--cu-surface)] backdrop-blur-2xl border-r border-[var(--cu-border)] z-50 md:hidden flex flex-col justify-between p-4 shadow-[var(--cu-shadow-lg)] overflow-y-auto custom-touch-scroll"
             >
               <div className="space-y-4">
                 {/* Header with Workspace logo & close button */}
@@ -4998,8 +5016,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Navigation Bar replacing sidebar on mobile */}
-      <nav className="md:hidden shrink-0 liquid-glass flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom,8px)] border-t border-slate-200/50 dark:border-slate-800">
+      {/* Mobile Bottom Navigation — ClickUp style */}
+      <nav className="md:hidden shrink-0 cu-mobile-nav flex items-center justify-around z-45 px-1 py-1.5 pb-[env(safe-area-inset-bottom,8px)]">
          {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'tasks', label: 'Tasks', icon: Briefcase },
@@ -5022,22 +5040,20 @@ export default function App() {
                   addSyncLog(`Bottom menu: Switched to ${item.label}`);
                 }
               }}
-              className="flex-1 flex flex-col items-center justify-center p-1.5 gap-1 relative cursor-pointer active:scale-95 transition-transform"
+              className="flex-1 flex flex-col items-center justify-center p-1.5 gap-0.5 relative cursor-pointer active:scale-95 transition-transform cu-mobile-nav-item"
             >
               {isActive && (
                 <motion.div
                   layoutId="mobileActiveIndicator"
-                  className="absolute inset-x-2.5 top-0.5 bottom-0.5 rounded-xl bg-white dark:bg-slate-800/90 shadow-[0_1px_3px_rgba(0,0,0,0.02)] border border-slate-200/40 dark:border-slate-700/60"
+                  className="absolute inset-x-2 top-0.5 bottom-0.5 cu-mobile-nav-indicator"
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 />
               )}
               <Icon 
-                className={`w-4 h-4 z-10 transition-colors ${isActive ? 'text-indigo-600 font-bold' : 'text-slate-400 dark:text-slate-500'}`} 
-                style={{ color: isActive ? 'var(--avaxa-text)' : undefined }}
+                className={`w-[18px] h-[18px] z-10 transition-colors ${isActive ? 'text-[var(--cu-primary)]' : 'text-[var(--cu-text-muted)]'}`}
               />
               <span 
-                className={`text-[9px] font-bold z-10 transition-colors ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
-                style={{ color: isActive ? 'var(--avaxa-text)' : undefined }}
+                className={`text-[9px] font-semibold z-10 transition-colors ${isActive ? 'text-[var(--cu-primary)]' : 'text-[var(--cu-text-muted)]'}`}
               >
                 {item.label}
               </span>
@@ -5103,6 +5119,7 @@ export default function App() {
         workspacesCount={workspaces.length}
         onUpdateMember={handleUpdateMember}
         onAddMember={handleAddMember}
+        onSendWorkspaceInvites={handleSendWorkspaceInvites}
       />
 
       {/* Real-time Toast Notification container in top-right corner */}
@@ -5352,263 +5369,359 @@ export default function App() {
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
               onClick={() => setShowAddSpaceModal(false)} 
-              className="absolute inset-0 bg-slate-955/40 backdrop-blur-sm" 
+              className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" 
             />
             <motion.div 
-              initial={{ scale: 0.95, y: 15, opacity: 0 }} 
+              initial={{ scale: 0.92, y: 20, opacity: 0 }} 
               animate={{ scale: 1, y: 0, opacity: 1 }} 
-              exit={{ scale: 0.95, y: 15, opacity: 0 }} 
-              className="relative w-full max-w-[520px] rounded-[32px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-7 md:p-8 overflow-hidden z-10 text-left font-sans select-none"
+              exit={{ scale: 0.92, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              className="relative w-full max-w-[540px] rounded-[28px] bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 text-left font-sans select-none shadow-[0_32px_80px_-12px_rgba(99,102,241,0.18),0_0_0_1px_rgba(99,102,241,0.04)]"
             >
-              {/* Dynamic Theme Radial Glow */}
+              {/* ── Animated Gradient Top Strip ── */}
+              <div 
+                className="h-1.5 w-full"
+                style={{
+                  backgroundImage: {
+                    indigo: 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1)',
+                    rose: 'linear-gradient(90deg, #ec4899, #f472b6, #fb7185, #ec4899)',
+                    sky: 'linear-gradient(90deg, #0ea5e9, #38bdf8, #7dd3fc, #0ea5e9)',
+                    emerald: 'linear-gradient(90deg, #10b981, #34d399, #6ee7b7, #10b981)',
+                    amber: 'linear-gradient(90deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b)',
+                    sunset: 'linear-gradient(90deg, #f97316, #fb923c, #fdba74, #f97316)',
+                  }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] || 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1)',
+                  backgroundSize: '200% 100%',
+                  animation: 'shimmer 3s linear infinite',
+                }}
+              />
+              <style>{`@keyframes shimmer { 0% { background-position: 0% 50% } 100% { background-position: 200% 50% } }`}</style>
+
+              {/* ── Dynamic Theme Ambient Glow ── */}
               <div 
                 style={{
                   background: {
-                    indigo: 'radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 70%)',
-                    rose: 'radial-gradient(circle at top right, rgba(236, 72, 153, 0.15), transparent 70%)',
-                    sky: 'radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 70%)',
-                    emerald: 'radial-gradient(circle at top right, rgba(16, 185, 129, 0.15), transparent 70%)',
-                    amber: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.15), transparent 70%)',
-                    sunset: 'radial-gradient(circle at top right, rgba(249, 115, 22, 0.15), transparent 70%)',
+                    indigo: 'radial-gradient(ellipse at top right, rgba(99, 102, 241, 0.08), transparent 65%)',
+                    rose: 'radial-gradient(ellipse at top right, rgba(236, 72, 153, 0.08), transparent 65%)',
+                    sky: 'radial-gradient(ellipse at top right, rgba(14, 165, 233, 0.08), transparent 65%)',
+                    emerald: 'radial-gradient(ellipse at top right, rgba(16, 185, 129, 0.08), transparent 65%)',
+                    amber: 'radial-gradient(ellipse at top right, rgba(245, 158, 11, 0.08), transparent 65%)',
+                    sunset: 'radial-gradient(ellipse at top right, rgba(249, 115, 22, 0.08), transparent 65%)',
                   }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset']
                 }}
-                className="absolute inset-0 pointer-events-none transition-all duration-500" 
+                className="absolute inset-0 pointer-events-none transition-all duration-700" 
               />
 
-              {/* Close Button */}
-              <button 
-                type="button"
-                onClick={() => setShowAddSpaceModal(false)} 
-                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100/80 dark:bg-slate-800/80 text-slate-400 hover:text-slate-700 dark:hover:text-slate-100 flex items-center justify-center transition-colors active:scale-95 cursor-pointer z-20"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="p-6 md:p-7 relative z-10">
+                {/* ── Close Button ── */}
+                <button 
+                  type="button"
+                  onClick={() => setShowAddSpaceModal(false)} 
+                  className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-slate-700/80 flex items-center justify-center transition-all active:scale-90 cursor-pointer z-20 backdrop-blur-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
 
-              <form onSubmit={handleAddSpace} className="space-y-5 relative z-10">
-                {/* Header */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                      {t('createSpace') || 'Create a Space'}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pt-1">
-                    {t('selectSpaceTemplate') || 'A Space represents teams, departments, or projects, each with its own Lists and settings.'}
-                  </p>
-                </div>
-
-                {/* Quick Template Presets */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                    {t('spaceTemplateTitle') || 'Template Presets'}
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { name: 'Phát triển phần mềm', icon: '💻', color: 'indigo', desc: 'Sprint & Backlog' },
-                      { name: 'Marketing & Campaign', icon: '🚀', color: 'rose', desc: 'Campaigns & Content' },
-                      { name: 'Thiết kế UX/UI', icon: '🎨', color: 'sky', desc: 'Design System & Reviews' },
-                      { name: 'Vận hành & HR', icon: '⚡', color: 'emerald', desc: 'Hiring & Operations' }
-                    ].map((tpl) => (
-                      <button
-                        key={tpl.name}
-                        type="button"
-                        onClick={() => {
-                          setNewSpaceName(tpl.name);
-                          setNewSpaceEmoji(tpl.icon);
-                          setNewSpaceColor(tpl.color);
-                          setNewSpaceDescription(tpl.desc);
-                        }}
-                        className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                          newSpaceName === tpl.name
-                            ? 'bg-indigo-50/80 dark:bg-indigo-950/30 border-indigo-500/50 ring-2 ring-indigo-500/20'
-                            : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="text-base leading-none p-1.5 rounded-xl bg-white dark:bg-slate-800 shadow-3xs">{tpl.icon}</span>
-                        <div className="min-w-0">
-                          <span className="block text-[11px] font-extrabold text-slate-800 dark:text-slate-200 truncate">{tpl.name}</span>
-                          <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 truncate">{tpl.desc}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Icon & Theme Color Row */}
-                <div className="grid grid-cols-12 gap-4 pt-1">
-                  <div className="col-span-4 space-y-1.5 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                      {t('iconEmoji') || 'Icon / Emoji'}
-                    </label>
-                    <div className="mt-1">
-                      <EmojiIconPicker
-                        value={newSpaceEmoji || '📦'}
-                        onChange={setNewSpaceEmoji}
-                      />
+                <form onSubmit={handleAddSpace} className="space-y-5 relative z-10">
+                  {/* ── Header ── */}
+                  <div className="space-y-2 pr-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-[17px] font-extrabold text-slate-900 dark:text-white tracking-tight">
+                          {t('createSpace') || (locale === 'vi' ? 'Tạo Space mới' : 'Create Space')}
+                        </h3>
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                          {t('selectSpaceTemplate') || (locale === 'vi' ? 'Tổ chức đội nhóm, phòng ban & dự án.' : 'Organize teams, departments & projects.')}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="col-span-8 space-y-1.5 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                      {t('themeColor') || 'Theme Color'}
+                  {/* ── Template Presets ── */}
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
+                      {t('spaceTemplateTitle') || (locale === 'vi' ? 'Bắt đầu nhanh' : 'Quick Start')}
                     </label>
-                    <div className="flex items-center gap-2.5 mt-2">
-                      {['indigo', 'rose', 'sky', 'emerald', 'amber', 'sunset'].map(col => {
-                        const colorBgMap = {
-                          indigo: '#6366f1',
-                          rose: '#ec4899',
-                          sky: '#38bdf8',
-                          emerald: '#10b981',
-                          amber: '#f59e0b',
-                          sunset: '#f97316',
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Backlog', iconBg: 'bg-indigo-500/10 text-indigo-500' },
+                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Campaigns & Content', iconBg: 'bg-rose-500/10 text-rose-500' },
+                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System & Reviews', iconBg: 'bg-sky-500/10 text-sky-500' },
+                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Hiring & Operations', iconBg: 'bg-emerald-500/10 text-emerald-500' }
+                      ].map((tpl) => {
+                        const isActive = newSpaceName === tpl.name;
+                        const colorAccentMap: Record<string, string> = {
+                          indigo: 'border-indigo-500/60 bg-indigo-50/60 dark:bg-indigo-950/20 ring-1 ring-indigo-500/10',
+                          rose: 'border-rose-500/60 bg-rose-50/60 dark:bg-rose-950/20 ring-1 ring-rose-500/10',
+                          sky: 'border-sky-500/60 bg-sky-50/60 dark:bg-sky-950/20 ring-1 ring-sky-500/10',
+                          emerald: 'border-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-emerald-500/10',
                         };
                         return (
-                          <motion.button
-                            key={col}
+                          <button
+                            key={tpl.name}
                             type="button"
-                            whileHover={{ scale: 1.15 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setNewSpaceColor(col)}
-                            style={{ backgroundColor: colorBgMap[col as keyof typeof colorBgMap] }}
-                            className={`w-7 h-7 rounded-full transition-all flex items-center justify-center cursor-pointer relative shadow-md ${
-                              newSpaceColor === col ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900 scale-105' : 'opacity-85 hover:opacity-100'
+                            onClick={() => {
+                              setNewSpaceName(tpl.name);
+                              setNewSpaceEmoji(tpl.icon);
+                              setNewSpaceColor(tpl.color);
+                              setNewSpaceDescription(tpl.desc);
+                            }}
+                            className={`group relative p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex items-center gap-3 ${
+                              isActive
+                                ? (colorAccentMap[tpl.color] || colorAccentMap.indigo)
+                                : 'border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60'
                             }`}
                           >
-                            {newSpaceColor === col && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
-                          </motion.button>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${tpl.iconBg}`}>
+                              {(() => {
+                                const iconMap: Record<string, React.ReactNode> = {
+                                  'Laptop': <Database className="w-4 h-4" />,
+                                  'Rocket': <Zap className="w-4 h-4" />,
+                                  'Palette': <Sliders className="w-4 h-4" />,
+                                  'Zap': <Users className="w-4 h-4" />,
+                                };
+                                return iconMap[tpl.icon] || <Sparkles className="w-4 h-4" />;
+                              })()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="block text-[11.5px] font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">{tpl.name}</span>
+                              <span className="block text-[9.5px] font-medium text-slate-400 dark:text-slate-500 truncate mt-0.5">{tpl.desc}</span>
+                            </div>
+                            {isActive && (
+                              <div className="absolute top-2 right-2">
+                                <Check className="w-3.5 h-3.5 text-indigo-500" />
+                              </div>
+                            )}
+                          </button>
                         );
                       })}
                     </div>
                   </div>
-                </div>
 
-                {/* Space Name Input */}
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                    {t('spaceName') || 'Space Name'}
-                  </label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={newSpaceName} 
-                    onChange={e => setNewSpaceName(e.target.value)} 
-                    placeholder="e.g. Marketing, Engineering, HR" 
-                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50/80 dark:bg-slate-800/50 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
-                  />
-                </div>
-
-                {/* Description Box */}
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
-                    Description (optional)
-                  </label>
-                  <input 
-                    type="text" 
-                    value={newSpaceDescription} 
-                    onChange={e => setNewSpaceDescription(e.target.value)} 
-                    placeholder="Provide a brief description..." 
-                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50/80 dark:bg-slate-800/50 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 text-slate-800 dark:text-white font-semibold transition-all shadow-3xs"
-                  />
-                </div>
-
-                {/* Permission Row */}
-                <div className="flex items-center justify-between py-3 px-4 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-xs">
-                      <Users className="w-4 h-4" />
+                  {/* ── Icon & Theme Color ── */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-4 space-y-2 text-left">
+                      <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
+                        {t('iconEmoji') || (locale === 'vi' ? 'Biểu tượng' : 'Icon')}
+                      </label>
+                      <div>
+                        <EmojiIconPicker
+                          value={newSpaceEmoji || 'Package'}
+                          onChange={setNewSpaceEmoji}
+                        />
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 leading-none">Default Permission</span>
-                      <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-1">Initial role for workspace members</span>
-                    </div>
-                  </div>
-                  
-                  <div className="relative">
-                    <select 
-                      value={newSpacePermission}
-                      onChange={e => setNewSpacePermission(e.target.value)}
-                      className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs pl-3.5 pr-8 py-1.5 text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-indigo-500 cursor-pointer shadow-3xs"
-                    >
-                      <option value="Full edit">Full edit</option>
-                      <option value="Edit only">Edit only</option>
-                      <option value="Read only">Read only</option>
-                      <option value="Comment only">Comment only</option>
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
 
-                {/* Private Toggle Switch Row */}
-                <div className="flex items-center justify-between py-3 px-4 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-xs">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 leading-none">Make Private Space</span>
-                      <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-1">Only you and invited members can access</span>
+                    <div className="col-span-8 space-y-2 text-left">
+                      <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
+                        {t('themeColor') || (locale === 'vi' ? 'Màu chủ đề' : 'Theme Color')}
+                      </label>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {[
+                          { key: 'indigo', hex: '#6366f1', label: 'Indigo' },
+                          { key: 'rose', hex: '#ec4899', label: 'Rose' },
+                          { key: 'sky', hex: '#0ea5e9', label: 'Sky' },
+                          { key: 'emerald', hex: '#10b981', label: 'Emerald' },
+                          { key: 'amber', hex: '#f59e0b', label: 'Amber' },
+                          { key: 'sunset', hex: '#f97316', label: 'Orange' },
+                        ].map(col => (
+                          <button
+                            key={col.key}
+                            type="button"
+                            onClick={() => setNewSpaceColor(col.key)}
+                            className="group flex flex-col items-center gap-1"
+                          >
+                            <div
+                              className={`w-7 h-7 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer relative ${
+                                newSpaceColor === col.key 
+                                  ? 'ring-2 ring-offset-2 dark:ring-offset-[#0c0e18] scale-110 shadow-lg' 
+                                  : 'opacity-70 hover:opacity-100 hover:scale-105'
+                              }`}
+                              style={{
+                                backgroundColor: col.hex,
+                                ...(newSpaceColor === col.key ? { boxShadow: `0 4px 14px -2px ${col.hex}40` } : {})
+                              }}
+                            >
+                              {newSpaceColor === col.key && <Check className="w-3.5 h-3.5 text-white stroke-[3px] drop-shadow-sm" />}
+                            </div>
+                            <span className={`text-[8px] font-bold transition-colors ${newSpaceColor === col.key ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-600'}`}>
+                              {col.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
-                    style={{
-                      backgroundColor: newSpaceIsPrivate ? {
-                        indigo: '#6366f1',
-                        rose: '#ec4899',
-                        sky: '#38bdf8',
-                        emerald: '#10b981',
-                        amber: '#f59e0b',
-                        sunset: '#f97316',
-                      }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] : undefined
-                    }}
-                    className={`w-11 h-6.5 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 outline-none ${
-                      newSpaceIsPrivate ? 'shadow-md shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-800'
-                    }`}
-                  >
-                    <div 
-                      className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-300 ease-out ${
-                        newSpaceIsPrivate ? 'translate-x-4.5' : 'translate-x-0'
-                      }`}
+
+                  {/* ── Space Name Input ── */}
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
+                      {t('spaceName') || (locale === 'vi' ? 'Tên Space' : 'Space Name')}
+                    </label>
+                    <div className="relative group">
+                      <input 
+                        type="text" 
+                        required 
+                        value={newSpaceName} 
+                        onChange={e => setNewSpaceName(e.target.value)} 
+                        placeholder={locale === 'vi' ? 'Ví dụ: Marketing, Kỹ thuật, HR...' : 'e.g. Marketing, Engineering, HR'} 
+                        className="w-full px-4 py-2.5 text-[13px] rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50/80 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-950 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-slate-900 dark:text-white font-bold transition-all placeholder:text-slate-350 placeholder:font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ── Description ── */}
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
+                      {t('descriptionOptional') || (locale === 'vi' ? 'Mô tả (không bắt buộc)' : 'Description (optional)')}
+                    </label>
+                    <input 
+                      type="text" 
+                      value={newSpaceDescription} 
+                      onChange={e => setNewSpaceDescription(e.target.value)} 
+                      placeholder={locale === 'vi' ? 'Nhập mô tả ngắn gọn cho Space...' : 'Provide a brief description...'} 
+                      className="w-full px-4 py-2.5 text-[13px] rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50/80 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-950 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-slate-900 dark:text-white font-semibold transition-all placeholder:text-slate-350 placeholder:font-medium"
                     />
-                  </button>
-                </div>
+                  </div>
 
-                {/* Footer Action Bar */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <button 
-                    type="button"
-                    onClick={() => setShowAddSpaceModal(false)}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    {t('cancel') || 'Cancel'}
-                  </button>
-                  
-                  <motion.button 
-                    type="submit" 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    style={{
-                      backgroundColor: {
-                        indigo: '#6366f1',
-                        rose: '#ec4899',
-                        sky: '#38bdf8',
-                        emerald: '#10b981',
-                        amber: '#f59e0b',
-                        sunset: '#f97316',
-                      }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset']
-                    }}
-                    className="px-6 py-2.5 rounded-xl text-xs font-black text-white shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span>{t('createSpace') || 'Continue'}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </motion.button>
-                </div>
-              </form>
+                  {/* ── Settings Cards ── */}
+                  <div className="space-y-2">
+                    {/* Permission Row */}
+                    <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-900/60 dark:to-slate-900/30 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-colors hover:border-slate-300/60 dark:hover:border-slate-700/60">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                          <Users className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="text-left min-w-0">
+                          <span className="block text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền truy cập' : 'Default Permission')}
+                          </span>
+                          <span className="block text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                            {t('defaultPermissionDesc') || (locale === 'vi' ? 'Vai trò ban đầu cho thành viên' : 'Initial role for workspace members')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="relative shrink-0 ml-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowSpacePermissionMenu(!showSpacePermissionMenu)}
+                          className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 rounded-xl text-[11px] px-3 py-1.5 text-slate-800 dark:text-slate-200 font-extrabold outline-none hover:border-indigo-400 dark:hover:border-indigo-600 cursor-pointer shadow-2xs hover:shadow-sm transition-all group/permBtn"
+                        >
+                          <span>
+                            {newSpacePermission === 'Full edit' ? (locale === 'vi' ? 'Toàn quyền sửa' : 'Full edit') :
+                             newSpacePermission === 'Edit only' ? (locale === 'vi' ? 'Chỉ chỉnh sửa' : 'Edit only') :
+                             newSpacePermission === 'Read only' ? (locale === 'vi' ? 'Chỉ xem' : 'Read only') :
+                             (locale === 'vi' ? 'Chỉ bình luận' : 'Comment only')}
+                          </span>
+                          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover/permBtn:text-indigo-500 transition-transform duration-200 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                          {showSpacePermissionMenu && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowSpacePermissionMenu(false)} />
+                              <motion.div
+                                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                                transition={{ duration: 0.15, type: 'spring', stiffness: 400, damping: 28 }}
+                                className="absolute right-0 top-full mt-1.5 w-52 p-1.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl backdrop-blur-xl z-50 space-y-0.5 text-left"
+                              >
+                                {[
+                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access to view and edit', descVi: 'Toàn quyền quản lý & chỉnh sửa' },
+                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit content & tasks', descVi: 'Chỉnh sửa nội dung & công việc' },
+                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only access', descVi: 'Chỉ có quyền xem nội dung' },
+                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can view and post comments', descVi: 'Xem và bình luận công việc' },
+                                ].map((opt) => {
+                                  const isSelected = newSpacePermission === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        setNewSpacePermission(opt.value);
+                                        setShowSpacePermissionMenu(false);
+                                      }}
+                                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer ${
+                                        isSelected 
+                                          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-extrabold' 
+                                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-bold'
+                                      }`}
+                                    >
+                                      <div>
+                                        <div className="text-[11px] leading-tight">
+                                          {locale === 'vi' ? opt.labelVi : opt.labelEn}
+                                        </div>
+                                        <div className="text-[9px] font-normal text-slate-400 dark:text-slate-500 mt-0.5">
+                                          {locale === 'vi' ? opt.descVi : opt.descEn}
+                                        </div>
+                                      </div>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2 stroke-[3]" />}
+                                    </button>
+                                  );
+                                })}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* Private Toggle */}
+                    <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-900/60 dark:to-slate-900/30 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-colors hover:border-slate-300/60 dark:hover:border-slate-700/60">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-rose-500/15 text-rose-500' : 'bg-slate-200/60 dark:bg-slate-800/60 text-slate-400'}`}>
+                          <Lock className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="text-left min-w-0">
+                          <span className="block text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                            {t('makePrivateSpace') || (locale === 'vi' ? 'Space Riêng tư' : 'Make Private Space')}
+                          </span>
+                          <span className="block text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                            {t('makePrivateSpaceDesc') || (locale === 'vi' ? 'Chỉ bạn và người được mời mới truy cập' : 'Only you and invited members can access')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
+                        className={`w-11 h-[26px] flex items-center rounded-full p-[3px] cursor-pointer transition-all duration-300 outline-none shrink-0 ${
+                          newSpaceIsPrivate ? 'bg-gradient-to-r from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-800'
+                        }`}
+                      >
+                        <div 
+                          className={`bg-white w-5 h-5 rounded-full transform transition-all duration-300 ease-out shadow-sm ${
+                            newSpaceIsPrivate ? 'translate-x-[18px]' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Footer Actions ── */}
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddSpaceModal(false)}
+                      className="px-5 py-2.5 rounded-xl text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer active:scale-95"
+                    >
+                      {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
+                    </button>
+                    
+                    <button 
+                      type="submit" 
+                      className="group px-6 py-2.5 rounded-xl text-[12px] font-extrabold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.97] shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
+                    >
+                      <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Space' : 'Create Space')}</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           </div>
         )}

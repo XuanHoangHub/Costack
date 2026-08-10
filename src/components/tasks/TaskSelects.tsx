@@ -7,6 +7,7 @@ import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, 
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption } from '../../utils/fieldConfig';
+import { renderSpaceIcon } from '../EmojiIconPicker';
 
 // ── Custom Hook for Portal Positioning ──
 export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
@@ -68,10 +69,10 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   }, []);
 
   const metaList = priorities.length > 0 ? priorities : [
-    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: '🔴' },
-    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: '🟠' },
-    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: '🟡' },
-    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: '⚪' }
+    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'AlertOctagon' },
+    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'AlertTriangle' },
+    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: 'CircleDot' },
+    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
   ];
 
   const cur = value ? metaList.find(p => p.id === value) : null;
@@ -92,14 +93,14 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
     >
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${!value ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-        <span>⚪</span>
+        {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
         <span>None (Empty)</span>
         {!value && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
       </button>
       {metaList.map(p => (
         <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <span>{p.icon || '⚪'}</span>
+          {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
           <span>{p.label}</span>
           {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
         </button>
@@ -116,7 +117,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
                        : `inline-flex items-center gap-1.5 px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-all border-0 bg-transparent`}>
         {cur ? (
           <>
-            <span>{cur.icon || '⚪'}</span>
+            {renderSpaceIcon(cur.icon || 'Circle', 'w-3 h-3')}
             <span>{cur.label}</span>
           </>
         ) : (
@@ -704,10 +705,10 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       <div className="px-3 pb-2.5 pt-0.5">
         <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/35 dark:border-slate-800/40 rounded-xl">
           {[
-            { id: 'calendar', label: 'Calendar', icon: '📅' },
-            { id: 'monthyear', label: 'Month/Year', icon: '🗓️' },
-            { id: 'weekly', label: 'Weekly', icon: '📊' },
-            { id: 'presets', label: 'Presets', icon: '⚡' },
+            { id: 'calendar', label: 'Calendar', icon: 'Calendar' },
+            { id: 'monthyear', label: 'Month/Year', icon: 'CalendarDays' },
+            { id: 'weekly', label: 'Weekly', icon: 'BarChart3' },
+            { id: 'presets', label: 'Presets', icon: 'Zap' },
           ].map(v => (
             <button
               key={v.id}
@@ -952,13 +953,13 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         {pickerView === 'presets' && (
           <div className="flex flex-col gap-1.5 px-1 pb-1 max-h-[250px] overflow-y-auto custom-scrollbar">
             {[
-              { label: 'Today', desc: 'Set date to today', icon: '📅', offset: 0 },
-              { label: 'Tomorrow', desc: 'Set date to tomorrow', icon: '🌅', offset: 1 },
-              { label: 'This Weekend (Sat)', desc: 'Set date to Saturday', icon: '🎉', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
-              { label: 'Next Week (Mon)', desc: 'Set date to next Monday', icon: '💼', offset: daysToMonday === 0 ? 7 : daysToMonday },
-              { label: 'In 2 Weeks', desc: 'Set date in 14 days', icon: '⏳', offset: 14 },
-              { label: 'In 1 Month', desc: 'Set date in 28 days', icon: '📅', offset: 28 },
-              { label: 'No Date (Clear)', desc: 'Clear date selection', icon: '❌', offset: null },
+              { label: 'Today', desc: 'Set date to today', icon: 'Calendar', offset: 0 },
+              { label: 'Tomorrow', desc: 'Set date to tomorrow', icon: 'Sun', offset: 1 },
+              { label: 'This Weekend (Sat)', desc: 'Set date to Saturday', icon: 'Sparkles', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
+              { label: 'Next Week (Mon)', desc: 'Set date to next Monday', icon: 'Briefcase', offset: daysToMonday === 0 ? 7 : daysToMonday },
+              { label: 'In 2 Weeks', desc: 'Set date in 14 days', icon: 'Clock', offset: 14 },
+              { label: 'In 1 Month', desc: 'Set date in 28 days', icon: 'CalendarDays', offset: 28 },
+              { label: 'No Date (Clear)', desc: 'Clear date selection', icon: 'X', offset: null },
             ].map(item => {
               let calcStr = '';
               if (item.offset !== null) {
@@ -981,7 +982,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                   className="w-full flex items-center justify-between p-2 rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-900/40 transition-all cursor-pointer text-left"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm shrink-0">{item.icon}</span>
+                    {renderSpaceIcon(item.icon, "w-4 h-4 text-indigo-500 shrink-0")}
                     <div>
                       <div className="text-[10px] font-bold text-slate-805 dark:text-slate-200">{item.label}</div>
                       <div className="text-[9px] text-slate-400">{item.desc}</div>
@@ -1421,10 +1422,10 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
   }, []);
 
   const metaList = priorities.length > 0 ? priorities : [
-    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: '🔴' },
-    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: '🟠' },
-    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: '🟡' },
-    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: '⚪' }
+    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'AlertOctagon' },
+    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'AlertTriangle' },
+    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: 'CircleDot' },
+    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
   ];
 
   const dropdownContent = (
@@ -1446,13 +1447,13 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
       </div>
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-        <span className="text-[10px]">⚪</span>
+        {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
         <span>None (Empty)</span>
       </button>
       {metaList.map(p => (
         <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-705 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-          <span>{p.icon || '⚪'}</span>
+          {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
           <span>{p.label}</span>
         </button>
       ))}
@@ -1530,7 +1531,7 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
-        <span className="text-[11px]">👤</span>
+        {renderSpaceIcon('User', 'w-3.5 h-3.5 text-slate-400')}
         <span>Assignee</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>

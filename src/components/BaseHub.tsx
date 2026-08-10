@@ -288,20 +288,18 @@ export default function BaseHub({
                 <button
                   type="button"
                   onClick={() => setShowAddSpaceModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start, #7B61FF), var(--avaxa-gradient-end, #FF3366))' }}
+                  className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                   New Space
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setShowTemplateModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start, #7B61FF), var(--avaxa-gradient-end, #FF3366))' }}
+                  className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                   New Base
                 </button>
               )}
@@ -428,10 +426,9 @@ export default function BaseHub({
                 <button
                   type="button"
                   onClick={() => setShowAddSpaceModal(true)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black text-white cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start, #7B61FF), var(--avaxa-gradient-end, #FF3366))' }}
+                  className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                   Create Space
                 </button>
               </div>
@@ -988,10 +985,10 @@ export default function BaseHub({
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setShowAddSpaceModal(false)} />
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                className="relative bg-white dark:bg-[#0c0e18] rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6"
               >
-                <h3 className="text-sm font-black text-slate-800 mb-4">Create New Space</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Create New Space</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Name</label>
@@ -1000,7 +997,7 @@ export default function BaseHub({
                       value={newSpaceName}
                       onChange={e => setNewSpaceName(e.target.value)}
                       placeholder="e.g. Marketing, Engineering, HR"
-                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold outline-none focus:border-indigo-500"
                       autoFocus
                     />
                   </div>
@@ -1018,7 +1015,7 @@ export default function BaseHub({
                       <select
                         value={newSpaceColor}
                         onChange={e => setNewSpaceColor(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 font-bold"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-indigo-500 font-bold"
                       >
                         <option value="indigo">Purple</option>
                         <option value="rose">Pink</option>
@@ -1031,8 +1028,8 @@ export default function BaseHub({
                   </div>
                 </div>
                 <div className="flex gap-2 mt-5">
-                  <button type="button" onClick={() => setShowAddSpaceModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
-                   <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 cursor-pointer">Create Space</button>
+                  <button type="button" onClick={() => setShowAddSpaceModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">Cancel</button>
+                  <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer active:scale-95">Create Space</button>
                 </div>
               </motion.div>
             </div>

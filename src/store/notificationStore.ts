@@ -19,7 +19,7 @@ interface NotificationState {
 const defaultSettings: NotificationSettings = {
   enableAll: true,
   enableSound: true,
-  onlyImportant: false,
+  onlyImportant: true,
   enableAssignments: true,
   enableDeadlines: true,
   enableComments: true,

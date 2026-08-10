@@ -9,16 +9,16 @@ export async function POST(request: Request) {
 
     let instruction = "";
     if (action === "summarize") {
-      instruction = "Hãy tóm tắt văn bản này thành một bản tóm tắt ngắn, dễ đọc, sử dụng gạch đầu dòng và tiêu đề con tinh tế bằng tiếng Việt.";
+      instruction = "Summarize this document concisely with bullet points and clear subheadings in the same language as the input text.";
     } else if (action === "improve") {
-      instruction = "Hãy viết lại nội dung văn bản này với phong cách chuyên nghiệp hơn, sửa lỗi chính tả, cải thiện cấu trúc câu nhưng vẫn giữ nguyên ý nghĩa cốt lõi.";
+      instruction = "Rewrite this document with a polished, professional tone, fixing typos and improving sentence structure while retaining core meaning. Respond in the document's language.";
     } else if (action === "expand") {
-      instruction = "Hãy mở rộng chi tiết thêm các khía cạnh liên quan, bổ sung các hành động cần thiết và cấu trúc tổ chức cho tài liệu này.";
+      instruction = "Expand on key aspects of this document, adding necessary action items and structured sections. Respond in the document's language.";
     }
 
     const response = await client.models.generateContent({
       model: model || "gemini-3.5-flash",
-      contents: `Tên tài liệu: "${title}"\nNội dung:\n${content}`,
+      contents: `Document Title: "${title}"\nContent:\n${content}`,
       config: {
         systemInstruction: instruction,
         temperature: temperature !== undefined ? temperature : 0.6,

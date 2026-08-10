@@ -187,7 +187,7 @@ export default function ProductivityHub({
       syncData();
     }
     prevOfflineRef.current = isOffline;
-  }, [isOffline, habits, focusSessions]);
+  }, [isOffline, habits, focusSessions, onAddSyncLog]);
   
   // Pomodoro States
   const [pomoMode, setPomoMode] = useState<'work' | 'short' | 'long'>('work');
@@ -203,6 +203,7 @@ export default function ProductivityHub({
     gainNode?: GainNode;
     oscillators?: OscillatorNode[];
   }>({});
+  const handlePomoCompletedRef = useRef<() => void>(() => {});
 
   // Fetch current dates of the week
   const getDaysOfCurrentWeek = useCallback(() => {
@@ -247,7 +248,7 @@ export default function ProductivityHub({
       timerId = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            handlePomoCompleted();
+            handlePomoCompletedRef.current();
             return 0;
           }
           return prev - 1;
@@ -522,6 +523,10 @@ export default function ProductivityHub({
       setPomoTotalTime(25 * 60);
     }
   };
+
+  useEffect(() => {
+    handlePomoCompletedRef.current = handlePomoCompleted;
+  });
 
   // Pomodoro Actions
   const handleStartPomo = () => {
