@@ -361,6 +361,59 @@ export default function SpaceOverviewTab({
     );
   };
 
+  const handlePopulateDemoData = () => {
+    const targetListId = visibleLists[0]?.id || space.lists?.[0]?.id || `l-${Date.now()}`;
+    const sampleTasks = [
+      {
+        title: 'Design Tokens & Dark Mode Theme Spec',
+        status: 'completed' as TaskStatus,
+        priority: 'high' as const,
+        listId: targetListId,
+        spaceId: space.id,
+        dueDate: new Date(Date.now() - 86400000).toISOString(),
+        description: 'Establish core color tokens and WCAG contrast specs.',
+        subtasks: []
+      },
+      {
+        title: 'Build Interactive Component Gallery',
+        status: 'inprogress' as TaskStatus,
+        priority: 'high' as const,
+        listId: targetListId,
+        spaceId: space.id,
+        dueDate: new Date(Date.now() + 172800000).toISOString(),
+        description: 'Develop responsive React UI components with micro-animations.',
+        subtasks: []
+      },
+      {
+        title: 'Supabase Auth Middleware & RLS Audit',
+        status: 'review' as TaskStatus,
+        priority: 'urgent' as const,
+        listId: targetListId,
+        spaceId: space.id,
+        dueDate: new Date(Date.now() + 345600000).toISOString(),
+        description: 'Verify row level security policies for user data protection.',
+        subtasks: []
+      },
+      {
+        title: 'Setup Redis Caching for Realtime Feed',
+        status: 'todo' as TaskStatus,
+        priority: 'medium' as const,
+        listId: targetListId,
+        spaceId: space.id,
+        dueDate: new Date(Date.now() + 518400000).toISOString(),
+        description: 'Optimize high-throughput activity feeds with sub-10ms cache latency.',
+        subtasks: []
+      }
+    ];
+
+    sampleTasks.forEach(t => onAddTask(t));
+    triggerToast?.(
+      'success',
+      locale === 'vi' ? 'Đã tải dữ liệu mẫu' : 'Sample Project Loaded',
+      locale === 'vi' ? 'Đã khởi tạo 4 công việc mẫu minh họa các giai đoạn.' : 'Populated space with 4 sample tasks across status stages.'
+    );
+  };
+
   const handleDeleteBookmark = (id: string) => {
     const updated = bookmarks.filter(bookmark => bookmark.id !== id);
     setBookmarks(updated);
@@ -736,18 +789,79 @@ export default function SpaceOverviewTab({
                 ))}
 
                 {listStats.length === 0 && (
-                  <div className="col-span-full rounded-xl border border-dashed border-slate-300/80 p-8 text-center dark:border-slate-800">
-                    <p className="mb-3 text-xs font-semibold text-slate-400">
-                      {locale === 'vi' ? 'Chưa có danh sách công việc nào.' : 'No lists created yet.'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onAddList}
-                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-bold text-white transition-colors cursor-pointer"
-                    >
-                      <Plus className="h-4 w-4 stroke-[2.5]" />
-                      <span>{locale === 'vi' ? 'Tạo List đầu tiên' : 'Create First List'}</span>
-                    </button>
+                  <div className="col-span-full space-y-3">
+                    <div className="p-4 rounded-2xl border border-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                          {locale === 'vi' ? 'Khởi tạo danh sách công việc đầu tiên' : 'Get Started with a Work Area Template'}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                          {locale === 'vi' ? 'Chọn mẫu cấu trúc hoặc tạo danh sách tùy chỉnh để tổ chức dự án.' : 'Select a pre-built workspace template or create your own custom list.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onAddList}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer shrink-0 active:scale-95"
+                      >
+                        <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                        <span>{locale === 'vi' ? 'Tạo Custom List' : 'Custom List'}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        {
+                          title: locale === 'vi' ? 'Dự án UI/UX Design' : 'UI/UX Design System',
+                          desc: locale === 'vi' ? 'Quy trình thiết kế, Wireframe & Tokens' : 'Design specs, wireframes & component tokens',
+                          icon: Layers,
+                          color: 'from-purple-500 to-indigo-600'
+                        },
+                        {
+                          title: locale === 'vi' ? 'Sprint Kỹ thuật & API' : 'Sprint & Engineering',
+                          desc: locale === 'vi' ? 'API Endpoint, DB Schema & Testing' : 'Backend endpoints, DB schemas & QA testing',
+                          icon: Zap,
+                          color: 'from-emerald-400 to-teal-600'
+                        },
+                        {
+                          title: locale === 'vi' ? 'Chiến dịch Marketing' : 'Growth & Marketing',
+                          desc: locale === 'vi' ? 'Chiến dịch ra mắt, Email & Content' : 'Product launch, email sequences & SEO content',
+                          icon: Sparkles,
+                          color: 'from-rose-500 to-amber-500'
+                        }
+                      ].map(tmpl => {
+                        const Icon = tmpl.icon;
+                        return (
+                          <button
+                            key={tmpl.title}
+                            type="button"
+                            onClick={() => {
+                              onAddList();
+                              handlePopulateDemoData();
+                            }}
+                            className="group flex flex-col justify-between p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-500/50 hover:shadow-xs transition-all text-left cursor-pointer"
+                          >
+                            <div className="space-y-2">
+                              <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${tmpl.color} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h5 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                  {tmpl.title}
+                                </h5>
+                                <p className="text-[10px] font-medium text-slate-400 leading-snug mt-0.5">
+                                  {tmpl.desc}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                              <span>{locale === 'vi' ? 'Dùng mẫu này' : 'Use Template'}</span>
+                              <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -848,13 +962,44 @@ export default function SpaceOverviewTab({
                   })}
 
                   {nextTasks.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-slate-300/80 p-8 text-center dark:border-slate-800">
-                      <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-                        <CheckCircle2 className="h-5 w-5" />
-                      </div>
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                        {locale === 'vi' ? 'Không có việc trễ hạn nào.' : 'All tasks completed!'}
-                      </p>
+                    <div className="rounded-2xl border border-dashed border-slate-300/80 p-6 text-center dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/20">
+                      {totalTasksCount === 0 ? (
+                        <div className="space-y-3">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
+                            <Target className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                              {locale === 'vi' ? 'Chưa có công việc nào trong Space' : 'No upcoming tasks found'}
+                            </p>
+                            <p className="text-[11px] font-medium text-slate-400 max-w-[220px] mx-auto mt-0.5">
+                              {locale === 'vi'
+                                ? 'Tạo việc mới bên trên hoặc tải dự án mẫu để trải nghiệm!'
+                                : 'Type a task name above or populate sample project to get started!'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handlePopulateDemoData}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 px-3 py-1.5 text-[11px] font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>{locale === 'vi' ? 'Tải dữ liệu dự án mẫu' : 'Load Sample Project'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 py-2">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                            <CheckCircle2 className="h-5 w-5" />
+                          </div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                            {locale === 'vi' ? 'Tất cả công việc đã hoàn thành!' : 'All upcoming tasks completed!'}
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-400">
+                            {locale === 'vi' ? 'Không có việc nào trễ hạn hoặc đọng lại.' : 'Great job! No pending tasks remaining in queue.'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

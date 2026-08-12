@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Priority, TaskStatus } from '../types';
 import { 
@@ -13,7 +13,7 @@ import {
   RefreshCw, CheckCircle2, Sparkles, Check, Plus, X,
   Search, Filter, Info, Trash2, ArrowRight, UserCheck, Users,
   ListPlus, Settings, CalendarDays, Eye, Edit3, Tag, GripVertical, ChevronDown,
-  Download, Bot, Zap, CheckSquare
+  Download, Bot, Zap, CheckSquare, Layers, CircleDot
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -26,6 +26,115 @@ interface CalendarViewProps {
   triggerToast?: (type: any, title: string, message: string) => void;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   onUpdateTask?: (task: Task) => void;
+  onDeleteTask?: (id: string) => void;
+}
+
+// Mini Calendar Navigator Subcomponent for Left Sidebar
+function MiniCalendarNavigator({ 
+  selectedDate, 
+  onSelectDate 
+}: { 
+  selectedDate: Date; 
+  onSelectDate: (d: Date) => void; 
+}) {
+  const [navDate, setNavDate] = useState<Date>(new Date(selectedDate));
+
+  useEffect(() => {
+    setNavDate(new Date(selectedDate));
+  }, [selectedDate]);
+
+  const year = navDate.getFullYear();
+  const month = navDate.getMonth();
+
+  const days = useMemo(() => {
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const padCount = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevMonthLastDate = new Date(year, month, 0).getDate();
+
+    const result: { date: Date; isCurrentMonth: boolean }[] = [];
+    for (let i = padCount - 1; i >= 0; i--) {
+      result.push({ date: new Date(year, month - 1, prevMonthLastDate - i), isCurrentMonth: false });
+    }
+    for (let i = 1; i <= lastDate; i++) {
+      result.push({ date: new Date(year, month, i), isCurrentMonth: true });
+    }
+    const remaining = 35 - result.length;
+    for (let i = 1; i <= remaining; i++) {
+      result.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+    }
+    return result;
+  }, [year, month]);
+
+  const monthNames = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+  ];
+
+  const formatDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = formatDateStr(new Date());
+  const selectedStr = formatDateStr(selectedDate);
+
+  return (
+    <div className="p-4 select-none pb-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+          {monthNames[month]} {year}
+        </span>
+        <div className="flex items-center gap-1">
+          <button 
+            type="button" 
+            onClick={() => setNavDate(new Date(year, month - 1, 1))}
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setNavDate(new Date(year, month + 1, 1))}
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Days Grid Header */}
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black text-slate-400 mb-1">
+        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+
+      {/* Mini Days Cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((item, idx) => {
+          const dStr = formatDateStr(item.date);
+          const isSelected = dStr === selectedStr;
+          const isToday = dStr === todayStr;
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => onSelectDate(item.date)}
+              className={`w-6 h-6 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-indigo-600 text-white font-black shadow-xs scale-105'
+                  : isToday
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-300 dark:border-indigo-800'
+                  : item.isCurrentMonth
+                  ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  : 'text-slate-350 dark:text-slate-650 opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              {item.date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function CalendarView({
@@ -35,7 +144,8 @@ export default function CalendarView({
   onAddSyncLog,
   triggerToast,
   onAddTask,
-  onUpdateTask
+  onUpdateTask,
+  onDeleteTask
 }: CalendarViewProps) {
   const { t, locale } = useTranslation();
   
@@ -505,7 +615,7 @@ export default function CalendarView({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full font-sans select-none pb-8 text-slate-800 dark:text-slate-100 animate-fadeIn">
+    <div className="flex flex-col lg:flex-row w-full h-full font-sans select-none text-slate-800 dark:text-slate-100 bg-white dark:bg-[#07080c] overflow-hidden">
       
       {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
@@ -515,13 +625,19 @@ export default function CalendarView({
             animate={{ width: '18rem', opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-            className="w-full lg:w-72 flex flex-col gap-5 shrink-0 text-left overflow-hidden pr-1"
+            className="w-full lg:w-72 flex flex-col shrink-0 text-left border-r border-slate-200/80 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/30 overflow-y-auto divide-y divide-slate-200/60 dark:divide-slate-800/60"
           >
+            {/* Mini Calendar Navigator */}
+            <MiniCalendarNavigator 
+              selectedDate={currentDate}
+              onSelectDate={(d) => setCurrentDate(d)}
+            />
+
             {/* Google Calendar Connection Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs relative overflow-hidden">
+            <div className="p-4 space-y-3 relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
               
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>{locale === 'vi' ? 'Liên kết bộ lịch' : 'Calendar Connection'}</span>
               </h4>
@@ -573,7 +689,7 @@ export default function CalendarView({
             </div>
 
             {/* Filter Toggle Pills */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs space-y-4">
+            <div className="p-4 space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
                 <span>{locale === 'vi' ? 'Bộ lọc hiển thị' : 'Display Filters'}</span>
@@ -618,7 +734,7 @@ export default function CalendarView({
               </div>
 
               {/* Priority Filter */}
-              <div className="space-y-1.5 pt-3.5 border-t border-slate-100 dark:border-slate-800/60">
+              <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
                 <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 block">{locale === 'vi' ? 'Độ ưu tiên' : 'Priority'}</label>
                 <select 
                   value={priorityFilter} 
@@ -635,15 +751,15 @@ export default function CalendarView({
             </div>
 
             {/* Unscheduled Tasks Card */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#07080c]/90 border border-slate-200/80 dark:border-slate-800/60 shadow-xs flex-1 min-h-[250px] flex flex-col overflow-hidden">
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-3">
+            <div className="p-4 flex-1 min-h-[220px] flex flex-col overflow-hidden">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-2">
                 <ListPlus className="w-3.5 h-3.5" />
                 <span>{locale === 'vi' ? `Chưa lên lịch (${unscheduledTasks.length})` : `Unscheduled (${unscheduledTasks.length})`}</span>
               </h4>
               
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 lg:max-h-[calc(100vh-420px)] max-h-64 pr-1.5 scrollbar-thin">
                 {unscheduledTasks.length === 0 ? (
-                  <div className="py-10 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
+                  <div className="py-8 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
                     <Check className="w-5 h-5 mx-auto text-emerald-500 stroke-[3px]" />
                     <p className="text-[10px] font-black text-slate-700 dark:text-slate-300">{locale === 'vi' ? 'Tuyệt vời!' : 'Great job!'}</p>
                     <p className="text-[9px]">{locale === 'vi' ? 'Mọi việc đã được lên lịch.' : 'All tasks scheduled.'}</p>
@@ -676,7 +792,7 @@ export default function CalendarView({
                 )}
               </div>
               
-              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 text-center font-bold bg-slate-50 dark:bg-slate-950/40 py-2 rounded-xl border border-slate-100 dark:border-slate-800 mt-3 select-none">
+              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 text-center font-bold bg-slate-50 dark:bg-slate-950/40 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 mt-2 select-none">
                 💡 {locale === 'vi' ? 'Kéo thả việc vào lịch để định ngày' : 'Drag and drop tasks to schedule'}
               </p>
             </div>
@@ -687,14 +803,14 @@ export default function CalendarView({
       {/* Sidebar Toggle Button */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="hidden lg:flex items-center justify-center w-6 h-10 rounded-r-2xl border border-l-0 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
+        className="hidden lg:flex items-center justify-center w-5 h-10 rounded-r-xl border border-l-0 border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
         title={isSidebarOpen ? (locale === 'vi' ? "Thu gọn sidebar" : "Collapse sidebar") : (locale === 'vi' ? "Mở rộng sidebar" : "Expand sidebar")}
       >
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Main Calendar Views */}
-      <div className="flex-1 p-5.5 rounded-3xl bg-white dark:bg-[#07080c] border border-slate-200/80 dark:border-slate-800/60 shadow-xs flex flex-col gap-4 min-w-0">
+      <div className="flex-1 p-5 flex flex-col gap-4 min-w-0 bg-white dark:bg-[#07080c] overflow-y-auto">
         
         {/* Calendar Navigation Header */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
@@ -1140,17 +1256,18 @@ export default function CalendarView({
       {/* Interactive Detail Modal Editor Overlay */}
       <AnimatePresence>
         {selectedTask && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 modal-backdrop-blur flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedTask(null)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" />
+              className="absolute inset-0" />
             
             <motion.div 
-              initial={{ scale: 0.96, y: 15, opacity: 0 }} 
+              initial={{ scale: 0.94, y: 15, opacity: 0 }} 
               animate={{ scale: 1, y: 0, opacity: 1 }} 
-              exit={{ scale: 0.96, y: 15, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-slate-200 dark:border-slate-800 overflow-hidden text-left"
+              exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              className="modal-glass-card rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-white/80 dark:border-slate-800/80 overflow-hidden text-left select-none z-10"
             >
-              <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
+              <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-indigo-500/10 blur-xl pointer-events-none" />
               
               <div className="flex justify-between items-start mb-4">
                 <span className={`text-[8.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
@@ -1265,7 +1382,7 @@ export default function CalendarView({
               <div className="flex gap-2.5">
                 <button 
                   onClick={() => setSelectedTask(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-xs font-black text-white dark:text-slate-900 shadow-xs transition-colors cursor-pointer text-center"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:brightness-105 text-xs font-black text-white shadow-xs transition-all cursor-pointer text-center"
                 >
                   Hoàn tất
                 </button>
@@ -1278,11 +1395,12 @@ export default function CalendarView({
       {/* CREATE QUICK TASK/EVENT MODAL */}
       <AnimatePresence>
         {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 modal-backdrop-blur flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.96, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.96, y: 15, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-slate-200 dark:border-slate-800 overflow-hidden text-left"
+              className="absolute inset-0" />
+            <motion.div initial={{ scale: 0.94, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              className="modal-glass-card rounded-3xl shadow-2xl w-full max-w-md p-6 relative border border-white/80 dark:border-slate-800/80 overflow-hidden text-left select-none z-10"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">

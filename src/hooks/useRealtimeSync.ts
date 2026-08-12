@@ -149,6 +149,7 @@ export function useSupabaseSync() {
             const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || ['w1', 'w2', 'w3'];
             return {
               id: memberId,
+              userId: m.user_id || undefined,
               name: m.name,
               email: m.email,
               avatar: m.avatar,
@@ -162,7 +163,8 @@ export function useSupabaseSync() {
               phone: m.phone || '',
               department: m.department || '',
               bio: m.bio || '',
-              joinedDate: m.joined_date || '2026'
+              joinedDate: m.joined_date || '2026',
+              isPremium: Boolean(m.is_premium)
             };
           }));
         }
@@ -502,6 +504,7 @@ export function useSupabaseSync() {
                 const memberId = isMe ? 'user' : m.id;
                 const mappedMember: User = {
                   id: memberId,
+                  userId: m.user_id || undefined,
                   name: m.name,
                   email: m.email,
                   avatar: m.avatar,
@@ -515,7 +518,8 @@ export function useSupabaseSync() {
                   phone: m.phone || '',
                   department: m.department || '',
                   bio: m.bio || '',
-                  joinedDate: m.joined_date || '2026'
+                  joinedDate: m.joined_date || '2026',
+                  isPremium: Boolean(m.is_premium)
                 };
                 setMembers(prev => {
                   const exists = prev.some(item => item.id === mappedMember.id);
@@ -689,5 +693,4 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
 
   return { invitations, refreshInvitations: loadInvitations };
 }
-
 

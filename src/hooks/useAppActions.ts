@@ -20,6 +20,7 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9
 export function useAppActions() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const isOffline = useUiStore((s) => s.isOffline);
+  const setShowPremiumModal = useUiStore((s) => s.setShowPremiumModal);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const spaces = useSpaceStore((s) => s.spaces);
@@ -33,7 +34,9 @@ export function useAppActions() {
   const setMembers = useMemberStore((s) => s.setMembers);
   const setWorkspaces = useWorkspaceStore((s) => s.setWorkspaces);
   const setSpaces = useSpaceStore((s) => s.setSpaces);
-
+  const setActiveSpaceId = useSpaceStore((s) => s.setActiveSpaceId);
+  const setActiveListId = useSpaceStore((s) => s.setActiveListId);
+  const setActiveTab = useUiStore((s) => s.setActiveTab);
   const triggerToast = useNotificationStore((s) => s.addToast);
   const addSyncLog = useSyncStore((s) => s.addSyncLog);
 
@@ -637,7 +640,7 @@ export function useAppActions() {
     const inviterName = currentUser?.name || 'Workspace Admin';
 
     for (const email of emails) {
-      const inviteId = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const inviteId = crypto.randomUUID();
       const cleanEmail = email.trim().toLowerCase();
       const newInvite: WorkspaceInvitation = {
         id: inviteId,
@@ -645,7 +648,7 @@ export function useAppActions() {
         workspaceName: currentWS?.name || 'Apexa Workspace',
         email: cleanEmail,
         role: (role as any) || 'member',
-        invitedBy: currentUser?.email || 'admin',
+        invitedBy: currentUser?.userId || currentUser?.id || 'admin',
         invitedByName: inviterName,
         status: 'pending',
         createdAt: new Date().toISOString()
@@ -653,22 +656,26 @@ export function useAppActions() {
 
       if (!isOffline) {
         try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user) throw new Error('You must be signed in to invite members.');
+          await supabase.from('workspace_invitations').delete().eq('workspace_id', newInvite.workspaceId).eq('email', newInvite.email).eq('status', 'pending');
           const { error } = await supabase.from('workspace_invitations').insert([{
             id: newInvite.id,
             workspace_id: newInvite.workspaceId,
             workspace_name: newInvite.workspaceName,
             email: newInvite.email,
             role: newInvite.role,
-            invited_by: newInvite.invitedBy,
+            invited_by: session.user.id,
             invited_by_name: newInvite.invitedByName,
             status: 'pending',
             created_at: newInvite.createdAt
           }]);
           if (error) {
-            console.warn('Supabase invitation insert notice:', error.message);
+            throw error;
           }
         } catch (e) {
           console.error('Exception inserting invitation:', e);
+          throw e;
         }
       }
 
@@ -695,9 +702,11 @@ export function useAppActions() {
     let targetWS = workspaces.find(w => w.id === workspaceId);
 
     if (!isOffline) {
-      try {
-        await supabase.from('workspace_invitations').update({ status: 'accepted' }).eq('id', inviteId);
-      } catch (e) {}
+      const { error } = await supabase.rpc('accept_workspace_invitation', { invitation_id: inviteId });
+      if (error) {
+        triggerToast({ id: generateId(), type: 'info', title: 'Could not join workspace', message: error.message, duration: 4000 });
+        return;
+      }
     }
 
     if (typeof window !== 'undefined') {
@@ -749,13 +758,6 @@ export function useAppActions() {
 
       setMembers(prev => prev.map(m => (m.id === 'user' || m.id === myMemberId) ? { ...m, workspaceIds: updatedWsIds, role: (role as any) || m.role } : m));
 
-      if (!isOffline) {
-        try {
-          await supabase.from('members').update({
-            workspace_ids: updatedWsIds
-          }).eq('id', myMemberId);
-        } catch (e) {}
-      }
     }
 
     useWorkspaceStore.getState().setActiveWorkspaceId(workspaceId);
@@ -772,9 +774,11 @@ export function useAppActions() {
 
   const handleDeclineWorkspaceInvite = useCallback(async (inviteId: string) => {
     if (!isOffline) {
-      try {
-        await supabase.from('workspace_invitations').update({ status: 'declined' }).eq('id', inviteId);
-      } catch (e) {}
+      const { error } = await supabase.rpc('decline_workspace_invitation', { invitation_id: inviteId });
+      if (error) {
+        triggerToast({ id: generateId(), type: 'info', title: 'Could not decline invitation', message: error.message, duration: 4000 });
+        return;
+      }
     }
 
     if (typeof window !== 'undefined') {
@@ -918,6 +922,15 @@ export function useAppActions() {
 
   const handleAddSpace = useCallback((name: string, emoji?: string, themeColor?: string) => {
     if (!name.trim()) return;
+
+    // Check Free Plan limit: Max 5 spaces per workspace
+    const workspaceSpacesCount = spaces.filter(s => s.workspaceId === activeWorkspaceId).length;
+    const isPremiumUser = currentUser?.isPremium;
+    if (!isPremiumUser && workspaceSpacesCount >= 5) {
+      triggerToast({ id: generateId(), type: 'info', title: 'Giới hạn gói Free', message: 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!', duration: 4000 });
+      setShowPremiumModal(true);
+      return;
+    }
     
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
@@ -939,9 +952,14 @@ export function useAppActions() {
     };
     
     handleSaveSpaces([...spaces, newSpace]);
-    triggerToast({ id: generateId(), type: 'success', title: 'New Space Created', message: `Created space "${newSpace.name}"`, duration: 4000 });
+    setActiveSpaceId(newSpace.id);
+    if (newSpace.lists.length > 0) {
+      setActiveListId(newSpace.lists[0].id);
+    }
+    setActiveTab('tasks');
+    triggerToast({ id: generateId(), type: 'success', title: 'Space Created! 🎉', message: `Đã tạo space "${newSpace.name}" thành công.`, duration: 4000 });
     addSyncLog(`Created new Space: "${newSpace.name}"`);
-  }, [activeWorkspaceId, spaces, handleSaveSpaces, triggerToast, addSyncLog]);
+  }, [activeWorkspaceId, spaces, handleSaveSpaces, setActiveSpaceId, setActiveListId, setActiveTab, triggerToast, addSyncLog]);
 
   const handleDeleteSpace = useCallback((spaceId: string) => {
     const updated = spaces.filter(s => s.id !== spaceId);
@@ -1091,41 +1109,6 @@ export function useAppActions() {
     });
   }, []);
 
-  const handleTogglePremium = useCallback((status: boolean) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('apexa_premium', String(status));
-    }
-    if (currentUser) {
-      const updatedUser = { ...currentUser, isPremium: status };
-      useAuthStore.getState().setCurrentUser(updatedUser);
-      
-      const sessionObj = {
-        user: updatedUser,
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-      };
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
-      }
-
-      useMemberStore.getState().updateMember({ ...currentUser, isPremium: status });
-
-      if (!isOffline && currentUser.id) {
-        supabase.from('members').update({
-          is_premium: status
-        }).eq('id', `user-${currentUser.id}`).then(({ error }) => {
-          if (error) console.error('Error updating premium status on Supabase:', error.message || error);
-        });
-      }
-
-      addSyncLog(status ? 'Successfully activated Apexa Premium Pro' : 'Cancelled Apexa Premium Pro subscription');
-      if (status) {
-        triggerToast({ id: generateId(), type: 'success', title: 'Premium Pro Upgrade!', message: 'Welcome to Apexa Premium! Unlocked all advanced features.', duration: 4000 });
-      } else {
-        triggerToast({ id: generateId(), type: 'info', title: 'Account Downgraded', message: 'Account has been downgraded to the Free tier.', duration: 4000 });
-      }
-    }
-  }, [currentUser, isOffline, addSyncLog, triggerToast]);
-
   return {
     handleCreateWorkspace,
     handleUpdateWorkspace,
@@ -1152,7 +1135,6 @@ export function useAppActions() {
     handleAddDocToSpace,
     handleAddWhiteboardToSpace,
     handleAddListToFolder,
-    handleTogglePremium,
     handleWorkspaceChange: useCallback((w: any) => {
       useWorkspaceStore.getState().setActiveWorkspaceId(w.id);
       useWorkspaceStore.getState().setAccentPreset(w.theme);

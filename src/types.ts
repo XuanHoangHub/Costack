@@ -3,6 +3,7 @@ export type TaskStatus = 'todo' | 'inprogress' | 'review' | 'completed';
 
 export interface User {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   avatar: string;
@@ -48,6 +49,7 @@ export interface TaskAttachment {
   filePath: string;
   size: number;
   uploadedAt: string;
+  mimeType?: string;
 }
 
 export interface CustomFieldDefinition {
@@ -63,9 +65,10 @@ export interface Space {
   emoji?: string;
   themeColor?: string;
   workspaceId: string;
-  lists: { id: string; name: string; folderId?: string; isPrivate?: boolean; shareSettings?: Record<string, 'view' | 'edit'>; user_id?: string }[];
-  folders?: { id: string; name: string; color?: string }[];
-  whiteboards?: { id: string; name: string; folderId?: string }[];
+  position?: number;
+  lists: { id: string; name: string; folderId?: string; position?: number; isPrivate?: boolean; shareSettings?: Record<string, 'view' | 'edit'>; user_id?: string; isFavorite?: boolean; isArchived?: boolean }[];
+  folders?: { id: string; name: string; color?: string; position?: number; isFavorite?: boolean; isArchived?: boolean }[];
+  whiteboards?: { id: string; name: string; folderId?: string; position?: number }[];
   channels?: { id: string; name: string; description?: string; type?: string }[];
   statuses?: { id: string; label: string; color: string; type: TaskStatus }[];
   clickApps?: {
@@ -78,6 +81,9 @@ export interface Space {
   };
   customFields?: CustomFieldDefinition[];
   isPrivate?: boolean;
+  isFavorite?: boolean;
+  isHidden?: boolean;
+  isArchived?: boolean;
   shareSettings?: Record<string, 'view' | 'edit'>;
   user_id?: string;
 }
@@ -96,6 +102,7 @@ export interface Task {
   progress: number; // 0 to 100
   createdAt: string;
   completedAt?: string;
+  aiSummary?: string;
   position?: number;
   hoursEstimate?: number;
   hoursLogged?: number;
@@ -160,8 +167,15 @@ export interface Workspace {
   created_at?: string;
   coverUrl?: string;
   logoUrl?: string;
+  membershipRole?: WorkspaceRole;
+  memberCount?: number;
   settings?: {
     logoUrl?: string;
+    description?: string;
+    timezone?: string;
+    weekStartsOn?: 'monday' | 'sunday';
+    defaultRole?: Exclude<WorkspaceRole, 'owner'>;
+    allowMemberInvites?: boolean;
     defaultClickApps?: {
       timeTracking?: boolean;
       multipleAssignees?: boolean;
@@ -171,6 +185,17 @@ export interface Workspace {
       priorities?: boolean;
     };
   };
+}
+
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest';
+
+export interface WorkspaceMembership {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  status: 'active' | 'suspended';
+  joinedAt: string;
+  updatedAt?: string;
 }
 
 export interface NotificationSettings {
@@ -229,14 +254,19 @@ export interface ChatMessage {
   };
   parentId?: string;
   isPinned?: boolean;
+  createdAt?: string;
+  editedAt?: string;
+  deliveryState?: 'sending' | 'sent' | 'failed';
 }
 
 export interface ChatChannel {
   id: string;
   name: string;
   description: string;
-  type: 'public' | 'private' | 'dm';
+  type: 'public' | 'private' | 'dm' | 'group';
   unreadCount?: number;
+  workspaceId?: string;
+  dmKey?: string;
 }
 
 export type WhiteboardTool = 'select' | 'pencil' | 'rectangle' | 'circle' | 'line' | 'sticky' | 'diamond' | 'parallelogram' | 'pill' | 'cylinder';

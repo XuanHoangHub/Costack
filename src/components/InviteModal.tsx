@@ -155,15 +155,16 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            className="absolute inset-0 modal-backdrop-blur"
           />
 
           {/* Modal Container */}
           <motion.div
-            initial={{ scale: 0.95, y: 15, opacity: 0 }}
+            initial={{ scale: 0.94, y: 15, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.95, y: 15, opacity: 0 }}
-            className="relative w-full max-w-[460px] bg-white dark:bg-slate-900 rounded-[28px] shadow-2xl border border-slate-100 dark:border-slate-800 p-6 z-10 font-sans"
+            exit={{ scale: 0.94, y: 15, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+            className="relative w-full max-w-[460px] modal-glass-card rounded-[28px] shadow-2xl border border-white/80 dark:border-slate-800/80 p-6 z-10 font-sans select-none overflow-hidden"
           >
             {/* Close Button */}
             <button

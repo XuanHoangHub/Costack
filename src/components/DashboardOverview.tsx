@@ -4,16 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, SyncLog, Document } from '../types';
 import { 
-  CheckCircle, ArrowUpRight, TrendingUp, Users, 
-  Activity, FileText, Bot, Clock, Sparkles, AlertCircle, Trash2,
-  Calendar, Check, Circle, BarChart3, PieChart as PieIcon, ListTodo, Star, Flag, Flame
+  CheckCircle2, ArrowUpRight, TrendingUp, Users, 
+  Activity, FileText, Bot, Clock, Sparkles, AlertCircle,
+  Calendar, Check, Circle, BarChart3, PieChart as PieIcon, ListTodo, Star, Flag, Flame,
+  UserCheck, ShieldCheck, Zap, X
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, BarChart, Bar, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+  PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts';
-import { supabase } from '../lib/supabaseClient';
-import { Card, CardHeader, CardTitle, Badge } from './ui';
+import { Badge } from './ui';
 import { useTranslation } from '../contexts/TranslationContext';
 
 interface DashboardOverviewProps {
@@ -99,8 +99,8 @@ function DashboardOverview({
               ? `Bạn có ${overdueList.length} việc quá hạn & ${nearList.length} việc sắp đến hạn chót cần hoàn tất.`
               : `You have ${overdueList.length} overdue tasks & ${nearList.length} tasks due soon.`
           );
+          localStorage.setItem('avaxa_last_briefing_trigger_date', todayStr);
         }
-        localStorage.setItem('avaxa_last_briefing_trigger_date', todayStr);
       }
       setIsBriefingChecked(true);
     }
@@ -146,7 +146,7 @@ function DashboardOverview({
           const trimmed = line.trim();
           if (trimmed.startsWith('###')) {
             return (
-              <h4 key={i} className="text-sm font-extrabold text-indigo-905 dark:text-indigo-200 tracking-tight mt-4 mb-2 flex items-center gap-1.5 border-b border-indigo-100/40 dark:border-indigo-400/30 pb-1">
+              <h4 key={i} className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 tracking-tight mt-4 mb-2 flex items-center gap-1.5 border-b border-indigo-100 dark:border-indigo-900/40 pb-1">
                 <Sparkles className="w-4 h-4 text-indigo-500" />
                 <span>{trimmed.replace('###', '').trim()}</span>
               </h4>
@@ -154,7 +154,7 @@ function DashboardOverview({
           }
           if (trimmed.startsWith('##')) {
             return (
-              <h3 key={i} className="text-base font-black text-slate-900 dark:text-slate-55 tracking-tight mt-5 mb-2">
+              <h3 key={i} className="text-base font-black text-slate-900 dark:text-white tracking-tight mt-5 mb-2">
                 {trimmed.replace('##', '').trim()}
               </h3>
             );
@@ -181,7 +181,7 @@ function DashboardOverview({
             );
           }
           if (trimmed === '') return <div key={i} className="h-1.5" />;
-          return <p key={i} className="pl-1 text-slate-655 text-xs">{trimmed}</p>;
+          return <p key={i} className="pl-1 text-slate-600 dark:text-slate-300 text-xs">{trimmed}</p>;
         })}
       </div>
     );
@@ -239,13 +239,14 @@ function DashboardOverview({
 
   // Real 30-day velocity data
   const getVelocityData = () => {
-    const data = [];
+    const data: { date: string; completed: number; hours: number }[] = [];
     const now = new Date();
+
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      const displayStr = d.toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' });
+      const displayStr = `${d.getDate()}/${d.getMonth() + 1}`;
 
       const completed = tasks.filter(t => {
         if (t.status !== 'completed') return false;
@@ -275,7 +276,7 @@ function DashboardOverview({
       const logged = memberTasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
 
       return {
-        name: m.name.split(' ')[0], // short name
+        name: m.name.split(' ')[0],
         estimated,
         logged
       };
@@ -284,7 +285,7 @@ function DashboardOverview({
 
   const memberEffortData = getMemberEffortData();
 
-  // Pie chart statuses breakdown data
+  // Statuses breakdown data
   const statusData = [
     { name: 'To Do', value: todoTasks, color: '#6366f1' },
     { name: 'In Progress', value: inProgressTasks, color: '#f59e0b' },
@@ -292,24 +293,17 @@ function DashboardOverview({
     { name: 'Completed', value: completedTasks, color: '#10b981' }
   ].filter(item => item.value > 0);
 
-  const priorityData = [
-    { name: 'Urgent', value: tasks.filter(t => t.priority === 'urgent').length, color: '#ef4444' },
-    { name: 'High', value: tasks.filter(t => t.priority === 'high').length, color: '#f97316' },
-    { name: 'Medium', value: tasks.filter(t => t.priority === 'medium').length, color: '#eab308' },
-    { name: 'Low', value: tasks.filter(t => t.priority === 'low').length, color: '#3b82f6' }
-  ].filter(item => item.value > 0);
-
   const CustomChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl shadow-xl space-y-1 backdrop-blur-md z-50 text-left">
-          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">{label}</p>
+        <div className="bg-slate-900/90 border border-slate-700/80 p-2.5 rounded-2xl shadow-xl space-y-1 backdrop-blur-md z-50 text-left">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{label}</p>
           <div className="space-y-0.5">
             {payload.map((item: any, idx: number) => (
-              <p key={idx} className="text-xs font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color || item.fill }} />
-                <span className="text-slate-355">{item.name}:</span>
-                <span className="text-white font-extrabold font-mono">
+              <p key={idx} className="text-xs font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }} />
+                <span className="text-slate-300">{item.name}:</span>
+                <span className="text-white font-black font-mono">
                   {item.value} {item.name.includes('Giờ') || item.name.toLowerCase().includes('hour') ? 'h' : (locale === 'vi' ? 'việc' : 'tasks')}
                 </span>
               </p>
@@ -321,89 +315,194 @@ function DashboardOverview({
     return null;
   };
 
-  const getUrgentTasks = () => {
-    return tasks
-      .filter(t => t.status !== 'completed' && (t.priority === 'urgent' || t.priority === 'high'))
-      .slice(0, 5);
-  };
+  const urgentTasks = tasks
+    .filter(t => t.status !== 'completed' && (t.priority === 'urgent' || t.priority === 'high'))
+    .slice(0, 5);
 
-  const urgentTasks = getUrgentTasks();
+  const onlineMembersCount = members.filter(m => m.status === 'online').length;
+  const todayDateFormatted = new Date().toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'long', month: 'numeric', day: 'numeric' });
 
   return (
-    <div className="space-y-5 md:space-y-6 text-[var(--cu-text-primary)] select-none cu-page-enter max-w-[1400px] mx-auto">
-      {/* ── Welcome Header ── */}
-      <motion.div 
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card-ultra p-6 md:p-8 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-5 rounded-[24px]"
-      >
-        <div className="absolute -right-10 -top-10 w-80 h-80 bg-gradient-to-br from-[#7B61FF]/20 via-[#FF3366]/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-2 relative z-10 text-left">
-          <Badge variant="gradient" dot>
-            {locale === 'vi' ? 'Tổng quan thời gian thực' : 'Realtime Dashboard'}
-          </Badge>
-          <div className="flex items-center gap-2 pt-1 flex-wrap">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-gradient-avaxa">
-              {t('goodMorning') || 'Chào buổi sáng'}, {currentUser?.name || 'Avaxa Member'} 👋
-            </h1>
+    <div className="min-h-full w-full bg-white dark:bg-[#07080c] text-slate-800 dark:text-slate-100 select-none flex flex-col p-5 md:p-8 space-y-6 md:space-y-8">
+      
+      {/* ── Morning Briefing Notification Banner ── */}
+      {showBriefing && (overdueTasks.length > 0 || briefingTasks.length > 0) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="relative rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-rose-500/10 border border-amber-500/30 p-4 flex items-center justify-between gap-4 backdrop-blur-md select-none text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Flame className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                <span>{t('dashboardMorningBriefing') || 'Bản tin chú ý công việc ☀️'}</span>
+                <span className="text-[9px] font-extrabold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full uppercase">
+                  {overdueTasks.length} quá hạn · {briefingTasks.length} sắp hết hạn
+                </span>
+              </h4>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium mt-0.5">
+                {locale === 'vi' 
+                  ? `Có ${overdueTasks.length} công việc đã quá hạn cần hoàn tất gấp và ${briefingTasks.length} công việc sắp tới hạn chót.`
+                  : `You have ${overdueTasks.length} overdue tasks that need immediate resolution and ${briefingTasks.length} tasks due soon.`
+                }
+              </p>
+            </div>
           </div>
-          <p className="text-xs md:text-sm text-[var(--cu-text-secondary)] max-w-xl leading-relaxed">
-            {t('dashboardSyncDescription') || 'All your documents, whiteboards, schedules and habits are automatically synced in real-time across all devices.'}
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button 
+              type="button" 
+              onClick={() => onNavigate('tasks')}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-colors shadow-xs cursor-pointer"
+            >
+              {locale === 'vi' ? 'Xử lý ngay' : 'Review Tasks'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowBriefing(false);
+                try { localStorage.setItem('avaxa_show_briefing_panel', 'false'); } catch (e) {}
+              }}
+              className="p-1.5 rounded-lg hover:bg-amber-500/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Hero Welcome Command Header ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative rounded-3xl bg-gradient-to-r from-indigo-900/5 via-violet-900/5 to-purple-900/5 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 overflow-hidden text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm"
+      >
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="space-y-2 relative z-10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full border border-indigo-200/50 dark:border-indigo-800/50 flex items-center gap-1.5">
+              <Zap className="w-3 h-3" />
+              <span>{todayDateFormatted}</span>
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full border border-emerald-200/50 dark:border-emerald-800/50 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{onlineMembersCount} {locale === 'vi' ? 'Thành viên Online' : 'Members Online'}</span>
+            </span>
+          </div>
+
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            {t('goodMorning') || 'Chào buổi sáng'}, <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-400 dark:via-violet-400 dark:to-purple-400 bg-clip-text text-transparent">{currentUser?.name || 'Avaxa Member'}</span> 👋
+          </h1>
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
+            {t('dashboardSyncDescription') || 'Tất cả tài liệu, lịch biểu, nhiệm vụ và báo cáo năng suất được đồng bộ thời gian thực liền mạch.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 relative z-10 shrink-0">
-          <Badge variant={isOffline ? 'danger' : 'success'} dot size="md">
+        <div className="flex items-center gap-3 relative z-10 shrink-0">
+          <button
+            onClick={() => onNavigate('tasks')}
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs shadow-md hover:brightness-105 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{locale === 'vi' ? 'Quản lý nhiệm vụ' : 'Manage Tasks'}</span>
+          </button>
+          <button
+            onClick={onToggleOffline}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer border ${
+              isOffline 
+                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800' 
+                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+            }`}
+          >
             {isOffline ? (locale === 'vi' ? 'Ngoại tuyến' : 'Offline') : (locale === 'vi' ? 'Trực tuyến' : 'Online')}
-          </Badge>
+          </button>
         </div>
       </motion.div>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 md:gap-4.5">
+      {/* ── 4 Hero KPI Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', value: `${completionPercentage}%`, detail: locale === 'vi' ? `Đã xong ${completedTasks}/${totalTasks} việc` : `Done ${completedTasks}/${totalTasks} tasks`, icon: CheckCircle, color: 'text-[#7B61FF] bg-[#7B61FF]/10 border-[#7B61FF]/20' },
-          { label: t('dashboardTasksInProgress') || 'Việc đang thực hiện', value: inProgressTasks + reviewTasks, detail: `${inProgressTasks} In-progress, ${reviewTasks} Review`, icon: Activity, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-          { label: t('dashboardChartTotalHours') || 'Tổng giờ đóng góp', value: `${tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0)}h`, detail: locale === 'vi' ? `Kế hoạch ước tính: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h` : `Estimated plan: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h`, icon: Clock, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-          { label: locale === 'vi' ? 'Tài liệu & Online' : 'Docs & Online', value: `${docs.length} Doc`, detail: locale === 'vi' ? `${members.filter(m => m.status === 'online').length}/${members.length} thành viên online` : `${members.filter(m => m.status === 'online').length}/${members.length} members online`, icon: FileText, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
+          { 
+            label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', 
+            value: `${completionPercentage}%`, 
+            detail: locale === 'vi' ? `Đã xong ${completedTasks}/${totalTasks} việc` : `Done ${completedTasks}/${totalTasks} tasks`, 
+            icon: CheckCircle2, 
+            color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200/60 dark:border-indigo-800/60',
+            progress: completionPercentage
+          },
+          { 
+            label: t('dashboardTasksInProgress') || 'Việc đang thực hiện', 
+            value: (inProgressTasks + reviewTasks).toString(), 
+            detail: `${inProgressTasks} In-progress · ${reviewTasks} Review`, 
+            icon: Activity, 
+            color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border-amber-200/60 dark:border-amber-800/60',
+            progress: totalTasks ? Math.round(((inProgressTasks + reviewTasks) / totalTasks) * 100) : 0
+          },
+          { 
+            label: t('dashboardChartTotalHours') || 'Tổng giờ cống hiến', 
+            value: `${tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0)}h`, 
+            detail: locale === 'vi' ? `Kế hoạch: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h` : `Plan: ${tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0)}h`, 
+            icon: Clock, 
+            color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/60 dark:border-emerald-800/60',
+            progress: Math.min(100, Math.round((tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0) / (tasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0) || 1)) * 100))
+          },
+          { 
+            label: locale === 'vi' ? 'Tài liệu & Đội ngũ' : 'Docs & Team', 
+            value: `${docs.length} Docs`, 
+            detail: locale === 'vi' ? `${onlineMembersCount}/${members.length} thành viên online` : `${onlineMembersCount}/${members.length} members online`, 
+            icon: FileText, 
+            color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/50 border-cyan-200/60 dark:border-cyan-800/60',
+            progress: members.length ? Math.round((onlineMembersCount / members.length) * 100) : 100
+          },
         ].map((card, i) => (
           <motion.div
             key={card.label}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -3, scale: 1.01 }}
             transition={{ delay: i * 0.05, duration: 0.2 }}
-            className="glass-card-ultra p-5 rounded-[20px] flex flex-col justify-between text-left group border border-[var(--cu-border)] hover:border-[var(--cu-primary)]/40 shadow-xs"
+            className="rounded-3xl bg-white dark:bg-[#0d0e17] p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex flex-col justify-between text-left group hover:border-indigo-500/40 transition-all hover:-translate-y-0.5"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--cu-text-muted)]">{card.label}</span>
-              <div className={`p-2 rounded-[var(--cu-radius-md)] border ${card.color}`}>
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{card.label}</span>
+              <div className={`w-8 h-8 rounded-xl border flex items-center justify-center ${card.color}`}>
                 <card.icon className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3">
-              <span className="text-2xl md:text-3xl font-bold text-[var(--cu-text-primary)] tracking-tight">{card.value}</span>
-              <p className="text-[10px] text-[var(--cu-text-muted)] font-medium mt-1">{card.detail}</p>
+            
+            <div className="mt-3 space-y-2">
+              <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{card.value}</span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">{card.detail}</p>
+              
+              {/* Mini progress bar */}
+              <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500" 
+                  style={{ width: `${card.progress}%` }} 
+                />
+              </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* ── Charts Block ── */}
+      {/* ── Interactive Productivity Charts Grid ── */}
       {totalTasks === 0 ? (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="p-8 md:p-12 text-center cu-card space-y-3"
+          className="p-8 md:p-12 text-center rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 space-y-3"
         >
-          <ListTodo className="w-10 h-10 text-slate-300 mx-auto animate-bounce" />
-          <h3 className="font-bold text-slate-855 dark:text-slate-100">{t('noTasksFound') || 'Chưa có dữ liệu phân tích'}</h3>
-          <p className="text-xs text-slate-450 dark:text-slate-405 max-w-sm mx-auto">
-            {locale === 'vi' ? 'Vui lòng thêm một vài công việc, danh sách folder hoặc thành viên để hệ thống tự động vẽ biểu đồ phân tích thời gian thực.' : 'Please add a few tasks, lists, folders or members to automatically generate real-time analytics.'}
+          <ListTodo className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto animate-bounce" />
+          <h3 className="font-bold text-slate-800 dark:text-slate-200">{t('noTasksFound') || 'Chưa có dữ liệu phân tích'}</h3>
+          <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
+            {locale === 'vi' ? 'Vui lòng thêm công việc hoặc thành viên để hệ thống tự động khởi tạo biểu đồ phân tích.' : 'Please add tasks or members to generate real-time analytics.'}
           </p>
           <button 
             onClick={() => onNavigate('tasks')}
-            className="px-4 py-2 cu-btn-primary text-xs cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs cursor-pointer hover:bg-indigo-700 transition-colors shadow-sm"
           >
             {t('createTaskBtn') || 'Tạo nhiệm vụ đầu tiên'}
           </button>
@@ -411,29 +510,31 @@ function DashboardOverview({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Left Chart Panel (Area or Bar) */}
-          <div className="lg:col-span-8 p-5 md:p-6 cu-card flex flex-col justify-between">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--cu-border)] pb-4 text-left">
+          {/* Weekly Performance Analytics Area Chart (8 Cols) */}
+          <div className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between text-left shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <div>
-                <h3 className="font-bold text-[var(--cu-text-primary)] text-base flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-[var(--cu-primary)]" />
+                <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                  </div>
                   <span>{t('dashboardWeeklyProgress') || 'Phân tích hiệu năng năng suất'}</span>
                 </h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Dữ liệu ghi nhận trực tiếp từ trạng thái công việc hiện tại' : 'Data recorded live from current task states'}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">{locale === 'vi' ? 'Dữ liệu ghi nhận tiến độ tuần này' : 'Data recorded live from current task states'}</p>
               </div>
 
               {/* Selector Tabs */}
-              <div className="flex items-center bg-[var(--cu-surface-2)] p-1 rounded-[var(--cu-radius-md)] border border-[var(--cu-border)] text-xs font-semibold text-[var(--cu-text-muted)] shrink-0">
+              <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shrink-0">
                 <button
                   onClick={() => setActiveMetricTab('progress')}
-                  className={`px-3 py-1.5 rounded-[var(--cu-radius-sm)] transition-all cursor-pointer ${activeMetricTab === 'progress' ? 'bg-[var(--cu-surface)] shadow-[var(--cu-shadow-xs)] text-[var(--cu-primary)] font-bold' : 'hover:text-[var(--cu-text-primary)]'}`}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'progress' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                 >
                   {locale === 'vi' ? 'Tuần này' : 'This week'}
                 </button>
                 {memberEffortData.length > 0 && (
                   <button
                     onClick={() => setActiveMetricTab('priority')}
-                    className={`px-3 py-1.5 rounded-[var(--cu-radius-sm)] transition-all cursor-pointer ${activeMetricTab === 'priority' ? 'bg-[var(--cu-surface)] shadow-[var(--cu-shadow-xs)] text-[var(--cu-primary)] font-bold' : 'hover:text-[var(--cu-text-primary)]'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'priority' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
                     {locale === 'vi' ? 'Nỗ lực thành viên' : 'Member Effort'}
                   </button>
@@ -441,177 +542,182 @@ function DashboardOverview({
               </div>
             </div>
 
-            {/* Chart Area */}
+            {/* Chart Container */}
             <div className="h-[260px] w-full pt-6">
               <ResponsiveContainer width="100%" height="100%">
                 {activeMetricTab === 'progress' ? (
                   <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="weeklyDone" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
                       </linearGradient>
                       <linearGradient id="weeklyCreated" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.12}/>
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
                     <Tooltip content={<CustomChartTooltip />} />
-                    <Area name={locale === 'vi' ? 'Công việc đã tạo' : 'Tasks Created'} type="monotone" dataKey="created" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#weeklyCreated)" isAnimationActive={false} />
-                    <Area name={t('dashboardChartCompletedTasks') || 'Completed Tasks'} type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#weeklyDone)" isAnimationActive={false} />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, paddingTop: 10 }} />
+                    <Area name={t('dashboardCompleted') || 'Đã hoàn thành'} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#weeklyDone)" />
+                    <Area name={t('dashboardCreated') || 'Đã tạo mới'} type="monotone" dataKey="created" stroke="#a855f7" strokeWidth={2} strokeDasharray="4 4" fillOpacity={1} fill="url(#weeklyCreated)" />
                   </AreaChart>
                 ) : (
                   <BarChart data={memberEffortData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
                     <Tooltip content={<CustomChartTooltip />} />
-                    <Bar name={locale === 'vi' ? 'Ước tính' : 'Estimated'} dataKey="estimated" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={20} isAnimationActive={false} />
-                    <Bar name={locale === 'vi' ? 'Thực tế' : 'Actual'} dataKey="logged" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} isAnimationActive={false} />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, paddingTop: 10 }} />
+                    <Bar name={locale === 'vi' ? 'Kế hoạch (giờ)' : 'Estimated (h)'} dataKey="estimated" fill="#818cf8" radius={[4, 4, 0, 0]} />
+                    <Bar name={locale === 'vi' ? 'Thực tế (giờ)' : 'Logged (h)'} dataKey="logged" fill="#34d399" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Right Chart Panel - Donut Task Statuses */}
-          <div className="lg:col-span-4 p-5 md:p-6 cu-card flex flex-col justify-between text-left">
+          {/* Status Breakdown Donut Chart (4 Cols) */}
+          <div className="lg:col-span-4 p-6 rounded-3xl bg-white dark:bg-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between text-left shadow-xs">
             <div>
-              <h3 className="font-bold text-[var(--cu-text-primary)] text-base flex items-center gap-1.5">
-                <PieIcon className="w-4 h-4 text-[var(--cu-primary)]" />
-                <span>{t('dashboardTaskStatusBreakdown') || 'Trạng thái công việc'}</span>
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                <div className="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <PieIcon className="w-3.5 h-3.5" />
+                </div>
+                <span>{t('dashboardTaskStatusBreakdown') || 'Phân bổ trạng thái'}</span>
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">{t('dashboardStatusDistribution') || 'Phân bổ tỷ lệ đầu việc theo quy trình'}</p>
             </div>
 
-            <div className="flex items-center justify-center py-4 relative">
-              <div className="w-[150px] h-[150px]">
+            <div className="relative my-4 flex justify-center items-center">
+              <div className="w-[170px] h-[170px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statusData.length > 0 ? statusData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]}
+                      data={statusData.length > 0 ? statusData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
-                      innerRadius={48}
-                      outerRadius={65}
+                      innerRadius={54}
+                      outerRadius={72}
                       paddingAngle={4}
                       dataKey="value"
                       isAnimationActive={false}
                     >
-                      {(statusData.length > 0 ? statusData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
+                      {(statusData.length > 0 ? statusData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-2">
-                <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">{totalTasks}</span>
-                <span className="text-[9px] text-slate-400 dark:text-slate-550 uppercase tracking-widest font-black mt-1">{t('dashboardTotalTasks') || 'Tổng Task'}</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight">{totalTasks}</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-1">TOTAL TASKS</span>
               </div>
             </div>
 
-            <div className="space-y-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-4">
+            <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-4">
               {statusData.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between text-xs font-bold">
-                  <span className="flex items-center gap-2 text-slate-550 dark:text-slate-400">
+                  <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                     <span className="w-2.5 h-2.5 rounded-full block" style={{ backgroundColor: item.color }} />
-                    <span>{item.name === 'To Do' ? (t('dashboardToDo') || 'Cần làm') : item.name === 'In Progress' ? (t('dashboardInProgress') || 'Đang làm') : item.name === 'Completed' ? (t('dashboardCompleted') || 'Đã xong') : (t('review') || item.name)}</span>
+                    <span>{item.name === 'To Do' ? (t('dashboardToDo') || 'Cần làm') : item.name === 'In Progress' ? (t('dashboardInProgress') || 'Đang làm') : item.name === 'Completed' ? (t('dashboardCompleted') || 'Đã hoàn thành') : (t('review') || item.name)}</span>
                   </span>
-                  <span className="text-slate-700 dark:text-slate-200 font-mono">{item.value} ({Math.round((item.value / totalTasks) * 100)}%)</span>
+                  <span className="text-slate-900 dark:text-white font-mono font-extrabold">{item.value} ({Math.round((item.value / totalTasks) * 100)}%)</span>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       )}
 
       {/* ── Bottom Section: 30-Day Velocity & Urgent Action Items ── */}
       {totalTasks > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
           {/* Team Velocity Over 30 Days (8 Columns) */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 }}
-            className="lg:col-span-8 p-5 md:p-6 cu-card space-y-4 text-left"
+            className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 space-y-4 text-left shadow-xs flex flex-col justify-between"
           >
             <div>
-              <h3 className="font-display font-extrabold text-slate-855 dark:text-slate-55 text-base flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-indigo-500" />
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                </div>
                 <span>{t('dashboardTeamVelocity') || 'Tốc độ hoàn thành 30 ngày (Team Velocity)'}</span>
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">{t('dashboardVelocityDesc') || 'Giám sát tổng số nhiệm vụ hoàn thành và tổng số giờ logs cống hiến thực tế'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">{t('dashboardVelocityDesc') || 'Giám sát tổng số nhiệm vụ hoàn thành và tổng số giờ logs cống hiến thực tế'}</p>
             </div>
 
-            <div className="h-[220px] w-full pt-4">
+            <div className="h-[220px] w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={velocityData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="velTasks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12}/>
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
                     </linearGradient>
                     <linearGradient id="velHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.12}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Area name={t('dashboardVelocityTasks') || 'Công việc đã hoàn thành'} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#velTasks)" />
+                  <Area name={t('dashboardVelocityTasks') || 'Công việc đã hoàn thành'} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#velTasks)" />
                   <Area name={t('dashboardVelocityHours') || 'Tổng số giờ đã ghi nhận'} type="monotone" dataKey="hours" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#velHours)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </motion.div>
 
-          {/* Urgent Actions Items List */}
+          {/* Urgent Action Items List (4 Columns) */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="lg:col-span-4 p-6 rounded-3xl glass-panel flex flex-col justify-between text-left shadow-sm"
+            className="lg:col-span-4 p-6 rounded-3xl bg-white dark:bg-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between text-left shadow-xs"
           >
             <div>
-              <h3 className="font-display font-bold text-slate-855 dark:text-slate-50 text-base flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-red-500 animate-pulse" />
+              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                <div className="w-6 h-6 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <Flame className="w-3.5 h-3.5 animate-pulse" />
+                </div>
                 <span>{t('urgentLabel') || 'Nhiệm vụ khẩn cấp'}</span>
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">{locale === 'vi' ? 'Các công việc có mức ưu tiên cao cần xử lý ngay' : 'High priority tasks that require immediate attention'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">{locale === 'vi' ? 'Các công việc có mức ưu tiên cao cần xử lý ngay' : 'High priority tasks requiring immediate attention'}</p>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3.5 my-4 pr-1 scrollbar-thin max-h-[200px]">
+            <div className="flex-1 overflow-y-auto space-y-3 my-4 pr-1 custom-scrollbar max-h-[210px]">
               {urgentTasks.length === 0 ? (
-                <div className="py-6 text-center italic text-slate-450 text-xs">
-                  {locale === 'vi' ? 'Không có nhiệm vụ khẩn cấp.' : 'No urgent tasks.'}
+                <div className="py-8 text-center italic text-slate-400 dark:text-slate-500 text-xs font-semibold">
+                  {locale === 'vi' ? 'Không có nhiệm vụ khẩn cấp 👍' : 'No urgent tasks.'}
                 </div>
               ) : (
                 urgentTasks.map(task => (
                   <div 
                     key={task.id} 
                     onClick={() => onNavigate('tasks')}
-                    className="flex items-start justify-between gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/40 hover:bg-slate-100 dark:hover:bg-slate-900/60 hover:shadow-sm transition-all cursor-pointer group"
+                    className="flex items-start justify-between gap-3 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 hover:border-indigo-500/30 transition-all cursor-pointer group"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-250 truncate group-hover:text-indigo-650 transition-colors">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {task.title}
                       </p>
-                      <span className="text-[9px] font-bold text-slate-405 flex items-center gap-1 mt-0.5 font-mono uppercase">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-0.5 font-mono uppercase">
                         Due: {task.dueDate ? task.dueDate.split('T')[0] : 'N/A'}
                       </span>
                     </div>
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md shrink-0 uppercase tracking-widest ${
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg shrink-0 uppercase tracking-wider ${
                       task.priority === 'urgent' 
-                        ? 'bg-red-550/10 text-red-650 border border-red-550/20' 
-                        : 'bg-orange-555/10 text-orange-655 border border-orange-550/20'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60' 
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
                     }`}>
                       {task.priority}
                     </span>
@@ -622,35 +728,36 @@ function DashboardOverview({
 
             <button 
               onClick={() => onNavigate('tasks')}
-              className="w-full py-2 bg-slate-55 dark:bg-slate-955 border border-slate-200/50 hover:bg-slate-100 dark:hover:bg-slate-900 hover:border-slate-300 rounded-xl text-center text-xs font-extrabold text-slate-700 dark:text-slate-250 transition-colors cursor-pointer"
+              className="w-full py-2.5 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700/80 rounded-xl text-center text-xs font-extrabold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
             >
               {locale === 'vi' ? 'Xem tất cả nhiệm vụ' : 'View all tasks'}
             </button>
           </motion.div>
+
         </div>
       )}
 
       {/* ── Weekly AI Productivity Insight Report Widget ── */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.12 }}
-        className="p-6 rounded-3xl glass-panel space-y-5 text-left shadow-sm"
+        className="p-6 md:p-8 rounded-3xl bg-white dark:bg-[#0d0e17] border border-slate-200/80 dark:border-slate-800/80 space-y-6 text-left shadow-xs"
         id="weekly_productivity_insight_report_widget"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-indigo-50 border border-indigo-100/50 text-indigo-650 dark:bg-indigo-950/20 dark:border-indigo-900/30">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/50 dark:border-indigo-800/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h3 className="font-display font-black text-slate-850 dark:text-slate-50 text-base md:text-lg flex items-center gap-2">
-                {t('dashboardSmartReport') || 'Báo cáo Năng suất thông minh AI'}
-                <span className="text-[9px] bg-indigo-105 text-indigo-750 font-black px-2 py-0.5 rounded-full uppercase border border-indigo-200/30">
+              <h3 className="font-black text-slate-900 dark:text-white text-base md:text-lg flex items-center gap-2">
+                <span>{t('dashboardSmartReport') || 'Báo cáo Năng suất thông minh AI'}</span>
+                <span className="text-[9px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
                   Gemini Flash 2.5
                 </span>
               </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{t('dashboardReportDesc') || 'Báo cáo đánh giá hiệu suất hoàn thành, quỹ đóng góp team và điều phối tài nguyên dự án.'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">{t('dashboardReportDesc') || 'Báo cáo đánh giá hiệu suất hoàn thành, quỹ đóng góp team và điều phối tài nguyên dự án.'}</p>
             </div>
           </div>
           
@@ -658,20 +765,20 @@ function DashboardOverview({
             id="btn_generate_productivity_report"
             onClick={handleGenerateReport}
             disabled={isGenerating}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer ${
+            className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer ${
               isGenerating
-                ? 'bg-slate-105 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700/80 cursor-not-allowed'
-                : 'bg-indigo-650 text-white hover:bg-indigo-700 hover:shadow-md'
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:brightness-105'
             }`}
           >
             {isGenerating ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>{t('dashboardGeneratingReport') || 'Đang phân tích bối cảnh...'}</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+                <Sparkles className="w-4 h-4 text-white" />
                 <span>{t('dashboardGenerateReport') || 'Khởi tạo báo cáo AI'}</span>
               </>
             )}
@@ -679,29 +786,29 @@ function DashboardOverview({
         </div>
 
         {/* Live Mathematical Indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50/80 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
           <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider block">{t('dashboardChartCompletedTasks') || 'Hoàn thành công việc'}</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-150">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider block">{t('dashboardChartCompletedTasks') || 'Hoàn thành công việc'}</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">
               {completedTasks} / {totalTasks} {locale === 'vi' ? 'Việc' : 'Tasks'}
             </span>
-            <div className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-full overflow-hidden mt-1.5">
+            <div className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-1.5">
               <div 
                 className="bg-emerald-500 h-full rounded-full" 
                 style={{ width: `${totalTasks ? (completedTasks / totalTasks) * 100 : 0}%` }}
               />
             </div>
           </div>
-          <div className="space-y-1 border-l border-slate-200/50 dark:border-slate-800/80 pl-4">
-            <span className="text-[10px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Tổng thời gian logged' : 'Total hours logged'}</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-150">
+          <div className="space-y-1 border-l-0 sm:border-l border-slate-200/60 dark:border-slate-800/60 sm:pl-4">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Tổng thời gian logged' : 'Total hours logged'}</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">
               {tasks.reduce((sum, t) => sum + (t.hoursLogged ?? 0), 0)} {locale === 'vi' ? 'giờ' : 'hours'}
             </span>
-            <span className="text-[9px] text-indigo-650 font-bold block mt-1">{locale === 'vi' ? 'Cống hiến toàn dự án' : 'Whole project contribution'}</span>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block mt-1">{locale === 'vi' ? 'Cống hiến toàn dự án' : 'Whole project contribution'}</span>
           </div>
-          <div className="space-y-1 border-l border-slate-200/50 dark:border-slate-800/80 pl-4">
-            <span className="text-[10px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Độ chuẩn xác ước tính' : 'Estimation accuracy'}</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-150">
+          <div className="space-y-1 border-l-0 md:border-l border-slate-200/60 dark:border-slate-800/60 md:pl-4">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Độ chuẩn xác ước tính' : 'Estimation accuracy'}</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">
               {(() => {
                 const totalLogged = tasks.reduce((sum, t) => sum + (t.hoursLogged ?? 0), 0);
                 const totalEstimated = tasks.reduce((sum, t) => sum + (t.hoursEstimate ?? 0), 0);
@@ -710,17 +817,17 @@ function DashboardOverview({
                 return `${accuracy}%`;
               })()}
             </span>
-            <span className="text-[9px] text-slate-405 dark:text-slate-500 font-medium block mt-1">{locale === 'vi' ? 'Sai số ước lượng thời gian' : 'Time estimation error'}</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block mt-1">{locale === 'vi' ? 'Sai số ước lượng thời gian' : 'Time estimation error'}</span>
           </div>
-          <div className="space-y-1 border-l border-slate-200/50 dark:border-slate-800/80 pl-4">
-            <span className="text-[10px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Độ bao phủ đội ngũ' : 'Team coverage'}</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-150">
+          <div className="space-y-1 border-l-0 md:border-l border-slate-200/60 dark:border-slate-800/60 md:pl-4">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider block">{locale === 'vi' ? 'Độ bao phủ đội ngũ' : 'Team coverage'}</span>
+            <span className="text-sm font-black text-slate-900 dark:text-white">
               {(() => {
                 const assignedAssignees = new Set(tasks.map(t => t.assigneeId).filter(Boolean));
                 return `${assignedAssignees.size} / ${members.length} ${locale === 'vi' ? 'Th.viên' : 'Members'}`;
               })()}
             </span>
-            <span className="text-[9px] text-emerald-600 font-bold block mt-1">{locale === 'vi' ? 'Độ phân bố đều task' : 'Task distribution scale'}</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-1">{locale === 'vi' ? 'Độ phân bố đều task' : 'Task distribution scale'}</span>
           </div>
         </div>
 
@@ -729,9 +836,9 @@ function DashboardOverview({
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="p-5 rounded-2xl border border-indigo-100 bg-[#EEF2FF]/20 relative overflow-hidden space-y-4 text-left"
+            className="p-6 rounded-2xl border border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/40 dark:bg-indigo-950/20 relative overflow-hidden space-y-4 text-left shadow-xs"
           >
-            <div className="absolute top-0 right-0 p-3 text-[9px] font-mono text-indigo-400/80 uppercase font-black flex items-center gap-1 bg-white/40 dark:bg-slate-900/40 rounded-bl-xl border-l border-b border-indigo-100/30">
+            <div className="absolute top-0 right-0 p-3 text-[9px] font-mono text-indigo-500 dark:text-indigo-400 uppercase font-black flex items-center gap-1 bg-white/60 dark:bg-slate-900/60 rounded-bl-xl border-l border-b border-indigo-200/40 dark:border-indigo-800/40">
               <Bot className="w-3.5 h-3.5 animate-bounce" />
               <span>Avaxa AI Drafted</span>
             </div>
@@ -740,7 +847,7 @@ function DashboardOverview({
               {renderMarkdown(reportText)}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-indigo-100/30">
+            <div className="flex justify-end pt-3 border-t border-indigo-200/40 dark:border-indigo-900/40">
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(reportText);
@@ -749,28 +856,18 @@ function DashboardOverview({
                   }
                   alert(locale === 'vi' ? "Đã sao chép báo cáo vào bộ nhớ tạm!" : "Report copied to clipboard!");
                 }}
-                className="py-1.5 px-3 rounded-lg text-xs font-bold bg-[#6366F1]/10 hover:bg-[#6366F1]/20 text-[#4F46E5] flex items-center gap-1.5 cursor-pointer"
-                title={locale === 'vi' ? "Sao chép nội dung báo cáo" : "Copy report content"}
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
               >
-                <span>{locale === 'vi' ? "Sao chép Báo cáo" : "Copy Report"}</span>
+                {locale === 'vi' ? 'Sao chép báo cáo' : 'Copy Report'}
               </button>
             </div>
           </motion.div>
         ) : reportError ? (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200/55 text-rose-805 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
-            <p className="font-semibold">{reportError}</p>
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{reportError}</span>
           </div>
-        ) : (
-          <div className="py-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
-            <Sparkles className="w-6 h-6 text-indigo-400/60 mx-auto mb-2 animate-pulse" />
-            <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold font-sans">
-              {t('dashboardNoReportGenerated') || 'Chưa có báo cáo tuần được sinh ra. Bấm '} 
-              <strong className="text-indigo-650 font-black">"{t('dashboardGenerateReport') || 'Khởi tạo báo cáo AI'}"</strong> 
-              {t('dashboardGenerateReportBtn') ? ` ${t('dashboardGenerateReportBtn')}` : ' để khởi chạy phân tích.'}
-            </span>
-          </div>
-        )}
+        ) : null}
       </motion.div>
 
     </div>

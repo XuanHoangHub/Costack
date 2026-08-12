@@ -47,7 +47,7 @@ export default function ShareSettingsModal({
 
   // Filter members that can be added (not yourself, not already in share settings)
   const addableMembers = members.filter(m => {
-    const cleanId = m.id === 'user' ? currentUser?.id : m.id.replace('user-', '');
+    const cleanId = m.userId || (m.id === 'user' ? currentUser?.id : m.id.replace('user-', ''));
     const cleanCurrentUserId = currentUser?.id;
     
     if (cleanId === cleanCurrentUserId) return false;
@@ -179,7 +179,7 @@ export default function ShareSettingsModal({
                   >
                     <option value="">Chọn thành viên...</option>
                     {addableMembers.map(m => (
-                      <option key={m.id} value={m.id === 'user' ? currentUser?.id : m.id.replace('user-', '')}>
+                      <option key={m.id} value={m.userId || (m.id === 'user' ? currentUser?.id : m.id.replace('user-', ''))}>
                         {m.name} ({m.email})
                       </option>
                     ))}
@@ -236,7 +236,7 @@ export default function ShareSettingsModal({
                 {/* Shared list */}
                 {Object.entries(shareSettings).map(([userId, role]) => {
                   const member = members.find(m => {
-                    const cleanId = m.id === 'user' ? currentUser?.id : m.id.replace('user-', '');
+                    const cleanId = m.userId || (m.id === 'user' ? currentUser?.id : m.id.replace('user-', ''));
                     return cleanId === userId;
                   });
 

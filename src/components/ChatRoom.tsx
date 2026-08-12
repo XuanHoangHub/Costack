@@ -18,14 +18,54 @@ import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
 import { useUiStore } from '../store/uiStore';
 
+const useChatAttachmentUrl = (filePath?: string) => {
+  const [url, setUrl] = useState(filePath || '');
+
+  useEffect(() => {
+    let active = true;
+    if (!filePath || /^(https?:|blob:|data:|\/)/.test(filePath)) {
+      setUrl(filePath || '');
+      return;
+    }
+
+    supabase.storage.from('chat-attachments').createSignedUrl(filePath, 3600).then(({ data, error }) => {
+      if (!active) return;
+      setUrl(error ? '' : (data?.signedUrl || ''));
+    });
+
+    return () => { active = false; };
+  }, [filePath]);
+
+  return url;
+};
+
+const ChatAttachmentDownload = ({ filePath, name }: { filePath: string; name: string }) => {
+  const url = useChatAttachmentUrl(filePath);
+  return (
+    <a
+      href={url || undefined}
+      download={name}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-disabled={!url}
+      className={`p-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-300 transition-colors shrink-0 flex items-center justify-center ${url ? 'hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer' : 'opacity-40 pointer-events-none'}`}
+      title={url ? `Tải ${name}` : 'Đang chuẩn bị liên kết tải xuống'}
+    >
+      <ArrowRight className="w-3.5 h-3.5" />
+    </a>
+  );
+};
+
 const VoiceMessagePlayer = ({ filePath, duration }: { filePath: string; duration?: number }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(duration || 0);
+  const audioUrl = useChatAttachmentUrl(filePath);
 
   useEffect(() => {
-    const audio = new Audio(filePath);
+    if (!audioUrl) return;
+    const audio = new Audio(audioUrl);
     audioRef.current = audio;
 
     const handleTimeUpdate = () => {
@@ -53,7 +93,7 @@ const VoiceMessagePlayer = ({ filePath, duration }: { filePath: string; duration
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [filePath]);
+  }, [audioUrl]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -142,12 +182,12 @@ interface ChatRoomProps {
   initialSelectedChannelId?: string | null;
   onClearInitialSelectedChannelId?: () => void;
   workspaceId: string;
-  forcedChannelId?: string;
-  forcedChannelName?: string;
   spaces?: Space[];
   onSaveSpaces?: (spaces: Space[]) => void;
   onAddTask?: (task: any) => void;
   setViewType?: (view: any) => void;
+  forcedChannelId?: string;
+  forcedChannelName?: string;
 }
 
 // Minimal markdown formatter
@@ -187,6 +227,30 @@ const formatMessageContent = (text: string) => {
   return <div className="space-y-0.5">{processedLines}</div>;
 };
 
+const mapChatMessage = (row: any): ChatMessage => ({
+  id: row.id,
+  senderId: row.sender_id,
+  senderName: row.sender_name,
+  senderAvatar: row.sender_avatar || '',
+  content: row.content,
+  timestamp: row.timestamp,
+  channelId: row.channel_id,
+  isAi: row.is_ai_response,
+  reactions: Array.isArray(row.reactions) ? row.reactions : [],
+  attachment: row.attachment || undefined,
+  parentId: row.parent_id || undefined,
+  isPinned: Boolean(row.is_pinned),
+  createdAt: row.created_at,
+  editedAt: row.edited_at || undefined,
+  deliveryState: 'sent'
+});
+
+const safeFileName = (name: string) => name.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
+const resolveMemberAuthId = (member: User) => {
+  const candidate = member.userId || member.id;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : null;
+};
+
 export default function ChatRoom({
   members,
   currentUser,
@@ -197,8 +261,6 @@ export default function ChatRoom({
   initialSelectedChannelId,
   onClearInitialSelectedChannelId,
   workspaceId,
-  forcedChannelId,
-  forcedChannelName,
   spaces = [],
   onSaveSpaces,
   onAddTask,
@@ -216,18 +278,15 @@ export default function ChatRoom({
   // Custom Channel Management states
   const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
   const [showNewDmModal, setShowNewDmModal] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [dmSearchQuery, setDmSearchQuery] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<string[]>([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
-  const [channelScope, setChannelScope] = useState<'workspace' | 'space'>('workspace');
-  const [createChannelSpaceId, setCreateChannelSpaceId] = useState<string>('');
-
-  useEffect(() => {
-    if (spaces && spaces.length > 0 && !createChannelSpaceId) {
-      setCreateChannelSpaceId(spaces[0].id);
-    }
-  }, [spaces, createChannelSpaceId]);
-  
+  const [newChannelType, setNewChannelType] = useState<'public' | 'private'>('public');
   // Custom Channel Actions & Rename states
   const [activeChannelMenuId, setActiveChannelMenuId] = useState<string | null>(null);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -236,12 +295,13 @@ export default function ChatRoom({
   const [renameChannelDesc, setRenameChannelDesc] = useState('');
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const channelSubscriptionRef = useRef<any>(null);
+  const messageCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
 
   // Emoji Picker Popover state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // File Attachment states
-  const [selectedFile, setSelectedFile] = useState<{ name: string; size: number; type: string; url?: string; isVoice?: boolean; duration?: number } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; size: number; type: string; url?: string; file?: File | Blob; isVoice?: boolean; duration?: number } | null>(null);
 
   // Voice Recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -280,6 +340,7 @@ export default function ChatRoom({
   // Form input states
   const [inputVal, setInputVal] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -343,6 +404,18 @@ export default function ChatRoom({
     setStarredChannelIds(prev => {
       const exists = prev.includes(chanId);
       const updated = exists ? prev.filter(id => id !== chanId) : [...prev, chanId];
+      if (!isOffline) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.user?.id) return;
+          supabase.from('chat_channel_members').upsert({
+            channel_id: chanId,
+            user_id: session.user.id,
+            is_starred: !exists
+          }, { onConflict: 'channel_id,user_id' }).then(({ error }) => {
+            if (error) console.error('Unable to save starred channel:', error);
+          });
+        });
+      }
       triggerToast?.('info', exists ? 'Đã bỏ yêu thích ⭐' : 'Đã thêm vào Yêu thích ⭐', exists ? 'Kênh đã xóa khỏi mục Starred' : 'Kênh đã thêm vào mục Starred');
       return updated;
     });
@@ -433,8 +506,32 @@ export default function ChatRoom({
     }
   ];
 
+  const persistStructuredMessage = async (
+    message: ChatMessage,
+    channelId = activeChannelId
+  ) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) throw new Error('Authentication required');
+    const { error } = await supabase.from('chat_messages').insert({
+      id: message.id,
+      sender_id: message.senderId,
+      sender_name: message.senderName,
+      sender_avatar: message.senderAvatar || null,
+      content: message.content,
+      timestamp: message.timestamp,
+      channel_id: channelId,
+      is_ai_response: Boolean(message.isAi),
+      workspace_id: workspaceId,
+      user_id: session.user.id,
+      attachment: message.attachment || null,
+      parent_id: message.parentId || null,
+      reactions: message.reactions || []
+    });
+    if (error) throw error;
+  };
+
   // Handlers for Icon Actions
-  const handleSendGif = (gif: { title: string; url: string }) => {
+  const handleSendGif = async (gif: { title: string; url: string }) => {
     const msgId = `msg-${Date.now()}`;
     const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const newMsg: ChatMessage = {
@@ -452,13 +549,19 @@ export default function ChatRoom({
         isImage: true
       }
     };
-    setMessages(prev => [...prev, newMsg]);
-    setShowGifPicker(false);
-    scrollToBottom();
-    triggerToast?.('success', 'Đã gửi GIF 🎞️', `Đã chia sẻ ${gif.title}`);
+    try {
+      await persistStructuredMessage(newMsg);
+      setMessages(prev => prev.some(message => message.id === newMsg.id) ? prev : [...prev, newMsg]);
+      setShowGifPicker(false);
+      scrollToBottom();
+      triggerToast?.('success', 'Đã gửi GIF 🎞️', `Đã chia sẻ ${gif.title}`);
+    } catch (error) {
+      console.error('Unable to send GIF:', error);
+      triggerToast?.('error', 'Không gửi được GIF', 'Vui lòng thử lại.');
+    }
   };
 
-  const handleCreateVideoMeeting = (e: React.FormEvent) => {
+  const handleCreateVideoMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     const roomName = `avaxa-${activeChannelId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString(36)}`;
     const roomUrl = `https://meet.jit.si/${roomName}`;
@@ -482,11 +585,17 @@ export default function ChatRoom({
       } as any
     };
     
-    setMessages(prev => [...prev, meetingMsg]);
-    setShowVideoMeetModal(false);
-    setVideoMeetTitle('Cuộc họp nhanh');
-    scrollToBottom();
-    triggerToast?.('success', 'Đã tạo cuộc họp Video 📹', 'Mọi người có thể tham gia ngay bây giờ.');
+    try {
+      await persistStructuredMessage(meetingMsg);
+      setMessages(prev => prev.some(message => message.id === meetingMsg.id) ? prev : [...prev, meetingMsg]);
+      setShowVideoMeetModal(false);
+      setVideoMeetTitle('Cuộc họp nhanh');
+      scrollToBottom();
+      triggerToast?.('success', 'Đã tạo cuộc họp Video 📹', 'Mọi người có thể tham gia ngay bây giờ.');
+    } catch (error) {
+      console.error('Unable to create meeting:', error);
+      triggerToast?.('error', 'Không tạo được cuộc họp', 'Vui lòng thử lại.');
+    }
   };
 
   const handleInsertChecklist = (e: React.FormEvent) => {
@@ -644,7 +753,7 @@ ${channelMessagesText}`;
   };
 
   // ── Poll Creation & Voting Handlers ──
-  const handleCreatePollSubmit = (e: React.FormEvent) => {
+  const handleCreatePollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pollQuestion.trim()) return;
     const validOptions = pollOptions.filter(o => o.trim().length > 0);
@@ -676,44 +785,27 @@ ${channelMessagesText}`;
       attachment: pollAttachment as any
     };
 
-    setMessages(prev => [...prev, pollMsg]);
-    setShowPollModal(false);
-    setPollQuestion('');
-    setPollOptions(['Option 1', 'Option 2']);
-    scrollToBottom();
-
-    triggerToast?.('success', 'Poll Created 📊', 'Interactive poll posted to channel.');
+    try {
+      await persistStructuredMessage(pollMsg);
+      setMessages(prev => prev.some(message => message.id === pollMsg.id) ? prev : [...prev, pollMsg]);
+      setShowPollModal(false);
+      setPollQuestion('');
+      setPollOptions(['Option 1', 'Option 2']);
+      scrollToBottom();
+      triggerToast?.('success', 'Đã tạo thăm dò 📊', 'Mọi người trong kênh có thể bỏ phiếu.');
+    } catch (error) {
+      console.error('Unable to create poll:', error);
+      triggerToast?.('error', 'Không tạo được thăm dò', 'Vui lòng thử lại.');
+    }
   };
 
-  const handleVotePoll = (msgId: string, optionId: string) => {
-    const userId = currentUser.id || 'user';
-    setMessages(prev => prev.map(m => {
-      if (m.id !== msgId || !m.attachment?.isPoll) return m;
-      
-      const poll = m.attachment;
-      const updatedOptions = (poll?.options || []).map((opt: any) => {
-        const hasVoted = (opt.votes || []).includes(userId);
-        if (opt.id === optionId) {
-          return {
-            ...opt,
-            votes: hasVoted ? opt.votes.filter((id: string) => id !== userId) : [...(opt.votes || []), userId]
-          };
-        } else {
-          return {
-            ...opt,
-            votes: (opt.votes || []).filter((id: string) => id !== userId)
-          };
-        }
-      });
-
-      return {
-        ...m,
-        attachment: {
-          ...poll,
-          options: updatedOptions
-        }
-      };
-    }));
+  const handleVotePoll = async (msgId: string, optionId: string) => {
+    const { data, error } = await supabase.rpc('vote_chat_poll', { p_message_id: msgId, p_option_id: optionId });
+    if (error) {
+      triggerToast?.('error', 'Không ghi nhận được phiếu', error.message);
+      return;
+    }
+    setMessages(prev => prev.map(message => message.id === msgId ? { ...message, attachment: data } : message));
     (window as any).playSystemSound?.('click');
   };
 
@@ -801,140 +893,115 @@ ${channelMessagesText}`;
     return null;
   };
 
-  // Initialize channels and load custom channels
-  useEffect(() => {
-    if (forcedChannelId) {
-      const channel: ChatChannel = {
-        id: forcedChannelId,
-        name: forcedChannelName || 'Channel',
-        description: `Collaborate seamlessly across tasks and conversations. Start chatting with your team or connect tasks to stay on top of your work.`,
-        type: 'public'
-      };
-      setChannels([channel]);
-      setActiveChannelId(forcedChannelId);
-      return;
-    }
+  const ensureDefaultChannels = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) return;
 
-    const defaultChannels: ChatChannel[] = [
-      { id: `${workspaceId}:general`, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
-      { id: `${workspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Hỏi đáp với AI thông quang.', type: 'public' }
+    const defaults = [
+      { id: `${workspaceId}:general`, workspace_id: workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', channel_type: 'public', created_by: session.user.id },
+      { id: `${workspaceId}:avaxa-brain-ai`, workspace_id: workspaceId, name: 'avaxa-brain-ai', description: 'Trợ lý AI của workspace.', channel_type: 'public', created_by: session.user.id }
     ];
+    const { error } = await supabase.from('chat_channels').upsert(defaults, { onConflict: 'id', ignoreDuplicates: true });
+    if (error) throw error;
+  };
 
-    const customChannels: ChatChannel[] = [];
-    spaces.forEach(s => {
-      if (s.channels && Array.isArray(s.channels)) {
-        s.channels.forEach((c: any) => {
-          if (c.id !== 'general' && c.id !== 'avaxa-brain-ai') {
-            if (s.id.endsWith('-general') && c.id.startsWith('workspace-')) {
-              customChannels.push({
-                id: `${workspaceId}:${c.id}`,
-                name: c.name,
-                description: c.description || 'Kênh thảo luận chung của workspace',
-                type: c.type || 'public'
-              });
-            } else if (c.id.startsWith('folder-')) {
-              customChannels.push({
-                id: `${workspaceId}:folder-${s.id}-${c.id.substring(7)}`,
-                name: c.name,
-                description: c.description || `Kênh chat của Folder ${c.name}`,
-                type: c.type || 'public'
-              });
-            } else if (c.id.startsWith('list-')) {
-              customChannels.push({
-                id: `${workspaceId}:list-${s.id}-${c.id.substring(5)}`,
-                name: c.name,
-                description: c.description || `Kênh chat của List ${c.name}`,
-                type: c.type || 'public'
-              });
-            } else {
-              customChannels.push({
-                id: `${workspaceId}:space-${s.id}-${c.id}`,
-                name: c.name,
-                description: c.description || `Kênh chat của Space ${s.name}`,
-                type: c.type || 'public'
-              });
-            }
-          }
-        });
+  // Initialize channels from the durable workspace chat directory.
+  useEffect(() => {
+    let active = true;
+    const loadChannels = async () => {
+      if (isOffline) {
+        const defaults: ChatChannel[] = [
+          { id: `${workspaceId}:general`, workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
+          { id: `${workspaceId}:avaxa-brain-ai`, workspaceId, name: 'avaxa-brain-ai', description: 'Trợ lý AI của workspace.', type: 'public' }
+        ];
+        if (active) setChannels(defaults);
+        return;
       }
-    });
 
-    const allChannels = [...defaultChannels, ...customChannels];
-    setChannels(allChannels);
-
-    // Auto select first channel if not set or active channel is deleted
-    if (!activeChannelId || !allChannels.some(c => c.id === activeChannelId)) {
-      const defaultActive = initialSelectedChannelId || `${workspaceId}:general`;
-      setActiveChannelId(defaultActive);
-    }
-  }, [workspaceId, initialSelectedChannelId, forcedChannelId, forcedChannelName, spaces, activeChannelId]);
+      try {
+        await ensureDefaultChannels();
+        const { data, error } = await supabase
+          .from('chat_channels')
+          .select('id, workspace_id, name, description, channel_type, dm_key')
+          .eq('workspace_id', workspaceId)
+          .eq('is_archived', false)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        if (!active) return;
+        const loaded: ChatChannel[] = (data || []).map((channel: any) => ({
+          id: channel.id,
+          workspaceId: channel.workspace_id,
+          name: channel.name,
+          description: channel.description || '',
+          type: channel.channel_type,
+          dmKey: channel.dm_key || undefined
+        }));
+        setChannels(loaded);
+        setActiveChannelId(previous => {
+          const requested = initialSelectedChannelId && loaded.some(c => c.id === initialSelectedChannelId)
+            ? initialSelectedChannelId
+            : previous;
+          return requested && loaded.some(c => c.id === requested) ? requested : `${workspaceId}:general`;
+        });
+      } catch (error) {
+        console.error('Unable to load chat channels:', error);
+        triggerToast?.('error', 'Không thể tải kênh', 'Vui lòng kiểm tra kết nối và thử lại.');
+      }
+    };
+    loadChannels();
+    return () => { active = false; };
+  }, [workspaceId, initialSelectedChannelId, isOffline]);
 
   // Channel Actions
-  const handleCreateChannel = (e: React.FormEvent) => {
+  const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChannelName.trim()) return;
 
     const cleanedName = newChannelName.trim().toLowerCase().replace(/\s+/g, '-');
     
-    let targetSpaceId = '';
-    let localChanId = '';
-    
-    if (channelScope === 'workspace') {
-      const generalSpace = spaces.find(s => s.id.endsWith('-general')) || spaces[0];
-      if (!generalSpace) {
-        triggerToast?.('info', 'Create Error', 'No general space found.');
-        return;
-      }
-      targetSpaceId = generalSpace.id;
-      localChanId = `workspace-custom-${Date.now()}`;
-    } else {
-      if (!createChannelSpaceId) {
-        triggerToast?.('info', 'Create Error', 'Please select a Space.');
-        return;
-      }
-      targetSpaceId = createChannelSpaceId;
-      localChanId = `custom-${Date.now()}`;
+    const channelId = `${workspaceId}:channel-${crypto.randomUUID()}`;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      triggerToast?.('error', 'Chưa đăng nhập', 'Bạn cần đăng nhập để tạo kênh.');
+      return;
     }
-
-    const newChanObj = {
-      id: localChanId,
+    const newChannel: ChatChannel = {
+      id: channelId,
+      workspaceId,
       name: cleanedName,
       description: newChannelDesc.trim() || 'Custom chat channel',
-      type: 'public'
+      type: newChannelType
     };
-
-    if (onSaveSpaces) {
-      const space = spaces.find(s => s.id === targetSpaceId);
-      if (space) {
-        const updatedChannels = [...(space.channels || []), newChanObj];
-        const updatedSpaces = spaces.map(s => s.id === targetSpaceId ? { ...s, channels: updatedChannels } : s);
-        onSaveSpaces(updatedSpaces);
-      }
+    const { error } = await supabase.from('chat_channels').insert({
+      id: channelId,
+      workspace_id: workspaceId,
+      name: cleanedName,
+      description: newChannel.description,
+      channel_type: newChannelType,
+      created_by: session.user.id
+    });
+    if (error) {
+      triggerToast?.('error', 'Không thể tạo kênh', error.code === '23505' ? 'Tên kênh đã tồn tại.' : error.message);
+      return;
     }
-
-    const nextActiveId = channelScope === 'workspace' 
-      ? `${workspaceId}:${localChanId}`
-      : `${workspaceId}:space-${targetSpaceId}-${localChanId}`;
-
-    setActiveChannelId(nextActiveId);
+    await supabase.from('chat_channel_members').upsert({ channel_id: channelId, user_id: session.user.id, role: 'owner' });
+    setChannels(prev => [...prev, newChannel]);
+    setActiveChannelId(channelId);
     setNewChannelName('');
     setNewChannelDesc('');
+    setNewChannelType('public');
     setShowCreateChannelModal(false);
     onAddSyncLog(`Created chat channel: #${cleanedName}`);
     triggerToast?.('success', 'Channel Created 📣', `Channel #${cleanedName} has been successfully created.`);
   };
 
-  const handleDeleteChannel = (chanId: string, name: string) => {
-    const loc = resolveChannelLocation(chanId);
-    if (loc && onSaveSpaces) {
-      const space = spaces.find(s => s.id === loc.spaceId);
-      if (space) {
-        const updatedChannels = (space.channels || []).filter((c: any) => c.id !== loc.localChanId);
-        const updatedSpaces = spaces.map(s => s.id === loc.spaceId ? { ...s, channels: updatedChannels } : s);
-        onSaveSpaces(updatedSpaces);
-      }
+  const handleDeleteChannel = async (chanId: string, name: string) => {
+    const { error } = await supabase.from('chat_channels').delete().eq('id', chanId);
+    if (error) {
+      triggerToast?.('error', 'Không thể xóa kênh', error.message);
+      return;
     }
-
+    setChannels(prev => prev.filter(channel => channel.id !== chanId));
     if (activeChannelId === chanId) {
       setActiveChannelId(`${workspaceId}:general`);
     }
@@ -943,25 +1010,23 @@ ${channelMessagesText}`;
     triggerToast?.('info', 'Channel Deleted 🗑️', `Channel #${name} has been removed.`);
   };
 
-  const handleRenameChannel = (e: React.FormEvent) => {
+  const handleRenameChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!renamingChannelId || !renameChannelName.trim()) return;
 
     const cleanedName = renameChannelName.trim().toLowerCase().replace(/\s+/g, '-');
-    const loc = resolveChannelLocation(renamingChannelId);
-    
-    if (loc && onSaveSpaces) {
-      const space = spaces.find(s => s.id === loc.spaceId);
-      if (space) {
-        const updatedChannels = (space.channels || []).map((c: any) => 
-          c.id === loc.localChanId 
-            ? { ...c, name: cleanedName, description: renameChannelDesc.trim() || c.description } 
-            : c
-        );
-        const updatedSpaces = spaces.map(s => s.id === loc.spaceId ? { ...s, channels: updatedChannels } : s);
-        onSaveSpaces(updatedSpaces);
-      }
+    const { error } = await supabase.from('chat_channels').update({
+      name: cleanedName,
+      description: renameChannelDesc.trim(),
+      updated_at: new Date().toISOString()
+    }).eq('id', renamingChannelId);
+    if (error) {
+      triggerToast?.('error', 'Không thể đổi tên kênh', error.code === '23505' ? 'Tên kênh đã tồn tại.' : error.message);
+      return;
     }
+    setChannels(prev => prev.map(channel => channel.id === renamingChannelId
+      ? { ...channel, name: cleanedName, description: renameChannelDesc.trim() }
+      : channel));
 
     onAddSyncLog(`Renamed chat channel to: #${cleanedName}`);
     triggerToast?.('success', 'Channel Renamed 📣', `Channel has been successfully renamed to #${cleanedName}.`);
@@ -973,18 +1038,17 @@ ${channelMessagesText}`;
   };
 
   const handleTogglePinMessage = async (msgId: string, currentPinned: boolean) => {
-    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isPinned: !currentPinned } : m));
-
     if (!isOffline) {
-      try {
-        await supabase
-          .from('chat_messages')
-          .update({ is_pinned: !currentPinned })
-          .eq('id', msgId);
-      } catch (err) {
-        console.error('Error toggling pin state:', err);
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({ is_pinned: !currentPinned })
+        .eq('id', msgId);
+      if (error) {
+        triggerToast?.('error', 'Không thể cập nhật ghim', error.message);
+        return;
       }
     }
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isPinned: !currentPinned } : m));
 
     if (currentPinned) {
       triggerToast?.('info', 'Message Unpinned 📌', 'This message has been unpinned.');
@@ -1110,11 +1174,7 @@ ${channelMessagesText}`;
       }
 
       if (isOffline) {
-        if (forcedChannelId && activeChannelId === forcedChannelId) {
-          setMessages([
-            { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${forcedChannelName || 'channel'}.`, timestamp: 'Vừa xong' }
-          ]);
-        } else if (isDm) {
+        if (isDm) {
           const memberId = activeChannelId.split('-').pop();
           const member = members.find(m => m.id === memberId);
           setMessages([
@@ -1135,73 +1195,24 @@ ${channelMessagesText}`;
       }
 
       try {
+        const cachedMessages = messageCacheRef.current.get(activeChannelId);
+        setMessages(cachedMessages || []);
+        setIsLoadingMessages(!cachedMessages);
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('channel_id', activeChannelId)
-          .order('created_at', { ascending: true });
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-        if (!error && data) {
-          if (data.length === 0) {
-            // Seed default messages
-            let defaultMsgs: ChatMessage[] = [];
-            if (forcedChannelId && activeChannelId === forcedChannelId) {
-              defaultMsgs = [
-                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${forcedChannelName || 'channel'}.`, timestamp: 'Vừa xong' }
-              ];
-            } else if (isDm) {
-              defaultMsgs = [
-                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu cuộc trò chuyện trực tiếp của bạn với ${members.find(m => m.id === activeChannelId.split('-').pop())?.name || 'thành viên này'}.`, timestamp: 'Vừa xong' }
-              ];
-            } else if (isSpace) {
-              defaultMsgs = [
-                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${entityName}.`, timestamp: 'Vừa xong' }
-              ];
-            } else {
-              const channelKey = activeChannelId.split(':').pop() || 'general';
-              defaultMsgs = seedMessages[channelKey] || [
-                { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${channelKey}.`, timestamp: 'Vừa xong' }
-              ];
-            }
-
-            if (defaultMsgs.length > 0) {
-              const { data: { session } } = await supabase.auth.getSession();
-              const userId = session?.user?.id;
-              const toInsert = defaultMsgs.map(m => ({
-                id: m.id,
-                sender_id: m.senderId,
-                sender_name: m.senderName,
-                sender_avatar: m.senderAvatar || null,
-                content: m.content,
-                timestamp: m.timestamp,
-                channel_id: activeChannelId,
-                is_ai_response: m.isAi || false,
-                workspace_id: workspaceId,
-                user_id: userId || null,
-                attachment: null
-              }));
-              await supabase.from('chat_messages').insert(toInsert);
-              setMessages(defaultMsgs);
-            } else {
-              setMessages([]);
-            }
-          } else {
-            setMessages(data.map(m => ({
-              id: m.id,
-              senderId: m.sender_id,
-              senderName: m.sender_name,
-              senderAvatar: m.sender_avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=S',
-              content: m.content,
-              timestamp: m.timestamp,
-              isAi: m.is_ai_response,
-              attachment: m.attachment || undefined,
-              parentId: m.parent_id || undefined,
-              isPinned: m.is_pinned || false
-            })));
-          }
-        }
+        if (error) throw error;
+        const loadedMessages = (data || []).reverse().map(mapChatMessage);
+        messageCacheRef.current.set(activeChannelId, loadedMessages);
+        setMessages(loadedMessages);
       } catch (err) {
         console.error('Error loading messages from Supabase:', err);
+      } finally {
+        setIsLoadingMessages(false);
       }
       scrollToBottom();
     };
@@ -1217,7 +1228,7 @@ ${channelMessagesText}`;
             event: '*',
             schema: 'public',
             table: 'chat_messages',
-            filter: `channel_id=eq."${activeChannelId}"`
+            filter: `channel_id=eq.${activeChannelId}`
           },
           (payload) => {
             const eventType = payload.eventType;
@@ -1225,32 +1236,26 @@ ${channelMessagesText}`;
             if (!m || m.channel_id !== activeChannelId) return;
 
             if (eventType === 'INSERT') {
-              const newMsg: ChatMessage = {
-                id: m.id,
-                senderId: m.sender_id,
-                senderName: m.sender_name,
-                senderAvatar: m.sender_avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=S',
-                content: m.content,
-                timestamp: m.timestamp,
-                isAi: m.is_ai_response,
-                attachment: m.attachment || undefined,
-                parentId: m.parent_id || undefined,
-                isPinned: m.is_pinned || false
-              };
+              const newMsg = mapChatMessage(m);
               setMessages(prev => {
                 if (prev.some(x => x.id === newMsg.id)) return prev;
-                return [...prev, newMsg];
+                const next = [...prev, newMsg];
+                messageCacheRef.current.set(activeChannelId, next);
+                return next;
               });
               scrollToBottom();
             } else if (eventType === 'UPDATE') {
-              setMessages(prev => prev.map(x => x.id === m.id ? { 
-                ...x, 
-                content: m.content, 
-                attachment: m.attachment || undefined,
-                isPinned: m.is_pinned || false
-              } : x));
+              setMessages(prev => {
+                const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
+                messageCacheRef.current.set(activeChannelId, next);
+                return next;
+              });
             } else if (eventType === 'DELETE') {
-              setMessages(prev => prev.filter(x => x.id !== m.id));
+              setMessages(prev => {
+                const next = prev.filter(x => x.id !== m.id);
+                messageCacheRef.current.set(activeChannelId, next);
+                return next;
+              });
             }
           }
         )
@@ -1286,7 +1291,7 @@ ${channelMessagesText}`;
         channelSubscriptionRef.current = null;
       }
     };
-  }, [activeChannelId, forcedChannelId, forcedChannelName, isOffline, currentUser.id, currentUser.name, members, spaces, workspaceId]);
+  }, [activeChannelId, isOffline, currentUser.id, currentUser.name, members, spaces, workspaceId]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1398,8 +1403,126 @@ ${channelMessagesText}`;
 
   // Unread count helpers
   const markChannelAsRead = (channelId: string) => {
+    const readAt = new Date().toISOString();
     setUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
-    setLastReadTimestamps(prev => ({ ...prev, [channelId]: new Date().toISOString() }));
+    setLastReadTimestamps(prev => ({ ...prev, [channelId]: readAt }));
+    if (!isOffline) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.user?.id) return;
+        supabase.from('chat_read_states').upsert({
+          channel_id: channelId,
+          user_id: session.user.id,
+          last_read_at: readAt
+        }, { onConflict: 'channel_id,user_id' }).then(({ error }) => {
+          if (error && error.code !== 'PGRST116') {
+            console.warn('Chat read state was not persisted:', error.message || error.code || 'unknown error');
+          }
+        });
+      });
+    }
+  };
+
+  const openDirectMessage = async (member: User) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const peerUserId = resolveMemberAuthId(member);
+    if (!session?.user?.id || !peerUserId) {
+      triggerToast?.('error', 'Không thể mở DM', 'Thành viên này chưa được liên kết với tài khoản đăng nhập.');
+      return;
+    }
+    const dmKey = [session.user.id, peerUserId].sort().join(':');
+    const existing = channels.find(channel => channel.type === 'dm' && channel.dmKey === dmKey);
+    if (existing) {
+      setActiveChannelId(existing.id);
+      setShowNewDmModal(false);
+      setDmSearchQuery('');
+      return;
+    }
+
+    const channelId = `${workspaceId}:dm-${crypto.randomUUID()}`;
+    const { error } = await supabase.from('chat_channels').insert({
+      id: channelId,
+      workspace_id: workspaceId,
+      name: member.name,
+      description: `Tin nhắn trực tiếp với ${member.name}`,
+      channel_type: 'dm',
+      dm_key: dmKey,
+      created_by: session.user.id
+    });
+    if (error && error.code !== '23505') {
+      triggerToast?.('error', 'Không thể mở DM', error.message);
+      return;
+    }
+
+    const resolvedId = error?.code === '23505'
+      ? (await supabase.from('chat_channels').select('id').eq('workspace_id', workspaceId).eq('dm_key', dmKey).single()).data?.id
+      : channelId;
+    if (!resolvedId) return;
+    const { error: memberError } = await supabase.from('chat_channel_members').upsert([
+      { channel_id: resolvedId, user_id: session.user.id, role: 'owner' },
+      { channel_id: resolvedId, user_id: peerUserId, role: 'member' }
+    ], { onConflict: 'channel_id,user_id' });
+    if (memberError) {
+      triggerToast?.('error', 'Không thể thêm thành viên DM', memberError.message);
+      return;
+    }
+    const channel: ChatChannel = { id: resolvedId, workspaceId, name: member.name, description: `Tin nhắn trực tiếp với ${member.name}`, type: 'dm', dmKey };
+    setChannels(prev => prev.some(item => item.id === resolvedId) ? prev : [...prev, channel]);
+    setActiveChannelId(resolvedId);
+    setShowNewDmModal(false);
+    setDmSearchQuery('');
+    triggerToast?.('info', 'Trò chuyện trực tiếp 💬', `Đã mở khung chat với ${member.name}`);
+  };
+
+  const handleCreateGroupChat = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!groupName.trim() || selectedGroupMemberIds.length < 2 || isCreatingGroup) return;
+    setIsCreatingGroup(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) throw new Error('Bạn cần đăng nhập để tạo nhóm chat.');
+
+      const channelId = `${workspaceId}:group-${crypto.randomUUID()}`;
+      const cleanName = groupName.trim().slice(0, 60);
+      const { error: channelError } = await supabase.from('chat_channels').insert({
+        id: channelId,
+        workspace_id: workspaceId,
+        name: cleanName,
+        description: `${selectedGroupMemberIds.length + 1} thành viên`,
+        channel_type: 'group',
+        created_by: session.user.id
+      });
+      if (channelError) throw channelError;
+
+      const memberRows = [
+        { channel_id: channelId, user_id: session.user.id, role: 'owner' },
+        ...selectedGroupMemberIds.map(userId => ({ channel_id: channelId, user_id: userId, role: 'member' }))
+      ];
+      const { error: membersError } = await supabase.from('chat_channel_members').insert(memberRows);
+      if (membersError) {
+        await supabase.from('chat_channels').delete().eq('id', channelId);
+        throw membersError;
+      }
+
+      const groupChannel: ChatChannel = {
+        id: channelId,
+        workspaceId,
+        name: cleanName,
+        description: `${memberRows.length} thành viên`,
+        type: 'group'
+      };
+      setChannels(prev => [...prev, groupChannel]);
+      setActiveChannelId(channelId);
+      setShowCreateGroupModal(false);
+      setGroupName('');
+      setGroupSearchQuery('');
+      setSelectedGroupMemberIds([]);
+      triggerToast?.('success', 'Đã tạo nhóm chat', `${cleanName} có ${memberRows.length} thành viên.`);
+    } catch (error) {
+      console.error('Unable to create group chat:', error);
+      triggerToast?.('error', 'Không thể tạo nhóm chat', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+    } finally {
+      setIsCreatingGroup(false);
+    }
   };
 
   // Track unread when messages arrive on non-active channels
@@ -1417,6 +1540,33 @@ ${channelMessagesText}`;
       setActiveChannelMenuId(null);
     }
   }, [activeChannelId]);
+
+  useEffect(() => {
+    if (isOffline || channels.length === 0) return;
+    let active = true;
+    const loadUnreadCounts = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const { data: readStates } = await supabase
+        .from('chat_read_states')
+        .select('channel_id,last_read_at')
+        .eq('user_id', session.user.id);
+      const reads = Object.fromEntries((readStates || []).map((row: any) => [row.channel_id, row.last_read_at]));
+      const nextCounts: Record<string, number> = {};
+      await Promise.all(channels.map(async channel => {
+        let query = supabase.from('chat_messages').select('id', { count: 'exact', head: true }).eq('channel_id', channel.id);
+        if (reads[channel.id]) query = query.gt('created_at', reads[channel.id]);
+        const { count } = await query;
+        nextCounts[channel.id] = channel.id === activeChannelId ? 0 : (count || 0);
+      }));
+      if (active) {
+        setLastReadTimestamps(reads);
+        setUnreadCounts(nextCounts);
+      }
+    };
+    loadUnreadCounts();
+    return () => { active = false; };
+  }, [channels, isOffline]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -1483,25 +1633,25 @@ ${channelMessagesText}`;
 
     const file = e.dataTransfer.files?.[0];
     if (file) {
+      if (file.size > 25 * 1024 * 1024) {
+        triggerToast?.('error', 'File quá lớn', 'Giới hạn file đính kèm là 25 MB.');
+        return;
+      }
       const isImg = file.type.startsWith('image/');
       if (isImg) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const fileUrl = (ev.target?.result as string) || '';
-          setSelectedFile({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            url: fileUrl
-          });
-        };
-        reader.readAsDataURL(file);
+        setSelectedFile({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: URL.createObjectURL(file),
+          file
+        });
       } else {
         setSelectedFile({
           name: file.name,
           size: file.size,
           type: file.type,
-          url: '#'
+          file
         });
       }
       triggerToast?.('success', 'File Dropped 📎', `Ready to send: ${file.name}`);
@@ -1552,6 +1702,7 @@ ${channelMessagesText}`;
           size: audioBlob.size,
           type: 'audio/webm',
           url: audioUrl,
+          file: audioBlob,
           isVoice: true,
           duration: durationSec
         });
@@ -1777,41 +1928,51 @@ ${channelMessagesText}`;
       return;
     }
 
-    setInputVal('');
-    
+    const pendingFile = selectedFile;
+    setIsSending(true);
     const msgId = `msg-${Date.now()}`;
     const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    let attachmentObj: ChatMessage['attachment'] | undefined;
 
-    const attachmentObj = selectedFile ? {
-      name: selectedFile.name,
-      filePath: selectedFile.url || '#',
-      size: selectedFile.size,
-      isImage: selectedFile.type.startsWith('image/'),
-      isVoice: selectedFile.isVoice,
-      duration: selectedFile.duration
-    } : undefined;
+    try {
+      let storedPath = pendingFile?.url || '';
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+      if (!isOffline && pendingFile?.file) {
+        if (!userId) throw new Error('Authentication required');
+        const storagePath = `${userId}/${workspaceId}/${activeChannelId}/${crypto.randomUUID()}-${safeFileName(pendingFile.name)}`;
+        const { error: uploadError } = await supabase.storage
+          .from('chat-attachments')
+          .upload(storagePath, pendingFile.file, { contentType: pendingFile.type || 'application/octet-stream', upsert: false });
+        if (uploadError) throw uploadError;
+        storedPath = storagePath;
+      }
 
-    const newMsg: ChatMessage = {
-      id: msgId,
-      senderId: currentUser.id || 'user',
-      senderName: currentUser.name,
-      senderAvatar: currentUser.avatar,
-      content: userMsgText,
-      timestamp: timeStr,
-      attachment: attachmentObj
-    };
+      attachmentObj = pendingFile ? {
+        name: pendingFile.name,
+        filePath: storedPath,
+        size: pendingFile.size,
+        type: pendingFile.type,
+        isImage: pendingFile.type.startsWith('image/'),
+        isVoice: pendingFile.isVoice,
+        duration: pendingFile.duration
+      } : undefined;
 
-    setMessages(prev => [...prev, newMsg]);
-    setSelectedFile(null);
-    scrollToBottom();
+      const newMsg: ChatMessage = {
+        id: msgId,
+        senderId: currentUser.id || 'user',
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatar,
+        content: userMsgText,
+        timestamp: timeStr,
+        channelId: activeChannelId,
+        attachment: attachmentObj,
+        deliveryState: isOffline ? 'sending' : 'sent'
+      };
 
-    let userId: string | null = null;
-
-    if (!isOffline) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        userId = session?.user?.id || null;
-        await supabase.from('chat_messages').insert({
+      if (!isOffline) {
+        if (!userId) throw new Error('Authentication required');
+        const { error } = await supabase.from('chat_messages').insert({
           id: msgId,
           sender_id: currentUser.id || 'user',
           sender_name: currentUser.name,
@@ -1824,13 +1985,16 @@ ${channelMessagesText}`;
           user_id: userId,
           attachment: attachmentObj || null
         });
-      } catch (err) {
-        console.error('Error saving user message to Supabase:', err);
+        if (error) throw error;
       }
-    }
 
-    // Check if chat is with AI Assistant channel
-    if (activeChannelId.endsWith('avaxa-brain-ai')) {
+      setMessages(prev => prev.some(message => message.id === msgId) ? prev : [...prev, newMsg]);
+      setInputVal('');
+      setSelectedFile(null);
+      scrollToBottom();
+
+      // Check if chat is with AI Assistant channel
+      if (activeChannelId.endsWith('avaxa-brain-ai')) {
       setIsAiTyping(true);
       try {
         // Gather recent 10 messages for chat history
@@ -1884,53 +2048,52 @@ ${channelMessagesText}`;
         setIsAiTyping(false);
         scrollToBottom();
       }
-    } else {
-      (window as any).playSystemSound?.('toggle');
+      } else {
+        (window as any).playSystemSound?.('toggle');
+      }
+    } catch (error) {
+      console.error('Unable to send chat message:', error);
+      triggerToast?.('error', 'Không gửi được tin nhắn', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+    } finally {
+      setIsSending(false);
     }
   };
 
   // Message Actions: Edit & Delete & Reaction
   const handleEditMessage = async (id: string, newText: string) => {
     if (!newText.trim()) return;
-    setMessages(prev => prev.map(m => m.id === id ? { ...m, content: newText } : m));
-    setEditingMsgId(null);
     if (!isOffline) {
-      try {
-        await supabase.from('chat_messages').update({ content: newText }).eq('id', id);
-      } catch (err) {
-        console.error('Error updating message in Supabase:', err);
+      const { error } = await supabase.from('chat_messages').update({ content: newText.trim(), edited_at: new Date().toISOString() }).eq('id', id);
+      if (error) {
+        triggerToast?.('error', 'Không cập nhật được tin nhắn', error.message);
+        return;
       }
     }
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, content: newText.trim(), editedAt: new Date().toISOString() } : m));
+    setEditingMsgId(null);
     triggerToast?.('success', 'Message updated 📝', 'Your message changes have been saved.');
   };
 
   const handleDeleteMessage = async (id: string) => {
-    setMessages(prev => prev.filter(m => m.id !== id));
     if (!isOffline) {
-      try {
-        await supabase.from('chat_messages').delete().eq('id', id);
-      } catch (err) {
-        console.error('Error deleting message in Supabase:', err);
+      const { error } = await supabase.from('chat_messages').delete().eq('id', id);
+      if (error) {
+        triggerToast?.('error', 'Không xóa được tin nhắn', error.message);
+        return;
       }
     }
+    setMessages(prev => prev.filter(m => m.id !== id));
     (window as any).playSystemSound?.('delete');
     triggerToast?.('info', 'Message deleted 🗑️', 'The message has been removed from the channel.');
   };
 
-  const handleAddReaction = (msgId: string, emoji: string) => {
-    setMessages(prev => prev.map(m => {
-      if (m.id !== msgId) return m;
-      const currentReactions = m.reactions || [];
-      const exists = currentReactions.find(r => r.emoji === emoji);
-      
-      let updated;
-      if (exists) {
-        updated = currentReactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1 } : r);
-      } else {
-        updated = [...currentReactions, { emoji, count: 1, userIds: ['user'] }];
-      }
-      return { ...m, reactions: updated };
-    }));
+  const handleAddReaction = async (msgId: string, emoji: string) => {
+    const { data, error } = await supabase.rpc('toggle_chat_message_reaction', { p_message_id: msgId, p_emoji: emoji });
+    if (error) {
+      triggerToast?.('error', 'Không thể thêm cảm xúc', error.message);
+      return;
+    }
+    setMessages(prev => prev.map(message => message.id === msgId ? { ...message, reactions: data || [] } : message));
     (window as any).playSystemSound?.('click');
   };
 
@@ -1944,6 +2107,13 @@ ${channelMessagesText}`;
 
   const dmMember = useMemo(() => {
     if (!isDm) return undefined;
+    const activeDm = channels.find(channel => channel.id === activeChannelId && channel.type === 'dm');
+    if (activeDm?.dmKey) {
+      const authUserId = currentUser.userId || currentUser.id;
+      const peerId = activeDm.dmKey.split(':').find(id => id !== authUserId);
+      const peer = members.find(member => (member.userId || member.id) === peerId);
+      if (peer) return peer;
+    }
     const dmPart = activeChannelId.substring(activeChannelId.indexOf(':dm-') + 4);
     
     // Find matching member from members list
@@ -1961,7 +2131,7 @@ ${channelMessagesText}`;
       const cleanId = m.id.replace(/^user-/, '');
       return dmPart.endsWith(m.id) || (cleanId !== '' && dmPart.endsWith(cleanId));
     });
-  }, [isDm, activeChannelId, members, currentUserId]);
+  }, [isDm, activeChannelId, members, currentUserId, currentUser.userId, channels]);
 
   const isSelfDm = isDm && (
     activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) ||
@@ -2032,8 +2202,7 @@ ${channelMessagesText}`;
     <div className="flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#07080c] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
-      {!forcedChannelId && (
-        <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#07080c] flex flex-col justify-between shrink-0 text-left ${
+      <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#07080c] flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
@@ -2101,7 +2270,7 @@ ${channelMessagesText}`;
                 </button>
               </div>
               <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.id !== `${workspaceId}:avaxa-brain-ai` && !c.id.includes(':space-') && !c.id.includes(':dm-')).map(c => {
+                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && c.id !== `${workspaceId}:avaxa-brain-ai` && !c.id.includes(':space-')).map(c => {
                   const isActive = c.id === activeChannelId;
                   const isDefault = c.id === `${workspaceId}:general` || c.id === `${workspaceId}:project-planning` || c.id === `${workspaceId}:design-review`;
                   
@@ -2178,120 +2347,35 @@ ${channelMessagesText}`;
               </div>
             </div>
 
-            {/* Space Channels Section */}
-            {spaces.length > 0 && (
+            {channels.some(channel => channel.type === 'group') && (
               <div>
-                <div className="px-2 mb-1.5 mt-3">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Space Channels</span>
+                <div className="mb-1.5 mt-3 flex items-center justify-between px-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nhóm chat</span>
+                  <button
+                    onClick={() => setShowCreateGroupModal(true)}
+                    className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+                    title="Tạo nhóm chat"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  {spaces.map(space => {
-                    const spaceChannels = [
-                      { id: `${workspaceId}:space-${space.id}-general`, name: 'general' },
-                      ...(space.channels || [])
-                        .filter((c: any) => c.id !== 'general' && !c.id.startsWith('workspace-'))
-                        .map((c: any) => ({
-                          id: `${workspaceId}:space-${space.id}-${c.id}`,
-                          name: c.name,
-                          description: c.description || '',
-                          isCustomSpaceChan: true
-                        })),
-                      ...(space.folders || []).map(f => ({
-                        id: `${workspaceId}:folder-${space.id}-${f.id}`,
-                        name: f.name
-                      })),
-                      ...(space.lists || []).map(l => ({
-                        id: `${workspaceId}:list-${space.id}-${l.id}`,
-                        name: l.name
-                      }))
-                    ];
-                        
+                <div className="space-y-0.5">
+                  {channels.filter(channel => channel.type === 'group').map(channel => {
+                    const isActive = channel.id === activeChannelId;
                     return (
-                      <div key={space.id} className="space-y-0.5">
-                        <div className="flex items-center justify-between px-2 py-1 text-[9.5px] font-bold text-slate-500 bg-slate-100/50 rounded-lg">
-                          <span className="flex items-center gap-1.5 truncate">
-                            <span>{space.emoji || '📁'}</span>
-                            <span className="truncate">{space.name}</span>
-                          </span>
-                        </div>
-                        
-                        <div className="pl-2.5 space-y-0.5">
-                          {spaceChannels.map(chan => {
-                            const chanId = chan.id;
-                            const isActive = activeChannelId === chanId;
-                            const isCustomSpaceChan = (chan as any).isCustomSpaceChan;
-                            return (
-                              <div 
-                                key={chan.id}
-                                className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent ${
-                                  isActive 
-                                    ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                                }`}
-                              >
-                                <button
-                                  onClick={() => setActiveChannelId(chanId)}
-                                  className="flex-1 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold cursor-pointer text-left truncate"
-                                >
-                                  <Hash className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <span className="truncate">{chan.name}</span>
-                                  {(unreadCounts[chanId] || 0) > 0 && (
-                                    <span className="ml-auto px-1.5 py-0.5 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-sm animate-bounce">
-                                      {unreadCounts[chanId] > 99 ? '99+' : unreadCounts[chanId]}
-                                    </span>
-                                  )}
-                                </button>
-                                
-                                {isCustomSpaceChan && (
-                                  <div className="relative shrink-0 flex items-center">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveChannelMenuId(activeChannelMenuId === chan.id ? null : chan.id);
-                                      }}
-                                      className="p-1 mr-1.5 rounded-lg text-slate-450 hover:text-indigo-650 hover:bg-slate-100 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
-                                      title="Channel options"
-                                    >
-                                      <MoreVertical className="w-3.5 h-3.5" />
-                                    </button>
-                                    {activeChannelMenuId === chan.id && (
-                                      <div className="absolute right-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveChannelMenuId(null);
-                                            setRenamingChannelId(chan.id);
-                                            setRenameChannelName(chan.name);
-                                            setRenameChannelDesc((chan as any).description || '');
-                                            setShowRenameModal(true);
-                                          }}
-                                          className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-                                        >
-                                          <Edit2 className="w-3 h-3 text-slate-450" />
-                                          Rename
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveChannelMenuId(null);
-                                            if (confirm(`Are you sure you want to delete the channel #${chan.name}? This action cannot be undone.`)) {
-                                              handleDeleteChannel(chan.id, chan.name);
-                                            }
-                                          }}
-                                          className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
-                                        >
-                                          <Trash2 className="w-3 h-3 text-rose-450" />
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <button
+                        key={channel.id}
+                        onClick={() => setActiveChannelId(channel.id)}
+                        className={`flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-colors ${isActive ? 'border-indigo-200/30 bg-indigo-50/80 font-bold text-indigo-700 dark:border-indigo-800/40 dark:bg-indigo-950/40 dark:text-indigo-300' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200'}`}
+                      >
+                        <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-950/60 dark:text-violet-300">
+                          <Users className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="flex-1 truncate text-left">{channel.name}</span>
+                        {(unreadCounts[channel.id] || 0) > 0 && (
+                          <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white">{unreadCounts[channel.id] > 99 ? '99+' : unreadCounts[channel.id]}</span>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
@@ -2302,25 +2386,22 @@ ${channelMessagesText}`;
             <div>
               <div className="flex items-center justify-between px-2 mb-1.5 mt-3">
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Direct Messages</span>
-                <button 
-                  onClick={() => setShowNewDmModal(true)}
-                  className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-                  title="Nhắn tin với thành viên"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button onClick={() => setShowCreateGroupModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Tạo nhóm chat"><Users className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => setShowNewDmModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Nhắn tin với thành viên"><Plus className="h-3.5 w-3.5" /></button>
+                </div>
               </div>
               <div className="space-y-0.5">
                 {members.filter(m => m.id !== currentUser.id && m.id !== 'user').map(member => {
-                  const myId = currentUser.id || 'user';
-                  const sortedIds = [myId, member.id].sort();
-                  const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
+                  const peerId = member.userId || member.id;
+                  const dmKey = [currentUser.userId || currentUser.id, peerId].sort().join(':');
+                  const dmChannelId = channels.find(channel => channel.type === 'dm' && channel.dmKey === dmKey)?.id || '';
                   const isActive = activeChannelId === dmChannelId;
                   
                   return (
                     <button
                       key={member.id}
-                      onClick={() => setActiveChannelId(dmChannelId)}
+                      onClick={() => openDirectMessage(member)}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
                         isActive 
                           ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
@@ -2417,7 +2498,6 @@ ${channelMessagesText}`;
         </div>
 
         </div>
-      )}
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
@@ -2442,22 +2522,22 @@ ${channelMessagesText}`;
         )}
         
         {/* Chat header */}
-        <header className="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#07080c]/90 backdrop-blur-md flex flex-col shrink-0">
+        <header className="relative z-30 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-[#090a0f]/95">
           {/* Top row */}
-          <div className="px-5 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex min-h-[66px] items-center justify-between gap-4 px-4 py-2.5 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Mobile Back Button to Channels List */}
               <button
                 onClick={() => setIsMobileChatActive(false)}
-                className="md:hidden p-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200/60 dark:border-slate-700/80 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-350 cursor-pointer shrink-0 transition-colors mr-1"
+                className="mr-0.5 shrink-0 cursor-pointer rounded-xl border border-slate-200/70 bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 md:hidden dark:border-slate-700/80 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 title="Quay lại danh sách chat"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               {isSelfDm ? (
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="w-8.5 h-8.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white animate-fadeIn object-cover" />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 animate-pulse"></span>
+                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900"></span>
                 </div>
               ) : isDm && dmMember ? (
                 <div 
@@ -2465,23 +2545,24 @@ ${channelMessagesText}`;
                   className="relative shrink-0 flex cursor-pointer hover:opacity-85 transition-opacity"
                   title={`Xem hồ sơ của ${dmMember.name}`}
                 >
-                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="w-8.5 h-8.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white animate-fadeIn object-cover" />
-                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${dmMember.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${dmMember.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                 </div>
               ) : (
-                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 dark:from-indigo-950/40 dark:to-purple-950/30 border border-indigo-200/30 dark:border-indigo-800/40 flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0 font-black text-xs select-none shadow-3xs">
+                <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-violet-100 text-sm font-black text-indigo-600 shadow-sm dark:border-indigo-800/60 dark:from-indigo-950/70 dark:to-violet-950/50 dark:text-indigo-300">
                   {isSpaceChan ? '📁' : '#'}
                 </div>
               )}
               
-              <div className="text-left min-w-0 flex items-center gap-2">
-                <h2 
-                  onClick={() => isDm && dmMember && setViewingMemberProfileId(dmMember.id)}
-                  className={`text-sm font-black text-slate-800 dark:text-slate-100 leading-none truncate ${isDm && dmMember ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors' : ''}`}
-                  title={isDm && dmMember ? `Xem hồ sơ của ${dmMember.name}` : undefined}
-                >
-                  {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
-                </h2>
+              <div className="min-w-0 text-left">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <h2
+                    onClick={() => isDm && dmMember && setViewingMemberProfileId(dmMember.id)}
+                    className={`truncate text-[13px] font-extrabold leading-5 text-slate-900 dark:text-slate-100 sm:text-sm ${isDm && dmMember ? 'cursor-pointer transition-colors hover:text-indigo-600 dark:hover:text-indigo-400' : ''}`}
+                    title={isDm && dmMember ? `Xem hồ sơ của ${dmMember.name}` : undefined}
+                  >
+                    {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
+                  </h2>
                 {isEditableChannel && (
                   <div className="relative flex items-center">
                     <button 
@@ -2532,59 +2613,56 @@ ${channelMessagesText}`;
                 <button 
                   type="button"
                   onClick={() => toggleStarChannel(activeChannelId)}
-                  className={`cursor-pointer transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                  className={`shrink-0 cursor-pointer rounded-lg p-1 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
                     starredChannelIds.includes(activeChannelId) ? 'text-amber-400 fill-amber-400' : 'text-slate-400 hover:text-amber-400'
                   }`}
                   title={starredChannelIds.includes(activeChannelId) ? "Bỏ yêu thích kênh" : "Yêu thích kênh"}
                 >
                   <Star className={`w-4 h-4 ${starredChannelIds.includes(activeChannelId) ? 'fill-amber-400 text-amber-400' : ''}`} />
                 </button>
+                </div>
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                  {isDm ? (
+                    <>
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSelfDm || dmMember?.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                      <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : 'Ngoại tuyến'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="shrink-0">{activeChannel?.type === 'group' ? 'Nhóm chat' : activeChannel?.type === 'private' ? 'Kênh riêng tư' : 'Kênh workspace'}</span>
+                      <span className="text-slate-300 dark:text-slate-700">•</span>
+                      <span className="max-w-[280px] truncate">{isSpaceChan ? (spaceChanDesc || 'Trao đổi công việc cùng nhóm') : (activeChannel?.description || 'Trao đổi công việc cùng nhóm')}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Branding Logo */}
-            <div className="flex items-center gap-1.5 select-none font-extrabold text-xs text-slate-800 dark:text-slate-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 animate-pulse" />
-              <span>Brain² Chat</span>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setActiveSidebarTab('search'); setShowMemberDrawer(true); }}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                title="Tìm trong cuộc trò chuyện"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveSidebarTab('members'); setShowMemberDrawer(true); }}
+                className="hidden h-8 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 text-[10.5px] font-bold text-slate-600 shadow-xs transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50"
+                title="Xem thành viên"
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>{members.length}</span>
+              </button>
+              <div className="hidden h-8 items-center gap-2 rounded-xl bg-slate-950 px-3 text-[10.5px] font-extrabold text-white shadow-sm lg:flex dark:bg-white dark:text-slate-950">
+                <span className={`h-1.5 w-1.5 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-violet-400'}`} />
+                <span>Brain² Chat</span>
+              </div>
             </div>
           </div>
 
-          {/* Bottom row (Tabs and Right Utilities) */}
-          <div className="px-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between select-none">
-            {/* Tabs */}
-            <div className="flex gap-4 text-xs font-bold text-slate-500 dark:text-slate-400 pt-2.5 pb-2">
-              <button className="text-slate-900 dark:text-slate-100 border-b-2 border-indigo-600 dark:border-indigo-400 pb-2 -mb-[9px] px-0.5 cursor-pointer font-extrabold">Chat</button>
-              <button className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors pb-2 px-0.5 cursor-pointer">Calendar</button>
-              <button className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors pb-2 px-0.5 cursor-pointer">Tasks</button>
-            </div>
-
-            {/* Right Action Utilities (float bar) */}
-            <div className="flex items-center gap-1.5 text-slate-400 pb-1">
-              <button 
-                onClick={handleSummarizeChannel}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-650 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/40 rounded-xl transition-all cursor-pointer shadow-3xs" 
-                title="Tóm tắt nội dung kênh bằng AI"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                <span className="hidden sm:inline">AI Summary</span>
-              </button>
-              <button 
-                onClick={() => setShowPollModal(true)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer shadow-3xs" 
-                title="Tạo cuộc thăm dò ý kiến (Poll)"
-              >
-                <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="hidden sm:inline">Poll</span>
-              </button>
-              <button 
-                onClick={handleExportChatMarkdown}
-                className="p-1.5 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer" 
-                title="Xuất lịch sử chat (.md)"
-              >
-                <Download className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-          </div>
         </header>
 
         {/* Pinned Messages Bar */}
@@ -2620,6 +2698,19 @@ ${channelMessagesText}`;
 
         {/* Messages List Area */}
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
+          {isLoadingMessages && messages.length === 0 && (
+            <div className="space-y-5 px-2 py-4" aria-label="Đang tải tin nhắn">
+              {[0, 1, 2].map(item => (
+                <div key={item} className="flex animate-pulse items-start gap-3">
+                  <div className="h-8 w-8 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800" />
+                  <div className="flex-1 space-y-2 pt-0.5">
+                    <div className="h-2.5 w-24 rounded-full bg-slate-100 dark:bg-slate-800" />
+                    <div className={`h-3 rounded-full bg-slate-100 dark:bg-slate-800 ${item === 1 ? 'w-2/3' : 'w-1/2'}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {isSelfDm && (
             <div className="flex flex-col items-center justify-center text-center py-10 max-w-md mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-center mb-4 text-2xl">
@@ -2711,6 +2802,7 @@ ${channelMessagesText}`;
                       </button>
                     )}
                     <span className="text-[9px] text-slate-450 dark:text-slate-500 font-mono">{msg.timestamp}</span>
+                    {msg.editedAt && <span className="text-[8.5px] text-slate-400 font-semibold">đã chỉnh sửa</span>}
                     {isMe && (
                       <span className="flex items-center gap-0.5 ml-1 select-none group/ticks relative" title={isOffline ? "Sent (Offline)" : "Read by team"}>
                         {isOffline ? (
@@ -2815,15 +2907,7 @@ ${channelMessagesText}`;
                                   {msg.attachment.size ? `${(msg.attachment.size / 1024).toFixed(1)} KB` : 'FILE'}
                                 </span>
                               </div>
-                              <a 
-                                href={msg.attachment.filePath} 
-                                download={msg.attachment.name}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-xl bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-300 transition-colors shrink-0 flex items-center justify-center cursor-pointer"
-                              >
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </a>
+                              <ChatAttachmentDownload filePath={msg.attachment.filePath} name={msg.attachment.name} />
                             </div>
                           )}
                         </div>
@@ -3303,28 +3387,30 @@ ${channelMessagesText}`;
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
+                  if (file.size > 25 * 1024 * 1024) {
+                    triggerToast?.('error', 'File quá lớn', 'Giới hạn file đính kèm là 25 MB.');
+                    e.target.value = '';
+                    return;
+                  }
                   const isImg = file.type.startsWith('image/');
                   if (isImg) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                      const fileUrl = (ev.target?.result as string) || '';
-                      setSelectedFile({
-                        name: file.name,
-                        size: file.size,
-                        type: file.type,
-                        url: fileUrl
-                      });
-                    };
-                    reader.readAsDataURL(file);
+                    setSelectedFile({
+                      name: file.name,
+                      size: file.size,
+                      type: file.type,
+                      url: URL.createObjectURL(file),
+                      file
+                    });
                   } else {
                     setSelectedFile({
                       name: file.name,
                       size: file.size,
                       type: file.type,
-                      url: '#'
+                      file
                     });
                   }
                   triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
+                  e.target.value = '';
                 }
               }}
             />
@@ -3718,49 +3804,6 @@ ${channelMessagesText}`;
 
             <form onSubmit={handleCreateChannel} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Scope</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setChannelScope('workspace')}
-                    className={`py-2 text-xs rounded-xl border font-bold cursor-pointer transition-all ${
-                      channelScope === 'workspace'
-                        ? 'border-indigo-500 bg-indigo-50/10 text-indigo-650'
-                        : 'border-slate-200 text-slate-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    Workspace-wide
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChannelScope('space')}
-                    className={`py-2 text-xs rounded-xl border font-bold cursor-pointer transition-all ${
-                      channelScope === 'space'
-                        ? 'border-indigo-500 bg-indigo-50/10 text-indigo-650'
-                        : 'border-slate-200 text-slate-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    Space-specific
-                  </button>
-                </div>
-              </div>
-
-              {channelScope === 'space' && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Select Space</label>
-                  <select
-                    value={createChannelSpaceId}
-                    onChange={e => setCreateChannelSpaceId(e.target.value)}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold cursor-pointer"
-                  >
-                    {spaces.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
                 <input 
                   type="text" 
@@ -3780,6 +3823,23 @@ ${channelMessagesText}`;
                   placeholder="Briefly describe what this channel is for..." 
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold h-20 resize-none"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Quyền riêng tư</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['public', 'private'] as const).map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setNewChannelType(type)}
+                      className={`rounded-xl border px-3 py-2 text-left transition-colors ${newChannelType === type ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    >
+                      <span className="block text-[11px] font-black">{type === 'public' ? 'Công khai' : 'Riêng tư'}</span>
+                      <span className="block text-[9px] font-semibold mt-0.5">{type === 'public' ? 'Mọi thành viên workspace' : 'Chỉ thành viên được thêm'}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
@@ -4263,19 +4323,10 @@ ${channelMessagesText}`;
                     (m.department && m.department.toLowerCase().includes(dmSearchQuery.toLowerCase()))
                   )
                   .map(member => {
-                    const myId = currentUser.id || 'user';
-                    const sortedIds = [myId, member.id].sort();
-                    const dmChannelId = `${workspaceId}:dm-${sortedIds[0]}-${sortedIds[1]}`;
-
                     return (
                       <div 
                         key={member.id}
-                        onClick={() => {
-                          setActiveChannelId(dmChannelId);
-                          setShowNewDmModal(false);
-                          setDmSearchQuery('');
-                          triggerToast?.('info', 'Trò chuyện trực tiếp 💬', `Đã mở khung chat với ${member.name}`);
-                        }}
+                        onClick={() => openDirectMessage(member)}
                         className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40 hover:border-indigo-200 transition-all cursor-pointer group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -4300,6 +4351,82 @@ ${channelMessagesText}`;
                   })}
               </div>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Group Chat Modal */}
+      <AnimatePresence>
+        {showCreateGroupModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+            <motion.form
+              onSubmit={handleCreateGroupChat}
+              initial={{ scale: 0.96, y: 12, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 12, opacity: 0 }}
+              className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-600 dark:bg-violet-950/60 dark:text-violet-300"><Users className="h-5 w-5" /></span>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">Tạo nhóm chat</h3>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">Chọn ít nhất 2 thành viên</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => { setShowCreateGroupModal(false); setGroupSearchQuery(''); }} className="cursor-pointer rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"><X className="h-4 w-4" /></button>
+              </div>
+
+              <div className="space-y-4 p-5">
+                <div>
+                  <label className="mb-1.5 block text-[9px] font-black uppercase tracking-widest text-slate-400">Tên nhóm</label>
+                  <input value={groupName} onChange={event => setGroupName(event.target.value)} maxLength={60} required placeholder="Ví dụ: Product Launch Team" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-900 outline-none transition-colors focus:border-violet-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                </div>
+
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Thành viên</label>
+                    <span className="text-[9px] font-bold text-violet-600 dark:text-violet-300">Đã chọn {selectedGroupMemberIds.length}</span>
+                  </div>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                    <input value={groupSearchQuery} onChange={event => setGroupSearchQuery(event.target.value)} placeholder="Tìm tên hoặc email..." className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs font-medium outline-none focus:border-violet-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                  </div>
+                  <div className="max-h-64 space-y-1 overflow-y-auto pr-1 scrollbar-thin">
+                    {members.filter(member => member.id !== currentUser.id && member.id !== 'user' && Boolean(resolveMemberAuthId(member))).filter(member => {
+                      const query = groupSearchQuery.trim().toLowerCase();
+                      return !query || member.name.toLowerCase().includes(query) || member.email?.toLowerCase().includes(query);
+                    }).map(member => {
+                      const userId = resolveMemberAuthId(member)!;
+                      const selected = selectedGroupMemberIds.includes(userId);
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => setSelectedGroupMemberIds(prev => selected ? prev.filter(id => id !== userId) : [...prev, userId])}
+                          className={`flex w-full cursor-pointer items-center gap-3 rounded-2xl border p-2.5 text-left transition-all ${selected ? 'border-violet-200 bg-violet-50 dark:border-violet-800 dark:bg-violet-950/40' : 'border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-700 dark:hover:bg-slate-800/60'}`}
+                        >
+                          <SignedImage filePath={member.avatar} alt={member.name} className="h-8 w-8 shrink-0 rounded-xl" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-bold text-slate-800 dark:text-slate-100">{member.name}</span>
+                            <span className="block truncate text-[9.5px] font-medium text-slate-400">{member.email || member.department || 'Thành viên'}</span>
+                          </span>
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-lg border ${selected ? 'border-violet-500 bg-violet-500 text-white' : 'border-slate-200 text-transparent dark:border-slate-700'}`}><Check className="h-3 w-3" /></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+                <button type="button" onClick={() => setShowCreateGroupModal(false)} className="cursor-pointer rounded-xl px-4 py-2 text-xs font-bold text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">Hủy</button>
+                <button type="submit" disabled={!groupName.trim() || selectedGroupMemberIds.length < 2 || isCreatingGroup} className="flex cursor-pointer items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-xs font-extrabold text-white shadow-sm transition-all hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  {isCreatingGroup ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />}
+                  Tạo nhóm
+                </button>
+              </div>
+            </motion.form>
           </div>
         )}
       </AnimatePresence>
@@ -4647,28 +4774,35 @@ ${channelMessagesText}`;
       {/* Chat Settings Modal */}
       <AnimatePresence>
         {showChatSettingsModal && (
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="fixed inset-0 modal-backdrop-blur flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowChatSettingsModal(false)}
+              className="absolute inset-0" />
             <motion.div 
-              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              initial={{ scale: 0.94, y: 15, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 1, y: 0, opacity: 1 }}
-              className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden space-y-4 text-left"
+              exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              className="relative w-full max-w-md rounded-3xl modal-glass-card p-6 overflow-hidden space-y-4 text-left border border-white/80 dark:border-slate-800/80 shadow-2xl shadow-indigo-500/10 select-none z-10"
             >
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-indigo-500" />
-                  Cài đặt Tùy chỉnh Chat
+              <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+              
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                <h3 className="text-sm font-black text-slate-850 dark:text-white flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <span>Cài đặt Tùy chỉnh Chat</span>
                 </h3>
                 <button 
                   onClick={() => setShowChatSettingsModal(false)}
-                  className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="space-y-3">
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 cursor-pointer">
+                <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-all hover:scale-[1.01]">
                   <div>
                     <span className="block text-xs font-extrabold text-slate-800 dark:text-slate-100">🔊 Âm thanh thông báo (Sound effects)</span>
                     <span className="block text-[10px] text-slate-400 font-semibold mt-0.5">Phát tiếng click khi nhận và gửi tin nhắn</span>
@@ -4677,11 +4811,11 @@ ${channelMessagesText}`;
                     type="checkbox"
                     checked={chatSettings.soundEnabled}
                     onChange={e => setChatSettings({ ...chatSettings, soundEnabled: e.target.checked })}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
                   />
                 </label>
 
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 cursor-pointer">
+                <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-all hover:scale-[1.01]">
                   <div>
                     <span className="block text-xs font-extrabold text-slate-800 dark:text-slate-100">📲 Thông báo đẩy Desktop</span>
                     <span className="block text-[10px] text-slate-400 font-semibold mt-0.5">Hiển thị popup khi có tin nhắn mới</span>
@@ -4690,11 +4824,11 @@ ${channelMessagesText}`;
                     type="checkbox"
                     checked={chatSettings.desktopNotifications}
                     onChange={e => setChatSettings({ ...chatSettings, desktopNotifications: e.target.checked })}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
                   />
                 </label>
 
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 cursor-pointer">
+                <label className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-all hover:scale-[1.01]">
                   <div>
                     <span className="block text-xs font-extrabold text-slate-800 dark:text-slate-100">⌨️ Phím Enter để Gửi</span>
                     <span className="block text-[10px] text-slate-400 font-semibold mt-0.5">Bấm Shift + Enter để xuống dòng</span>
@@ -4703,7 +4837,7 @@ ${channelMessagesText}`;
                     type="checkbox"
                     checked={chatSettings.enterToSend}
                     onChange={e => setChatSettings({ ...chatSettings, enterToSend: e.target.checked })}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
                   />
                 </label>
               </div>
@@ -4715,7 +4849,7 @@ ${channelMessagesText}`;
                     setShowChatSettingsModal(false);
                     triggerToast?.('success', 'Đã lưu Cài đặt Chat ⚙️', 'Các tùy chọn đã được cập nhật thành công');
                   }}
-                  className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer bg-indigo-600 hover:bg-indigo-700"
+                  className="px-5 py-2.5 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer bg-gradient-to-r from-indigo-600 to-violet-600 font-black"
                 >
                   Hoàn tất
                 </button>

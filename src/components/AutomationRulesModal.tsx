@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap,
@@ -8,7 +9,6 @@ import {
   Plus,
   Trash2,
   Check,
-  Play,
   Bell,
   MessageSquare,
   Briefcase,
@@ -19,15 +19,14 @@ import {
   ToggleRight,
   ShieldCheck,
   ArrowRight,
-  RotateCcw,
 } from 'lucide-react';
 
 export interface AutomationRule {
   id: string;
   name: string;
   description: string;
-  trigger: 'task_completed' | 'task_urgent' | 'doc_created' | 'pomo_started';
-  action: 'notify_toast' | 'post_chat' | 'log_activity' | 'set_focused';
+  trigger: 'task_completed' | 'task_urgent';
+  action: 'log_activity';
   enabled: boolean;
   triggerCount: number;
   lastTriggeredAt?: string;
@@ -38,82 +37,66 @@ export interface AutomationRulesModalProps {
   onClose: () => void;
   addSyncLog?: (log: string) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
+  workspaceId?: string;
+  spaceId?: string;
+  listId?: string | null;
 }
-
-const DEFAULT_RULES: AutomationRule[] = [
-  {
-    id: 'rule-1',
-    name: 'Auto-broadcast Completed Tasks',
-    description: 'When a task status changes to Completed, broadcast an update to the team and log activity.',
-    trigger: 'task_completed',
-    action: 'post_chat',
-    enabled: true,
-    triggerCount: 14,
-    lastTriggeredAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-  {
-    id: 'rule-2',
-    name: 'Urgent Task Alert Guard',
-    description: 'When a task priority is updated to Urgent, display an immediate high-priority toast alert.',
-    trigger: 'task_urgent',
-    action: 'notify_toast',
-    enabled: true,
-    triggerCount: 8,
-    lastTriggeredAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-  },
-  {
-    id: 'rule-3',
-    name: 'New Document Notification',
-    description: 'When a new document is written or published, trigger a workspace notification.',
-    trigger: 'doc_created',
-    action: 'notify_toast',
-    enabled: true,
-    triggerCount: 5,
-    lastTriggeredAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-  },
-  {
-    id: 'rule-4',
-    name: 'Pomodoro Auto-Focus State',
-    description: 'When a Pomodoro focus timer starts, automatically set user status to Focused.',
-    trigger: 'pomo_started',
-    action: 'set_focused',
-    enabled: false,
-    triggerCount: 22,
-    lastTriggeredAt: new Date(Date.now() - 1000 * 60 * 1440).toISOString(),
-  },
-];
 
 export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
   isOpen,
   onClose,
   addSyncLog,
   triggerToast,
+  workspaceId,
+  spaceId,
+  listId,
 }) => {
-  const STORAGE_KEY = 'avaxa_automation_rules';
-  const [rules, setRules] = useState<AutomationRule[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {}
-    return DEFAULT_RULES;
-  });
+  const [rules, setRules] = useState<AutomationRule[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleTrigger, setNewRuleTrigger] = useState<AutomationRule['trigger']>('task_completed');
-  const [newRuleAction, setNewRuleAction] = useState<AutomationRule['action']>('notify_toast');
+  const [newRuleAction] = useState<AutomationRule['action']>('log_activity');
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-    } catch (e) {}
-  }, [rules]);
+    if (!isOpen || !workspaceId) return;
+    let active = true;
+    const loadRules = async () => {
+      let query = supabase.from('automation_rules').select('*').eq('workspace_id', workspaceId);
+      query = spaceId ? query.eq('space_id', spaceId) : query.is('space_id', null);
+      if (listId) query = query.eq('list_id', listId);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (!active) return;
+      if (error) {
+        triggerToast?.('warning', 'Không thể tải automation', error.message);
+        return;
+      }
+      setRules((data || []).map(row => ({
+        id: row.id, name: row.name, description: row.description,
+        trigger: row.trigger_type, action: row.action_type,
+        enabled: row.enabled, triggerCount: row.trigger_count,
+        lastTriggeredAt: row.last_triggered_at || undefined
+      })));
+    };
+    void loadRules();
+    return () => { active = false; };
+  }, [isOpen, workspaceId, spaceId, listId, triggerToast]);
 
-  const toggleRule = (id: string) => {
+  const toggleRule = async (id: string) => {
+    const currentRule = rules.find(rule => rule.id === id);
+    if (!currentRule) return;
+    const nextState = !currentRule.enabled;
+    const { error } = await supabase.from('automation_rules').update({
+      enabled: !currentRule.enabled,
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    if (error) {
+      triggerToast?.('warning', 'Không thể cập nhật automation', error.message);
+      return;
+    }
     setRules((prev) =>
       prev.map((r) => {
         if (r.id === id) {
-          const nextState = !r.enabled;
           if (addSyncLog) addSyncLog(`Automation rule "${r.name}" ${nextState ? 'enabled' : 'disabled'}`);
           if (triggerToast) {
             triggerToast(
@@ -129,12 +112,17 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
     );
   };
 
-  const deleteRule = (id: string) => {
+  const deleteRule = async (id: string) => {
+    const { error } = await supabase.from('automation_rules').delete().eq('id', id);
+    if (error) {
+      triggerToast?.('warning', 'Không thể xóa automation', error.message);
+      return;
+    }
     setRules((prev) => prev.filter((r) => r.id !== id));
     if (triggerToast) triggerToast('info', 'Rule Removed', 'Automation rule has been deleted.');
   };
 
-  const handleCreateRule = (e: React.FormEvent) => {
+  const handleCreateRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRuleName.trim()) return;
 
@@ -146,10 +134,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
     };
 
     const actionLabels: Record<string, string> = {
-      notify_toast: 'Trigger a toast alert notification',
-      post_chat: 'Post automated message to #general chat',
       log_activity: 'Log to workspace activity feed',
-      set_focused: 'Set user status to Focused',
     };
 
     const newRule: AutomationRule = {
@@ -162,35 +147,32 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
       triggerCount: 0,
     };
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user || !workspaceId) return;
+    const { error } = await supabase.from('automation_rules').insert({
+      id: newRule.id,
+      workspace_id: workspaceId,
+      space_id: spaceId || null,
+      list_id: listId || null,
+      name: newRule.name,
+      description: newRule.description,
+      trigger_type: newRule.trigger,
+      action_type: newRule.action,
+      enabled: true,
+      config: {},
+      user_id: session.user.id
+    });
+    if (error) {
+      triggerToast?.('warning', 'Không thể tạo automation', error.message);
+      return;
+    }
+
     setRules((prev) => [newRule, ...prev]);
     setNewRuleName('');
     setShowCreateModal(false);
 
     if (addSyncLog) addSyncLog(`Created new automation rule: "${newRule.name}"`);
     if (triggerToast) triggerToast('success', 'Automation Created', `Rule "${newRule.name}" is active!`);
-  };
-
-  const triggerTestRule = (rule: AutomationRule) => {
-    setRules((prev) =>
-      prev.map((r) =>
-        r.id === rule.id
-          ? {
-              ...r,
-              triggerCount: r.triggerCount + 1,
-              lastTriggeredAt: new Date().toISOString(),
-            }
-          : r
-      )
-    );
-
-    if (triggerToast) {
-      triggerToast(
-        'success',
-        'Automation Test Fired',
-        `Simulated rule "${rule.name}": Executed ${rule.action.toUpperCase()} action successfully.`
-      );
-    }
-    if (addSyncLog) addSyncLog(`Test executed automation rule: "${rule.name}"`);
   };
 
   if (!isOpen) return null;
@@ -229,7 +211,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Automate workflow actions, team notifications, and status updates
+                  Ghi nhận thay đổi công việc tự động vào Activity
                 </p>
               </div>
             </div>
@@ -260,7 +242,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 </div>
                 <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">No Automation Rules Configured</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Create trigger-action automation rules to auto-update tasks, post chat alerts, and streamline team productivity.
+                  Tạo quy tắc để tự động ghi nhận các mốc quan trọng của công việc vào Activity.
                 </p>
               </div>
             ) : (
@@ -305,15 +287,6 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                       {/* Rule Action Buttons */}
                       <div className="flex items-center gap-2 shrink-0">
                         <button
-                          onClick={() => triggerTestRule(rule)}
-                          className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                          title="Run Test"
-                        >
-                          <Play className="w-3 h-3 fill-current" />
-                          <span>Test</span>
-                        </button>
-
-                        <button
                           onClick={() => toggleRule(rule.id)}
                           className="p-1 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                           title={rule.enabled ? 'Pause Rule' : 'Activate Rule'}
@@ -344,18 +317,8 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
           <div className="px-6 py-3 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Avaxa Engine: 4 rules active in workspace</span>
+              <span>Avaxa Engine: {rules.filter(rule => rule.enabled).length} rules active</span>
             </span>
-            <button
-              onClick={() => {
-                setRules(DEFAULT_RULES);
-                if (triggerToast) triggerToast('info', 'Rules Reset', 'Restored default automation rules.');
-              }}
-              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset Defaults</span>
-            </button>
           </div>
         </motion.div>
 
@@ -405,8 +368,6 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                   >
                     <option value="task_completed">When a task is marked Completed</option>
                     <option value="task_urgent">When a task priority becomes Urgent</option>
-                    <option value="doc_created">When a new Document is created</option>
-                    <option value="pomo_started">When a Pomodoro focus session starts</option>
                   </select>
                 </div>
 
@@ -414,13 +375,10 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">THEN (Action)</label>
                   <select
                     value={newRuleAction}
-                    onChange={(e) => setNewRuleAction(e.target.value as any)}
+                    disabled
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="notify_toast">Show Toast Alert Notification</option>
-                    <option value="post_chat">Broadcast Message to #general Chat</option>
-                    <option value="log_activity">Log Activity in Sync Log</option>
-                    <option value="set_focused">Set User Status to Focused</option>
+                    <option value="log_activity">Log to Space Activity</option>
                   </select>
                 </div>
               </div>

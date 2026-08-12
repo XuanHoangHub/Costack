@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import PageTreeSidebar from './PageTreeSidebar';
 import DocumentEditor from './DocumentEditor';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, FileText } from 'lucide-react';
 
 interface DocumentHubProps {
   currentUser: any;
@@ -13,11 +13,13 @@ interface DocumentHubProps {
   onAddSyncLog: (action: string) => void;
   initialSelectedDocId?: string | null;
   onClearInitialSelectedDocId?: () => void;
-  // Legacy props for compatibility
+  // Kept for the global document entry point; Space mode uses the database directly.
   docs?: any[];
   onAddDoc?: (doc: any) => void;
   onUpdateDoc?: (doc: any) => void;
   onDeleteDoc?: (id: string) => void;
+  spaceId?: string | null;
+  folderId?: string | null;
 }
 
 export default function DocumentHub({
@@ -26,10 +28,8 @@ export default function DocumentHub({
   onAddSyncLog,
   initialSelectedDocId,
   onClearInitialSelectedDocId,
-  docs,
-  onAddDoc,
-  onUpdateDoc,
-  onDeleteDoc
+  spaceId,
+  folderId
 }: DocumentHubProps) {
   const activeWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -46,6 +46,7 @@ export default function DocumentHub({
         .from('documents')
         .select('*')
         .eq('workspace_id', activeWorkspaceId)
+        .eq('space_id', spaceId || '')
         .order('created_at', { ascending: true });
         
       if (!error && data) {
@@ -62,7 +63,7 @@ export default function DocumentHub({
     };
 
     fetchDocs();
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, spaceId]);
 
   // 2. Realtime listener for workspace document updates
   useEffect(() => {
@@ -75,6 +76,8 @@ export default function DocumentHub({
         table: 'documents',
         filter: `workspace_id=eq.${activeWorkspaceId}`
       }, (payload) => {
+        const payloadSpaceId = (payload.new as any)?.space_id || (payload.old as any)?.space_id;
+        if (payloadSpaceId !== spaceId) return;
         if (payload.eventType === 'INSERT') {
           setDocuments(prev => {
             if (prev.some(d => d.id === payload.new.id)) return prev;
@@ -91,7 +94,7 @@ export default function DocumentHub({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, spaceId]);
 
   // 3. Handle external selection (from Global Search / Notifications)
   useEffect(() => {
@@ -116,6 +119,8 @@ export default function DocumentHub({
     const payload = {
       title: 'Tài liệu mới',
       workspace_id: activeWorkspaceId,
+      space_id: spaceId || null,
+      folder_id: folderId || null,
       parent_document_id: parentId || null,
       icon: '📝',
       cover_url: null,
@@ -145,6 +150,8 @@ export default function DocumentHub({
     const payload = {
       title: `${doc.title} (Nhân bản)`,
       workspace_id: doc.workspace_id,
+      space_id: doc.space_id || spaceId || null,
+      folder_id: doc.folder_id || folderId || null,
       parent_document_id: doc.parent_document_id || null,
       icon: doc.icon || '📝',
       cover_url: doc.cover_url || null,
@@ -278,8 +285,8 @@ export default function DocumentHub({
         />
       ) : (
         <div className="flex-grow flex flex-col items-center justify-center bg-slate-50/15 dark:bg-slate-900/10 p-6 md:p-12 overflow-y-auto scrollbar-none">
-          <div className="max-w-md text-center space-y-2 mb-8">
-            <span className="text-4xl">📄</span>
+          <div className="max-w-md text-center space-y-2 mb-8 flex flex-col items-center">
+            <FileText className="w-10 h-10 text-purple-500 stroke-[1.5] mb-1" />
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Chào mừng đến với Trình soạn thảo tài liệu</h3>
             <p className="text-[11px] text-slate-400 font-medium">Chọn hoặc tạo mới một tài liệu từ thanh bên, hoặc bắt đầu nhanh bằng một trong các mẫu dưới đây.</p>
           </div>

@@ -1356,7 +1356,7 @@ export default function TaskBoardView({
 
                     {/* Inline Add Task Form */}
                     {inlineAddCell === col ? (
-                      <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-500 shadow-xs space-y-2 select-text">
+                      <div className="p-3 bg-white/95 dark:bg-slate-900/95 rounded-2xl border-2 border-indigo-500 shadow-xl space-y-3 select-text animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
                         <input
                           type="text"
                           value={inlineTitle}
@@ -1365,21 +1365,26 @@ export default function TaskBoardView({
                             if (e.key === 'Enter') handleInlineAddSubmit(col);
                             else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
                           }}
-                          placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
-                          className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-101 outline-none"
+                          placeholder={locale === 'vi' ? 'Tên công việc mới... (Nhấn Enter ↵)' : 'New task title... (Press Enter ↵)'}
+                          className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all placeholder:text-slate-400"
                           autoFocus
                         />
-                        <div className="flex justify-end gap-1.5 text-[9px] font-bold">
-                          <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
-                          <button onClick={() => handleInlineAddSubmit(col)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className="text-[9.5px] font-mono text-slate-400 dark:text-slate-500">Esc để hủy</span>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
+                            <button onClick={() => handleInlineAddSubmit(col)} className="px-3 py-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black shadow-xs cursor-pointer active:scale-95 transition-all">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
+                          </div>
                         </div>
                       </div>
                     ) : (
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
+                        className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-955/30 border border-dashed border-slate-200 dark:border-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-800/80 rounded-2xl transition-all cursor-pointer text-left group"
                       >
-                        <Plus className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-600 text-slate-500 group-hover:text-white flex items-center justify-center transition-all duration-200">
+                          <Plus className="w-3.5 h-3.5" />
+                        </div>
                         <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
                       </button>
                     )}

@@ -143,10 +143,10 @@ export const useUiStore = create<UiState>()(
       accentPreset: 'indigo',
       dateFormat: 'short',
       uiDensity: 'comfortable',
-      soundEnabled: true,
+      soundEnabled: false,
       notificationSettings: {
         enableAll: true,
-        enableSound: true,
+        enableSound: false,
         onlyImportant: false,
         enableAssignments: true,
         enableDeadlines: true,
@@ -185,7 +185,7 @@ export const useUiStore = create<UiState>()(
       showPomoSettings: false,
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
-      sidebarOrder: ['dashboard', 'inbox', 'calendar', 'chat', 'docs', 'base', 'tasks'],
+      sidebarOrder: ['dashboard', 'calendar', 'chat', 'base', 'tasks'],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),

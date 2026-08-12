@@ -17,6 +17,7 @@ import { useSyncStore } from '@/store/syncStore';
   import { useNotificationStore } from '@/store/notificationStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useAuthStore } from '@/store/authStore';
+import { useBillingEntitlement } from '@/hooks/useBillingEntitlement';
 
 import { NavItem } from '@/components/ui';
 import LoginScreen from '../components/LoginScreen';
@@ -141,6 +142,7 @@ const DEFAULT_SIDEBAR_ORDER = ['dashboard', 'inbox', 'calendar', 'chat', 'docs',
 
 export default function App() {
   const { t, locale, setLocale } = useTranslation();
+  const { applyEntitlement } = useBillingEntitlement();
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
@@ -350,7 +352,6 @@ export default function App() {
       if (session?.user) {
         const u = session.user;
         const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
-        const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
         const userObj = {
           id: u.id,
           name: displayName,
@@ -358,7 +359,7 @@ export default function App() {
           avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
-          isPremium
+          isPremium: false
         };
         updateCurrentUser(userObj);
         
@@ -377,7 +378,6 @@ export default function App() {
       if (session?.user) {
         const u = session.user;
         const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
-        const isPremium = typeof window !== 'undefined' ? localStorage.getItem('avaxa_premium') === 'true' : false;
         const userObj = {
           id: u.id,
           name: displayName,
@@ -385,7 +385,7 @@ export default function App() {
           avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
           role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
           status: 'online' as const,
-          isPremium
+          isPremium: false
         };
         updateCurrentUser(userObj);
         
@@ -469,39 +469,11 @@ export default function App() {
     };
   }, [soundEnabled, setShowPremiumModal]);
 
-  const handleTogglePremium = (status: boolean) => {
-    localStorage.setItem('avaxa_premium', String(status));
-    if (currentUser) {
-      const updatedUser = { ...currentUser, isPremium: status };
-      setCurrentUser(updatedUser);
-      // Update local storage session
-      const sessionObj = {
-        user: updatedUser,
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-      };
-      localStorage.setItem('avaxa_session', JSON.stringify(sessionObj));
-
-      // Update members list
-      setMembers(prev => prev.map(m => m.id === 'user' ? { ...m, isPremium: status } : m));
-
-      // Update Supabase if online
-      if (!isOffline && currentUser.id) {
-        supabase.from('members').update({
-          is_premium: status
-        }).eq('id', `user-${currentUser.id}`).then(({ error }) => {
-          if (error) console.error('Error updating premium status on Supabase:', error.message || error);
-        });
-      }
-
-      addSyncLog(status ? 'Successfully activated Avaxa Premium Pro' : 'Cancelled Avaxa Premium Pro subscription');
-      if (status) {
-        triggerToast('success', 'Premium Pro Upgrade! 🎉', 'Welcome to Avaxa Premium! Unlocked all advanced features.');
-        (window as any).playSystemSound?.('success');
-      } else {
-        triggerToast('info', 'Account Downgraded', 'Account has been downgraded to the Free tier.');
-      }
+  useEffect(() => {
+    if (currentUser?.id && localStorage.getItem('avaxa_pending_upgrade_cycle')) {
+      setShowPremiumModal(true);
     }
-  };
+  }, [currentUser?.id, setShowPremiumModal]);
 
   // Workspaces Feature
   const workspaces = useWorkspaceStore((s) => s.workspaces);
@@ -654,15 +626,38 @@ export default function App() {
     }
   };
 
+  const handleOpenAddSpaceModal = () => {
+    const currentWorkspaceSpaces = spaces.filter(s => s.workspaceId === activeWorkspaceId);
+    const isPremiumUser = currentUser?.isPremium;
+    if (!isPremiumUser && currentWorkspaceSpaces.length >= 5) {
+      triggerToast('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowAddSpaceModal(true);
+  };
+
   const handleAddSpace = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSpaceName.trim()) return;
+
+    // Check Free Plan limit: Max 5 spaces per workspace
+    const currentWorkspaceSpaces = spaces.filter(s => !s.workspaceId || s.workspaceId === activeWorkspaceId);
+    const isPremiumUser = currentUser?.isPremium;
+    if (!isPremiumUser && currentWorkspaceSpaces.length >= 5) {
+      triggerToast('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
+      setShowAddSpaceModal(false);
+      setShowPremiumModal(true);
+      return;
+    }
+
+    const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w1';
     const newSpace: Space & { description?: string; isPrivate?: boolean; defaultPermission?: string } = {
       id: `s-${Date.now()}`,
       name: newSpaceName.trim(),
       emoji: newSpaceEmoji || '📦',
       themeColor: newSpaceColor || 'indigo',
-      workspaceId: activeWorkspaceId,
+      workspaceId: targetWsId,
       lists: [{ id: `l-${Date.now()}`, name: 'General Tasks' }],
       folders: [],
       whiteboards: [],
@@ -680,6 +675,11 @@ export default function App() {
     };
     const updated = [...spaces, newSpace];
     handleSaveSpaces(updated);
+    setActiveSpaceId(newSpace.id);
+    if (newSpace.lists.length > 0) {
+      setActiveListId(newSpace.lists[0].id);
+    }
+    setActiveTab('tasks');
     setNewSpaceName('');
     setNewSpaceEmoji('📦');
     setNewSpaceColor('indigo');
@@ -687,7 +687,7 @@ export default function App() {
     setNewSpaceIsPrivate(false);
     setNewSpacePermission('Full edit');
     setShowAddSpaceModal(false);
-    triggerToast('success', 'New Space Created', `Created space "${newSpace.name}"`);
+    triggerToast('success', 'Space Created! 🎉', `Đã tạo space "${newSpace.name}" thành công.`);
     addSyncLog(`Created new Space: "${newSpace.name}"`);
   };
 
@@ -2162,6 +2162,7 @@ export default function App() {
             const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || [];
             return {
               id: memberId,
+              userId: m.user_id || undefined,
               name: m.name,
               email: m.email,
               avatar: m.avatar,
@@ -2171,7 +2172,8 @@ export default function App() {
               phone: m.phone || '',
               department: m.department || '',
               bio: m.bio || '',
-              joinedDate: m.joined_date || '2026'
+              joinedDate: m.joined_date || '2026',
+              isPremium: Boolean(m.is_premium)
             };
           }));
         }
@@ -2548,6 +2550,7 @@ export default function App() {
                   const memberId = isMe ? 'user' : m.id;
                   const mappedMember: User = {
                     id: memberId,
+                    userId: m.user_id || undefined,
                     name: m.name,
                     email: m.email,
                     avatar: m.avatar,
@@ -2557,7 +2560,8 @@ export default function App() {
                     phone: m.phone || '',
                     department: m.department || '',
                     bio: m.bio || '',
-                    joinedDate: m.joined_date || '2026'
+                    joinedDate: m.joined_date || '2026',
+                    isPremium: Boolean(m.is_premium)
                   };
                   setMembers(prev => {
                     const exists = prev.some(item => item.id === mappedMember.id);
@@ -4613,7 +4617,9 @@ export default function App() {
                   className={`will-change-transform transform-gpu w-full h-full ${
                     isSpaceTab 
                       ? 'overflow-hidden' 
-                      : 'overflow-y-auto p-4 md:p-6 pb-12 custom-scrollbar'
+                      : activeTab === 'dashboard'
+                        ? 'overflow-y-auto custom-scrollbar'
+                        : 'overflow-y-auto p-4 md:p-6 pb-12 custom-scrollbar'
                   }`}
                 >
                   {activeTab === 'dashboard' && (
@@ -4645,6 +4651,7 @@ export default function App() {
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       workspaces={workspaces}
                       activeWorkspaceId={activeWorkspaceId}
+                      onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
                       onDeleteTask={handleDeleteTask}
                       onAddSyncLog={addSyncLog}
@@ -4681,7 +4688,7 @@ export default function App() {
                       onActiveWorkspaceChange={handleWorkspaceChange}
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
-                      onAddSpace={() => setShowAddSpaceModal(true)}
+                      onAddSpace={handleOpenAddSpaceModal}
                       onAddWorkspace={(name, theme, coverUrl) => {
                         const newWs = {
                           id: `w-${Date.now()}`,
@@ -5348,18 +5355,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ── COMMERCIAL SAAS PRICING & SUBSCRIPTION MODAL ── */}
-      <PricingModal
-        isOpen={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
-        currentUser={currentUser}
-        onUpdatePremiumStatus={(isPrem, plan) => {
-          handleTogglePremium(isPrem);
-        }}
-        triggerToast={triggerToast}
-        addSyncLog={addSyncLog}
-      />
-
       {/* ── ADD SPACE MODAL ── */}
       <AnimatePresence>
         {showAddSpaceModal && (
@@ -5929,6 +5924,7 @@ export default function App() {
         isOpen={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
         currentUser={currentUser}
+        onEntitlementChange={applyEntitlement}
         triggerToast={triggerToast}
         addSyncLog={addSyncLog}
       />

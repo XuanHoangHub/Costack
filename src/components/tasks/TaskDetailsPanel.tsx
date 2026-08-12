@@ -7,8 +7,8 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
 import SignedImage from '../SignedImage';
+import { supabase } from '../../lib/supabaseClient';
 import { useUiStore } from '../../store/uiStore';
-import { useTaskStore } from '../../store/taskStore';
 import {
   GripVertical,
   X,
@@ -48,7 +48,7 @@ import {
   Star,
   Link as LinkIcon,
   ChevronRight, ChevronsLeft, ChevronsRight,
-  Hourglass, AlertTriangle, Folder
+  Hourglass, AlertTriangle, Folder, Download, Copy
 } from 'lucide-react';
 
 // ── Priority accent mapping ──
@@ -104,6 +104,7 @@ interface TaskDetailsPanelProps {
   spaces?: Space[];
   onClose: () => void;
   onUpdateTask: (task: Task) => void;
+  onCreateTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & Partial<Pick<Task, 'commentsCount' | 'progress'>>) => void;
   onDeleteTask: (id: string) => void;
   onAddSyncLog: (log: string) => void;
   triggerToast?: (type: 'success' | 'error' | 'info' | 'warning' | 'comment', title: string, message: string) => void;
@@ -128,7 +129,7 @@ interface TaskDetailsPanelProps {
 }
 
 export default function TaskDetailsPanel({
-   task, members, workspaces = [], spaces = [], onClose, onUpdateTask, onDeleteTask, onAddSyncLog, triggerToast,
+   task, members, workspaces = [], spaces = [], onClose, onUpdateTask, onCreateTask, onDeleteTask, onAddSyncLog, triggerToast,
    onAttachmentUpload, onAttachmentDelete, onAiSubtasks, aiGenerating,
    onAiSummary, isSummarizing, aiSummary, allTasks = [], allDocs = [], onOpenFieldsPanel,
    globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
@@ -142,6 +143,7 @@ export default function TaskDetailsPanel({
   const [commentText, setCommentText] = useState('');
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editingSubtaskValue, setEditingSubtaskValue] = useState('');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [modalLayout, setModalLayout] = useState<'modal' | 'fullscreen' | 'sidebar'>(() => {
     if (typeof window !== 'undefined') {
@@ -186,14 +188,14 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-955/40 dark:bg-black/60 backdrop-blur-sm transition-all duration-305' :
-    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-black/30 transition-all duration-305' :
-    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-black/15 backdrop-blur-none pointer-events-none transition-all duration-305';
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 modal-backdrop-blur transition-all duration-300' :
+    modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-md transition-all duration-300' :
+    'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 backdrop-blur-xs pointer-events-none transition-all duration-300';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white dark:bg-slate-900 border-none sm:border border-slate-200/80 dark:border-slate-800 rounded-none sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-slate-900 flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-l border-slate-200/60 dark:border-slate-800 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] modal-glass-card border-none sm:border border-white/80 dark:border-slate-800/80 rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full modal-glass-card border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -219,6 +221,9 @@ export default function TaskDetailsPanel({
   const [showBlocksDropdown, setShowBlocksDropdown] = useState(false);
   const [relationshipSearchQuery, setRelationshipSearchQuery] = useState('');
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
+  const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false);
+  const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null);
+  const newSubtaskInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [fieldsExpanded, setFieldsExpanded] = useState(true);
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -255,12 +260,14 @@ export default function TaskDetailsPanel({
 
   const stopTimerAndLog = () => {
     setIsTimerActive(false);
-    const exactLogged = parseFloat((elapsedSeconds / 3600).toFixed(2));
-    if (exactLogged > 0) {
+    const exactLogged = Math.max(0.01, parseFloat((elapsedSeconds / 3600).toFixed(2)));
+    if (elapsedSeconds > 0) {
       const nextLogged = parseFloat(((task.hoursLogged || 0) + exactLogged).toFixed(2));
       onUpdateTask({ ...task, hoursLogged: nextLogged });
       onAddSyncLog(`Logged ${exactLogged} hours of work via stopwatch`);
       if (triggerToast) triggerToast('success', 'Time Logged ⏱', `Added ${exactLogged}h to task.`);
+    } else {
+      triggerToast?.('info', 'Timer stopped', 'No time was logged because the timer did not run.');
     }
     setElapsedSeconds(0);
   };
@@ -309,6 +316,9 @@ export default function TaskDetailsPanel({
       const data = await res.json();
       if (data.success && data.text) {
         setAiResponseText(data.text);
+        if (customPrompt?.includes('Cải thiện mô tả')) {
+          triggerToast?.('info', 'Improved description ready', 'Review the result, then apply it to the task.');
+        }
       } else {
         setAiResponseText(data.error || 'Không thể lấy phản hồi từ AI.');
       }
@@ -333,9 +343,12 @@ export default function TaskDetailsPanel({
         onUpdateTask({ ...task, tags: mergedTags });
         if (triggerToast) triggerToast('success', 'Tags Suggested', `Added suggested tags: ${data.tags.join(', ')}`);
         onAddSyncLog(`AI suggested tags: ${data.tags.join(', ')}`);
+      } else {
+        triggerToast?.('warning', 'Could not suggest tags', data.error || 'Please try again.');
       }
     } catch (err) {
       console.error(err);
+      triggerToast?.('error', 'Could not suggest tags', 'The AI service is unavailable.');
     }
   };
 
@@ -344,6 +357,20 @@ export default function TaskDetailsPanel({
     setTitleValue(task.title);
     setDescValue(task.description);
   }, [task.id, task.title, task.description]);
+
+  React.useEffect(() => {
+    setAiResponseText('');
+    setConfirmDelete(false);
+    setShowMoreMenu(false);
+  }, [task.id]);
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -500,9 +527,7 @@ export default function TaskDetailsPanel({
       progress: Math.min(100, progress)
     });
 
-    const newTaskId = `task-${Date.now()}`;
     const newTask = {
-      id: newTaskId,
       title: title,
       description: '',
       status: 'todo',
@@ -515,16 +540,83 @@ export default function TaskDetailsPanel({
       tags: [],
       subtasks: [],
       progress: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'current-user'
+      comments: [],
+      commentsCount: 0
     };
 
-    useTaskStore.getState().addTask(newTask as any);
+    onCreateTask?.(newTask as any);
     if (triggerToast) {
       triggerToast('success', 'Converted Checklist Item', `Checklist item converted to a subtask.`);
     }
     onAddSyncLog(`Converted checklist item "${title}" into a child task.`);
+  };
+
+  const createTaskLink = () => {
+    const url = new URL(window.location.href);
+    if (task.spaceId) url.searchParams.set('space', task.spaceId);
+    if (task.listId) url.searchParams.set('list', task.listId);
+    url.searchParams.set('task', task.id);
+    return url.toString();
+  };
+
+  const copyTaskLink = async () => {
+    try {
+      await navigator.clipboard.writeText(createTaskLink());
+      triggerToast?.('success', 'Link copied', 'Anyone with workspace access can open this task.');
+    } catch {
+      triggerToast?.('error', 'Could not copy link', 'Clipboard permission was denied.');
+    }
+  };
+
+  const downloadAttachment = async (attachment: TaskAttachment) => {
+    setAttachmentBusyId(attachment.id);
+    try {
+      const { data, error } = await supabase.storage.from('app-files').createSignedUrl(attachment.filePath, 60, {
+        download: attachment.name
+      });
+      if (error || !data?.signedUrl) throw error || new Error('No download URL returned');
+      const anchor = document.createElement('a');
+      anchor.href = data.signedUrl;
+      anchor.download = attachment.name;
+      anchor.rel = 'noopener';
+      anchor.click();
+    } catch (error: any) {
+      triggerToast?.('error', 'Download failed', error?.message || 'You may not have access to this file.');
+    } finally {
+      setAttachmentBusyId(null);
+    }
+  };
+
+  const duplicateTask = () => {
+    const duplicate = {
+      ...task,
+      title: `${task.title} (copy)`,
+      parentId: undefined,
+      status: 'todo' as TaskStatus,
+      completedAt: undefined,
+      progress: 0,
+      subtasks: task.subtasks.map(subtask => ({ ...subtask, id: crypto.randomUUID(), completed: false })),
+      comments: [],
+      commentsCount: 0,
+      activities: [],
+      attachments: [],
+      relationships: {}
+    };
+    delete (duplicate as Partial<Task>).id;
+    delete (duplicate as Partial<Task>).createdAt;
+    onCreateTask?.(duplicate as any);
+    triggerToast?.('success', 'Task duplicated', `Created “${duplicate.title}”.`);
+    setShowMoreMenu(false);
+  };
+
+  const focusSubtaskComposer = () => {
+    newSubtaskInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => newSubtaskInputRef.current?.focus(), 250);
+  };
+
+  const scrollToRelationships = () => {
+    const element = document.getElementById(isTwoColumn ? 'relationships-section' : 'relationships-section-single');
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const addComment = () => {
@@ -1362,98 +1454,73 @@ export default function TaskDetailsPanel({
     );
   };
 
-  const renderAiAssistantPanel = () => {
-    return (
-      <div className="p-[1px] rounded-2xl bg-gradient-to-r from-indigo-500/25 via-purple-500/15 to-pink-500/25 relative z-10 shadow-3xs">
-        <div className="px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm rounded-[15px] space-y-3 shadow-3xs select-none">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-            <Bot className="w-4.5 h-4.5 text-indigo-505 animate-pulse shrink-0" />
-            <span className="font-extrabold bg-gradient-to-r from-indigo-600 to-violet-655 dark:from-indigo-400 dark:to-violet-405 bg-clip-text text-transparent">Apexa AI Task Assistant</span>
-            <div className="ml-auto">
-              <button 
-                type="button" 
-                onClick={() => onAiSummary(task)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all cursor-pointer font-bold text-[10px] shadow-3xs"
-              >
-                <Sparkles className="w-3 h-3 text-indigo-205" />
-                <span>{isSummarizing ? 'Analyzing...' : 'Executive Summary'}</span>
-              </button>
-            </div>
+  const renderAttachmentsSection = () => (
+    <div className="space-y-3 text-left">
+      <div className="flex items-center justify-between select-none">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-955/25 flex items-center justify-center">
+            <Paperclip className="w-3.5 h-3.5 text-amber-500" />
           </div>
-
-          {/* Interactive prompt input */}
-          <div className="flex items-center gap-2 bg-slate-55 dark:bg-slate-955/40 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
-            <input 
-              type="text" 
-              placeholder="Ask AI to improve details, generate checklist, suggest labels..." 
-              value={aiPrompt}
-              onChange={e => setAiPrompt(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleAiQuery(); }}
-              className="flex-1 bg-transparent border-none outline-none text-xs font-semibold text-slate-755 dark:text-slate-200 placeholder-slate-400"
-            />
-            <button 
-              type="button"
-              onClick={() => handleAiQuery()}
-              disabled={aiGeneratingResponse || !aiPrompt.trim()}
-              className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold cursor-pointer disabled:opacity-40 transition-colors shrink-0 shadow-sm"
-            >
-              {aiGeneratingResponse ? 'Asking...' : 'Ask'}
-            </button>
-          </div>
-
-          {/* AI Shortcut Pills */}
-          <div className="flex flex-wrap gap-1.5">
-            <button 
-              type="button" 
-              onClick={() => onAiSubtasks(task)}
-              disabled={aiGenerating}
-              className="px-2 py-1 rounded-md text-[9px] font-bold bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-750 text-slate-555 dark:text-slate-300 hover:border-indigo-455 hover:text-indigo-505 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <Sparkles className="w-3 h-3 text-indigo-500" /> suggest checklist
-            </button>
-            <button 
-              type="button" 
-              onClick={handleSuggestTags}
-              className="px-2 py-1 rounded-md text-[9px] font-bold bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-750 text-slate-555 dark:text-slate-300 hover:border-indigo-455 hover:text-indigo-505 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <Tag className="w-3 h-3 text-indigo-500" /> suggest tags
-            </button>
-            <button 
-              type="button" 
-              onClick={() => handleAiQuery("Cải thiện mô tả công việc này để rõ ràng và chi tiết hơn")}
-              className="px-2 py-1 rounded-md text-[9px] font-bold bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-750 text-slate-555 dark:text-slate-300 hover:border-indigo-455 hover:text-indigo-505 transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <FileText className="w-3 h-3 text-indigo-500" /> improve description
-            </button>
-          </div>
-
-          {/* AI Response Display */}
-          {(aiSummary || aiResponseText) && (
-            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-              className="p-3.5 rounded-xl bg-indigo-50/40 dark:bg-indigo-955/10 border-l-[3px] border-l-indigo-500 border border-indigo-150/40 dark:border-indigo-900/20 space-y-1.5 text-left shadow-3xs">
-              <div className="flex items-center justify-between text-indigo-650 dark:text-indigo-400 font-extrabold text-[9px] uppercase tracking-wider">
-                <span className="flex items-center gap-1"><Sparkles className="w-3 h-3 animate-pulse" /> AI Assistant Output</span>
-                {aiResponseText && (
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(aiResponseText);
-                      if (triggerToast) triggerToast('success', 'Copied', 'AI response copied to clipboard.');
-                    }}
-                    className="text-[8px] hover:underline"
-                  >
-                    Copy
-                  </button>
-                )}
-              </div>
-              <p className="text-[12px] text-slate-655 dark:text-slate-300 leading-relaxed font-semibold">
-                {aiResponseText || aiSummary}
-              </p>
-            </motion.div>
-          )}
+          <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+            Attachments <span className="text-slate-400">{task.attachments?.length || 0}</span>
+          </label>
         </div>
+        <button type="button" onClick={() => document.getElementById('task-file-upload')?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer shadow-3xs">
+          <Upload className="w-3 h-3" /> Upload file
+        </button>
       </div>
-    );
+
+      <div
+        onDragEnter={event => { event.preventDefault(); setIsAttachmentDragActive(true); }}
+        onDragOver={event => event.preventDefault()}
+        onDragLeave={event => { if (event.currentTarget === event.target) setIsAttachmentDragActive(false); }}
+        onDrop={event => {
+          event.preventDefault();
+          setIsAttachmentDragActive(false);
+          const file = event.dataTransfer.files[0];
+          if (file) onAttachmentUpload(task, file);
+        }}
+        className={`grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl transition-all ${isAttachmentDragActive ? 'ring-2 ring-indigo-400 bg-indigo-50/40 p-2 dark:bg-indigo-950/20' : ''}`}
+      >
+        {(task.attachments || []).map(att => {
+          const iconStyle = getFileIcon(att.name);
+          return (
+            <div key={att.id} className="flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800 px-3 py-2.5 rounded-xl hover:border-slate-250 dark:hover:border-slate-700 transition-colors group shadow-3xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg ${iconStyle.bg} flex items-center justify-center shrink-0`}>
+                  <FileText className={`w-4 h-4 ${iconStyle.color}`} />
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[150px]">{att.name}</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">{(att.size / 1024).toFixed(1)} KB</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <button type="button" onClick={() => downloadAttachment(att)} disabled={attachmentBusyId === att.id}
+                  title="Download attachment"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-indigo-500 cursor-pointer transition-colors disabled:opacity-50">
+                  <Download className={`w-3.5 h-3.5 ${attachmentBusyId === att.id ? 'animate-bounce' : ''}`} />
+                </button>
+                <button type="button" onClick={() => onAttachmentDelete(task, att)} title="Delete attachment"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-rose-500 cursor-pointer transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {(task.attachments || []).length === 0 && (
+          <div className="sm:col-span-2 text-center py-5 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            <span className="text-[11px] text-slate-400 font-medium italic">Drop a file here or choose Upload file · max 25 MB</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderAiAssistantPanel = () => {
+    return null;
   };
 
   return createPortal(
@@ -1506,10 +1573,7 @@ export default function TaskDetailsPanel({
 
                 {/* Share Button */}
                 <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    if (triggerToast) triggerToast('success', 'Link Copied', 'Task link copied to clipboard!');
-                  }}
+                  onClick={copyTaskLink}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-3xs mr-1"
                 >
                   <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-400" />
@@ -1519,25 +1583,37 @@ export default function TaskDetailsPanel({
                 {/* More Options Menu */}
                 <div className="relative flex items-center">
                   <button 
-                    onClick={() => setConfirmDelete(!confirmDelete)}
+                    onClick={() => { setShowMoreMenu(!showMoreMenu); setConfirmDelete(false); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer transition-colors"
                     title="More options"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
-                  {confirmDelete && (
+                  {showMoreMenu && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setConfirmDelete(false)} />
-                      <div className="absolute right-0 top-full mt-1.5 z-50 w-36 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1 text-left">
+                      <div className="fixed inset-0 z-40" onClick={() => { setShowMoreMenu(false); setConfirmDelete(false); }} />
+                      <div className="absolute right-0 top-full mt-1.5 z-50 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1 text-left">
+                        <button type="button" onClick={copyTaskLink}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                          <Copy className="w-3.5 h-3.5" /> Copy task link
+                        </button>
+                        <button type="button" onClick={duplicateTask}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                          <RefreshCw className="w-3.5 h-3.5" /> Duplicate task
+                        </button>
+                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                         <button
                           onClick={() => {
-                            onDeleteTask(task.id);
-                            onClose();
+                            if (!confirmDelete) {
+                              setConfirmDelete(true);
+                              return;
+                            }
+                            onDeleteTask(task.id); onClose();
                           }}
                           className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete Task</span>
+                          <span>{confirmDelete ? 'Click again to delete' : 'Delete task'}</span>
                         </button>
                       </div>
                     </>
@@ -1659,6 +1735,16 @@ export default function TaskDetailsPanel({
                 </button>
               </div>
             </div>
+            <input
+              id="task-file-upload"
+              type="file"
+              onChange={event => {
+                const file = event.target.files?.[0];
+                if (file) onAttachmentUpload(task, file);
+                event.target.value = '';
+              }}
+              className="hidden"
+            />
 
             {/* ── Content Body Render ── */}
             {isTwoColumn ? (
@@ -1738,11 +1824,11 @@ export default function TaskDetailsPanel({
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
                       <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-505" /> Add fields
                     </button>
-                    <button onClick={() => { const title = prompt("Enter subtask title:"); if (title?.trim()) { const newSub = { id: `sub-${Date.now()}`, title: title.trim(), completed: false }; onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] }); } }} 
+                    <button onClick={focusSubtaskComposer}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
                       <Plus className="w-3.5 h-3.5 text-emerald-500" /> Add subtask
                     </button>
-                    <button onClick={() => { const el = document.getElementById('relationships-section'); el?.scrollIntoView({ behavior: 'smooth' }); }} 
+                    <button onClick={scrollToRelationships}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
                       <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
                     </button>
@@ -1863,56 +1949,14 @@ export default function TaskDetailsPanel({
                       <div className="w-[18px] h-[18px] rounded-md border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0">
                         <Plus className="w-2.5 h-2.5 text-slate-400" />
                       </div>
-                      <input value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
+                      <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
                         placeholder="Add new subtask..."
                         className="flex-1 text-[12.5px] font-medium text-slate-700 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none py-1.5 placeholder-slate-400 transition-colors" />
                     </div>
                   </div>
 
-                  {/* Attachments */}
-                  <div className="space-y-3 text-left">
-                    <div className="flex items-center justify-between select-none">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-955/25 flex items-center justify-center">
-                          <Paperclip className="w-3.5 h-3.5 text-amber-500" />
-                        </div>
-                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Attachments</label>
-                      </div>
-                      <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-404 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer shadow-3xs">
-                        <Upload className="w-3 h-3" /> Upload file
-                        <input id="task-file-upload" type="file" onChange={e => onAttachmentUpload(task, e)} className="hidden" />
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {(task.attachments || []).map(att => {
-                        const iconStyle = getFileIcon(att.name);
-                        return (
-                          <div key={att.id} className="flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800 px-3 py-2.5 rounded-xl hover:border-slate-250 dark:hover:border-slate-700 transition-colors group shadow-3xs">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={`w-8 h-8 rounded-lg ${iconStyle.bg} flex items-center justify-center shrink-0`}>
-                                <FileText className={`w-4 h-4 ${iconStyle.color}`} />
-                              </div>
-                              <div className="min-w-0 text-left">
-                                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-205 truncate max-w-[110px]">{att.name}</div>
-                                <div className="text-[9px] text-slate-400 mt-0.5">{(att.size / 1024).toFixed(1)} KB</div>
-                              </div>
-                            </div>
-                            <button onClick={() => onAttachmentDelete(task, att)}
-                              className="p-1 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-rose-505 cursor-pointer transition-colors">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                      {(task.attachments || []).length === 0 && (
-                        <div className="col-span-2 text-center py-5 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                          <span className="text-[11px] text-slate-400 font-medium italic">No attachments yet</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {renderAttachmentsSection()}
 
                   {/* Relationships & References */}
                   <div id="relationships-section" className="space-y-4 p-4 bg-slate-50/30 dark:bg-slate-900/20 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-left select-none shadow-3xs">
@@ -2241,11 +2285,11 @@ export default function TaskDetailsPanel({
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
                     <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Add fields
                   </button>
-                  <button onClick={() => { const title = prompt("Enter subtask title:"); if (title?.trim()) { const newSub = { id: `sub-${Date.now()}`, title: title.trim(), completed: false }; onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] }); } }} 
+                  <button onClick={focusSubtaskComposer}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
                     <Plus className="w-3.5 h-3.5 text-emerald-505" /> Add subtask
                   </button>
-                  <button onClick={() => { const el = document.getElementById('relationships-section'); el?.scrollIntoView({ behavior: 'smooth' }); }} 
+                  <button onClick={scrollToRelationships}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
                     <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
                   </button>
@@ -2320,12 +2364,14 @@ export default function TaskDetailsPanel({
                   </DragDropContext>
 
                   <div className="flex items-center gap-2.5 px-3">
-                    <input value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
+                    <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
                       placeholder="Add subtask..."
                       className="flex-1 text-[12px] font-medium text-slate-755 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-405 outline-none py-1 placeholder-slate-450" />
                   </div>
                 </div>
+
+                {renderAttachmentsSection()}
 
                 {/* Relationships & References (Single Column) */}
                 <div id="relationships-section-single" className="space-y-4 p-4 bg-slate-50/30 dark:bg-slate-900/20 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-left select-none shadow-3xs">

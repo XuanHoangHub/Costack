@@ -18,7 +18,7 @@ interface NotificationState {
 
 const defaultSettings: NotificationSettings = {
   enableAll: true,
-  enableSound: true,
+  enableSound: false,
   onlyImportant: true,
   enableAssignments: true,
   enableDeadlines: true,
@@ -42,7 +42,7 @@ export const useNotificationStore = create<NotificationState>()(
       toasts: [],
       notificationsList: [],
       notificationSettings: defaultSettings,
-      soundEnabled: true,
+      soundEnabled: false,
       addToast: (toast) =>
         set((state) => ({
           toasts: [...state.toasts.slice(-3), toast],

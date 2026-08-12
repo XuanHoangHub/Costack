@@ -36,6 +36,16 @@ export function NavItem({
   style,
   dragIndicator,
 }: NavItemProps) {
+  const displayText = collapsed ? shortLabel || label : label;
+  
+  // Dynamic font scaling for collapsed mode based on text length to eliminate truncation (e.g. "Calendar")
+  const collapsedFontSize = 
+    displayText.length > 7
+      ? "text-[8.5px] tracking-tighter"
+      : displayText.length > 5
+      ? "text-[9px] tracking-tighter"
+      : "text-[10px] tracking-tight";
+
   return (
     <motion.button
       whileHover={{ scale: collapsed ? 1.03 : 1.01 }}
@@ -50,9 +60,9 @@ export function NavItem({
       onClick={onClick}
       style={style}
       className={[
-        "group w-full relative flex transition-all duration-200 cursor-pointer select-none border",
+        "group w-full relative flex transition-all duration-200 cursor-pointer select-none border overflow-hidden",
         collapsed
-          ? "flex-col items-center justify-center py-2.5 px-1 rounded-2xl gap-1"
+          ? "flex-col items-center justify-center py-2.5 px-0.5 rounded-2xl gap-1"
           : "py-2 px-3 rounded-2xl items-center gap-3",
         isActive
           ? collapsed
@@ -67,13 +77,17 @@ export function NavItem({
       {isActive && (
         <motion.div
           layoutId={collapsed ? "sidebarActiveIndicatorCollapsed" : "sidebarActiveIndicator"}
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-indigo-600 dark:bg-indigo-400"
+          className={
+            collapsed
+              ? "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-indigo-600 dark:bg-indigo-400 z-20"
+              : "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-indigo-600 dark:bg-indigo-400 z-20"
+          }
           transition={{ type: "spring", stiffness: 450, damping: 35 }}
         />
       )}
 
       {/* Icon */}
-      <div className="relative flex items-center justify-center shrink-0">
+      <div className="relative flex items-center justify-center shrink-0 z-10">
         <Icon
           size={collapsed ? 20 : 18}
           weight={isActive ? "bold" : "regular"}
@@ -89,23 +103,23 @@ export function NavItem({
       {/* Label Text */}
       <span
         className={[
-          "truncate transition-colors duration-200",
+          "transition-colors duration-200 z-10 w-full px-0.5 text-center truncate",
           collapsed
-            ? "text-[10px] font-extrabold text-center leading-tight max-w-full tracking-tight"
+            ? `${collapsedFontSize} font-extrabold text-center leading-tight max-w-full block`
             : "text-[13px] font-bold flex-1 text-left tracking-tight",
           isActive
             ? "text-indigo-600 dark:text-indigo-400 font-extrabold"
             : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 font-bold",
         ].join(" ")}
       >
-        {collapsed ? shortLabel || label : label}
+        {displayText}
       </span>
 
       {/* Item Count Badge */}
       {count !== undefined && count > 0 && (
         <span
           className={[
-            "font-extrabold text-white bg-rose-500 flex items-center justify-center shadow-2xs shrink-0",
+            "font-extrabold text-white bg-rose-500 flex items-center justify-center shadow-2xs shrink-0 z-20",
             collapsed
               ? "absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[8.5px]"
               : "ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px]",

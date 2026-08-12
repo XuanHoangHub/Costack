@@ -24,6 +24,8 @@ interface WhiteboardProps {
   isOffline: boolean;
   onAddSyncLog: (action: string) => void;
   whiteboardId?: string;
+  spaceId?: string;
+  workspaceId?: string;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   tasks?: Task[];
   currentUser?: any;
@@ -115,6 +117,8 @@ export default function Whiteboard({
   isOffline, 
   onAddSyncLog, 
   whiteboardId,
+  spaceId,
+  workspaceId,
   onAddTask,
   tasks = [],
   currentUser,
@@ -665,7 +669,10 @@ export default function Whiteboard({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) return;
         
-        const { data, error } = await supabase.from('whiteboard_elements').select('*');
+        const { data, error } = await supabase
+          .from('whiteboard_elements')
+          .select('*')
+          .eq('whiteboard_id', whiteboardId);
         
         if (!active) return;
         if (!error && data && data.length > 0) {
@@ -691,8 +698,11 @@ export default function Whiteboard({
       loadElements();
       
       try {
-        boardChannel = supabase.channel('realtime-whiteboard-elements')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'whiteboard_elements' }, payload => {
+        boardChannel = supabase.channel(`realtime-whiteboard-elements-${whiteboardId}`)
+          .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'whiteboard_elements',
+            filter: `whiteboard_id=eq.${whiteboardId}`
+          }, payload => {
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               const m = payload.new;
               const formatted: WhiteboardElement = {
@@ -726,7 +736,7 @@ export default function Whiteboard({
       active = false;
       if (boardChannel) supabase.removeChannel(boardChannel);
     };
-  }, [isOffline]);
+  }, [isOffline, whiteboardId]);
 
   // Sync back to Supabase
   const saveToSupabase = async (el: WhiteboardElement) => {
@@ -745,6 +755,9 @@ export default function Whiteboard({
         line_width: el.lineWidth,
         text: el.text,
         points: el.points,
+        whiteboard_id: whiteboardId,
+        space_id: spaceId,
+        workspace_id: workspaceId,
         user_id: session.user.id,
         updated_at: new Date().toISOString()
       });

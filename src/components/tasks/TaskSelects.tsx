@@ -432,7 +432,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       const parts = activeDateStr.split('-');
       if (parts.length === 3) {
         setCurrentYear(parseInt(parts[0]) || new Date().getFullYear());
-        setCurrentMonth((parseInt(parts[1]) - 1) || new Date().getMonth());
+        setCurrentMonth(parseInt(parts[1]) - 1);
       }
     } else {
       setCurrentYear(new Date().getFullYear());
@@ -469,6 +469,18 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     window.addEventListener('scroll', updateCoords, true);
     window.addEventListener('resize', updateCoords);
     return () => { window.removeEventListener('scroll', updateCoords, true); window.removeEventListener('resize', updateCoords); };
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        setShowTimePicker(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -549,7 +561,6 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
-  const presets = getPresetLabels();
   const now = new Date();
   const dayOfWeek = now.getDay();
   const daysToSaturday = (6 - dayOfWeek + 7) % 7;
@@ -594,21 +605,16 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const startOfWeek = useMemo(() => {
     const d = new Date();
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff + (weekOffset * 7));
-    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1) + (weekOffset * 7));
+    d.setHours(0, 0, 0, 0);
     return d;
   }, [weekOffset]);
 
-  const weeklyDays = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      list.push(d);
-    }
-    return list;
-  }, [startOfWeek]);
+  const weeklyDays = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + index);
+    return d;
+  }), [startOfWeek]);
 
   const calendarContent = (
     <motion.div
@@ -617,17 +623,20 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: openUpward ? 8 : -8, scale: 0.96 }}
       transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-      className="select-none rounded-[20px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
+      role="dialog"
+      aria-label="Choose task dates"
+      className="select-none rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
       style={{
         position: 'fixed',
         zIndex: 9999,
-        width: 420,
-        boxShadow: '0 25px 60px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
+        width: 'min(336px, calc(100vw - 16px))',
+        boxShadow: '0 20px 48px -16px rgba(15,23,42,0.28), 0 0 0 1px rgba(15,23,42,0.03)',
         ...(coords ? (() => {
-          let left = align === 'right' ? coords.right - 420 : coords.left;
+          const pickerWidth = Math.min(336, window.innerWidth - 16);
+          let left = align === 'right' ? coords.right - pickerWidth : coords.left;
           left = Math.max(8, left);
-          if (left + 420 > window.innerWidth) {
-            left = window.innerWidth - 420 - 8;
+          if (left + pickerWidth > window.innerWidth) {
+            left = window.innerWidth - pickerWidth - 8;
           }
           return openUpward
             ? { bottom: window.innerHeight - coords.top + 8, left }
@@ -636,64 +645,46 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       }}
     >
       {/* ── Header: Start/Due Date Toggle Pills ── */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850">
-          <div
-            role="button"
-            tabIndex={0}
+      <div className="p-2.5 pb-2">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
             onClick={() => setActiveTab('start')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+            aria-pressed={activeTab === 'start'}
+            className={`min-w-0 flex items-center gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               activeTab === 'start'
                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
-            <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+            <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">{localStartDate ? formatDateForBox(localStartDate) : 'Start date'}</span>
-            {localStartDate && (
-              <button 
-                type="button" 
-                onClick={(e) => { e.stopPropagation(); clearActiveDate('start'); }}
-                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors ml-auto"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+          </button>
 
           {/* Arrow connector */}
           <div className="flex flex-col items-center shrink-0">
             <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             onClick={() => setActiveTab('due')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+            aria-pressed={activeTab === 'due'}
+            className={`min-w-0 flex items-center gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               activeTab === 'due'
                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
-            <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+            <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span className="truncate">{localDueDate ? formatDateForBox(localDueDate) : 'Due date'}</span>
-            {localDueDate && (
-              <button 
-                type="button" 
-                onClick={(e) => { e.stopPropagation(); clearActiveDate('due'); }}
-                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors ml-auto"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+          </button>
         </div>
 
         {/* Duration badge */}
         {getDurationLabel() && (
-          <div className="flex items-center justify-center mt-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-full border border-indigo-100 dark:border-indigo-900/40">
+          <div className="flex items-center justify-center mt-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold rounded-full">
               <Clock className="w-3 h-3" />
               {getDurationLabel()}
             </span>
@@ -701,41 +692,19 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         )}
       </div>
 
-      {/* ── View switcher segmented control ── */}
-      <div className="px-3 pb-2.5 pt-0.5">
-        <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/35 dark:border-slate-800/40 rounded-xl">
-          {[
-            { id: 'calendar', label: 'Calendar', icon: 'Calendar' },
-            { id: 'monthyear', label: 'Month/Year', icon: 'CalendarDays' },
-            { id: 'weekly', label: 'Weekly', icon: 'BarChart3' },
-            { id: 'presets', label: 'Presets', icon: 'Zap' },
-          ].map(v => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => setPickerView(v.id as any)}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-extrabold cursor-pointer transition-all duration-150 flex items-center justify-center gap-1 ${
-                pickerView === v.id
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/40 dark:border-slate-700/40'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <span>{v.icon}</span>
-              <span>{v.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Views Container ── */}
-      <div className="px-3 pb-1.5 flex-1 min-h-[260px]">
+      <div className="px-3 pb-2 flex-1">
         {pickerView === 'calendar' && (
           <div>
             {/* Month Nav */}
             <div className="flex items-center justify-between mb-2.5 px-1">
-              <h4 className="text-[13px] font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              <button
+                type="button"
+                onClick={() => setPickerView('monthyear')}
+                className="rounded-lg px-1.5 py-1 text-[13px] font-bold text-slate-900 dark:text-slate-100 tracking-tight hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                aria-label="Choose month and year"
+              >
                 {monthNamesFull[currentMonth]} {currentYear}
-              </h4>
+              </button>
               <div className="flex items-center gap-1.5">
                 <button 
                   type="button" 
@@ -745,10 +714,10 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                   Today
                 </button>
                 <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
-                  <button type="button" onClick={prevMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                  <button type="button" aria-label="Previous month" onClick={prevMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" onClick={nextMonth} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                  <button type="button" aria-label="Next month" onClick={nextMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -770,7 +739,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
               {Array.from({ length: adjustedFirstDay }).map((_, i) => {
                 const ghostDay = prevMonthDays - adjustedFirstDay + 1 + i;
                 return (
-                  <div key={`prev-${i}`} className="flex items-center justify-center w-full aspect-square">
+                  <div key={`prev-${i}`} className="flex h-9 items-center justify-center w-full">
                     <span className="text-[11px] font-medium text-slate-300 dark:text-slate-700">{ghostDay}</span>
                   </div>
                 );
@@ -792,7 +761,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                 const isRangeEnd = isDueDate && localStartDate && localStartDate < localDueDate;
 
                 return (
-                  <div key={day} className="relative flex items-center justify-center w-full aspect-square">
+                  <div key={day} className="relative flex h-9 items-center justify-center w-full">
                     {/* Range background band */}
                     {(inRange || isRangeStart || isRangeEnd) && (
                       <div
@@ -807,7 +776,9 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                     <button
                       type="button"
                       onClick={() => selectDate(day)}
-                      className={`relative z-10 w-[34px] h-[34px] rounded-xl flex items-center justify-center cursor-pointer transition-all duration-150 text-xs
+                      aria-label={`${activeTab === 'start' ? 'Start' : 'Due'} date ${monthNamesFull[currentMonth]} ${day}, ${currentYear}`}
+                      aria-pressed={isSelected}
+                      className={`relative z-10 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
                         ${isStartDate
                           ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/30'
                           : isDueDate
@@ -832,7 +803,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
 
               {/* Next month ghost days */}
               {Array.from({ length: trailingDays }).map((_, i) => (
-                <div key={`next-${i}`} className="flex items-center justify-center w-full aspect-square">
+                <div key={`next-${i}`} className="flex h-9 items-center justify-center w-full">
                   <span className="text-[11px] font-medium text-slate-355 dark:text-slate-700">{i + 1}</span>
                 </div>
               ))}
@@ -873,7 +844,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                     setCurrentMonth(idx);
                     setPickerView('calendar');
                   }}
-                  className={`py-3.5 text-[11px] font-bold rounded-xl cursor-pointer transition-all border ${
+                  className={`py-2.5 text-[11px] font-bold rounded-lg cursor-pointer transition-all border ${
                     currentMonth === idx 
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' 
                       : 'bg-slate-50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300'
@@ -1031,46 +1002,52 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         )}
       </AnimatePresence>
 
-      {/* ── Footer: Presets + Time + Close ── */}
-      <div className="border-t border-slate-100 dark:border-slate-850 px-3 py-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 flex-wrap flex-1">
+      <div className="border-t border-slate-100 dark:border-slate-800 px-2.5 py-2 flex items-center justify-between gap-1.5">
+        <div className="flex min-w-0 items-center gap-0.5">
           {[
             { label: 'Today', offset: 0 },
             { label: 'Tomorrow', offset: 1 },
-            { label: 'Sat', offset: daysToSaturday === 0 ? 7 : daysToSaturday },
-            { label: '+1w', offset: daysToMonday === 0 ? 7 : daysToMonday },
-            { label: '+2w', offset: 14 },
+            { label: 'Next week', offset: daysToMonday === 0 ? 7 : daysToMonday },
           ].map(item => (
             <button
               key={item.label}
               type="button"
               onClick={() => selectPreset(item.offset)}
-              className="px-2 py-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors cursor-pointer"
+              className="whitespace-nowrap px-1.5 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               {item.label}
             </button>
           ))}
 
-          <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
-
           <button 
             type="button"
             onClick={() => setShowTimePicker(!showTimePicker)}
-            className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+            aria-expanded={showTimePicker}
+            aria-label="Set time"
+            className={`p-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               showTimePicker
                 ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
                 : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
             }`}
           >
-            <Clock className="w-3 h-3 inline mr-1" />
-            {activeTab === 'start' ? (localStartDateTime || 'Time') : (localDueDateTime || 'Time')}
+            <Clock className="w-3.5 h-3.5" />
           </button>
+          {clearable && (activeTab === 'start' ? localStartDate : localDueDate) && (
+            <button
+              type="button"
+              onClick={() => clearActiveDate(activeTab)}
+              aria-label={`Clear ${activeTab} date`}
+              className="p-1.5 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <button 
           type="button" 
           onClick={() => { setIsOpen(false); setShowTimePicker(false); }}
-          className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-xl shadow-sm transition-colors cursor-pointer active:scale-[0.97]"
+          className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] rounded-lg shadow-sm transition-colors cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
         >
           Done
         </button>
@@ -1080,7 +1057,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
 
   return (
     <div ref={containerRef} className="relative inline-block">
-      <button type="button" onClick={() => setIsOpen(!isOpen)}
+      <button type="button" onClick={() => setIsOpen(!isOpen)} aria-haspopup="dialog" aria-expanded={isOpen}
         className={className || `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${activeDateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
         <CalendarDays className={`w-3.5 h-3.5 shrink-0 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`} />
         <span className={isOverdue ? 'text-rose-500' : ''}>{displayText}</span>
@@ -1544,4 +1521,3 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
     </div>
   );
 }
-

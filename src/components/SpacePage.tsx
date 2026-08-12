@@ -2495,7 +2495,7 @@ export default function SpacePage({
       </AnimatePresence>
 
       {/* ── Active Module Rendering Body Section ── */}
-      <main className="flex-1 overflow-y-auto p-5 select-none scrollbar-none">
+      <main className="flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#07080c] flex flex-col">
         
         {/* Render Overview Dashboard */}
         {activeView === 'overview' && (
@@ -2556,6 +2556,7 @@ export default function SpacePage({
             setSelectedTaskIds={setSelectedTaskIds}
             setSelectedTask={setSelectedTask}
             onUpdateTask={onUpdateTask}
+            onDeleteTask={onDeleteTask}
             onAddSyncLog={onAddSyncLog}
             triggerToast={triggerToast}
             filterTag={filterTag}
@@ -2645,6 +2646,7 @@ export default function SpacePage({
             triggerToast={triggerToast}
             onAddTask={onAddTask}
             onUpdateTask={onUpdateTask}
+            onDeleteTask={onDeleteTask}
           />
         )}
 

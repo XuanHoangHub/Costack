@@ -146,6 +146,11 @@ export default function BaseHub({
 
   const handleAddSpace = () => {
     if (!newSpaceName.trim() || !onAddSpace) return;
+    if (spaces && spaces.length >= 5) {
+      triggerToast?.('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
+      setShowAddSpaceModal(false);
+      return;
+    }
     const name = newSpaceName.trim();
     const space: Space = {
       id: `space-${Date.now()}`,

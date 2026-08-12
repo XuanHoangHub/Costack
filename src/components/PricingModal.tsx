@@ -1,433 +1,191 @@
 "use client";
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Sparkles,
-  X,
-  Check,
-  Zap,
-  ShieldCheck,
-  CreditCard,
-  Building,
-  User,
-  Users,
-  Award,
-  ArrowRight,
-  Lock,
-  Globe,
-  Star,
-  QrCode,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { ArrowRight, CalendarClock, Check, CreditCard, Loader2, LockKeyhole, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+
+type BillingCycle = 'monthly' | 'yearly';
+type Entitlement = {
+  plan: 'free' | 'pro' | 'enterprise';
+  status: string;
+  billing_cycle?: BillingCycle;
+  is_pro: boolean;
+  cancel_at_period_end?: boolean;
+  current_period_end?: string;
+  trial_end?: string;
+};
+type BillingPrice = {
+  cycle: BillingCycle;
+  unit_amount: number;
+  currency: string;
+  interval: 'day' | 'week' | 'month' | 'year';
+  interval_count: number;
+};
 
 export interface PricingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser?: any;
-  onUpdatePremiumStatus?: (isPremium: boolean, plan?: string) => void;
+  currentUser?: { isPremium?: boolean } | null;
+  onEntitlementChange?: (entitlement: Entitlement) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
   addSyncLog?: (log: string) => void;
 }
 
-export const PricingModal: React.FC<PricingModalProps> = ({
-  isOpen,
-  onClose,
-  currentUser,
-  onUpdatePremiumStatus,
-  triggerToast,
-  addSyncLog,
-}) => {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'enterprise'>('pro');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo' | 'bank'>('card');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
+const proFeatures = [
+  'Không giới hạn thành viên, Space và dự án',
+  'Apexa AI, Automation và báo cáo nâng cao',
+  'Gantt, time tracking và export dữ liệu',
+  'Lịch sử hoạt động và quyền Workspace nâng cao',
+  'Hỗ trợ ưu tiên và quản lý thanh toán tập trung'
+];
+const zeroDecimalCurrencies = new Set(['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf']);
+
+export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, currentUser, onEntitlementChange, triggerToast, addSyncLog }) => {
+  const [cycle, setCycle] = useState<BillingCycle>('yearly');
+  const [entitlement, setEntitlement] = useState<Entitlement>({ plan: currentUser?.isPremium ? 'pro' : 'free', status: currentUser?.isPremium ? 'active' : 'inactive', is_pro: Boolean(currentUser?.isPremium) });
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [prices, setPrices] = useState<Partial<Record<BillingCycle, BillingPrice>>>({});
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const authorizedFetch = useCallback(async (url: string, init?: RequestInit) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Vui lòng đăng nhập để quản lý gói.');
+    const response = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, ...(init?.headers || {}) } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'Không thể kết nối hệ thống thanh toán.');
+    return body;
+  }, []);
+
+  const refreshEntitlement = useCallback(async () => {
+    setChecking(true);
+    try {
+      const body = await authorizedFetch('/api/billing/subscription');
+      setEntitlement(body.entitlement);
+      onEntitlementChange?.(body.entitlement);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Không thể kiểm tra trạng thái gói.');
+    } finally {
+      setChecking(false);
+    }
+  }, [authorizedFetch, onEntitlementChange]);
+
+  const refreshPrices = useCallback(async () => {
+    setPricesLoading(true);
+    try {
+      const response = await fetch('/api/billing/plans', { cache: 'no-store' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Bảng giá chưa được cấu hình.');
+      setPrices(body.prices || {});
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Không thể tải bảng giá.');
+    } finally {
+      setPricesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setError('');
+      const pendingCycle = window.localStorage.getItem('avaxa_pending_upgrade_cycle');
+      if (pendingCycle === 'monthly' || pendingCycle === 'yearly') setCycle(pendingCycle);
+      window.localStorage.removeItem('avaxa_pending_upgrade_cycle');
+      void Promise.all([refreshEntitlement(), refreshPrices()]);
+    }
+  }, [isOpen, refreshEntitlement, refreshPrices]);
+
+  const redirectToBilling = async (endpoint: string, body?: object) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await authorizedFetch(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+      addSyncLog?.(endpoint.includes('portal') ? 'Opened secure billing portal' : `Started Pro ${cycle} checkout`);
+      window.location.assign(data.url);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Không thể bắt đầu thanh toán.';
+      setError(message);
+      triggerToast?.('info', 'Thanh toán chưa bắt đầu', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrimaryAction = () => {
+    if (entitlement.status === 'incomplete' || entitlement.status === 'unpaid' || entitlement.status === 'past_due') {
+      void redirectToBilling('/api/billing/portal');
+      return;
+    }
+    void redirectToBilling('/api/billing/checkout', { cycle });
+  };
 
   if (!isOpen) return null;
-
-  const handleCheckout = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowCheckout(false);
-      onClose();
-
-      if (onUpdatePremiumStatus) {
-        onUpdatePremiumStatus(true, selectedPlan.toUpperCase());
-      }
-      if (triggerToast) {
-        triggerToast(
-          'success',
-          'Subscription Activated!',
-          `Welcome to Apexa OS ${selectedPlan.toUpperCase()}! Your workspace has been upgraded.`
-        );
-      }
-      if (addSyncLog) {
-        addSyncLog(`Upgraded workspace subscription to ${selectedPlan.toUpperCase()} (${billingCycle})`);
-      }
-    }, 1200);
-  };
+  const isPro = entitlement.is_pro;
+  const hasBillingIssue = !isPro && ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status);
+  const selectedPrice = prices[cycle];
+  const monthlyEquivalent = selectedPrice
+    ? selectedPrice.unit_amount / (selectedPrice.interval === 'year' ? 12 * selectedPrice.interval_count : selectedPrice.interval_count)
+    : null;
+  const formatMoney = (amount: number, currency: string) => new Intl.NumberFormat('vi-VN', {
+    style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: 0
+  }).format(amount / (zeroDecimalCurrencies.has(currency.toLowerCase()) ? 1 : 100));
+  const monthlyPrice = prices.monthly;
+  const yearlyPrice = prices.yearly;
+  const annualSaving = monthlyPrice && yearlyPrice && monthlyPrice.currency === yearlyPrice.currency
+    ? Math.max(0, Math.round((1 - yearlyPrice.unit_amount / (monthlyPrice.unit_amount * 12)) * 100))
+    : 0;
+  const renewalDate = entitlement.current_period_end ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(entitlement.current_period_end)) : null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 overflow-y-auto">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-md cursor-pointer"
-        />
-
-        {/* Modal Content */}
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 16 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 16 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl w-full max-w-4xl p-6 sm:p-8 overflow-hidden shadow-2xl z-10 font-sans my-8"
-        >
-          {/* Decorative Glow elements */}
-          <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-500/10 blur-[80px] pointer-events-none" />
-
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {!showCheckout ? (
-            <>
-              {/* Top Banner Header */}
-              <div className="text-center space-y-2 mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                  <span>Commercial SaaS Edition</span>
+      <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto p-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-slate-950/65 backdrop-blur-md" />
+        <motion.section initial={{ opacity: 0, y: 18, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: .97 }} className="relative z-10 my-8 w-full max-w-4xl overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <button onClick={onClose} aria-label="Đóng" className="absolute right-5 top-5 z-20 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
+          <div className="grid md:grid-cols-[.9fr_1.1fr]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-700 via-violet-700 to-fuchsia-700 p-7 text-white sm:p-9">
+              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em]"><Sparkles className="h-3.5 w-3.5" /> Apexa Pro</div>
+                <h2 className="mt-5 text-3xl font-black tracking-tight">Một gói Pro.<br />Toàn bộ hệ điều hành năng suất.</h2>
+                <p className="mt-3 max-w-sm text-sm leading-6 text-indigo-100">Thanh toán bảo mật trên trang Stripe. Apexa không nhận hoặc lưu số thẻ của bạn.</p>
+                <div className="mt-7 space-y-3">
+                  {proFeatures.map(feature => <div key={feature} className="flex items-start gap-2.5 text-xs font-semibold text-indigo-50"><span className="mt-0.5 rounded-full bg-emerald-400/20 p-0.5"><Check className="h-3.5 w-3.5 text-emerald-300" /></span>{feature}</div>)}
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 tracking-tight font-display">
-                  Supercharge Your Team Workspace
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
-                  Flexible plans built for startups, growing companies, and enterprise teams.
-                </p>
-
-                {/* Monthly / Yearly Billing Switcher */}
-                <div className="pt-3 flex items-center justify-center gap-3">
-                  <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>
-                    Monthly Billing
-                  </span>
-                  <button
-                    onClick={() => setBillingCycle((prev) => (prev === 'monthly' ? 'yearly' : 'monthly'))}
-                    className="relative w-12 h-6 rounded-full bg-indigo-600 p-1 transition-colors cursor-pointer"
-                  >
-                    <motion.div
-                      animate={{ x: billingCycle === 'yearly' ? 24 : 0 }}
-                      className="w-4 h-4 rounded-full bg-white shadow-md"
-                    />
-                  </button>
-                  <span className={`text-xs font-bold flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>
-                    Annual Billing
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-                      Save 20%
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Pricing Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-                {/* 1. Starter Free Plan */}
-                <div
-                  onClick={() => setSelectedPlan('free')}
-                  className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                    selectedPlan === 'free'
-                      ? 'bg-slate-50/80 dark:bg-slate-800/60 border-slate-400 dark:border-slate-600 ring-2 ring-slate-400/20'
-                      : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase font-mono tracking-wider text-slate-500">Starter</span>
-                      <User className="w-5 h-5 text-slate-400" />
-                    </div>
-
-                    <div>
-                      <div className="text-3xl font-black text-slate-900 dark:text-slate-50">$0</div>
-                      <div className="text-[11px] text-slate-400 font-medium">Free Forever • 3 Members</div>
-                    </div>
-
-                    <div className="space-y-2.5 pt-2 text-xs">
-                      {[
-                        'Up to 3 Workspace Members',
-                        'Standard Task & Doc Management',
-                        'Basic Global Search & Filters',
-                        '50 AI Assistant Credits / mo',
-                        'Community Support',
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <Check className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      if (onUpdatePremiumStatus) onUpdatePremiumStatus(false, 'FREE');
-                      onClose();
-                    }}
-                    className="w-full mt-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-                  >
-                    Current Plan
-                  </button>
-                </div>
-
-                {/* 2. Pro Plan (Best Value) */}
-                <div
-                  onClick={() => setSelectedPlan('pro')}
-                  className={`p-6 rounded-3xl border-2 relative transition-all cursor-pointer flex flex-col justify-between ${
-                    selectedPlan === 'pro'
-                      ? 'bg-indigo-500/10 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/30 shadow-xl'
-                      : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 hover:border-indigo-300'
-                  }`}
-                >
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-wider shadow-md">
-                    Most Popular
-                  </span>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase font-mono tracking-wider text-indigo-600 dark:text-indigo-400">Pro Member</span>
-                      <Sparkles className="w-5 h-5 text-amber-500" />
-                    </div>
-
-                    <div>
-                      <div className="text-3xl font-black text-slate-900 dark:text-slate-50">
-                        ${billingCycle === 'yearly' ? '12' : '15'}
-                        <span className="text-xs font-bold text-slate-400"> /user/mo</span>
-                      </div>
-                      <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold">
-                        {billingCycle === 'yearly' ? 'Billed $144 annually' : 'Billed monthly'}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5 pt-2 text-xs">
-                      {[
-                        'Unlimited Workspace Members',
-                        'Full Global Search & Slash Commands (/)',
-                        'No-Code Automation Rules Engine',
-                        'Export Data to JSON, CSV & HTML Reports',
-                        'Unlimited Gemini AI Assistant Credits',
-                        'Visual Gantt Charts & Time Tracking',
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 font-bold" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowCheckout(true)}
-                    className="w-full mt-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-black shadow-lg hover:shadow-indigo-500/20 cursor-pointer transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <span>Upgrade to Pro</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* 3. Enterprise Plan */}
-                <div
-                  onClick={() => setSelectedPlan('enterprise')}
-                  className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                    selectedPlan === 'enterprise'
-                      ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30'
-                      : 'bg-white/50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 hover:border-amber-300'
-                  }`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase font-mono tracking-wider text-amber-600 dark:text-amber-400">Enterprise</span>
-                      <Building className="w-5 h-5 text-amber-500" />
-                    </div>
-
-                    <div>
-                      <div className="text-3xl font-black text-slate-900 dark:text-slate-50">
-                        ${billingCycle === 'yearly' ? '29' : '35'}
-                        <span className="text-xs font-bold text-slate-400"> /user/mo</span>
-                      </div>
-                      <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">Custom billing & SLA</div>
-                    </div>
-
-                    <div className="space-y-2.5 pt-2 text-xs">
-                      {[
-                        'Everything in Pro Plan',
-                        'Dedicated Supabase DB & Custom Domain',
-                        'SOC2 Type II & GDPR Audit Reports',
-                        'Custom Fine-Tuned AI Models',
-                        '24/7 Dedicated Account Manager',
-                        'SSO & SAML Authentication',
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <Check className="w-3.5 h-3.5 text-amber-500 shrink-0 font-bold" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowCheckout(true)}
-                    className="w-full mt-6 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-black cursor-pointer transition-all shadow-md"
-                  >
-                    Contact Sales
-                  </button>
-                </div>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400">
-                <div className="flex items-center gap-4 font-mono text-[11px]">
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> SOC2 Type II Certified
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Lock className="w-4 h-4 text-indigo-500" /> 256-bit AES Encryption
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-purple-500" /> GDPR Compliant
-                  </span>
-                </div>
-                <span className="text-[11px]">Cancel anytime • Instant activation</span>
-              </div>
-            </>
-          ) : (
-            // Checkout Screen Simulation
-            <div className="space-y-6 max-w-md mx-auto py-4 font-sans">
-              <div className="text-center space-y-1">
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-50">Complete Checkout</h3>
-                <p className="text-xs text-slate-400">
-                  Upgrading to <span className="font-bold text-indigo-600 dark:text-indigo-400 uppercase">{selectedPlan} Plan</span> ({billingCycle})
-                </p>
-              </div>
-
-              {/* Payment Method Selector */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Select Payment Method</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('card')}
-                    className={`p-3 rounded-2xl border text-center text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                      paymentMethod === 'card'
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-600'
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span>Credit Card</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('momo')}
-                    className={`p-3 rounded-2xl border text-center text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                      paymentMethod === 'momo'
-                        ? 'bg-pink-50 dark:bg-pink-950/60 border-pink-500 text-pink-600 dark:text-pink-400'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-600'
-                    }`}
-                  >
-                    <QrCode className="w-5 h-5" />
-                    <span>MoMo QR</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('bank')}
-                    className={`p-3 rounded-2xl border text-center text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                      paymentMethod === 'bank'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-600'
-                    }`}
-                  >
-                    <Building className="w-5 h-5" />
-                    <span>Bank Transfer</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment Details Input */}
-              {paymentMethod === 'card' ? (
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Card Number</label>
-                    <input
-                      type="text"
-                      placeholder="4242 •••• •••• 4242"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">MM/YY</label>
-                      <input
-                        type="text"
-                        placeholder="12/28"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">CVC</label>
-                      <input
-                        type="text"
-                        placeholder="123"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
-                  <div className="w-32 h-32 bg-white p-2 rounded-xl mx-auto shadow-sm flex items-center justify-center border">
-                    <QrCode className="w-24 h-24 text-slate-800" />
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Scan QR Code with Banking / MoMo App</p>
-                  <p className="text-[10px] text-slate-400">Order ID: APEXA-{Math.floor(Math.random() * 899999 + 100000)}</p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCheckout(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={handleCheckout}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <span>Processing Payment...</span>
-                  ) : (
-                    <>
-                      <span>Pay & Activate</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
+                <div className="mt-8 flex items-center gap-4 border-t border-white/15 pt-5 text-[10px] font-bold text-indigo-100"><span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Stripe Checkout</span><span className="flex items-center gap-1.5"><LockKeyhole className="h-4 w-4" /> TLS bảo mật</span></div>
               </div>
             </div>
-          )}
-        </motion.div>
+
+            <div className="p-7 sm:p-9">
+              <div className="flex items-start justify-between gap-4 pr-8">
+                <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-indigo-600">Gói hiện tại</p><h3 className="mt-1 text-xl font-black text-slate-900 dark:text-white">{checking ? 'Đang kiểm tra…' : isPro ? `Apexa ${entitlement.plan.toUpperCase()}` : 'Apexa Free'}</h3></div>
+                {checking && <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />}
+                {!checking && <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${isPro ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>{entitlement.status}</span>}
+              </div>
+
+              {isPro ? (
+                <div className="mt-7 space-y-5">
+                  <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                    <div className="flex gap-3"><CalendarClock className="mt-0.5 h-5 w-5 text-emerald-600" /><div><p className="text-xs font-black text-emerald-900 dark:text-emerald-300">Pro đang hoạt động</p><p className="mt-1 text-[11px] leading-5 text-emerald-700 dark:text-emerald-400">{entitlement.cancel_at_period_end ? `Quyền Pro còn hiệu lực đến ${renewalDate || 'hết chu kỳ hiện tại'}.` : renewalDate ? `Gia hạn tiếp theo vào ${renewalDate}.` : 'Subscription đã được xác thực bởi hệ thống thanh toán.'}</p></div></div>
+                  </div>
+                  <button disabled={loading} onClick={() => redirectToBilling('/api/billing/portal')} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900"><CreditCard className="h-4 w-4" /> Quản lý thanh toán & hóa đơn</button>
+                  <p className="text-center text-[10px] leading-5 text-slate-400">Đổi phương thức thanh toán, tải hóa đơn hoặc hủy gia hạn trong Customer Portal.</p>
+                </div>
+              ) : (
+                <div className="mt-7">
+                  <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+                    {(['monthly','yearly'] as BillingCycle[]).map(item => <button key={item} onClick={() => setCycle(item)} className={`rounded-lg py-2 text-[11px] font-black transition ${cycle === item ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-400'}`}>{item === 'monthly' ? 'Hàng tháng' : `Hàng năm${annualSaving ? ` · tiết kiệm ${annualSaving}%` : ''}`}</button>)}
+                  </div>
+                  <div className="mt-6 flex items-end justify-between"><div>{pricesLoading ? <div className="h-11 w-52 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" /> : selectedPrice && monthlyEquivalent != null ? <><span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">{formatMoney(monthlyEquivalent, selectedPrice.currency)}</span><span className="text-xs font-bold text-slate-400"> / tháng</span><p className="mt-1 text-[10px] text-slate-400">{cycle === 'yearly' ? `Thanh toán ${formatMoney(selectedPrice.unit_amount, selectedPrice.currency)} mỗi năm` : `Thanh toán ${formatMoney(selectedPrice.unit_amount, selectedPrice.currency)} mỗi tháng`} · thuế được xác định tại Checkout</p></> : <p className="text-sm font-bold text-slate-500">Bảng giá hiện chưa khả dụng.</p>}</div></div>
+                  <button disabled={loading || checking || (!hasBillingIssue && (pricesLoading || !selectedPrice))} onClick={handlePrimaryAction} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-3.5 text-xs font-black text-white shadow-lg shadow-indigo-500/20 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60">{loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang mở thanh toán…</> : hasBillingIssue ? <><CreditCard className="h-4 w-4" /> Xử lý thanh toán</> : <>Nâng cấp Pro an toàn <ArrowRight className="h-4 w-4" /></>}</button>
+                  <p className="mt-4 text-center text-[10px] leading-5 text-slate-400">Mã giảm giá được nhập tại Checkout. Có thể hủy gia hạn bất cứ lúc nào trong Billing Portal.</p>
+                </div>
+              )}
+              {error && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[11px] font-semibold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-400">{error}</div>}
+            </div>
+          </div>
+        </motion.section>
       </div>
     </AnimatePresence>
   );

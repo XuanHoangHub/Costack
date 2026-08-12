@@ -17,6 +17,7 @@ interface InboxViewProps {
   spaces?: any[];
   activeWorkspaceId: string;
   onUpdateTask: (task: Task) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & Partial<Pick<Task, 'commentsCount' | 'progress'>>) => void;
   onDeleteTask: (id: string) => void;
   onAddSyncLog: (log: string) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
@@ -36,6 +37,7 @@ export default function InboxView({
   spaces = [],
   activeWorkspaceId,
   onUpdateTask,
+  onAddTask,
   onDeleteTask,
   onAddSyncLog,
   triggerToast,
@@ -927,6 +929,7 @@ export default function InboxView({
                 onUpdateTask={(t) => {
                   onUpdateTask(t);
                 }}
+                onCreateTask={onAddTask}
                 onDeleteTask={(id) => {
                   onDeleteTask(id);
                   setSelectedNotificationId(null);
