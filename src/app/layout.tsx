@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   description: "All-in-one productivity workspace for engineering, design, and business.",
 };
 
+
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,9 +31,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
+        <Script
+          id="initial-theme"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var saved=localStorage.getItem('avaxa_dark_mode');var dark=saved===null?window.matchMedia('(prefers-color-scheme: dark)').matches:saved==='true';var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`,
+          }}
+        />
         <Script
           id="ignore-extension-errors"
           strategy="beforeInteractive"

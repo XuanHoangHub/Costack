@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
   X,
@@ -28,22 +28,34 @@ import {
   CheckCircle2,
   Zap,
   Download,
+  Layers3,
 } from 'lucide-react';
-import { Task, Document, User as UserType } from '@/types';
+import { Task, Document, Space, User as UserType } from '@/types';
+
+export type SearchCategory = 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
+
+const normalizeSearchText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .trim();
 
 export interface GlobalSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  searchCategory: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands';
-  setSearchCategory: (cat: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands') => void;
+  searchCategory: SearchCategory;
+  setSearchCategory: (cat: SearchCategory) => void;
   tasks: Task[];
   docs: Document[];
+  spaces: Space[];
   members: UserType[];
   activeWorkspaceId: string;
   onSelectTask: (taskId: string) => void;
   onSelectDoc: (docId: string) => void;
+  onSelectSpace: (spaceId: string) => void;
   onSelectChannel: (channelId: string) => void;
   onSelectMember?: (memberId: string) => void;
   onNavigateTab: (tab: string) => void;
@@ -64,10 +76,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   setSearchCategory,
   tasks,
   docs,
+  spaces,
   members,
   activeWorkspaceId,
   onSelectTask,
   onSelectDoc,
+  onSelectSpace,
   onSelectChannel,
   onSelectMember,
   onNavigateTab,
@@ -79,6 +93,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   addSyncLog,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Define System Commands
@@ -255,55 +270,80 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   ], [onNavigateTab, onOpenSettings, onOpenAutomations, onOpenExport, onToggleDarkMode, isDarkMode, addSyncLog]);
 
   // Workspace Chat Channels
-  const workspaceChannels = useMemo(() => [
-    { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General discussion for the department', type: 'public' },
-    { id: `${activeWorkspaceId}:project-planning`, name: 'project-planning', description: 'Project planning & KPI tracking', type: 'public' },
-    { id: `${activeWorkspaceId}:apexa-ai`, name: 'apexa-ai', description: 'Apexa AI support assistant online', type: 'public' },
-    { id: `${activeWorkspaceId}:design-review`, name: 'design-review', description: 'Design whiteboard reviews', type: 'public' },
-  ], [activeWorkspaceId]);
+  const activeSpaces = useMemo(
+    () => spaces.filter(space => space.workspaceId === activeWorkspaceId && !space.isArchived && !space.isHidden),
+    [spaces, activeWorkspaceId]
+  );
+
+  const workspaceChannels = useMemo(() => {
+    const directory = [
+      { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General workspace discussion', type: 'public' },
+      { id: `${activeWorkspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Workspace AI assistant', type: 'public' },
+      ...activeSpaces.flatMap(space => (space.channels || []).map(channel => ({
+        ...channel,
+        id: channel.id.includes(':') ? channel.id : `${activeWorkspaceId}:space-${space.id}-${channel.id}`,
+        description: channel.description || `Channel in ${space.name}`,
+        type: channel.type || 'public',
+      }))),
+    ];
+    return Array.from(new Map(directory.map(channel => [channel.id, channel])).values());
+  }, [activeSpaces, activeWorkspaceId]);
 
   // Filtered Tasks
   const filteredTasks = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     if (!q || q.startsWith('/')) return [];
-    const activeTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
+    const activeTasks = tasks.filter(t => t.workspaceId === activeWorkspaceId || (!t.workspaceId && activeSpaces.some(space => space.id === t.spaceId)));
     return activeTasks.filter(t =>
-      t.title.toLowerCase().includes(q) ||
-      (t.description && t.description.toLowerCase().includes(q))
+      normalizeSearchText(t.title).includes(q) ||
+      normalizeSearchText(t.description || '').includes(q) ||
+      (t.tags || []).some(tag => normalizeSearchText(tag).includes(q))
     );
-  }, [tasks, activeWorkspaceId, searchQuery]);
+  }, [tasks, activeWorkspaceId, activeSpaces, searchQuery]);
 
   // Filtered Docs
   const filteredDocs = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     if (!q || q.startsWith('/')) return [];
-    const activeDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
+    const activeDocs = docs.filter(d => (d.workspaceId === activeWorkspaceId || (!d.workspaceId && activeSpaces.some(space => space.id === d.spaceId))) && d.category !== 'System');
     return activeDocs.filter(d =>
-      d.title.toLowerCase().includes(q) ||
-      (d.content && d.content.toLowerCase().includes(q))
+      normalizeSearchText(d.title).includes(q) ||
+      normalizeSearchText(d.content || '').includes(q) ||
+      normalizeSearchText(d.category || '').includes(q)
     );
-  }, [docs, activeWorkspaceId, searchQuery]);
+  }, [docs, activeWorkspaceId, activeSpaces, searchQuery]);
+
+  const filteredSpaces = useMemo(() => {
+    const q = normalizeSearchText(searchQuery);
+    if (!q || q.startsWith('/')) return [];
+    return activeSpaces.filter(space =>
+      normalizeSearchText(space.name).includes(q) ||
+      (space.lists || []).some(list => normalizeSearchText(list.name).includes(q))
+    );
+  }, [activeSpaces, searchQuery]);
 
   // Filtered Channels
   const filteredChannels = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     if (!q || q.startsWith('/')) return [];
     return workspaceChannels.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.description.toLowerCase().includes(q)
+      normalizeSearchText(c.name).includes(q) ||
+      normalizeSearchText(c.description).includes(q)
     );
   }, [workspaceChannels, searchQuery]);
 
   // Filtered Members
   const filteredMembers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearchText(searchQuery);
     if (!q || q.startsWith('/')) return [];
-    return members.filter(m =>
-      m.name.toLowerCase().includes(q) ||
-      m.email.toLowerCase().includes(q) ||
-      m.role.toLowerCase().includes(q)
+    return members.filter(m => (!m.workspaceIds || m.workspaceIds.includes(activeWorkspaceId)) && (
+      normalizeSearchText(m.name).includes(q) ||
+      normalizeSearchText(m.email).includes(q) ||
+      normalizeSearchText(m.role).includes(q) ||
+      normalizeSearchText(m.department || '').includes(q)
+    )
     );
-  }, [members, searchQuery]);
+  }, [members, activeWorkspaceId, searchQuery]);
 
   // Filtered Commands
   const filteredCommands = useMemo(() => {
@@ -331,7 +371,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     if (searchQuery.trim() === '' && !isCommandMode) return [];
 
     const items: Array<{
-      type: 'task' | 'doc' | 'channel' | 'member' | 'command';
+      type: 'task' | 'doc' | 'space' | 'channel' | 'member' | 'command';
       data: any;
     }> = [];
 
@@ -345,6 +385,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     }
     if (searchCategory === 'all' || searchCategory === 'docs') {
       filteredDocs.forEach(d => items.push({ type: 'doc', data: d }));
+    }
+    if (searchCategory === 'all' || searchCategory === 'spaces') {
+      filteredSpaces.forEach(space => items.push({ type: 'space', data: space }));
     }
     if (searchCategory === 'all' || searchCategory === 'channels') {
       filteredChannels.forEach(c => items.push({ type: 'channel', data: c }));
@@ -360,6 +403,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     isCommandMode,
     filteredTasks,
     filteredDocs,
+    filteredSpaces,
     filteredChannels,
     filteredMembers,
     filteredCommands,
@@ -370,12 +414,20 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     setSelectedIndex(0);
   }, [searchQuery, searchCategory]);
 
-  // Auto focus input when modal opens
+  // Focus management and scroll locking while the dialog is open.
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => {
+      openerRef.current = document.activeElement as HTMLElement | null;
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const focusTimer = window.setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
+      return () => {
+        window.clearTimeout(focusTimer);
+        document.body.style.overflow = previousOverflow;
+        openerRef.current?.focus();
+      };
     }
   }, [isOpen]);
 
@@ -398,10 +450,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      // Cycle search categories: all -> tasks -> docs -> channels -> members -> commands
-      const categories: Array<'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands'> = [
-        'all', 'tasks', 'docs', 'channels', 'members', 'commands'
-      ];
+      // Cycle result types without moving focus away from the search box.
+      const categories: SearchCategory[] = ['all', 'tasks', 'docs', 'spaces', 'channels', 'members', 'commands'];
       const currentIndex = categories.indexOf(searchCategory);
       const nextCategory = categories[(currentIndex + 1) % categories.length];
       setSearchCategory(nextCategory);
@@ -417,6 +467,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     } else if (item.type === 'doc') {
       onSelectDoc(item.data.id);
       addSyncLog(`Opened document: "${item.data.title}" from global search`);
+    } else if (item.type === 'space') {
+      onSelectSpace(item.data.id);
+      addSyncLog(`Opened space: "${item.data.name}" from global search`);
     } else if (item.type === 'channel') {
       onSelectChannel(item.data.id);
       addSyncLog(`Activated chat channel: #${item.data.name}`);
@@ -432,6 +485,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const totalResultsCount =
     filteredTasks.length +
     filteredDocs.length +
+    filteredSpaces.length +
     filteredChannels.length +
     filteredMembers.length;
 
@@ -454,12 +508,16 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
         {/* Modal Body */}
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="global-search-title"
           initial={{ scale: 0.96, opacity: 0, y: -12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.96, opacity: 0, y: -12 }}
           transition={{ duration: 0.15, ease: 'easeOut' }}
           className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-700/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh] z-10 font-sans"
         >
+          <h2 id="global-search-title" className="sr-only">Global search</h2>
           {/* Searching Bar Input Field */}
           <div className="px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between gap-3 bg-white/40 dark:bg-slate-900/40 focus-within:border-indigo-500/50 transition-colors">
             {isCommandMode ? (
@@ -470,8 +528,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             <input
               ref={inputRef}
               type="text"
-              placeholder={isCommandMode ? "Type a command or query..." : "Search for tasks, documents, chat channels..."}
+              placeholder={isCommandMode ? "Type a command or query..." : "Search for tasks, documents, spaces, chat channels..."}
               value={searchQuery}
+              aria-label="Search tasks, documents, spaces, channels, and members"
+              aria-controls="global-search-results"
+              aria-activedescendant={flatResults[selectedIndex] ? `global-search-result-${selectedIndex}` : undefined}
               onKeyDown={handleKeyDown}
               onChange={(e) => {
                 const val = e.target.value;
@@ -493,6 +554,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               </button>
             )}
             <button
+              type="button"
+              aria-label="Close global search"
               onClick={() => {
                 onClose();
                 setSearchQuery('');
@@ -542,6 +605,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <span>Documents ({filteredDocs.length})</span>
               </button>
               <button
+                onClick={() => setSearchCategory('spaces')}
+                type="button"
+                className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
+                  searchCategory === 'spaces'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
+                }`}
+              >
+                <Layers3 className="w-3 h-3 shrink-0" />
+                <span>Spaces ({filteredSpaces.length})</span>
+              </button>
+              <button
                 onClick={() => setSearchCategory('channels')}
                 type="button"
                 className={`px-3 py-1 text-[11px] font-black rounded-full transition-all cursor-pointer text-nowrap select-none flex items-center gap-1.5 ${
@@ -581,7 +656,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           )}
 
           {/* Body Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[55vh]">
+          <div id="global-search-results" role="listbox" aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[55vh]">
             {searchQuery.trim() === '' && !isCommandMode ? (
               // Default Quick Suggestions Screen (Exact UI design match)
               <div className="space-y-3.5 p-2">
@@ -695,7 +770,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
                   {isCommandMode
                     ? 'No system commands match this keyword. Try typing /task, /doc, /chat, or /settings.'
-                    : 'We searched tasks, docs, chat channels, and members but found no matches.'}
+                    : 'We searched tasks, documents, spaces, chat channels, and members but found no matches.'}
                 </p>
               </div>
             ) : (
@@ -709,6 +784,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     const Icon = cmd.icon || Terminal;
                     return (
                       <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={cmd.id}
                         onClick={() => executeResultItem(item)}
                         onMouseEnter={() => setSelectedIndex(idx)}
@@ -746,6 +824,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     const t = item.data;
                     return (
                       <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={`task-${t.id}`}
                         onClick={() => executeResultItem(item)}
                         onMouseEnter={() => setSelectedIndex(idx)}
@@ -790,6 +871,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     const d = item.data;
                     return (
                       <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={`doc-${d.id}`}
                         onClick={() => executeResultItem(item)}
                         onMouseEnter={() => setSelectedIndex(idx)}
@@ -822,10 +906,47 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     );
                   }
 
+                  if (item.type === 'space') {
+                    const space = item.data as Space;
+                    return (
+                      <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
+                        key={`space-${space.id}`}
+                        onClick={() => executeResultItem(item)}
+                        onMouseEnter={() => setSelectedIndex(idx)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-500/10 border-cyan-500/50 shadow-xs'
+                            : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/80 hover:bg-cyan-50/20 hover:border-cyan-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="p-2 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 shrink-0">
+                            <Layers3 className="w-4 h-4" />
+                          </div>
+                          <div className="truncate">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block group-hover:text-cyan-600 transition-colors truncate">
+                              {space.emoji ? `${space.emoji} ` : ''}{space.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
+                              {space.lists?.length || 0} lists · {space.channels?.length || 0} channels
+                            </span>
+                          </div>
+                        </div>
+                        <ArrowRight className={`w-3.5 h-3.5 text-cyan-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
+                      </button>
+                    );
+                  }
+
                   if (item.type === 'channel') {
                     const c = item.data;
                     return (
                       <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={`channel-${c.id}`}
                         onClick={() => executeResultItem(item)}
                         onMouseEnter={() => setSelectedIndex(idx)}
@@ -862,6 +983,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     const m = item.data;
                     return (
                       <button
+                        id={`global-search-result-${idx}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={`member-${m.id}`}
                         onClick={() => executeResultItem(item)}
                         onMouseEnter={() => setSelectedIndex(idx)}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Phone, Calendar, Briefcase, MessageSquare, CheckCircle2, Clock, Shield, Sparkles, UserCheck } from 'lucide-react';
 import { useMemberStore } from '@/store/memberStore';
@@ -45,6 +45,14 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   const setInitialSelectedChannelId = useUiStore((s) => s.setInitialSelectedChannelId);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   if (!memberId) return null;
 
   const member = members.find((m) => m.id === memberId || m.id === `user-${memberId}` || (memberId === 'user' && m.id === 'user'));
@@ -58,6 +66,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   const completedTasksCount = assignedTasks.filter((t) => t.status === 'completed').length;
   const inProgressTasksCount = assignedTasks.filter((t) => t.status === 'inprogress').length;
   const totalHoursLogged = assignedTasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
+  const isOwnProfile = member.id === 'user';
 
   const formatLastSeen = (timestamp?: string) => {
     if (!timestamp) return locale === 'vi' ? 'Chưa rõ' : 'Unknown';
@@ -72,6 +81,10 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
   const handleOpenChat = () => {
     onClose();
+    if (isOwnProfile) {
+      setActiveTab('profile');
+      return;
+    }
     const currentUserId = 'user';
     const sortedIds = [currentUserId, member.id].sort();
     const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
@@ -94,6 +107,9 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="member-profile-title"
           className="relative w-full max-w-xl ios27-glass rounded-[36px] shadow-2xl border border-white/80 dark:border-white/10 overflow-hidden z-10 flex flex-col max-h-[90vh]"
         >
           {/* Header Banner */}
@@ -136,7 +152,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                   className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>{locale === 'vi' ? 'Gửi tin nhắn' : 'Chat'}</span>
+                  <span>{isOwnProfile ? (locale === 'vi' ? 'Chỉnh sửa hồ sơ' : 'Edit profile') : (locale === 'vi' ? 'Gửi tin nhắn' : 'Chat')}</span>
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -152,7 +168,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h2 id="member-profile-title" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                   {member.name}
                 </h2>
                 <span
@@ -167,6 +183,11 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <Mail className="w-3.5 h-3.5" />
                 <span>{member.email}</span>
               </p>
+              <div className="mt-2 flex items-center gap-2 text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                <span className={`h-2 w-2 rounded-full ${statusColors[member.status || 'offline']}`} />
+                <span>{statusLabels[member.status || 'offline']?.[locale === 'vi' ? 'vi' : 'en']}</span>
+                {member.status !== 'online' && <span>• {formatLastSeen(member.lastSeenAt)}</span>}
+              </div>
             </div>
 
             {/* Status Message */}
@@ -264,6 +285,21 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
                   "{member.bio}"
                 </p>
+              </div>
+            )}
+
+            {member.skills && member.skills.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {locale === 'vi' ? 'Kỹ năng & chuyên môn' : 'Skills & expertise'}
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {member.skills.map(skill => (
+                    <span key={skill} className="rounded-lg border border-indigo-200/70 bg-indigo-50 px-2.5 py-1 text-[10.5px] font-bold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 

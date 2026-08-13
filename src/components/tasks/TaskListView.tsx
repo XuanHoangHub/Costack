@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks
+  CheckCircle2, ListChecks, Repeat2
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
@@ -608,7 +608,13 @@ const TaskListView = React.memo(function TaskListView({
                                                 </span>
 
                                                 {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
-                                                
+                                                {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
+                                                  <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/60 bg-indigo-50 px-1.5 py-0.5 text-[9px] font-extrabold text-indigo-650 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Repeats every ${task.recurrence.interval} ${task.recurrence.frequency}`}>
+                                                    <Repeat2 className="h-2.5 w-2.5" />
+                                                    <span>{task.recurrence.frequency}</span>
+                                                  </span>
+                                                )}
+                                                 
                                                 {/* Dependency Badges */}
                                                 {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
                                                   <span className="bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">

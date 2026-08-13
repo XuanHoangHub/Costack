@@ -21,6 +21,7 @@ interface AvaxaBrainAssistantProps {
 }
 
 import { useTranslation } from '../contexts/TranslationContext';
+import { useUiStore } from '../store/uiStore';
 
 type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
 
@@ -34,6 +35,7 @@ export default function AvaxaBrainAssistant({
   onAddSyncLog
 }: AvaxaBrainAssistantProps) {
   const { t, locale } = useTranslation();
+  const appActiveTab = useUiStore((s) => s.activeTab);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('query');
   const [loading, setLoading] = useState(false);
@@ -548,7 +550,7 @@ Based on current information, here is a quick summary:
       `}} />
 
       {/* PERSISTENT FLOATING BUTTON (Apexa AI Icon) */}
-      <div className="fixed right-6 bottom-6 z-40">
+      <div className={`fixed right-6 ${appActiveTab === 'chat' ? 'bottom-24 sm:bottom-24' : 'bottom-6'} z-40 transition-all duration-300`}>
         <motion.button
           id="btn_apexa_ai_float"
           onClick={() => {

@@ -1,246 +1,352 @@
-import { useEffect, useRef, useState } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+import { presenceStatusToUi, resolvePresence, type PresencePayload, type PresenceStatus } from '@/lib/presence';
 import { useAuthStore } from '@/store';
 import { useMemberStore } from '@/store/memberStore';
-import { User } from '@/types';
+import { useUiStore } from '@/store/uiStore';
 
-// Throttling timer for activity listeners (10 seconds)
-const ACTIVITY_THROTTLE = 10000;
-// Inactivity timeout for setting IDLE / AWAY status (5 minutes)
-const IDLE_TIMEOUT = 300000;
+const ACTIVITY_THROTTLE_MS = 10_000;
+const IDLE_TIMEOUT_MS = 5 * 60_000;
+const PRESENCE_HEARTBEAT_MS = 60_000;
+const DATABASE_HEARTBEAT_MS = 60_000;
+
+interface PresencePreference {
+  customStatus: PresenceStatus;
+  statusMessage: string;
+  statusEmoji: string;
+  statusChangedAt: string;
+}
+
+let activeChannel: RealtimeChannel | null = null;
+let activeMemberId: string | null = null;
+let lastActivityAt = Date.now();
+let isIdle = false;
+let preference: PresencePreference = {
+  customStatus: 'online',
+  statusMessage: '',
+  statusEmoji: '',
+  statusChangedAt: new Date().toISOString(),
+};
+
+function setOwnMemberStatus(status: PresenceStatus, lastSeenAt?: string) {
+  useMemberStore.getState().setMembers((members) =>
+    members.map((member) =>
+      member.id === 'user'
+        ? {
+            ...member,
+            status,
+            customStatus: preference.customStatus,
+            statusMessage: preference.statusMessage,
+            statusEmoji: preference.statusEmoji,
+            ...(lastSeenAt ? { lastSeenAt } : {}),
+          }
+        : member
+    )
+  );
+}
+
+function currentPayload(memberId: string): PresencePayload {
+  return {
+    user_id: memberId,
+    custom_status: preference.customStatus,
+    status_message: preference.statusMessage,
+    status_emoji: preference.statusEmoji,
+    is_idle: isIdle,
+    last_active: new Date(lastActivityAt).toISOString(),
+    status_changed_at: preference.statusChangedAt,
+  };
+}
+
+function resolvedOwnStatus(): PresenceStatus {
+  if (preference.customStatus === 'offline' || preference.customStatus === 'busy' || preference.customStatus === 'away') {
+    return preference.customStatus;
+  }
+  return isIdle ? 'away' : 'online';
+}
+
+async function publishCurrentPresence() {
+  if (!activeChannel || !activeMemberId) return;
+  if (preference.customStatus === 'offline') {
+    await activeChannel.untrack();
+    return;
+  }
+  await activeChannel.track(currentPayload(activeMemberId));
+}
+
+async function removePresenceChannel(channel: RealtimeChannel) {
+  try {
+    await channel.untrack();
+  } catch (error) {
+    console.warn('Unable to untrack account presence:', error);
+  } finally {
+    await supabase.removeChannel(channel);
+  }
+}
+
+/** Leave Presence before Auth destroys the session/socket during sign-out. */
+export async function disconnectUserPresence() {
+  setOwnMemberStatus('offline', new Date().toISOString());
+  const channel = activeChannel;
+  activeChannel = null;
+  activeMemberId = null;
+  if (channel) await removePresenceChannel(channel);
+}
+
+/** Update the account preference and the live Presence connection from any UI. */
+export async function setUserPresenceStatus(
+  status: PresenceStatus,
+  message = '',
+  emoji = ''
+) {
+  const changedAt = new Date().toISOString();
+  preference = {
+    customStatus: status,
+    statusMessage: message,
+    statusEmoji: emoji,
+    statusChangedAt: changedAt,
+  };
+
+  useUiStore.getState().setUserStatus(presenceStatusToUi(status));
+  setOwnMemberStatus(resolvedOwnStatus(), changedAt);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return;
+
+  const memberId = `user-${session.user.id}`;
+  const { error } = await supabase
+    .from('members')
+    .update({
+      custom_status: status,
+      status_message: message,
+      status_emoji: emoji,
+      last_seen_at: changedAt,
+    })
+    .eq('id', memberId)
+    .eq('user_id', session.user.id);
+
+  if (error) console.warn('Unable to persist account presence preference:', error.message);
+
+  try {
+    await publishCurrentPresence();
+  } catch (error) {
+    console.warn('Unable to publish account presence:', error);
+  }
+}
 
 export function useUserPresence() {
-  const currentUser = useAuthStore((s) => s.currentUser);
-  const { members, setMembers } = useMemberStore();
-  const [isIdle, setIsIdle] = useState(false);
-  const lastActivityRef = useRef<number>(Date.now());
-  const channelRef = useRef<any>(null);
+  const currentUserId = useAuthStore((state) => state.currentUser?.id);
+  const appIsOffline = useUiStore((state) => state.isOffline);
+  const setMembers = useMemberStore((state) => state.setMembers);
+  const [browserIsOffline, setBrowserIsOffline] = useState(
+    () => typeof navigator !== 'undefined' && !navigator.onLine
+  );
 
   useEffect(() => {
-    if (!currentUser) return;
+    const handleOnline = () => setBrowserIsOffline(false);
+    const handleOffline = () => setBrowserIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-    let active = true;
-    const myMemberId = `user-${currentUser.id}`;
+  useEffect(() => {
+    let effectIsActive = true;
+    let channel: RealtimeChannel | null = null;
+    let idleTimer: ReturnType<typeof setInterval> | null = null;
+    let presenceHeartbeat: ReturnType<typeof setInterval> | null = null;
+    let databaseHeartbeat: ReturnType<typeof setInterval> | null = null;
+    let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
+    let memberId: string | null = null;
 
-    // Get current user's profile from store
-    const currentMembers = useMemberStore.getState().members;
-    const me = currentMembers.find((m) => m.id === 'user');
-    const customStatus = me?.customStatus || 'online';
-    const statusMessage = me?.statusMessage || '';
-    const statusEmoji = me?.statusEmoji || '';
+    if (!currentUserId || appIsOffline || browserIsOffline) {
+      setOwnMemberStatus('offline');
+      return;
+    }
 
-    // Initialize Supabase Presence channel
-    const channel = supabase.channel('avaxa_presence', {
-      config: {
-        presence: {
-          key: myMemberId,
-        },
-      },
-    });
+    const updateLastSeen = async () => {
+      if (!memberId) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const lastSeenAt = new Date(lastActivityAt).toISOString();
+      const { error } = await supabase
+        .from('members')
+        .update({ last_seen_at: lastSeenAt })
+        .eq('id', memberId)
+        .eq('user_id', session.user.id);
+      if (!error) setOwnMemberStatus(resolvedOwnStatus(), lastSeenAt);
+    };
 
-    channelRef.current = channel;
+    const handleActivity = () => {
+      const now = Date.now();
+      const resumedFromIdle = isIdle;
+      if (!resumedFromIdle && now - lastActivityAt < ACTIVITY_THROTTLE_MS) return;
 
-    // Listen to Presence events
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        if (!active) return;
-        const presenceState = channel.presenceState();
-        
-        // Extract online states
-        const onlineUsersMap: Record<string, {
-          custom_status: string;
-          status_message: string;
-          status_emoji: string;
-          is_idle: boolean;
-          last_active: string;
-        }> = {};
+      lastActivityAt = now;
+      isIdle = false;
+      if (resumedFromIdle) {
+        setOwnMemberStatus(resolvedOwnStatus(), new Date(now).toISOString());
+        void publishCurrentPresence();
+      }
+    };
 
-        Object.keys(presenceState).forEach((key) => {
-          const presences = presenceState[key] as any[];
-          if (presences && presences.length > 0) {
-            // Take the most recent presence node
-            const latest = presences[presences.length - 1];
-            onlineUsersMap[key] = {
-              custom_status: latest.custom_status || 'online',
-              status_message: latest.status_message || '',
-              status_emoji: latest.status_emoji || '',
-              is_idle: !!latest.is_idle,
-              last_active: latest.last_active || new Date().toISOString(),
-            };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        isIdle = true;
+        setOwnMemberStatus(resolvedOwnStatus());
+        void publishCurrentPresence();
+      } else {
+        handleActivity();
+      }
+    };
+
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        isIdle = true;
+        setOwnMemberStatus(resolvedOwnStatus());
+        void publishCurrentPresence();
+        return;
+      }
+      setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
+      if (channel) void removePresenceChannel(channel);
+      void updateLastSeen();
+    };
+
+    const start = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!effectIsActive || !session?.user) {
+        setOwnMemberStatus('offline');
+        return;
+      }
+
+      memberId = `user-${session.user.id}`;
+      const me = useMemberStore.getState().members.find((member) => member.id === 'user');
+      if (me) {
+        preference = {
+          customStatus: me.customStatus || 'online',
+          statusMessage: me.statusMessage || '',
+          statusEmoji: me.statusEmoji || '',
+          statusChangedAt: new Date().toISOString(),
+        };
+      }
+
+      lastActivityAt = Date.now();
+      isIdle = document.visibilityState === 'hidden';
+
+      channel = supabase.channel('avaxa_presence', {
+        config: { presence: { key: memberId } },
+      });
+      activeChannel = channel;
+      activeMemberId = memberId;
+
+      const reconcileMembers = () => {
+        if (!effectIsActive || !channel) return;
+        const state = channel.presenceState<PresencePayload>();
+        const onlineAccounts = new Map(
+          Object.entries(state).map(([key, payloads]) => [key, resolvePresence(payloads)])
+        );
+
+        setMembers((members) => {
+          let changed = false;
+          const nextMembers = members.map((member) => {
+              const databaseId = member.id === 'user' ? memberId! : member.id;
+              const resolved = onlineAccounts.get(databaseId);
+              if (!resolved || member.customStatus === 'offline') {
+                if (member.status === 'offline') return member;
+                changed = true;
+                return { ...member, status: 'offline' as const };
+              }
+              const customStatus = member.customStatus || resolved.customStatus;
+              const status = customStatus === 'busy'
+                ? 'busy'
+                  : customStatus === 'away'
+                    ? 'away'
+                    : resolved.status;
+              if (
+                member.status === status &&
+                member.customStatus === customStatus &&
+                member.statusMessage === (member.statusMessage ?? resolved.statusMessage) &&
+                member.statusEmoji === (member.statusEmoji ?? resolved.statusEmoji) &&
+                member.lastSeenAt === resolved.lastSeenAt
+              ) return member;
+              changed = true;
+              return {
+                ...member,
+                status,
+                customStatus,
+                statusMessage: member.statusMessage ?? resolved.statusMessage,
+                statusEmoji: member.statusEmoji ?? resolved.statusEmoji,
+                lastSeenAt: resolved.lastSeenAt,
+              };
+            });
+          return changed ? nextMembers : members;
+        });
+      };
+
+      channel
+        .on('presence', { event: 'sync' }, reconcileMembers)
+        .subscribe(async (status, error) => {
+          if (!effectIsActive) return;
+          if (status === 'SUBSCRIBED') {
+            await publishCurrentPresence();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            setOwnMemberStatus('offline');
+            if (error) console.warn('Presence channel error:', error.message);
           }
         });
 
-        // Update members store with online/idle statuses
-        setMembers((prev) =>
-          prev.map((member) => {
-            const dbId = member.id === 'user' ? myMemberId : member.id;
-            const presenceInfo = onlineUsersMap[dbId];
+      window.addEventListener('mousemove', handleActivity, { passive: true });
+      window.addEventListener('keydown', handleActivity);
+      window.addEventListener('pointerdown', handleActivity, { passive: true });
+      window.addEventListener('scroll', handleActivity, { passive: true });
+      window.addEventListener('focus', handleActivity);
+      window.addEventListener('pagehide', handlePageHide);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
 
-            if (presenceInfo) {
-              // User is connected
-              let resolvedStatus: 'online' | 'busy' | 'offline' | 'away' = 'online';
-              
-              if (presenceInfo.custom_status === 'offline') {
-                resolvedStatus = 'offline';
-              } else if (presenceInfo.custom_status === 'busy') {
-                resolvedStatus = 'busy';
-              } else if (presenceInfo.custom_status === 'away' || presenceInfo.is_idle) {
-                resolvedStatus = 'away';
-              }
-
-              return {
-                ...member,
-                status: resolvedStatus,
-                customStatus: presenceInfo.custom_status as any,
-                statusMessage: presenceInfo.status_message,
-                statusEmoji: presenceInfo.status_emoji,
-                lastSeenAt: presenceInfo.last_active,
-              };
-            } else {
-              // User is disconnected (Offline)
-              return {
-                ...member,
-                status: 'offline',
-                customStatus: member.customStatus || 'offline',
-              };
-            }
-          })
-        );
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // Track user presence
-          await channel.track({
-            user_id: myMemberId,
-            custom_status: customStatus,
-            status_message: statusMessage,
-            status_emoji: statusEmoji,
-            is_idle: false,
-            last_active: new Date().toISOString(),
-          });
+      idleTimer = setInterval(() => {
+        if (!isIdle && Date.now() - lastActivityAt >= IDLE_TIMEOUT_MS) {
+          isIdle = true;
+          setOwnMemberStatus(resolvedOwnStatus());
+          void publishCurrentPresence();
         }
-      });
+      }, 15_000);
 
-    // Inactivity/Idle detection logic
-    const handleActivity = () => {
-      const now = Date.now();
-      if (now - lastActivityRef.current > ACTIVITY_THROTTLE) {
-        lastActivityRef.current = now;
-        
-        if (isIdle) {
-          setIsIdle(false);
-          // Resume online presence
-          channel.track({
-            user_id: myMemberId,
-            custom_status: customStatus,
-            status_message: statusMessage,
-            status_emoji: statusEmoji,
-            is_idle: false,
-            last_active: new Date().toISOString(),
-          });
-        }
-      }
+      presenceHeartbeat = setInterval(() => void publishCurrentPresence(), PRESENCE_HEARTBEAT_MS);
+      databaseHeartbeat = setInterval(() => void updateLastSeen(), DATABASE_HEARTBEAT_MS);
+      // A database/profile refresh must never overwrite the server Presence snapshot.
+      reconciliationTimer = setInterval(reconcileMembers, 5_000);
     };
 
-    // Add activity event listeners
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('click', handleActivity);
-    window.addEventListener('scroll', handleActivity);
-    window.addEventListener('focus', handleActivity);
-
-    // Inactivity check interval (every 15 seconds)
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (now - lastActivityRef.current > IDLE_TIMEOUT) {
-        if (!isIdle) {
-          setIsIdle(true);
-          // Track as idle/away
-          channel.track({
-            user_id: myMemberId,
-            custom_status: customStatus,
-            status_message: statusMessage,
-            status_emoji: statusEmoji,
-            is_idle: true,
-            last_active: new Date().toISOString(),
-          });
-        }
-      }
-    }, 15000);
-
-    // Update database last_seen_at periodically as a heartbeat (every 2 minutes)
-    const dbHeartbeat = setInterval(async () => {
-      await supabase
-        .from('members')
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq('id', myMemberId);
-    }, 120000);
+    void start();
 
     return () => {
-      active = false;
-      clearInterval(interval);
-      clearInterval(dbHeartbeat);
+      effectIsActive = false;
+      if (idleTimer) clearInterval(idleTimer);
+      if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+      if (databaseHeartbeat) clearInterval(databaseHeartbeat);
+      if (reconciliationTimer) clearInterval(reconciliationTimer);
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('pointerdown', handleActivity);
       window.removeEventListener('scroll', handleActivity);
       window.removeEventListener('focus', handleActivity);
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       if (channel) {
-        supabase.removeChannel(channel);
+        void removePresenceChannel(channel);
+      }
+      if (activeChannel === channel) {
+        activeChannel = null;
+        activeMemberId = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, [appIsOffline, browserIsOffline, currentUserId, setMembers]);
 
-  // Function to manually set custom status (persisted in DB and presence)
-  const setCustomStatus = async (
-    status: 'online' | 'busy' | 'away' | 'offline',
-    message: string = '',
-    emoji: string = ''
-  ) => {
-    if (!currentUser) return;
-    const myMemberId = `user-${currentUser.id}`;
-
-    // 1. Update local store
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === 'user'
-          ? {
-              ...m,
-              customStatus: status,
-              statusMessage: message,
-              statusEmoji: emoji,
-              // Immediate UI status update
-              status: status,
-            }
-          : m
-      )
-    );
-
-    // 2. Persist preference to PostgreSQL Database
-    await supabase
-      .from('members')
-      .update({
-        custom_status: status,
-        status_message: message,
-        status_emoji: emoji,
-        last_seen_at: new Date().toISOString(),
-      })
-      .eq('id', myMemberId);
-
-    // 3. Update active presence broadcast if channel is active
-    if (channelRef.current) {
-      await channelRef.current.track({
-        user_id: myMemberId,
-        custom_status: status,
-        status_message: message,
-        status_emoji: emoji,
-        is_idle: false,
-        last_active: new Date().toISOString(),
-      });
-    }
-  };
-
-  return { setCustomStatus };
+  return { setCustomStatus: setUserPresenceStatus };
 }

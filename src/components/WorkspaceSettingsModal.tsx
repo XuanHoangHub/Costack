@@ -10,6 +10,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { Workspace, User, WorkspaceInvitation, WorkspaceRole } from '../types';
 import SignedImage from './SignedImage';
+import { presenceDotClass } from '../lib/presence';
 import InviteModal from './InviteModal';
 import { useNotificationStore } from '@/store/notificationStore';
 
@@ -993,7 +994,7 @@ export default function WorkspaceSettingsModal({
                                   className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-750 object-cover" 
                                   alt={member.name} 
                                 />
-                                <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${member.status === 'online' ? 'bg-emerald-500' : 'bg-slate-350'}`} />
+                                <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white dark:border-slate-900 ${presenceDotClass(member.status)}`} />
                               </div>
                               <div className="text-left min-w-0">
                                 <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">

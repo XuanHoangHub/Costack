@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useTaskStore } from '@/store/taskStore';
 import { useSyncStore } from '@/store/syncStore';
+import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notificationPolicy';
 
 const checkIsDndActive = (settings: any) => {
   if (!settings) return false;
@@ -51,6 +52,7 @@ export function useNotificationsEngine() {
   const lastToastsRef = useRef<Record<string, number>>({});
 
   const triggerToast = useCallback((type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message', title: string, message: string) => {
+    if (isCreationConfirmation({ type, title, message })) return;
     if (pomodoroActive && type !== 'success' && type !== 'info') {
       console.log(`[Pomodoro Active - Notification Blocked]: ${title}: ${message}`);
       return;
@@ -138,7 +140,7 @@ export function useNotificationsEngine() {
     }
 
     const newNotifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && shouldPersistInInbox({ type, title, message })) {
       addNotification({
         id: newNotifId,
         type,

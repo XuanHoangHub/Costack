@@ -17,6 +17,7 @@ export interface User {
   phone?: string;
   department?: string;
   bio?: string;
+  skills?: string[];
   joinedDate?: string;
   isPremium?: boolean;
 }

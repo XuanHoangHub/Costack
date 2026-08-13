@@ -23,7 +23,7 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -329,6 +329,12 @@ function KanbanCard({
                       <Paperclip className="w-3 h-3 text-slate-350" />
                       {task.attachments.length}
                     </span>
+                  )}
+                  {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
+                    <span title={`Repeats ${task.recurrence.frequency}`} className="flex items-center gap-0.5 text-indigo-500"><Repeat2 className="h-3 w-3" /></span>
+                  )}
+                  {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
+                    <span title="Waiting on another task" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>
                   )}
                 </div>
 
@@ -1324,28 +1330,47 @@ export default function TaskBoardView({
                   }`}
                 >
                   {/* Column Header */}
-                  <div className="flex items-center justify-between px-0.5 py-0.5 text-xs">
-                    <div className="flex items-center gap-2">
-                      {colMeta.avatar && (
-                        <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
-                      )}
-                      <span className={`px-2 py-0.5 rounded-[8px] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5 border border-transparent shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
-                        {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
-                        {colMeta.label}
-                      </span>
-                      <span className={`font-black text-[10px] px-2 py-0.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 min-w-[22px] text-center shadow-3xs ${
-                        col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-400 dark:text-slate-500'
-                      }`}>
-                        {colTasks.length}
-                      </span>
+                  <div className="flex flex-col gap-1 px-0.5 py-0.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {colMeta.avatar && (
+                          <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
+                        )}
+                        <span className={`px-2 py-0.5 rounded-[8px] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5 border border-transparent shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                          {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
+                          {colMeta.label}
+                        </span>
+                        <span className={`font-black text-[10px] px-2 py-0.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 min-w-[22px] text-center shadow-3xs ${
+                          col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-400 dark:text-slate-500'
+                        }`}>
+                          {colTasks.length}
+                        </span>
+                        {/* WIP Limit warning badge if tasks > 6 */}
+                        {colTasks.length > 6 && (
+                          <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-955/40 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 animate-pulse">
+                            WIP Limit
+                          </span>
+                        )}
+                      </div>
+                      
+                      <button 
+                        onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
+                        className="w-6 h-6 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-slate-400 hover:text-indigo-650 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                        title="Add Task"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    
-                    <button 
-                      onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                      className="w-6 h-6 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-slate-400 hover:text-indigo-650 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+
+                    {/* Column Percentage Progress Bar */}
+                    <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
+                      <div 
+                        className={`h-full transition-all duration-300 ${
+                          col === 'completed' ? 'bg-emerald-500' : 'bg-indigo-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.round((colTasks.length / Math.max(1, filteredTasks.length)) * 100))}%` }}
+                      />
+                    </div>
                   </div>
 
                   {/* Column Droppable Area with drop highlights */}

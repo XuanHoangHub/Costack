@@ -230,6 +230,17 @@ export default function SpacePage({
   // Active View Tab State (Overview, List, Board, Table, Gantt, etc.)
   const [activeView, setActiveView] = useState<string>('list');
 
+  useEffect(() => {
+    const handleGlobalViewShortcut = (event: Event) => {
+      const requestedView = (event as CustomEvent<{ view?: string }>).detail?.view;
+      if (requestedView && ['list', 'board', 'calendar'].includes(requestedView)) {
+        setActiveView(requestedView);
+      }
+    };
+    window.addEventListener('apexa:set-task-view', handleGlobalViewShortcut);
+    return () => window.removeEventListener('apexa:set-task-view', handleGlobalViewShortcut);
+  }, []);
+
   // Spaces sub-sidebar collapsible states
   const [isSubSidebarCollapsed, setIsSubSidebarCollapsed] = useState(false);
   const [isSpacesExpanded, setIsSpacesExpanded] = useState(true);
@@ -2674,6 +2685,18 @@ export default function SpacePage({
             onAddSyncLog={onAddSyncLog}
             initialSelectedDocId={null}
             onClearInitialSelectedDocId={() => {}}
+            spaceId={activeSpaceId}
+            folderId={activeFolderId || null}
+            onCreateTaskFromDoc={(title, description, documentId) => onAddTask({
+              title,
+              description,
+              priority: 'medium',
+              status: 'todo',
+              subtasks: [],
+              tags: ['docs'],
+              isPinned: false,
+              relationships: { docs: [documentId] }
+            })}
           />
         )}
 

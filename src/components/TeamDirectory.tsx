@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Workspace, Task } from '../types';
@@ -15,14 +15,16 @@ import {
   Check, ChevronDown, UserMinus, Plus, Info, LayoutGrid,
   Award, Activity, Star, Phone, Search, X, SlidersHorizontal,
   Briefcase, Calendar, CheckSquare, ClipboardList, Flame, Edit, 
-  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, AlertTriangle, MessageSquare, Megaphone
+  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import { useUiStore } from '../store/uiStore';
 import InviteModal from './InviteModal';
-import { useUserPresence } from '../hooks/useUserPresence';
+import { setUserPresenceStatus } from '../hooks/useUserPresence';
 import { renderSpaceIcon } from './EmojiIconPicker';
+import { TeamCommandCenter, TeamIntegrations } from './team/TeamCommandCenter';
+import TeamManagement from './team/TeamManagement';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -84,16 +86,21 @@ export default function TeamDirectory({
 }: TeamDirectoryProps) {
   const { t, locale } = useTranslation();
   // Top-level Team OS sub-tab state
-  const [teamOSView, setTeamOSView] = useState<'directory' | 'org_chart' | 'workload'>('directory');
+  const [teamOSView, setTeamOSView] = useState<'overview' | 'teams' | 'directory' | 'org_chart' | 'workload' | 'integrations'>('overview');
   
-  // Real-time status hooks
-  const { setCustomStatus } = useUserPresence();
+  // Presence is mounted once at app level; this action updates that shared connection.
+  const setCustomStatus = setUserPresenceStatus;
   
   // Custom status popover state
   const [showStatusPopover, setShowStatusPopover] = useState(false);
   const me = members.find(m => m.id === 'user');
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
-  const isOwner = me?.role === 'admin' || activeWorkspace?.user_id === me?.id;
+  const isOwner = currentUser?.role === 'admin'
+    || me?.role === 'admin'
+    || activeWorkspace?.membershipRole === 'owner'
+    || activeWorkspace?.membershipRole === 'admin'
+    || activeWorkspace?.user_id === currentUser?.id
+    || activeWorkspace?.user_id === me?.id;
   const [statusVal, setStatusVal] = useState<'online' | 'busy' | 'away' | 'offline'>(me?.customStatus || 'online');
   const [statusMsg, setStatusMsg] = useState(me?.statusMessage || '');
   const [statusEmj, setStatusEmj] = useState(me?.statusEmoji || '');
@@ -115,11 +122,18 @@ export default function TeamDirectory({
   }, [me]);
 
   // Fetch db teams and depts hierarchy
-  const fetchHierarchy = async () => {
+  const fetchHierarchy = useCallback(async () => {
     try {
       const { data: depts } = await supabase.from('departments').select('*');
-      const { data: tms } = await supabase.from('teams').select('*');
-      const { data: membersMap } = await supabase.from('team_members').select('*');
+      const { data: tms } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('workspace_id', activeWorkspaceId)
+        .order('created_at', { ascending: true });
+      const teamIds = (tms || []).map(team => team.id);
+      const { data: membersMap } = teamIds.length
+        ? await supabase.from('team_members').select('*').in('team_id', teamIds)
+        : { data: [] };
       
       if (depts) setDbDepts(depts);
       if (tms) setDbTeams(tms);
@@ -127,11 +141,11 @@ export default function TeamDirectory({
     } catch (e) {
       console.warn('Hierarchy fetch failed:', e);
     }
-  };
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
     fetchHierarchy();
-  }, []);
+  }, [fetchHierarchy]);
 
   // Relative time helper
   const formatLastSeen = (timestamp?: string) => {
@@ -218,7 +232,7 @@ export default function TeamDirectory({
   // Statistics calculation for the active workspace
   const workspaceMembers = members.filter(m => m.workspaceIds?.includes(activeWorkspaceId));
   const totalWorkspaceCount = workspaceMembers.length;
-  const onlineWorkspaceCount = workspaceMembers.filter(m => m.status === 'online' || m.status === 'away').length;
+  const onlineWorkspaceCount = workspaceMembers.filter(m => m.status === 'online').length;
   const busyWorkspaceCount = workspaceMembers.filter(m => m.status === 'busy').length;
 
   const statusColors = {
@@ -346,7 +360,7 @@ export default function TeamDirectory({
         joinedDate: formattedJoinedDate,
         avatar: '',
         role: finalRole,
-        status: 'online',
+        status: 'offline',
         workspaceIds: [activeWorkspaceId]
       });
     });
@@ -413,10 +427,12 @@ export default function TeamDirectory({
             </div>
             <div>
               <h2 className="text-xl font-black font-display text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-2">
-                Team OS Workspace Manager
+                {locale === 'vi' ? 'Không gian điều hành đội nhóm' : 'Team OS Workspace Manager'}
               </h2>
               <p className="text-xs text-slate-400 dark:text-slate-550 font-medium leading-relaxed max-w-2xl text-left">
-                Configure departments, organize personnel visual tree, monitor resource workloads and broadcast team-level announcements.
+                {locale === 'vi'
+                  ? 'Quản lý con người, cơ cấu tổ chức, năng lực, tiến độ và các kết nối của đội nhóm trong một không gian thống nhất.'
+                  : 'Manage people, structure, capacity, delivery and team connections in one unified workspace.'}
               </p>
             </div>
           </div>
@@ -432,7 +448,7 @@ export default function TeamDirectory({
                 className="py-2.5 px-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-855 dark:hover:bg-slate-800 dark:text-slate-200 border border-slate-250 dark:border-slate-800/80 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer select-none"
               >
                 <Plus className="w-4 h-4 text-slate-500" />
-                <span>Assign Staff</span>
+                <span>{locale === 'vi' ? 'Phân công nhân sự' : 'Assign Staff'}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
@@ -484,17 +500,20 @@ export default function TeamDirectory({
             className="py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 dark:bg-indigo-550 dark:hover:bg-indigo-650 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer self-start lg:self-auto hover:shadow-indigo-500/10"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add / Invite Staff</span>
+            <span>{locale === 'vi' ? 'Thêm / Mời thành viên' : 'Add / Invite Staff'}</span>
           </button>
         </div>
       </div>
 
       {/* Primary Tab Selector for Team OS Views */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-t-2xl p-1">
+      <div className="flex overflow-x-auto border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-t-2xl p-1 scrollbar-none">
         {[
-          { id: 'directory', label: 'Staff Directory', icon: LayoutGrid },
-          { id: 'org_chart', label: 'Organizational Tree', icon: GitBranch },
-          { id: 'workload', label: 'Workload & Resource Capacity', icon: ClipboardList }
+          { id: 'overview', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
+          { id: 'teams', label: 'Teams', icon: Users },
+          { id: 'directory', label: locale === 'vi' ? 'Danh bạ' : 'Staff Directory', icon: LayoutGrid },
+          { id: 'org_chart', label: locale === 'vi' ? 'Tổ chức & Nhóm' : 'Organization & Teams', icon: GitBranch },
+          { id: 'workload', label: locale === 'vi' ? 'Workload & Năng lực' : 'Workload & Capacity', icon: ClipboardList },
+          { id: 'integrations', label: locale === 'vi' ? 'Kết nối' : 'Integrations', icon: PlugZap }
         ].map(tab => (
           <button
             key={tab.id}
@@ -502,7 +521,7 @@ export default function TeamDirectory({
               setTeamOSView(tab.id as any);
               (window as any).playSystemSound?.('click');
             }}
-            className={`flex-1 py-3 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`min-w-36 flex-1 py-3 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               teamOSView === tab.id
                 ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 shadow-3xs'
                 : 'text-slate-500 hover:text-slate-750 dark:text-slate-400 dark:hover:text-slate-200'
@@ -514,7 +533,36 @@ export default function TeamDirectory({
         ))}
       </div>
 
-      {/* TAB CONTENT 1: STAFF DIRECTORY */}
+      {/* TAB CONTENT 0: TEAM COMMAND CENTER */}
+      {teamOSView === 'overview' && (
+        <TeamCommandCenter
+          members={members}
+          tasks={tasks}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onInvite={() => setShowInviteModal(true)}
+          onOpenDirectory={() => setTeamOSView('directory')}
+          onOpenWorkload={() => setTeamOSView('workload')}
+          onStartChat={onStartChat}
+        />
+      )}
+
+      {/* TAB CONTENT 1: TEAM MANAGEMENT */}
+      {teamOSView === 'teams' && (
+        <TeamManagement
+          teams={dbTeams}
+          memberships={dbTeamMembers}
+          members={members}
+          tasks={tasks}
+          activeWorkspaceId={activeWorkspaceId}
+          canManage={Boolean(isOwner)}
+          onTeamsChange={setDbTeams}
+          onMembershipsChange={setDbTeamMembers}
+          onAddSyncLog={onAddSyncLog}
+        />
+      )}
+
+      {/* TAB CONTENT 2: STAFF DIRECTORY */}
       {teamOSView === 'directory' && (
         <div className="space-y-6">
           {/* My Status Selector Card */}
@@ -1306,6 +1354,11 @@ export default function TeamDirectory({
             })}
           </div>
         </div>
+      )}
+
+      {/* TAB CONTENT 4: INTEGRATION HUB */}
+      {teamOSView === 'integrations' && (
+        <TeamIntegrations workspaces={workspaces} members={members} tasks={tasks} />
       )}
 
       {/* Member Details Modal Backdrop */}

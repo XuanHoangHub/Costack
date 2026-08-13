@@ -116,31 +116,88 @@ export const BASE_TEMPLATES: BaseTemplate[] = [
       const emailId = uid();
       const phoneId = uid();
       const valueId = uid();
-      const table = makeTable('Contacts', [
+      const companyId = uid();
+      const probabilityId = uid();
+      const ownerId = uid();
+      const sourceId = uid();
+      const notesId = uid();
+      const stageOptions = [
+        { id: 'st1', label: 'Lead', color: '#6366f1' },
+        { id: 'st2', label: 'Qualified', color: '#8b5cf6' },
+        { id: 'st3', label: 'Proposal', color: '#f59e0b' },
+        { id: 'st4', label: 'Negotiation', color: '#f97316' },
+        { id: 'st5', label: 'Won', color: '#10b981' },
+        { id: 'st6', label: 'Lost', color: '#ef4444' },
+      ];
+      const opportunities = makeTable('Opportunities', [
         { id: nameId, name: 'Contact Name', type: 'text', width: 200 },
+        { id: companyId, name: 'Company', type: 'text', width: 180 },
         { id: emailId, name: 'Email', type: 'email', width: 180 },
         { id: phoneId, name: 'Phone', type: 'phone', width: 140 },
-        { id: statusId, name: 'Stage', type: 'single_select', options: [
-          { id: 'st1', label: 'Lead', color: '#6366f1' },
-          { id: 'st2', label: 'Qualified', color: '#8b5cf6' },
-          { id: 'st3', label: 'Proposal', color: '#f59e0b' },
-          { id: 'st4', label: 'Won', color: '#10b981' },
-          { id: 'st5', label: 'Lost', color: '#ef4444' },
-        ], width: 130 },
+        { id: statusId, name: 'Stage', type: 'single_select', options: stageOptions, width: 130 },
         { id: valueId, name: 'Deal Value', type: 'currency', width: 120 },
+        { id: probabilityId, name: 'Probability', type: 'percent', width: 110 },
+        { id: ownerId, name: 'Owner', type: 'person', width: 150 },
+        { id: sourceId, name: 'Source', type: 'single_select', options: [
+          { id: 'src1', label: 'Website', color: '#3b82f6' },
+          { id: 'src2', label: 'Referral', color: '#10b981' },
+          { id: 'src3', label: 'Outbound', color: '#f59e0b' },
+          { id: 'src4', label: 'Partner', color: '#8b5cf6' },
+        ], width: 120 },
         { id: dateId, name: 'Follow-up Date', type: 'date', width: 140 },
-        { id: uid(), name: 'Notes', type: 'long_text', width: 240 },
+        { id: notesId, name: 'Notes', type: 'long_text', width: 240 },
       ], [
-        { id: rid(), values: { [nameId]: 'Nguyen Van A', [emailId]: 'nguyen@company.vn', [phoneId]: '0901234567', [statusId]: 'st1', [valueId]: 15000000, [dateId]: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0] }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: rid(), values: { [nameId]: 'Tran Thi B', [emailId]: 'tran@startup.io', [statusId]: 'st2', [valueId]: 45000000, [dateId]: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0] }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [nameId]: 'Nguyễn Minh Anh', [companyId]: 'Aster Digital', [emailId]: 'minhanh@aster.vn', [phoneId]: '0901234567', [statusId]: 'st2', [valueId]: 150000000, [probabilityId]: 45, [sourceId]: 'src1', [dateId]: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], [notesId]: 'Quan tâm gói Business cho 30 người.' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [nameId]: 'Trần Hoàng Nam', [companyId]: 'Nexa Labs', [emailId]: 'nam@nexa.io', [statusId]: 'st3', [valueId]: 320000000, [probabilityId]: 65, [sourceId]: 'src2', [dateId]: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], [notesId]: 'Đã gửi proposal, chờ phản hồi pháp lý.' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [nameId]: 'Lê Thu Hà', [companyId]: 'Orbit Commerce', [emailId]: 'ha@orbit.co', [statusId]: 'st4', [valueId]: 480000000, [probabilityId]: 80, [sourceId]: 'src4', [dateId]: new Date(Date.now() + 86400000).toISOString().split('T')[0] }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       ], nameId, statusId, dateId);
+
+      const companyNameId = uid();
+      const industryId = uid();
+      const companyStatusId = uid();
+      const companies = makeTable('Companies', [
+        { id: companyNameId, name: 'Company Name', type: 'text', width: 210 },
+        { id: industryId, name: 'Industry', type: 'text', width: 150 },
+        { id: uid(), name: 'Website', type: 'url', width: 190 },
+        { id: uid(), name: 'Employees', type: 'number', width: 110 },
+        { id: companyStatusId, name: 'Account Status', type: 'single_select', options: [
+          { id: 'acc1', label: 'Prospect', color: '#6366f1' },
+          { id: 'acc2', label: 'Customer', color: '#10b981' },
+          { id: 'acc3', label: 'At Risk', color: '#ef4444' },
+        ], width: 130 },
+      ], [
+        { id: rid(), values: { [companyNameId]: 'Aster Digital', [industryId]: 'Technology', [companyStatusId]: 'acc1' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [companyNameId]: 'Nexa Labs', [industryId]: 'SaaS', [companyStatusId]: 'acc1' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [companyNameId]: 'Orbit Commerce', [industryId]: 'E-commerce', [companyStatusId]: 'acc1' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ], companyNameId, companyStatusId);
+
+      const activityTitleId = uid();
+      const activityTypeId = uid();
+      const activityDateId = uid();
+      const activityDoneId = uid();
+      const activities = makeTable('Activities', [
+        { id: activityTitleId, name: 'Activity', type: 'text', width: 230 },
+        { id: uid(), name: 'Contact', type: 'text', width: 170 },
+        { id: activityTypeId, name: 'Type', type: 'single_select', options: [
+          { id: 'act1', label: 'Call', color: '#3b82f6' },
+          { id: 'act2', label: 'Email', color: '#8b5cf6' },
+          { id: 'act3', label: 'Meeting', color: '#f59e0b' },
+          { id: 'act4', label: 'Task', color: '#64748b' },
+        ], width: 110 },
+        { id: activityDateId, name: 'Due Date', type: 'date', width: 140 },
+        { id: activityDoneId, name: 'Completed', type: 'checkbox', width: 100 },
+        { id: uid(), name: 'Outcome / Notes', type: 'long_text', width: 260 },
+      ], [
+        { id: rid(), values: { [activityTitleId]: 'Demo giải pháp cho Orbit Commerce', [activityTypeId]: 'act3', [activityDateId]: new Date(Date.now() + 86400000).toISOString().split('T')[0], [activityDoneId]: false }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: rid(), values: { [activityTitleId]: 'Follow-up proposal Nexa Labs', [activityTypeId]: 'act2', [activityDateId]: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], [activityDoneId]: false }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      ], activityTitleId, activityTypeId, activityDateId);
       return {
         id: bid(),
         name: 'CRM Pipeline',
         emoji: 'Handshake',
-        description: 'Customer relationship management',
-        tables: [table],
-        activeTableId: table.id,
+        description: 'Customer relationship management · CRM Workspace',
+        tables: [opportunities, companies, activities],
+        activeTableId: opportunities.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

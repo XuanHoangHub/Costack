@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag } from 'lucide-react';
+import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Repeat2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion } from 'motion/react';
@@ -823,6 +823,11 @@ export default function TaskTableView({
                       <span className="bg-rose-50/80 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/30 text-rose-650 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Blocking another task from starting">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         <span>Blocking</span>
+                      </span>
+                    )}
+                    {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
+                      <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/50 bg-indigo-50/80 px-1.5 py-0.5 text-[9px] font-extrabold capitalize text-indigo-650 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Repeats every ${task.recurrence.interval} ${task.recurrence.frequency}`}>
+                        <Repeat2 className="h-2.5 w-2.5" />{task.recurrence.frequency}
                       </span>
                     )}
 

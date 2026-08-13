@@ -12,7 +12,7 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Workspace, Space, BaseApp, WorkspaceInvitation } from '@/types';
-import { useUserPresence } from '@/hooks/useUserPresence';
+import { extractTaskRelationships } from '@/lib/taskRelationships';
 
 export function useSupabaseSync() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -24,9 +24,6 @@ export function useSupabaseSync() {
   const setSpaces = useSpaceStore((s) => s.setSpaces);
   const addSyncLog = useSyncStore((s) => s.addSyncLog);
   const setDataLoaded = useRef(false);
-
-  // Enable Presence and Inactivity Tracker
-  useUserPresence();
 
   useEffect(() => {
     let active = true;
@@ -112,7 +109,7 @@ export function useSupabaseSync() {
             email: myEmail,
             avatar: myAvatar,
             role: myRole,
-            status: 'online',
+            status: 'offline',
             user_id: userId,
             phone: session.user.user_metadata?.phone || null,
             department: session.user.user_metadata?.department || null,
@@ -123,7 +120,7 @@ export function useSupabaseSync() {
           await supabase.from('members').upsert([newProfile], { onConflict: 'id' });
           finalMembers.push(newProfile);
         } else {
-          const updatedFields: any = { status: 'online' };
+          const updatedFields: any = {};
           let needsUpdate = false;
           if (!myDbProfile.phone && session.user.user_metadata?.phone) { updatedFields.phone = session.user.user_metadata.phone; myDbProfile.phone = session.user.user_metadata.phone; needsUpdate = true; }
           if (!myDbProfile.department && session.user.user_metadata?.department) { updatedFields.department = session.user.user_metadata.department; myDbProfile.department = session.user.user_metadata.department; needsUpdate = true; }
@@ -132,10 +129,7 @@ export function useSupabaseSync() {
           if (!myDbProfile.avatar && session.user.user_metadata?.avatar) { updatedFields.avatar = session.user.user_metadata.avatar; myDbProfile.avatar = session.user.user_metadata.avatar; needsUpdate = true; }
           if (needsUpdate) {
             await supabase.from('members').update(updatedFields).eq('id', myMemberId);
-          } else {
-            await supabase.from('members').update({ status: 'online' }).eq('id', myMemberId);
           }
-          myDbProfile.status = 'online';
         }
 
         if (finalMembers.length > 0) {
@@ -154,7 +148,8 @@ export function useSupabaseSync() {
               email: m.email,
               avatar: m.avatar,
               role: m.role as any,
-              status: isMe ? (m.status as any) : 'offline',
+              // Presence is the only source of truth for connectivity.
+              status: 'offline',
               customStatus: m.custom_status || 'online',
               statusMessage: m.status_message || '',
               statusEmoji: m.status_emoji || '',
@@ -163,6 +158,7 @@ export function useSupabaseSync() {
               phone: m.phone || '',
               department: m.department || '',
               bio: m.bio || '',
+              skills: isMe && Array.isArray(session.user.user_metadata?.skills) ? session.user.user_metadata.skills : [],
               joinedDate: m.joined_date || '2026',
               isPremium: Boolean(m.is_premium)
             };
@@ -200,6 +196,7 @@ export function useSupabaseSync() {
             spaceId: t.space_id || undefined,
             listId: t.list_id || undefined,
             custom_fields: t.custom_fields || {},
+            relationships: extractTaskRelationships(t),
             recurrence: t.recurrence || undefined
           })));
         } else {
@@ -278,7 +275,9 @@ export function useSupabaseSync() {
             }
 
             const finalSpaces = dbSpaces || [];
-            const hasSeededSpaces = typeof window !== 'undefined' ? localStorage.getItem(`apexa_seeded_spaces_${userId}`) : null;
+            const hasSeededSpaces = typeof window !== 'undefined'
+              ? (localStorage.getItem(`avaxa_seeded_spaces_${userId}`) || localStorage.getItem(`apexa_seeded_spaces_${userId}`))
+              : null;
 
             if (finalSpaces.length > 0) {
               const formattedSpaces = finalSpaces.map(s => ({
@@ -307,13 +306,27 @@ export function useSupabaseSync() {
               }));
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
-                try { localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
+                try {
+                  localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true');
+                  localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
+                } catch (e) {}
               }
               return true;
             }
 
             if (hasSeededSpaces) {
-              setSpaces([]);
+              const savedSpaces = typeof window !== 'undefined'
+                ? (localStorage.getItem(`avaxa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
+                : null;
+              if (savedSpaces) {
+                try {
+                  const parsed = JSON.parse(savedSpaces);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setSpaces(parsed);
+                    return true;
+                  }
+                } catch (e) {}
+              }
               return true;
             }
 
@@ -327,7 +340,9 @@ export function useSupabaseSync() {
         const spacesSuccess = await fetchSpacesAndLists();
         
         if (!spacesSuccess && active) {
-          const savedSpaces = typeof window !== 'undefined' ? localStorage.getItem(`apexa_spaces_${userId}`) : null;
+          const savedSpaces = typeof window !== 'undefined'
+            ? (localStorage.getItem(`avaxa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
+            : null;
           let localSpaces: Space[] = [];
           if (savedSpaces) {
             try { localSpaces = JSON.parse(savedSpaces); } catch (e) {}
@@ -444,6 +459,7 @@ export function useSupabaseSync() {
                   spaceId: t.space_id || undefined,
                   listId: t.list_id || undefined,
                   custom_fields: t.custom_fields || {},
+                  relationships: extractTaskRelationships(t),
                   recurrence: t.recurrence || undefined
                 };
                 setTasks(prev => {
@@ -528,7 +544,16 @@ export function useSupabaseSync() {
                       if (item.id === mappedMember.id) {
                         return {
                           ...mappedMember,
-                          status: item.status, // Preserve active presence status
+                          skills: item.skills || mappedMember.skills,
+                          // Connectivity still comes from Presence; persisted manual
+                          // preferences take effect immediately across other tabs.
+                          status: mappedMember.customStatus === 'offline'
+                            ? 'offline'
+                            : mappedMember.customStatus === 'busy'
+                              ? 'busy'
+                              : mappedMember.customStatus === 'away'
+                                ? 'away'
+                                : item.status,
                         };
                       }
                       return item;
@@ -580,13 +605,15 @@ export function useSupabaseSync() {
 
           spacesChannel = supabase.channel('realtime-spaces')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'spaces' }, () => {
-              fetchSpacesAndLists();
+              // Debounce: wait 400ms before re-fetching to let optimistic updates settle
+              setTimeout(() => { if (active) fetchSpacesAndLists(); }, 400);
             })
             .subscribe();
 
           listsChannel = supabase.channel('realtime-lists')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, () => {
-              fetchSpacesAndLists();
+              // Debounce: wait 400ms before re-fetching to let optimistic updates settle
+              setTimeout(() => { if (active) fetchSpacesAndLists(); }, 400);
             })
             .subscribe();
 
@@ -693,4 +720,3 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
 
   return { invitations, refreshInvitations: loadInvitations };
 }
-

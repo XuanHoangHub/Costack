@@ -5,6 +5,8 @@ import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useSyncStore } from '@/store/syncStore';
 import { useUiStore } from '@/store/uiStore';
+import { setUserPresenceStatus } from '@/hooks/useUserPresence';
+import { uiStatusToPresence } from '@/lib/presence';
 
 export function usePomodoroEngine() {
   const workDuration = usePomodoroStore((s) => s.workDuration);
@@ -64,7 +66,9 @@ export function usePomodoroEngine() {
     setPomodoroActive(false);
     const d = pomodoroMode === 'work' ? workDuration : (pomodoroMode === 'short' ? shortBreakDuration : longBreakDuration);
     setPomodoroTime(d * 60);
-    setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
+    const restoredStatus = previousStatus === 'focused' ? 'online' : previousStatus;
+    setUserStatus(restoredStatus);
+    void setUserPresenceStatus(uiStatusToPresence(restoredStatus));
     addToast({
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       type: 'info',
@@ -80,7 +84,9 @@ export function usePomodoroEngine() {
     setPomodoroMode(mode);
     const d = mode === 'work' ? workDuration : (mode === 'short' ? shortBreakDuration : longBreakDuration);
     setPomodoroTime(d * 60);
-    setUserStatus(previousStatus === 'focused' ? 'online' : previousStatus);
+    const restoredStatus = previousStatus === 'focused' ? 'online' : previousStatus;
+    setUserStatus(restoredStatus);
+    void setUserPresenceStatus(uiStatusToPresence(restoredStatus));
     addSyncLog(`Changed Pomodoro mode to: ${mode === 'work' ? 'Work' : (mode === 'short' ? 'Short Break' : 'Long Break')}`);
   }, [workDuration, shortBreakDuration, longBreakDuration, setPomodoroActive, setPomodoroMode, setPomodoroTime, previousStatus, setUserStatus, addSyncLog]);
 

@@ -9,6 +9,7 @@ import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelec
 import SignedImage from '../SignedImage';
 import { supabase } from '../../lib/supabaseClient';
 import { useUiStore } from '../../store/uiStore';
+import { wouldCreateDependencyCycle } from '../../lib/taskRelationships';
 import {
   GripVertical,
   X,
@@ -391,6 +392,23 @@ export default function TaskDetailsPanel({
     const currentRels = task.relationships || {};
     const targetTask = allTasks.find(t => t.id === targetTaskId);
     const targetRels = targetTask?.relationships || {};
+
+    if (!targetTask) return;
+    const alreadyLinked = type === 'blockedBy'
+      ? currentRels.blockedBy?.includes(targetTaskId)
+      : currentRels.blocks?.includes(targetTaskId);
+    if (alreadyLinked) return;
+
+    const blockedTaskId = type === 'blockedBy' ? task.id : targetTaskId;
+    const blockerTaskId = type === 'blockedBy' ? targetTaskId : task.id;
+    if (wouldCreateDependencyCycle(blockedTaskId, blockerTaskId, allTasks)) {
+      triggerToast?.(
+        'warning',
+        'Circular dependency prevented',
+        `Linking “${task.title}” and “${targetTask.title}” would create a dependency loop.`
+      );
+      return;
+    }
 
     if (type === 'blockedBy') {
       const updatedBlockedBy = Array.from(new Set([...(currentRels.blockedBy || []), targetTaskId]));

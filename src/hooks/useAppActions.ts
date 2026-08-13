@@ -14,6 +14,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Space, BaseApp, WorkspaceInvitation } from '@/types';
+import { embedTaskRelationships } from '@/lib/taskRelationships';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -236,7 +237,7 @@ export function useAppActions() {
             workspace_id: activeWorkspaceId,
             space_id: newTask.spaceId || null,
             list_id: newTask.listId || null,
-            custom_fields: newTask.custom_fields || {},
+            custom_fields: embedTaskRelationships(newTask.custom_fields, newTask.relationships),
             recurrence: newTask.recurrence || null
           };
 
@@ -330,7 +331,7 @@ export function useAppActions() {
             comments: updated.comments,
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
-            custom_fields: updated.custom_fields || {},
+            custom_fields: embedTaskRelationships(updated.custom_fields, updated.relationships),
             recurrence: updated.recurrence || null
           }).eq('id', updated.id);
           if (error) console.error('Supabase Task Update Error:', error);
@@ -856,7 +857,10 @@ export function useAppActions() {
     if (!currentUser?.id) return;
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+      try {
+        localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+        localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+      } catch (e) {}
     }
 
     if (!isOffline) {

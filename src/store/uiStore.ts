@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NotificationSettings } from '@/types';
+import { applyAppTheme } from '@/lib/theme';
 
 interface UiState {
   activeTab: string;
   isMainSidebarCollapsed: boolean;
   isSearchOpen: boolean;
   searchQuery: string;
-  searchCategory: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands';
+  searchCategory: 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
   isOffline: boolean;
   syncing: boolean;
   syncProgress: number;
@@ -72,7 +73,7 @@ interface UiState {
   setIsMainSidebarCollapsed: (collapsed: boolean) => void;
   setIsSearchOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setSearchCategory: (category: 'all' | 'tasks' | 'docs' | 'channels' | 'members' | 'commands') => void;
+  setSearchCategory: (category: 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands') => void;
   setIsOffline: (offline: boolean) => void;
   setSyncing: (syncing: boolean) => void;
   setSyncProgress: (progress: number | ((prev: number) => number)) => void;
@@ -185,7 +186,10 @@ export const useUiStore = create<UiState>()(
       showPomoSettings: false,
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
-      sidebarOrder: ['dashboard', 'calendar', 'chat', 'base', 'tasks'],
+      sidebarOrder: [
+        'dashboard', 'inbox', 'tasks', 'my-tasks', 'calendar', 'productivity', 'goals', 'analytics',
+        'crm', 'base', 'docs', 'whiteboard', 'chat', 'team'
+      ],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
@@ -205,7 +209,10 @@ export const useUiStore = create<UiState>()(
       setBlurIntensity: (blurIntensity) => set({ blurIntensity }),
       setAccentPreset: (accentPreset) => set({ accentPreset }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
-      setIsDarkMode: (isDarkMode) => set({ isDarkMode }),
+      setIsDarkMode: (isDarkMode) => {
+        applyAppTheme(isDarkMode);
+        set({ isDarkMode });
+      },
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setUiDensity: (uiDensity) => set({ uiDensity }),
       setNotificationSettings: (notificationSettings) => set({ notificationSettings: typeof notificationSettings === 'function' ? notificationSettings(get().notificationSettings) : notificationSettings }),

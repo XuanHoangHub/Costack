@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatChannel, User, Space, Priority } from '../types';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
+import { presenceDotClass } from '../lib/presence';
 import { useTranslation } from '../contexts/TranslationContext';
 import { 
   Hash, Send, Bot, Smile, Users, MessageSquare, Sparkles, Plus, X,
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
-  Bold, Italic, Code, Quote, Pin, PinOff,
+  Bold, Italic, Code, Quote, Pin, PinOff, CornerUpLeft,
   Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar,
   BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap, Star, Sliders, Bell, SmilePlus, Image as ImageIcon
 } from 'lucide-react';
@@ -442,6 +443,8 @@ export default function ChatRoom({
 
   const [showAiEnhanceMenu, setShowAiEnhanceMenu] = useState(false);
   const [isAiEnhancing, setIsAiEnhancing] = useState(false);
+  const [replyingToMessage, setReplyingToMessage] = useState<ChatMessage | null>(null);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
 
   const [showQuickCreateMenu, setShowQuickCreateMenu] = useState(false);
   const [showActivityLogModal, setShowActivityLogModal] = useState(false);
@@ -1991,6 +1994,7 @@ ${channelMessagesText}`;
       setMessages(prev => prev.some(message => message.id === msgId) ? prev : [...prev, newMsg]);
       setInputVal('');
       setSelectedFile(null);
+      setReplyingToMessage(null);
       scrollToBottom();
 
       // Check if chat is with AI Assistant channel
@@ -2138,6 +2142,7 @@ ${channelMessagesText}`;
     activeChannelId.endsWith('-user-user') ||
     (dmMember ? (dmMember.id === currentUser.id || dmMember.id === `user-${currentUser.id}`) : false)
   );
+  const ownPresenceStatus = members.find((member) => member.id === 'user')?.status || 'offline';
 
   // Resolve Space channel if activeChannelId is a Space Channel
   const isSpaceChan = activeChannelId.includes(':space-') || activeChannelId.includes(':folder-') || activeChannelId.includes(':list-');
@@ -2410,10 +2415,7 @@ ${channelMessagesText}`;
                     >
                       <div className="relative shrink-0 flex">
                         <SignedImage filePath={member.avatar} alt={member.name} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
-                        <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
-                          member.status === 'online' ? 'bg-emerald-500 animate-pulse' :
-                          member.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
-                        }`}></span>
+                        <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${presenceDotClass(member.status, true)}`}></span>
                       </div>
                       <span className="truncate flex-1 text-left">{member.name}</span>
                       {(unreadCounts[dmChannelId] || 0) > 0 && (
@@ -2537,7 +2539,7 @@ ${channelMessagesText}`;
               {isSelfDm ? (
                 <div className="relative shrink-0 flex">
                   <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900"></span>
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(ownPresenceStatus, true)}`}></span>
                 </div>
               ) : isDm && dmMember ? (
                 <div 
@@ -2546,7 +2548,7 @@ ${channelMessagesText}`;
                   title={`Xem hồ sơ của ${dmMember.name}`}
                 >
                   <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${dmMember.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`}></span>
                 </div>
               ) : (
                 <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-violet-100 text-sm font-black text-indigo-600 shadow-sm dark:border-indigo-800/60 dark:from-indigo-950/70 dark:to-violet-950/50 dark:text-indigo-300">
@@ -2624,8 +2626,8 @@ ${channelMessagesText}`;
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                   {isDm ? (
                     <>
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isSelfDm || dmMember?.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                      <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : 'Ngoại tuyến'}</span>
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${presenceDotClass(isSelfDm ? ownPresenceStatus : (dmMember?.status || 'offline'))}`} />
+                      <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : dmMember?.status === 'busy' ? 'Đang bận' : dmMember?.status === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
                     </>
                   ) : (
                     <>
@@ -2656,10 +2658,7 @@ ${channelMessagesText}`;
                 <Users className="h-3.5 w-3.5" />
                 <span>{members.length}</span>
               </button>
-              <div className="hidden h-8 items-center gap-2 rounded-xl bg-slate-950 px-3 text-[10.5px] font-extrabold text-white shadow-sm lg:flex dark:bg-white dark:text-slate-950">
-                <span className={`h-1.5 w-1.5 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-violet-400'}`} />
-                <span>Brain² Chat</span>
-              </div>
+
             </div>
           </div>
 
@@ -3019,6 +3018,18 @@ ${channelMessagesText}`;
                     {translatingMsgId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" /> : <Globe className="w-3.5 h-3.5" />}
                   </button>
 
+                  {/* Reply Quote Button */}
+                  <button 
+                    onClick={() => {
+                      setReplyingToMessage(msg);
+                      inputRef.current?.focus();
+                    }}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    title="Trả lời tin nhắn (Reply)"
+                  >
+                    <CornerUpLeft className="w-3.5 h-3.5" />
+                  </button>
+
                   {/* Reply in Thread */}
                   <button 
                     onClick={() => handleOpenThread(msg)}
@@ -3259,131 +3270,66 @@ ${channelMessagesText}`;
           </div>
         )}
 
-                {/* Mockup-style unified rich editor box card */}
-        <div className="px-3.5 py-2.5 bg-white/90 dark:bg-[#07080c]/90 border-t border-slate-200/60 dark:border-slate-800/80 backdrop-blur-md shrink-0">
-          <form onSubmit={handleSendMessage} className="relative border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 rounded-2xl px-3 py-2 bg-white dark:bg-[#0e0f17] transition-all shadow-sm flex flex-col gap-1.5 select-text">
-            
-            {/* Selected file preview widget */}
-            {selectedFile && (
-              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                <div className="flex items-center gap-2 truncate">
-                  <span>📎</span>
-                  <span className="truncate">{selectedFile.name}</span>
+                {/* ── MESSENGER-STANDARD CHAT INPUT AREA ── */}
+        <div className="px-3.5 py-2.5 bg-white/90 dark:bg-[#07080d]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
+          <form onSubmit={handleSendMessage} className="relative flex flex-col gap-2 max-w-7xl mx-auto select-text">
+
+            {/* Reply Preview Bar */}
+            {replyingToMessage && (
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/70 text-xs text-slate-700 dark:text-slate-200 shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-1 h-7 rounded-full bg-indigo-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[10.5px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                      Đang trả lời {replyingToMessage.senderName}
+                    </span>
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
+                      {replyingToMessage.content || (replyingToMessage.attachment ? `📎 ${replyingToMessage.attachment.name}` : 'Tin nhắn')}
+                    </p>
+                  </div>
                 </div>
-                <button type="button" onClick={() => setSelectedFile(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setReplyingToMessage(null)}
+                  className="p-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
+                  title="Hủy trả lời"
+                >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
 
-            {/* Input Text Area container */}
-            {isRecording ? (
-              <div className="flex-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-rose-50 dark:bg-rose-955/30 border border-rose-250 dark:border-rose-900/50 animate-pulse text-xs font-semibold text-rose-600 dark:text-rose-400">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 dark:bg-rose-400 animate-ping"></span>
-                  <span>Recording Voice: {recordingDuration}s</span>
+            {/* Selected File / Image Preview Widget */}
+            {selectedFile && (
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2.5 truncate">
+                  {selectedFile.url && selectedFile.type.startsWith('image/') ? (
+                    <img src={selectedFile.url} alt="Preview" className="w-9 h-9 rounded-xl object-cover border border-slate-300 dark:border-slate-600 shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm shrink-0">
+                      📎
+                    </div>
+                  )}
+                  <div className="truncate">
+                    <span className="block font-bold text-slate-800 dark:text-slate-100 truncate">{selectedFile.name}</span>
+                    <span className="block text-[9.5px] text-slate-400 font-mono">{selectedFile.size ? `${(selectedFile.size / 1024).toFixed(1)} KB` : 'Tệp đính kèm'}</span>
+                  </div>
                 </div>
-                <button 
-                  type="button" 
-                  onClick={stopRecording}
-                  className="p-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer flex items-center justify-center"
+                <button
+                  type="button"
+                  onClick={() => setSelectedFile(null)}
+                  className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
-                  <Square className="w-3.5 h-3.5 fill-white" />
+                  <X className="w-4 h-4" />
                 </button>
-              </div>
-            ) : (
-              <div className="relative flex-1">
-                <textarea
-                  ref={inputRef}
-                  value={inputVal}
-                  onChange={handleInputChange}
-                  placeholder={
-                    isSelfDm 
-                      ? `Write to ${currentUser.name}, press 'space' for AI, '/' for commands`
-                      : activeChannel?.name.includes('ai') 
-                        ? "Ask Avaxa Brain AI..." 
-                        : `Write to ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}, press 'space' for AI...`
-                  }
-                  className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none min-h-[38px] custom-scrollbar focus:ring-0 p-0"
-                  onKeyDown={e => {
-                    if (showCommandDropdown && filteredCommands.length > 0) {
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        setActiveCommandIndex(prev => (prev + 1) % filteredCommands.length);
-                        return;
-                      }
-                      if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        setActiveCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
-                        return;
-                      }
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSelectCommand(filteredCommands[activeCommandIndex]);
-                        return;
-                      }
-                      if (e.key === 'Escape') {
-                        e.preventDefault();
-                        setShowCommandDropdown(false);
-                        return;
-                      }
-                    }
-
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                />
-
-                {/* @Mention Autocomplete Dropdown */}
-                {showMentionDropdown && filteredMentionMembers.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] max-h-[180px] overflow-y-auto animate-fadeIn">
-                    <div className="px-2 py-1 mb-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mention a member</span>
-                    </div>
-                    {filteredMentionMembers.map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleSelectMention(m)}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer text-left"
-                      >
-                        <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
-                        <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-200">{m.name}</span>
-                        <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Slash Commands Dropdown */}
-                {showCommandDropdown && filteredCommands.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
-                    <div className="px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-405 dark:text-slate-500">Quick Commands</span>
-                    </div>
-                    {filteredCommands.map((cmd, idx) => (
-                      <button
-                        key={cmd.name}
-                        type="button"
-                        onClick={() => handleSelectCommand(cmd)}
-                        className={`w-full flex flex-col gap-0.5 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors cursor-pointer text-left ${idx === activeCommandIndex ? 'bg-indigo-50 dark:bg-indigo-950/20 font-bold' : ''}`}
-                      >
-                        <span className="text-[10.5px] font-black text-indigo-600 dark:text-indigo-400">{cmd.name}</span>
-                        <span className="text-[9px] font-bold text-slate-405 dark:text-slate-500">{cmd.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Hidden File Input handler */}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
@@ -3393,163 +3339,353 @@ ${channelMessagesText}`;
                     return;
                   }
                   const isImg = file.type.startsWith('image/');
-                  if (isImg) {
-                    setSelectedFile({
-                      name: file.name,
-                      size: file.size,
-                      type: file.type,
-                      url: URL.createObjectURL(file),
-                      file
-                    });
-                  } else {
-                    setSelectedFile({
-                      name: file.name,
-                      size: file.size,
-                      type: file.type,
-                      file
-                    });
-                  }
-                  triggerToast?.('success', 'File selected 📎', `Ready to send: ${file.name}`);
+                  setSelectedFile({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    url: isImg ? URL.createObjectURL(file) : undefined,
+                    file
+                  });
+                  triggerToast?.('success', 'Tệp đã chọn 📎', `Đã sẵn sàng gửi: ${file.name}`);
                   e.target.value = '';
                 }
               }}
             />
 
-            {/* Bottom Row Utilities and Actions */}
-            <div className="flex items-center justify-between mt-0.5 pt-1 border-t border-slate-100/60 dark:border-slate-800/60">
-              {/* Left Utilities */}
-              <div className="relative flex items-center gap-1 text-slate-400 dark:text-slate-500 select-none">
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Tải file đính kèm">
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-
-                {/* AI Sparkles Assistant Dropdown */}
-                <div className="relative">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowAiEnhanceMenu(!showAiEnhanceMenu)} 
-                    className={`p-1 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer ${showAiEnhanceMenu ? 'bg-amber-50 text-amber-500' : ''}`} 
-                    title="AI Trợ lý viết & Tối ưu văn bản"
-                  >
-                    <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${isAiEnhancing ? 'animate-spin' : 'animate-pulse'}`} />
-                  </button>
-
-                  {showAiEnhanceMenu && (
-                    <div className="absolute left-0 bottom-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[200px] text-left animate-fadeIn">
-                      <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Avaxa AI Writer</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleAiEnhanceInput('expand')}
-                        className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        🪄 Viết tiếp & Mở rộng ý
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAiEnhanceInput('formal')}
-                        className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        👔 Viết lại trang trọng (Formal)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAiEnhanceInput('shorten')}
-                        className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        🎯 Tóm tắt ngắn gọn
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAiEnhanceInput('translate')}
-                        className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        🌐 Dịch sang Tiếng Anh
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAiEnhanceInput('spelling')}
-                        className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
-                      >
-                        ✏️ Sửa lỗi chính tả & Văn phong
-                      </button>
-                    </div>
-                  )}
+            {/* Audio Recording Live Bar (Messenger Standard) */}
+            {isRecording ? (
+              <div className="flex items-center justify-between px-4 py-3 rounded-[24px] bg-rose-500/10 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800/80 shadow-md text-xs font-semibold text-rose-600 dark:text-rose-400 animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex items-center justify-center">
+                    <span className="w-3.5 h-3.5 rounded-full bg-rose-500 animate-ping absolute" />
+                    <span className="w-3 h-3 rounded-full bg-rose-600 relative" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-sm font-black text-rose-600 dark:text-rose-300">00:{recordingDuration < 10 ? `0${recordingDuration}` : recordingDuration}</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 ml-1.5">Đang ghi âm thoại...</span>
+                  </div>
+                  {/* Animated Waveform indicator */}
+                  <div className="hidden sm:flex items-center gap-1 ml-3 h-4">
+                    {[40, 70, 30, 90, 50, 80, 40, 60].map((h, i) => (
+                      <span key={i} className="w-1 bg-rose-500/70 dark:bg-rose-400/80 rounded-full animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 0.15}s` }} />
+                    ))}
+                  </div>
                 </div>
-
-                <button type="button" onClick={() => insertFormatting('bold')} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Định dạng Bold (**text**)">
-                  <Bold className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => insertFormatting('italic')} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Định dạng Nghiêng (*text*)">
-                  <Italic className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => insertFormatting('code')} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Định dạng Code (`code`)">
-                  <Code className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Đính kèm file">
-                  <Paperclip className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => { setInputVal(prev => prev + '@'); setShowMentionDropdown(true); setMentionQuery(''); }} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Tag tên thành viên (@)">
-                  <AtSign className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1 hover:text-slate-750 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Biểu cảm Emoji">
-                  <Smile className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => setShowGifPicker(!showGifPicker)} className={`p-1 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer ${showGifPicker ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : ''}`} title="Kho GIF & Sticker">
-                  <span className="text-[9px] font-black leading-none border border-slate-350 dark:border-slate-700 px-1 py-0.5 rounded">GIF</span>
-                </button>
-                <button type="button" onClick={() => setShowVideoMeetModal(true)} className="p-1 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Tạo cuộc họp Video (Video Call)">
-                  <Video className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => setShowChecklistModal(true)} className="p-1 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Tạo danh sách công việc (Checklist)">
-                  <CheckSquare className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => setShowTemplateModal(true)} className="p-1 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Mẫu tin nhắn chuẩn (Templates)">
-                  <FileText className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => setShowAutomationModal(true)} className="p-1 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer" title="Tự động hóa Kênh (Automation & Webhook)">
-                  <Zap className="w-3.5 h-3.5 text-indigo-500" />
-                </button>
-              </div>
-
-              {/* Right Action Buttons */}
-              <div className="flex items-center gap-2">
-                {activeChannel?.name.includes('ai') && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSearchWeb(!searchWeb)}
-                    className={`p-1 rounded-lg border transition-colors cursor-pointer shrink-0 flex items-center justify-center ${
-                      searchWeb 
-                        ? 'border-indigo-550 bg-indigo-50 text-indigo-650' 
-                        : 'border-slate-200/60 bg-slate-50 text-slate-400 hover:text-indigo-650 hover:bg-slate-100'
-                    }`}
-                    title={searchWeb ? "Web Search Grounding Enabled" : "Web Search Grounding Disabled"}
+                    onClick={() => {
+                      setIsRecording(false);
+                      triggerToast?.('info', 'Đã hủy', 'Đã xóa bản ghi âm.');
+                    }}
+                    className="px-3 py-1.5 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-rose-100 hover:text-rose-600 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    <Globe className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hủy</span>
                   </button>
-                )}
-
-                {!isRecording && (
-                  <button type="button" onClick={startRecording} className="p-1 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Record Voice">
-                    <Mic className="w-3.5 h-3.5 text-slate-400" />
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="px-3.5 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-colors cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Send className="w-3.5 h-3.5 fill-current" />
+                    <span>Gửi thoại</span>
                   </button>
-                )}
-                
-                <button type="submit" disabled={!inputVal.trim() && !selectedFile} className={`p-1.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                  (inputVal.trim() || selectedFile) 
-                    ? 'bg-indigo-650 text-white shadow-xs hover:bg-indigo-750 active:scale-95' 
-                    : 'text-slate-350 bg-slate-50 border border-slate-200/60 pointer-events-none'
-                }`} title="Send Message">
-                  <Send className="w-3.5 h-3.5 fill-current" />
-                </button>
-                
-                <button type="button" className="text-slate-400 hover:text-slate-750 transition-colors p-1 hover:bg-slate-50 rounded-lg cursor-pointer">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Messenger Input Control Bar */
+              <div className="flex items-end gap-2 relative">
+                {/* Left Action Buttons */}
+                <div className="flex items-center gap-1 pb-1 text-slate-500 dark:text-slate-400 select-none shrink-0">
+                  {/* More Tools Expandable Menu (+) */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowToolsMenu(!showToolsMenu)}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                        showToolsMenu
+                          ? 'bg-indigo-600 text-white shadow-md rotate-45'
+                          : 'bg-slate-100/90 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                      title="Công cụ mở rộng & Định dạng"
+                    >
+                      <Plus className="w-4 h-4 transition-transform duration-200" />
+                    </button>
+
+                    {/* Expandable Tools Popover Grid */}
+                    {showToolsMenu && (
+                      <div className="absolute left-0 bottom-12 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl p-2.5 z-50 min-w-[260px] animate-fadeIn text-left space-y-2">
+                        <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Khung công cụ nhắn tin</span>
+                          <button type="button" onClick={() => setShowToolsMenu(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        
+                        {/* Formatting Tools Row */}
+                        <div className="flex items-center gap-1 px-1 py-1 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 justify-around">
+                          <button type="button" onClick={() => { insertFormatting('bold'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In đậm (**text**)">
+                            <Bold className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('italic'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In nghiêng (*text*)">
+                            <Italic className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('code'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Khối mã (`code`)">
+                            <Code className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('quote'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Trích dẫn (> quote)">
+                            <Quote className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Feature Apps List */}
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => { setShowVideoMeetModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                              <Video className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Họp Video</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowChecklistModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              <CheckSquare className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Tạo Checklist</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowTemplateModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                              <FileText className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Mẫu tin nhắn</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowAutomationModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                              <Zap className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Tự động hóa</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Media / File Upload Button */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                    title="Đính kèm Ảnh & Tệp"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
+
+                  {/* Mic Button */}
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="w-9 h-9 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                    title="Ghi âm giọng nói"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Middle Input Pill (Messenger Capsule Box) */}
+                <div className="flex-1 bg-slate-100/90 dark:bg-slate-800/70 focus-within:bg-white dark:focus-within:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 focus-within:border-indigo-500/80 focus-within:ring-4 focus-within:ring-indigo-500/15 rounded-[24px] px-4 py-2 transition-all shadow-inner-xs flex items-center gap-2 relative min-w-0">
+                  <textarea
+                    ref={inputRef}
+                    value={inputVal}
+                    onChange={handleInputChange}
+                    placeholder={
+                      isSelfDm
+                        ? `Nhắn tin cho chính bạn... (Space cho AI, / lệnh)`
+                        : activeChannel?.name.includes('ai')
+                          ? "Hỏi Avaxa Brain AI bất cứ điều gì..."
+                          : `Nhắn tin đến ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}...`
+                    }
+                    rows={1}
+                    className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none max-h-32 min-h-[22px] custom-scrollbar focus:ring-0 p-0 leading-relaxed"
+                    onKeyDown={e => {
+                      if (showCommandDropdown && filteredCommands.length > 0) {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setActiveCommandIndex(prev => (prev + 1) % filteredCommands.length);
+                          return;
+                        }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setActiveCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+                          return;
+                        }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSelectCommand(filteredCommands[activeCommandIndex]);
+                          return;
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setShowCommandDropdown(false);
+                          return;
+                        }
+                      }
+
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                  />
+
+                  {/* Autocomplete Dropdowns */}
+                  {showMentionDropdown && filteredMentionMembers.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[200px] max-h-[180px] overflow-y-auto animate-fadeIn">
+                      <div className="px-2 py-1 mb-1">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Gợi ý thành viên</span>
+                      </div>
+                      {filteredMentionMembers.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => handleSelectMention(m)}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer text-left"
+                        >
+                          <SignedImage filePath={m.avatar} alt={m.name} className="w-5 h-5 rounded-full" />
+                          <span className="text-[10.5px] font-bold text-slate-700 dark:text-slate-200">{m.name}</span>
+                          <span className="text-[9px] font-semibold text-slate-400 ml-auto">{m.role}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {showCommandDropdown && filteredCommands.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
+                      <div className="px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Lệnh nhanh Slash (/)</span>
+                      </div>
+                      {filteredCommands.map((cmd, idx) => (
+                        <button
+                          key={cmd.name}
+                          type="button"
+                          onClick={() => handleSelectCommand(cmd)}
+                          className={`w-full flex flex-col gap-0.5 px-2.5 py-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors cursor-pointer text-left ${idx === activeCommandIndex ? 'bg-indigo-50 dark:bg-indigo-950/20 font-bold' : ''}`}
+                        >
+                          <span className="text-[10.5px] font-black text-indigo-600 dark:text-indigo-400">{cmd.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400">{cmd.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Right inner buttons inside pill (AI Writer & Emoji & GIF) */}
+                  <div className="flex items-center gap-1 text-slate-400 shrink-0 select-none">
+                    {/* AI Assistant Popover inside Pill */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowAiEnhanceMenu(!showAiEnhanceMenu)}
+                        className={`p-1 hover:text-amber-500 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 rounded-full transition-colors cursor-pointer ${showAiEnhanceMenu ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' : ''}`}
+                        title="AI Trợ lý viết & Tối ưu văn bản"
+                      >
+                        <Sparkles className={`w-4 h-4 text-amber-500 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                      </button>
+
+                      {showAiEnhanceMenu && (
+                        <div className="absolute right-0 bottom-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
+                          <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Avaxa AI Writer</span>
+                          </div>
+                          <button type="button" onClick={() => handleAiEnhanceInput('expand')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
+                            🪄 Viết tiếp & Mở rộng ý
+                          </button>
+                          <button type="button" onClick={() => handleAiEnhanceInput('formal')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
+                            👔 Viết lại trang trọng
+                          </button>
+                          <button type="button" onClick={() => handleAiEnhanceInput('shorten')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
+                            🎯 Tóm tắt ngắn gọn
+                          </button>
+                          <button type="button" onClick={() => handleAiEnhanceInput('translate')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
+                            🌐 Dịch sang Tiếng Anh
+                          </button>
+                          <button type="button" onClick={() => handleAiEnhanceInput('spelling')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
+                            ✏️ Sửa lỗi chính tả
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GIF Picker Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setShowGifPicker(!showGifPicker)}
+                      className={`px-1.5 py-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer text-[9.5px] font-black tracking-wider ${showGifPicker ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400' : 'text-slate-400'}`}
+                      title="Kho GIF & Sticker"
+                    >
+                      GIF
+                    </button>
+
+                    {/* Emoji Picker Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`p-1 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 rounded-full transition-colors cursor-pointer ${showEmojiPicker ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
+                      title="Biểu cảm Emoji"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Send or Quick Like Button */}
+                <div className="pb-0.5 shrink-0 select-none">
+                  {inputVal.trim() || selectedFile ? (
+                    <button
+                      type="submit"
+                      disabled={isSending}
+                      className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-500/25 flex items-center justify-center cursor-pointer active:scale-90 transition-all"
+                      title="Gửi tin nhắn (Enter)"
+                    >
+                      {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 fill-current ml-0.5" />}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputVal('👍');
+                        setTimeout(() => {
+                          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                          handleSendMessage(fakeEvent);
+                        }, 50);
+                      }}
+                      className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-500 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-90 text-lg hover:scale-110"
+                      title="Gửi Thumbs Up 👍"
+                    >
+                      👍
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </form>
         </div>
 
@@ -3600,10 +3736,7 @@ ${channelMessagesText}`;
                       >
                         <div className="relative shrink-0 flex">
                           <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn group-hover/m:scale-105 transition-transform" />
-                          <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
-                            m.status === 'online' ? 'bg-emerald-500 animate-pulse' :
-                            m.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
-                          }`} />
+                          <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${presenceDotClass(m.status, true)}`} />
                         </div>
                         <div className="min-w-0 leading-none">
                           <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block truncate group-hover/m:text-indigo-600 dark:group-hover/m:text-indigo-400 transition-colors">{m.name}</span>
@@ -4332,10 +4465,7 @@ ${channelMessagesText}`;
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="relative shrink-0">
                             <SignedImage filePath={member.avatar} alt={member.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
-                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
-                              member.status === 'online' ? 'bg-emerald-500' :
-                              member.status === 'busy' ? 'bg-indigo-500' : 'bg-amber-400'
-                            }`}></span>
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(member.status, true)}`}></span>
                           </div>
                           <div className="min-w-0 text-left">
                             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">{member.name}</h4>

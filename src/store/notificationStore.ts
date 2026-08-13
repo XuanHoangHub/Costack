@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NotificationSettings } from '@/types';
 import { Toast } from '@/components/ToastNotification';
+import { sanitizeInboxNotifications, shouldPersistInInbox } from '@/lib/notificationPolicy';
 
 interface NotificationState {
   toasts: Toast[];
@@ -48,19 +49,28 @@ export const useNotificationStore = create<NotificationState>()(
           toasts: [...state.toasts.slice(-3), toast],
         })),
       addNotification: (notification) =>
-        set((state) => ({
+        set((state) => shouldPersistInInbox(notification) ? ({
           notificationsList: [notification, ...state.notificationsList].slice(0, 50),
-        })),
+        }) : state),
       removeToast: (id) =>
         set((state) => ({
           toasts: state.toasts.filter((t) => t.id !== id),
         })),
-      setNotificationsList: (notificationsList: any[] | ((prev: any[]) => any[])) => set({ notificationsList: typeof notificationsList === 'function' ? notificationsList(get().notificationsList) : notificationsList }),
+      setNotificationsList: (notificationsList: any[] | ((prev: any[]) => any[])) => set({
+        notificationsList: sanitizeInboxNotifications(
+          typeof notificationsList === 'function' ? notificationsList(get().notificationsList) : notificationsList,
+        ),
+      }),
       setNotificationSettings: (notificationSettings) => set({ notificationSettings: typeof notificationSettings === 'function' ? notificationSettings(get().notificationSettings) : notificationSettings }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
     }),
     {
       name: 'avaxa_notifications',
+      version: 2,
+      migrate: (persistedState: any) => ({
+        ...persistedState,
+        notificationsList: sanitizeInboxNotifications(persistedState?.notificationsList || []),
+      }),
       partialize: (state) => ({
         notificationsList: state.notificationsList,
         notificationSettings: state.notificationSettings,

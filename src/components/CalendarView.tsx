@@ -13,7 +13,7 @@ import {
   RefreshCw, CheckCircle2, Sparkles, Check, Plus, X,
   Search, Filter, Info, Trash2, ArrowRight, UserCheck, Users,
   ListPlus, Settings, CalendarDays, Eye, Edit3, Tag, GripVertical, ChevronDown,
-  Download, Bot, Zap, CheckSquare, Layers, CircleDot
+  Download, Bot, Zap, CheckSquare, Layers, CircleDot, Flag, Brain, Globe, HelpCircle
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -28,6 +28,21 @@ interface CalendarViewProps {
   onUpdateTask?: (task: Task) => void;
   onDeleteTask?: (id: string) => void;
 }
+
+// Vietnam Holidays Map for 2026
+const VIETNAMESE_HOLIDAYS_2026: Record<string, string> = {
+  '2026-01-01': 'Tết Dương lịch',
+  '2026-02-16': '30 Tết Nguyên Đán',
+  '2026-02-17': 'Mùng 1 Tết Nguyên Đán',
+  '2026-02-18': 'Mùng 2 Tết Nguyên Đán',
+  '2026-02-19': 'Mùng 3 Tết Nguyên Đán',
+  '2026-04-26': 'Giỗ Tổ Hùng Vương',
+  '2026-04-30': 'Ngày Chiến thắng (30/4)',
+  '2026-05-01': 'Quốc tế Lao động (1/5)',
+  '2026-09-02': 'Quốc Khánh VN',
+  '2026-09-25': 'Tết Trung Thu',
+  '2026-12-25': 'Lễ Giáng sinh'
+};
 
 // Mini Calendar Navigator Subcomponent for Left Sidebar
 function MiniCalendarNavigator({ 
@@ -67,8 +82,8 @@ function MiniCalendarNavigator({
   }, [year, month]);
 
   const monthNames = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+    'THÁNG 1', 'THÁNG 2', 'THÁNG 3', 'THÁNG 4', 'THÁNG 5', 'THÁNG 6',
+    'THÁNG 7', 'THÁNG 8', 'THÁNG 9', 'THÁNG 10', 'THÁNG 11', 'THÁNG 12'
   ];
 
   const formatDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -76,23 +91,23 @@ function MiniCalendarNavigator({
   const selectedStr = formatDateStr(selectedDate);
 
   return (
-    <div className="p-4 select-none pb-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+    <div className="p-4 select-none pb-4">
+      <div className="flex items-center justify-between mb-3 px-1">
+        <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">
           {monthNames[month]} {year}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 text-slate-400">
           <button 
             type="button" 
             onClick={() => setNavDate(new Date(year, month - 1, 1))}
-            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <button 
             type="button" 
             onClick={() => setNavDate(new Date(year, month + 1, 1))}
-            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -100,7 +115,7 @@ function MiniCalendarNavigator({
       </div>
 
       {/* Days Grid Header */}
-      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black text-slate-400 mb-1">
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black text-slate-400 mb-2">
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
           <span key={d}>{d}</span>
         ))}
@@ -118,13 +133,11 @@ function MiniCalendarNavigator({
               key={idx}
               type="button"
               onClick={() => onSelectDate(item.date)}
-              className={`w-6 h-6 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-indigo-600 text-white font-black shadow-xs scale-105'
-                  : isToday
-                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-300 dark:border-indigo-800'
+              className={`w-6.5 h-6.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer mx-auto ${
+                isSelected || isToday
+                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-500/25 scale-105'
                   : item.isCurrentMonth
-                  ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800'
                   : 'text-slate-350 dark:text-slate-650 opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -153,7 +166,7 @@ export default function CalendarView({
   const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Navigation states
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 7, 12)); // August 12, 2026 matching screenshot context
   const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'schedule'>('month');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -172,6 +185,7 @@ export default function CalendarView({
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [showAiModal, setShowAiModal] = useState<boolean>(false);
   const [clickedDate, setClickedDate] = useState<string>('');
   const [clickedHour, setClickedHour] = useState<number>(9);
   const [quickTitle, setQuickTitle] = useState<string>('');
@@ -205,17 +219,10 @@ export default function CalendarView({
       }
     } catch (e) {}
     
-    const d = new Date();
-    const formatDate = (offset: number) => {
-      const target = new Date(d);
-      target.setDate(d.getDate() + offset);
-      return target.toISOString().split('T')[0];
-    };
-
     return [
-      { id: 'mock-1', summary: 'Họp Định hướng Sản phẩm 🚀', description: 'Đánh giá thiết kế bảng Kanban v2.5 mới', start: { dateTime: `${formatDate(0)}T10:00:00+07:00` }, end: { dateTime: `${formatDate(0)}T11:30:00+07:00` }, color: '#7B61FF', isGoogleEvent: true },
-      { id: 'mock-2', summary: 'Tối ưu Giao diện Calendar 📅', description: 'Hoàn thiện hệ lưới và chuyển động kéo thả', start: { dateTime: `${formatDate(2)}T14:00:00+07:00` }, end: { dateTime: `${formatDate(2)}T15:30:00+07:00` }, color: '#10b981', isGoogleEvent: true },
-      { id: 'mock-3', summary: 'Duyệt Trợ lý AI Copilot 🧠', description: 'Tinh chỉnh câu lệnh cho trợ lý ảo thông minh', start: { dateTime: `${formatDate(-1)}T09:00:00+07:00` }, end: { dateTime: `${formatDate(-1)}T10:30:00+07:00` }, color: '#f59e0b', isGoogleEvent: true }
+      { id: 'mock-1', summary: 'Họp Định hướng Sản phẩm 🚀', description: 'Đánh giá thiết kế bảng Kanban v2.5 mới', start: { dateTime: '2026-08-12T10:00:00+07:00' }, end: { dateTime: '2026-08-12T11:30:00+07:00' }, color: '#7B61FF', isGoogleEvent: true },
+      { id: 'mock-2', summary: 'Tối ưu Giao diện Calendar 📅', description: 'Hoàn thiện hệ lưới và chuyển động kéo thả', start: { dateTime: '2026-08-14T14:00:00+07:00' }, end: { dateTime: '2026-08-14T15:30:00+07:00' }, color: '#10b981', isGoogleEvent: true },
+      { id: 'mock-3', summary: 'Duyệt Trợ lý AI Copilot 🧠', description: 'Tinh chỉnh câu lệnh cho trợ lý ảo thông minh', start: { dateTime: '2026-08-11T09:00:00+07:00' }, end: { dateTime: '2026-08-11T10:30:00+07:00' }, color: '#f59e0b', isGoogleEvent: true }
     ];
   });
 
@@ -288,7 +295,7 @@ export default function CalendarView({
 
     setIsAiScheduling(true);
     setTimeout(() => {
-      const today = new Date();
+      const today = new Date(currentDate);
       unscheduled.forEach((task, idx) => {
         const dateOffset = idx % 5;
         const targetDate = new Date(today);
@@ -318,13 +325,13 @@ export default function CalendarView({
     if (gcalConnected) {
       setGcalConnected(false);
       setGcalUserEmail('');
-      triggerToast?.('info', t('gcalDisconnected') || 'Google Calendar Disconnected', t('syncRemovedAccount') || 'Synced account removed.');
+      triggerToast?.('info', 'Đã ngắt kết nối Google Calendar', 'Tài khoản đã được gỡ khỏi bộ lịch.');
       return;
     }
 
     setSyncingGcal(true);
     setSyncProgress(10);
-    setSyncLogs(['Initializing connection tunnel...']);
+    setSyncLogs(['Đang tạo cổng kết nối OAuth 2.0...']);
 
     const interval = setInterval(() => {
       setSyncProgress(prev => {
@@ -333,18 +340,18 @@ export default function CalendarView({
           setSyncingGcal(false);
           setGcalConnected(true);
           setGcalUserEmail('avaxa.productivity@gmail.com');
-          triggerToast?.('success', t('gcalConnectSuccess') || 'Connected successfully', t('gcalSyncedEvents') || 'Google Calendar events successfully synced.');
+          triggerToast?.('success', 'Kết nối thành công 🟢', 'Đã đồng bộ dữ liệu sự kiện từ Google Calendar.');
           return 100;
         }
         const next = prev + 30;
         if (next === 40) {
-          setSyncLogs(l => [...l, 'Connected as avaxa.productivity@gmail.com', 'Requesting workspace read scopes...']);
+          setSyncLogs(l => [...l, 'Đã xác thực avaxa.productivity@gmail.com', 'Đang đọc danh sách sự kiện...']);
         } else if (next === 70) {
-          setSyncLogs(l => [...l, 'Received secure OAuth scopes.', 'Synchronizing event timeline...']);
+          setSyncLogs(l => [...l, 'Nhận token quyền truy cập.', 'Hoàn tất đồng bộ dòng thời gian...']);
         }
         return next;
       });
-    }, 400); // Quick simulated interval
+    }, 350);
   };
 
   // Drag and drop handlers
@@ -434,7 +441,7 @@ export default function CalendarView({
           scheduledHour: clickedHour
         }
       });
-      triggerToast?.('success', t('newTaskAdded') || 'Task Created', t('taskAddedSuccess', quickTitle) || `Task "${quickTitle}" successfully added.`);
+      triggerToast?.('success', 'Tạo công việc thành công', `Đã thêm công việc "${quickTitle}".`);
     } else {
       const newEvt = {
         id: `gcal-evt-${Date.now()}`,
@@ -446,7 +453,7 @@ export default function CalendarView({
         isGoogleEvent: true
       };
       setGcalEvents(prev => [...prev, newEvt]);
-      triggerToast?.('success', t('eventCreated') || 'Event Created', `Đã xếp lịch sự kiện "${quickTitle}".`);
+      triggerToast?.('success', 'Sự kiện Google', `Đã xếp lịch sự kiện "${quickTitle}".`);
     }
 
     setShowAddModal(false);
@@ -485,7 +492,7 @@ export default function CalendarView({
       });
     }
     
-    const remaining = 42 - days.length;
+    const remaining = 35 - days.length;
     for (let i = 1; i <= remaining; i++) {
       days.push({
         date: new Date(year, month + 1, i),
@@ -498,17 +505,17 @@ export default function CalendarView({
 
   const getDaysInWeek = (date: Date) => {
     const currentDay = date.getDay();
-    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const distanceToMon = currentDay === 0 ? 6 : currentDay - 1;
     const monday = new Date(date);
-    monday.setDate(date.getDate() + distanceToMonday);
+    monday.setDate(date.getDate() - distanceToMon);
     
-    const days: Date[] = [];
+    const weekDays: Date[] = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      days.push(d);
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      weekDays.push(day);
     }
-    return days;
+    return weekDays;
   };
 
   const getDays4Day = (date: Date) => {
@@ -528,76 +535,64 @@ export default function CalendarView({
     return `${year}-${month}-${day}`;
   };
 
-  const getFilteredTasksForDate = (dateStr: string) => {
-    if (!showTasks) return [];
-    return tasks.filter(t => {
-      const matchesDate = t.dueDate === dateStr;
-      const matchesSearch = searchQuery ? t.title.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-      const matchesMe = isMeMode ? (currentUser && t.assigneeId === currentUser.id) : true;
-      const matchesPriority = priorityFilter === 'all' ? true : t.priority === priorityFilter;
-      return matchesDate && matchesSearch && matchesMe && matchesPriority;
-    });
-  };
-
-  const getFilteredEventsForDate = (dateStr: string) => {
-    const evts: any[] = [];
-    
-    if (showGcal) {
-      gcalEvents.forEach(e => {
-        const startStr = e.start.dateTime ? e.start.dateTime.split('T')[0] : e.start.date;
-        const matchesSearch = searchQuery ? e.summary.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-        if (startStr === dateStr && matchesSearch) {
-          evts.push(e);
-        }
-      });
-    }
-
-    if (showHolidays) {
-      const holidaysMap: Record<string, { summary: string; color: string }> = {
-        '2026-01-01': { summary: "Tết Dương Lịch 🎉", color: '#ef4444' },
-        '2026-04-30': { summary: 'Ngày Giải Phóng 🇻🇳', color: '#ef4444' },
-        '2026-05-01': { summary: 'Quốc Tế Lao Động 🛠️', color: '#ef4444' },
-        '2026-09-02': { summary: 'Quốc Khánh VN 🇻🇳', color: '#ef4444' },
-      };
-      if (holidaysMap[dateStr]) {
-        evts.push({
-          id: `holiday-${dateStr}`,
-          summary: holidaysMap[dateStr].summary,
-          color: holidaysMap[dateStr].color,
-          isHoliday: true
-        });
-      }
-    }
-
-    return evts;
-  };
-
+  // Nav actions
   const handlePrev = () => {
-    const d = new Date(currentDate);
-    if (viewMode === 'month') d.setMonth(d.getMonth() - 1);
-    else if (viewMode === 'week') d.setDate(d.getDate() - 7);
-    else if (viewMode === '4day') d.setDate(d.getDate() - 4);
-    else d.setDate(d.getDate() - 1);
-    setCurrentDate(d);
+    const newD = new Date(currentDate);
+    if (viewMode === 'month') newD.setMonth(newD.getMonth() - 1);
+    else if (viewMode === 'week') newD.setDate(newD.getDate() - 7);
+    else if (viewMode === '4day') newD.setDate(newD.getDate() - 4);
+    else if (viewMode === 'day') newD.setDate(newD.getDate() - 1);
+    else newD.setDate(newD.getDate() - 14);
+    setCurrentDate(newD);
   };
 
   const handleNext = () => {
-    const d = new Date(currentDate);
-    if (viewMode === 'month') d.setMonth(d.getMonth() + 1);
-    else if (viewMode === 'week') d.setDate(d.getDate() + 7);
-    else if (viewMode === '4day') d.setDate(d.getDate() + 4);
-    else d.setDate(d.getDate() + 1);
-    setCurrentDate(d);
+    const newD = new Date(currentDate);
+    if (viewMode === 'month') newD.setMonth(newD.getMonth() + 1);
+    else if (viewMode === 'week') newD.setDate(newD.getDate() + 7);
+    else if (viewMode === '4day') newD.setDate(newD.getDate() + 4);
+    else if (viewMode === 'day') newD.setDate(newD.getDate() + 1);
+    else newD.setDate(newD.getDate() + 14);
+    setCurrentDate(newD);
   };
 
   const handleToday = () => {
     setCurrentDate(new Date());
   };
 
-  const unscheduledTasks = tasks.filter(t => !t.dueDate);
-  const daysInMonth = getDaysInMonth(currentDate);
-  const daysInWeek = getDaysInWeek(currentDate);
-  
+  // Filter helpers
+  const daysInMonth = useMemo(() => getDaysInMonth(currentDate), [currentDate]);
+  const daysInWeek = useMemo(() => getDaysInWeek(currentDate), [currentDate]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (isMeMode && currentUser && t.assigneeId !== currentUser.id) return false;
+      if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return t.title.toLowerCase().includes(query) || (t.description || '').toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [tasks, isMeMode, currentUser, priorityFilter, searchQuery]);
+
+  const unscheduledTasks = useMemo(() => {
+    return filteredTasks.filter(t => !t.dueDate && t.status !== 'completed');
+  }, [filteredTasks]);
+
+  const getFilteredTasksForDate = (dateStr: string) => {
+    if (!showTasks) return [];
+    return filteredTasks.filter(t => t.dueDate === dateStr);
+  };
+
+  const getFilteredEventsForDate = (dateStr: string) => {
+    if (!showGcal) return [];
+    return gcalEvents.filter(e => {
+      const eventDate = e.start?.dateTime ? e.start.dateTime.split('T')[0] : e.start?.date;
+      return eventDate === dateStr;
+    });
+  };
+
   const monthNames = [
     'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
@@ -615,7 +610,7 @@ export default function CalendarView({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row w-full h-full font-sans select-none text-slate-800 dark:text-slate-100 bg-white dark:bg-[#07080c] overflow-hidden">
+    <div className="flex flex-col lg:flex-row w-full h-full font-sans select-none text-slate-800 dark:text-slate-100 bg-white dark:bg-[#07080c] overflow-hidden relative">
       
       {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
@@ -637,41 +632,41 @@ export default function CalendarView({
             <div className="p-4 space-y-3 relative overflow-hidden">
               <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full bg-indigo-500/5 blur-xl pointer-events-none" />
               
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5 flex items-center gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>{locale === 'vi' ? 'Liên kết bộ lịch' : 'Calendar Connection'}</span>
+                <span>CALENDAR CONNECTION</span>
               </h4>
                
               {gcalConnected ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-150 dark:border-indigo-900/60">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
+                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
                     <div className="min-w-0">
                       <span className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 truncate">{gcalUserEmail}</span>
-                      <span className="block text-[8px] text-indigo-400 font-extrabold uppercase mt-0.5">{locale === 'vi' ? 'Đã kết nối' : 'Connected'}</span>
+                      <span className="block text-[8px] text-indigo-400 font-extrabold uppercase mt-0.5">Đã kết nối</span>
                     </div>
                   </div>
                   <button 
                     onClick={handleConnectGcal}
-                    className="w-full py-2 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black text-slate-500 dark:text-slate-400 transition-colors cursor-pointer text-center"
+                    className="w-full py-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black text-slate-600 dark:text-slate-300 transition-colors cursor-pointer text-center"
                   >
-                    {locale === 'vi' ? 'Ngắt kết nối' : 'Disconnect'}
+                    Ngắt kết nối Google Calendar
                   </button>
                 </div>
               ) : syncingGcal ? (
                 <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between text-[10px] font-black">
-                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">{locale === 'vi' ? 'Đang đồng bộ...' : 'Syncing...'}</span>
+                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">Đang đồng bộ...</span>
                     <span className="font-mono text-indigo-600 dark:text-indigo-400">{syncProgress}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${syncProgress}%` }}
-                      className="h-full bg-indigo-505 rounded-full"
+                      className="h-full bg-indigo-600 rounded-full"
                     />
                   </div>
-                  <div className="bg-slate-900 dark:bg-slate-950 p-2.5 rounded-2xl font-mono text-[8px] text-slate-350 dark:text-slate-450 leading-normal max-h-24 overflow-y-auto space-y-1 scrollbar-none">
+                  <div className="bg-slate-900 dark:bg-slate-950 p-2.5 rounded-2xl font-mono text-[8px] text-slate-300 dark:text-slate-400 leading-normal max-h-24 overflow-y-auto space-y-1 scrollbar-none">
                     {syncLogs.map((log, i) => (
                       <div key={i} className="truncate">{log}</div>
                     ))}
@@ -680,10 +675,10 @@ export default function CalendarView({
               ) : (
                 <button 
                   onClick={handleConnectGcal}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-900 dark:bg-indigo-600/20 dark:border dark:border-indigo-500/40 hover:bg-slate-850 dark:hover:bg-indigo-600/30 text-white dark:text-indigo-300 font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-slate-950 dark:bg-indigo-600/20 border border-slate-900 dark:border-indigo-500/40 hover:bg-slate-800 dark:hover:bg-indigo-600/30 text-white dark:text-indigo-300 font-extrabold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-400" />
-                  <span>{locale === 'vi' ? 'Đồng bộ Google Calendar' : 'Sync Google Calendar'}</span>
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Sync Google Calendar</span>
                 </button>
               )}
             </div>
@@ -692,26 +687,26 @@ export default function CalendarView({
             <div className="p-4 space-y-3">
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
-                <span>{locale === 'vi' ? 'Bộ lọc hiển thị' : 'Display Filters'}</span>
+                <span>DISPLAY FILTERS</span>
               </h4>
               
               <div className="space-y-2">
                 {[
-                  { id: 'showTasks', label: locale === 'vi' ? 'Công việc' : 'Tasks', count: tasks.length, color: 'indigo', state: showTasks, setter: setShowTasks },
-                  { id: 'showGcal', label: locale === 'vi' ? 'Lịch Google' : 'Google Calendar', count: gcalEvents.length, color: 'emerald', state: showGcal, setter: setShowGcal },
-                  { id: 'showHolidays', label: locale === 'vi' ? 'Ngày lễ Việt Nam' : 'Holidays', count: null, color: 'rose', state: showHolidays, setter: setShowHolidays }
+                  { id: 'showTasks', label: 'Tasks', count: tasks.length, color: 'indigo', state: showTasks, setter: setShowTasks },
+                  { id: 'showGcal', label: 'Google Calendar', count: gcalEvents.length, color: 'emerald', state: showGcal, setter: setShowGcal },
+                  { id: 'showHolidays', label: 'Holidays', count: null, color: 'rose', state: showHolidays, setter: setShowHolidays }
                 ].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => item.setter(!item.state)}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl border text-xs font-extrabold transition-all cursor-pointer ${
                       item.state
                         ? item.color === 'indigo'
-                          ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 shadow-3xs'
+                          ? 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-200/80 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 shadow-xs'
                           : item.color === 'emerald'
-                          ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 shadow-3xs'
-                          : 'bg-rose-50/80 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-3xs'
-                        : 'bg-white dark:bg-[#0d0e15] border-slate-200/80 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          ? 'bg-emerald-50/90 dark:bg-emerald-950/50 border-emerald-200/80 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                          : 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-200/80 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-xs'
+                        : 'bg-white dark:bg-[#0d0e15] border-slate-200/80 dark:border-slate-800/80 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
                     <span className="flex items-center gap-2.5">
@@ -723,8 +718,8 @@ export default function CalendarView({
                       <span>{item.label}</span>
                     </span>
                     {item.count !== null && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
-                        item.state ? 'bg-white/90 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-3xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                        item.state ? 'bg-white/90 dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                       }`}>
                         {item.count}
                       </span>
@@ -734,18 +729,18 @@ export default function CalendarView({
               </div>
 
               {/* Priority Filter */}
-              <div className="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 block">{locale === 'vi' ? 'Độ ưu tiên' : 'Priority'}</label>
+              <div className="space-y-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
+                <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 block">PRIORITY</label>
                 <select 
                   value={priorityFilter} 
                   onChange={e => setPriorityFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#0d0e15] border border-slate-200 dark:border-slate-700 outline-none text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#0d0e15] border border-slate-200/80 dark:border-slate-800 outline-none text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer shadow-3xs"
                 >
-                  <option value="all">{locale === 'vi' ? 'Tất cả độ ưu tiên' : 'All Priorities'}</option>
-                  <option value="urgent">{locale === 'vi' ? 'Khẩn cấp (Urgent)' : 'Urgent'}</option>
-                  <option value="high">{locale === 'vi' ? 'Cao (High)' : 'High'}</option>
-                  <option value="medium">{locale === 'vi' ? 'Trung bình (Medium)' : 'Medium'}</option>
-                  <option value="low">{locale === 'vi' ? 'Thấp (Low)' : 'Low'}</option>
+                  <option value="all">All Priorities</option>
+                  <option value="urgent">Khẩn cấp (Urgent)</option>
+                  <option value="high">Cao (High)</option>
+                  <option value="medium">Trung bình (Medium)</option>
+                  <option value="low">Thấp (Low)</option>
                 </select>
               </div>
             </div>
@@ -754,15 +749,15 @@ export default function CalendarView({
             <div className="p-4 flex-1 min-h-[220px] flex flex-col overflow-hidden">
               <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-2">
                 <ListPlus className="w-3.5 h-3.5" />
-                <span>{locale === 'vi' ? `Chưa lên lịch (${unscheduledTasks.length})` : `Unscheduled (${unscheduledTasks.length})`}</span>
+                <span>UNSCHEDULED ({unscheduledTasks.length})</span>
               </h4>
               
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 lg:max-h-[calc(100vh-420px)] max-h-64 pr-1.5 scrollbar-thin">
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 lg:max-h-[calc(100vh-450px)] max-h-64 pr-1 scrollbar-thin">
                 {unscheduledTasks.length === 0 ? (
                   <div className="py-8 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
                     <Check className="w-5 h-5 mx-auto text-emerald-500 stroke-[3px]" />
-                    <p className="text-[10px] font-black text-slate-700 dark:text-slate-300">{locale === 'vi' ? 'Tuyệt vời!' : 'Great job!'}</p>
-                    <p className="text-[9px]">{locale === 'vi' ? 'Mọi việc đã được lên lịch.' : 'All tasks scheduled.'}</p>
+                    <p className="text-[10px] font-black text-slate-700 dark:text-slate-300">Tuyệt vời!</p>
+                    <p className="text-[9px]">Tất cả công việc đã được lên lịch.</p>
                   </div>
                 ) : (
                   unscheduledTasks.map(t => {
@@ -774,17 +769,16 @@ export default function CalendarView({
                         onDragStart={e => handleDragStart(e as any, t.id)}
                         onDragEnd={handleDragEnd}
                         whileHover={{ scale: 1.02, x: 2 }}
-                        className="py-2.5 group cursor-grab active:cursor-grabbing hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded-xl transition-all px-2 border border-transparent hover:border-slate-100 dark:hover:border-slate-800 flex items-start gap-2.5"
+                        className="py-2.5 group cursor-grab active:cursor-grabbing hover:bg-slate-100/80 dark:hover:bg-slate-800/40 rounded-xl transition-all px-2.5 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-800 flex items-center gap-2.5"
                       >
-                        <GripVertical className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600 mt-0.5 shrink-0 cursor-grab" />
+                        <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-650 shrink-0 cursor-grab" />
                         <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-start gap-2 justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
-                            <span className={`text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
+                          <div className="flex items-center gap-2 justify-between">
+                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
+                            <span className={`text-[7.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
                               {t.priority}
                             </span>
                           </div>
-                          {t.description && <p className="text-[9.5px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{t.description}</p>}
                         </div>
                       </motion.div>
                     );
@@ -792,8 +786,8 @@ export default function CalendarView({
                 )}
               </div>
               
-              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 text-center font-bold bg-slate-50 dark:bg-slate-950/40 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 mt-2 select-none">
-                💡 {locale === 'vi' ? 'Kéo thả việc vào lịch để định ngày' : 'Drag and drop tasks to schedule'}
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 text-center font-bold bg-slate-100/80 dark:bg-slate-950/40 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800 mt-3 select-none flex items-center justify-center gap-1">
+                💡 Drag and drop tasks to schedule
               </p>
             </div>
           </motion.div>
@@ -803,43 +797,43 @@ export default function CalendarView({
       {/* Sidebar Toggle Button */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="hidden lg:flex items-center justify-center w-5 h-10 rounded-r-xl border border-l-0 border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-2xs shrink-0 self-center cursor-pointer"
-        title={isSidebarOpen ? (locale === 'vi' ? "Thu gọn sidebar" : "Collapse sidebar") : (locale === 'vi' ? "Mở rộng sidebar" : "Expand sidebar")}
+        className="hidden lg:flex items-center justify-center w-5 h-10 rounded-r-xl border border-l-0 border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shadow-2xs shrink-0 self-center cursor-pointer z-20"
+        title={isSidebarOpen ? "Thu gọn sidebar" : "Mở rộng sidebar"}
       >
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Main Calendar Views */}
-      <div className="flex-1 p-5 flex flex-col gap-4 min-w-0 bg-white dark:bg-[#07080c] overflow-y-auto">
+      <div className="flex-1 p-5 flex flex-col gap-4 min-w-0 bg-white dark:bg-[#07080c] overflow-y-auto relative">
         
         {/* Calendar Navigation Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/80 pb-4">
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white capitalize">
+            <h2 className="text-base font-black tracking-tight text-slate-950 dark:text-white capitalize">
               {viewMode === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-              {viewMode === 'week' && `${locale === 'vi' ? 'Tuần' : 'Week'} ${Math.ceil(currentDate.getDate() / 7)}, ${monthNames[currentDate.getMonth()]}`}
-              {viewMode === '4day' && (locale === 'vi' ? `4 Ngày tiếp theo` : `Next 4 Days`)}
+              {viewMode === 'week' && `Tuần ${Math.ceil(currentDate.getDate() / 7)}, ${monthNames[currentDate.getMonth()]}`}
+              {viewMode === '4day' && `4 Ngày tiếp theo`}
               {viewMode === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-              {viewMode === 'schedule' && (locale === 'vi' ? `Lịch trình chi tiết` : `Detailed Schedule`)}
+              {viewMode === 'schedule' && `Lịch trình chi tiết`}
             </h2>
             <div className="flex items-center gap-0.5 border border-slate-200/80 dark:border-slate-800/80 p-0.5 rounded-xl bg-slate-50 dark:bg-[#0e0f17]">
               <button onClick={handlePrev} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
-              <button onClick={handleToday} className="px-3 py-1 rounded-lg text-[9.5px] font-black uppercase hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-700 dark:text-slate-300">{locale === 'vi' ? 'Hôm nay' : 'Today'}</button>
+              <button onClick={handleToday} className="px-3 py-1 rounded-lg text-[9.5px] font-black uppercase hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-700 dark:text-slate-300">TODAY</button>
               <button onClick={handleNext} className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-3xs transition-all cursor-pointer text-slate-600 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
 
           {/* Search, Filter & Toggles */}
-          <div className="flex flex-wrap items-center gap-3 justify-end w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2.5 justify-end w-full md:w-auto">
             {/* Search Input */}
             <div className="relative flex items-center">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3" />
               <input
                 type="text"
-                placeholder={locale === 'vi' ? "Tìm công việc..." : "Search tasks..."}
+                placeholder="Search tasks..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8.5 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0e0f17] placeholder-slate-400 outline-none w-40 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold"
+                className="pl-8.5 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0e0f17] placeholder-slate-400 outline-none w-44 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold"
               />
             </div>
 
@@ -847,44 +841,44 @@ export default function CalendarView({
             <button
               onClick={handleAiAutoSchedule}
               disabled={isAiScheduling}
-              className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/60 hover:bg-indigo-100 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer"
-              title={locale === 'vi' ? "Tự động xếp lịch công việc bằng AI" : "Auto schedule tasks with AI"}
+              className="px-3 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200/80 dark:border-violet-900/60 hover:bg-violet-100 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shadow-3xs"
+              title="Tự động xếp lịch công việc bằng AI"
             >
-              <Sparkles className={`w-3.5 h-3.5 ${isAiScheduling ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isAiScheduling ? (locale === 'vi' ? 'AI đang xếp...' : 'AI scheduling...') : (locale === 'vi' ? 'AI Xếp lịch' : 'AI Schedule')}</span>
+              <Sparkles className={`w-3.5 h-3.5 text-violet-600 dark:text-violet-400 ${isAiScheduling ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isAiScheduling ? 'AI đang xếp...' : 'AI Schedule'}</span>
             </button>
 
             {/* ICS File Export Button */}
             <button
               onClick={handleExportICS}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer border border-slate-200 dark:border-slate-800"
-              title={locale === 'vi' ? "Xuất tập tin Lịch (.ics)" : "Export (.ics)"}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-800 shadow-3xs"
+              title="Xuất tập tin Lịch (.ics)"
             >
               <Download className="w-3.5 h-3.5" />
             </button>
 
             {/* Me vs Team Switch Slider */}
-            <div className="flex bg-slate-100 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 relative select-none">
+            <div className="flex bg-slate-100/90 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-800 relative select-none">
               <button 
                 onClick={() => setIsMeMode(true)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
-                  isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                  isMeMode ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                 }`}
               >
-                <UserCheck className="w-3 h-3" /> {locale === 'vi' ? 'Của tôi' : 'Mine'}
+                <UserCheck className="w-3 h-3" /> Mine
               </button>
               <button 
                 onClick={() => setIsMeMode(false)}
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer relative z-10 ${
-                  !isMeMode ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                  !isMeMode ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                 }`}
               >
-                <Users className="w-3 h-3" /> {locale === 'vi' ? 'Cả nhóm' : 'Team'}
+                <Users className="w-3 h-3" /> Team
               </button>
             </div>
 
             {/* View Select Mode Slider */}
-            <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-800 select-none relative">
+            <div className="flex items-center gap-0.5 bg-slate-100/90 dark:bg-[#0e0f17] p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-800 select-none relative">
               {[
                 { id: 'month', label: 'Tháng' },
                 { id: 'week', label: 'Tuần' },
@@ -895,16 +889,16 @@ export default function CalendarView({
                 <button 
                   key={m.id}
                   onClick={() => setViewMode(m.id as any)}
-                  className="px-3.5 py-2 rounded-lg text-[10.5px] font-black transition-all cursor-pointer relative"
+                  className="px-3 py-1.5 rounded-lg text-[10.5px] font-black transition-all cursor-pointer relative"
                 >
                   {viewMode === m.id && (
                     <motion.div 
                       layoutId="activeViewTab" 
-                      className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-3xs border border-slate-200/10"
+                      className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-3xs border border-slate-200/60"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <span className={`relative z-10 ${viewMode === m.id ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-350'}`}>
+                  <span className={`relative z-10 ${viewMode === m.id ? 'text-slate-950 dark:text-white font-black' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-350'}`}>
                     {m.label}
                   </span>
                 </button>
@@ -918,9 +912,9 @@ export default function CalendarView({
           
           {/* A. MONTH VIEW */}
           {viewMode === 'month' && (
-            <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800/40 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800/60 min-w-[720px]">
-              {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map(header => (
-                <div key={header} className="bg-slate-50/80 dark:bg-[#07080c] py-3 text-center text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase select-none">
+            <div className="grid grid-cols-7 gap-px bg-slate-200/60 dark:bg-slate-800/40 rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800/60 min-w-[720px]">
+              {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'].map(header => (
+                <div key={header} className="bg-slate-50/90 dark:bg-[#07080c] py-2.5 text-center text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase select-none">
                   {header}
                 </div>
               ))}
@@ -931,6 +925,7 @@ export default function CalendarView({
                 const dayEvents = getFilteredEventsForDate(dateStr);
                 const isToday = formatDateString(new Date()) === dateStr;
                 const isDragOver = activeDragOverDate === dateStr;
+                const holidayName = showHolidays ? VIETNAMESE_HOLIDAYS_2026[dateStr] : null;
 
                 return (
                   <div 
@@ -939,14 +934,14 @@ export default function CalendarView({
                     onDragLeave={handleDragLeave}
                     onDrop={e => handleDrop(e, dateStr)}
                     onClick={() => handleGridCellClick(dateStr)}
-                    className={`min-h-[110px] bg-white dark:bg-[#07080c] p-2.5 relative flex flex-col gap-1.5 transition-all duration-200 border-r border-b border-slate-100 dark:border-slate-800/70 group text-left ${
-                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-350 dark:text-slate-600 opacity-40 bg-slate-50/40 dark:bg-[#040406]'
-                    } ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-950/25' : ''} ${isDragOver ? 'bg-indigo-50/40 dark:bg-indigo-950/30 ring-2 ring-indigo-500/40 dark:ring-indigo-500/30 z-10' : 'hover:bg-slate-50/40 dark:hover:bg-slate-800/30'}`}
+                    className={`min-h-[118px] bg-white dark:bg-[#07080c] p-2.5 relative flex flex-col gap-1.5 transition-all duration-200 border-r border-b border-slate-100 dark:border-slate-800/70 group text-left ${
+                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-350 dark:text-slate-650 opacity-40 bg-slate-50/40 dark:bg-[#040406]'
+                    } ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-950/25' : ''} ${isDragOver ? 'bg-indigo-50/40 dark:bg-indigo-950/30 ring-2 ring-indigo-500/40 z-10' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}
                   >
                     {/* Day Number Header */}
                     <div className="flex justify-between items-center select-none">
-                      <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                        isToday ? 'bg-indigo-600 text-white shadow-md font-black' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white'
+                      <span className={`text-[11px] font-black w-6.5 h-6.5 rounded-full flex items-center justify-center transition-colors ${
+                        isToday ? 'bg-indigo-600 text-white shadow-md font-black' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'
                       }`}>{day.date.getDate()}</span>
                       
                       <button 
@@ -958,7 +953,16 @@ export default function CalendarView({
                     </div>
 
                     {/* Scrollable event lists in cell */}
-                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[72px] scrollbar-none pr-0.5">
+                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[82px] scrollbar-none pr-0.5">
+                      {/* Vietnamese Holiday Pill Badge */}
+                      {holidayName && (
+                        <div className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-900/60 truncate flex items-center gap-1 shadow-3xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                          <span className="truncate">{holidayName}</span>
+                        </div>
+                      )}
+
+                      {/* Google Calendar Events */}
                       {dayEvents.map((evt, i) => (
                         <motion.div 
                           layoutId={evt.id}
@@ -972,6 +976,8 @@ export default function CalendarView({
                           <span className="truncate">{evt.summary}</span>
                         </motion.div>
                       ))}
+
+                      {/* Avaxa Tasks */}
                       {dayTasks.map(task => {
                         const style = getPriorityStyle(task.priority);
                         return (
@@ -1003,7 +1009,7 @@ export default function CalendarView({
 
           {/* B. WEEK VIEW & D. 4-DAY VIEW & C. DAY VIEW (Hourly grids) */}
           {(viewMode === 'week' || viewMode === '4day' || viewMode === 'day') && (
-            <div className="flex flex-col rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 min-w-[650px] relative bg-white dark:bg-slate-900">
+            <div className="flex flex-col rounded-xl overflow-hidden border border-slate-200/80 dark:border-slate-800 min-w-[650px] relative bg-white dark:bg-slate-900">
               
               {/* Header Days Row */}
               <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800 border-b border-slate-200/85 dark:border-slate-800`}>
@@ -1013,9 +1019,9 @@ export default function CalendarView({
                     const dateStr = formatDateString(day);
                     const isToday = formatDateString(new Date()) === dateStr;
                     return (
-                      <div key={idx} className={`bg-slate-50 dark:bg-slate-900 py-2.5 text-center flex flex-col items-center justify-center gap-1 select-none ${isToday ? 'bg-indigo-50/10 dark:bg-indigo-950/10' : ''}`}>
+                      <div key={idx} className={`bg-slate-50 dark:bg-slate-900 py-2.5 text-center flex flex-col items-center justify-center gap-1 select-none ${isToday ? 'bg-indigo-50/20 dark:bg-indigo-950/20' : ''}`}>
                         <span className="text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider">
-                          {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
+                          {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
                         </span>
                         <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-indigo-600 text-white shadow-md font-black' : 'text-slate-700 dark:text-slate-200'}`}>
                           {day.getDate()}
@@ -1193,7 +1199,7 @@ export default function CalendarView({
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
                           isToday ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                         }`}>
-                          {isToday ? 'Hôm nay' : ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'C.Nhật'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
+                          {isToday ? 'Hôm nay' : ['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
                         </span>
                         <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
                           {group.dateObj.getDate()} {monthNames[group.dateObj.getMonth()]}, {group.dateObj.getFullYear()}
@@ -1252,6 +1258,63 @@ export default function CalendarView({
         </div>
 
       </div>
+
+      {/* Floating AI Assistant FAB Button (Bottom Right) */}
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 6 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowAiModal(true)}
+        className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center shadow-xl shadow-indigo-500/30 border-2 border-white/20 cursor-pointer"
+        title="Trợ lý Xếp lịch AI"
+      >
+        <Brain className="w-6 h-6 text-white" />
+        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center border-2 border-white">
+          AI
+        </span>
+      </motion.button>
+
+      {/* AI Assistant Modal */}
+      <AnimatePresence>
+        {showAiModal && (
+          <div className="fixed inset-0 z-50 modal-backdrop-blur flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAiModal(false)} className="absolute inset-0" />
+            <motion.div initial={{ scale: 0.94, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.94, y: 15, opacity: 0 }}
+              className="modal-glass-card rounded-3xl shadow-2xl w-full max-w-lg p-6 relative border border-white/80 dark:border-slate-800/80 overflow-hidden text-left select-none z-10"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">AI Calendar Copilot</h3>
+                    <p className="text-[10px] text-slate-400">Trợ lý tối ưu hóa lịch biểu thông minh</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowAiModal(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 space-y-2">
+                  <p className="font-extrabold text-indigo-900 dark:text-indigo-200">Gợi ý phân bổ lịch tự động:</p>
+                  <ul className="space-y-1.5 text-[11px] text-indigo-700 dark:text-indigo-300">
+                    <li className="flex items-center gap-2">⚡ <span>Tự động sắp xếp <b>{unscheduledTasks.length} công việc chưa có lịch</b> vào các khung giờ trống phù hợp.</span></li>
+                    <li className="flex items-center gap-2">🎯 <span>Ưu tiên lịch công việc <b>Urgent/High</b> vào buổi sáng.</span></li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setShowAiModal(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-extrabold text-slate-600 dark:text-slate-300 text-xs hover:bg-slate-50 dark:hover:bg-slate-800">Đóng</button>
+                  <button onClick={() => { setShowAiModal(false); handleAiAutoSchedule(); }} className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Xếp lịch ngay</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Interactive Detail Modal Editor Overlay */}
       <AnimatePresence>

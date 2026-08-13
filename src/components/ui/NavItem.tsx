@@ -9,6 +9,7 @@ interface NavItemProps {
   shortLabel?: string;
   isActive?: boolean;
   count?: number;
+  badge?: string;
   collapsed?: boolean;
   onClick?: () => void;
   onDragStart?: (e: React.DragEvent) => void;
@@ -26,6 +27,7 @@ export function NavItem({
   shortLabel,
   isActive = false,
   count,
+  badge,
   collapsed = false,
   onClick,
   onDragStart,
@@ -37,14 +39,6 @@ export function NavItem({
   dragIndicator,
 }: NavItemProps) {
   const displayText = collapsed ? shortLabel || label : label;
-  
-  // Dynamic font scaling for collapsed mode based on text length to eliminate truncation (e.g. "Calendar")
-  const collapsedFontSize = 
-    displayText.length > 7
-      ? "text-[8.5px] tracking-tighter"
-      : displayText.length > 5
-      ? "text-[9px] tracking-tighter"
-      : "text-[10px] tracking-tight";
 
   return (
     <motion.button
@@ -58,12 +52,14 @@ export function NavItem({
       onDragEnd={onDragEnd as any}
       onDrop={onDrop as any}
       onClick={onClick}
+      aria-label={label}
+      title={collapsed ? label : undefined}
       style={style}
       className={[
-        "group w-full relative flex transition-all duration-200 cursor-pointer select-none border overflow-hidden",
+        "group w-full relative flex transition-all duration-200 cursor-pointer select-none border",
         collapsed
-          ? "flex-col items-center justify-center py-2.5 px-0.5 rounded-2xl gap-1"
-          : "py-2 px-3 rounded-2xl items-center gap-3",
+          ? "items-center justify-center h-11 px-0 rounded-xl overflow-visible"
+          : "py-2 px-3 rounded-2xl items-center gap-3 overflow-hidden",
         isActive
           ? collapsed
             ? "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800/50 shadow-2xs font-extrabold"
@@ -103,10 +99,10 @@ export function NavItem({
       {/* Label Text */}
       <span
         className={[
-          "transition-colors duration-200 z-10 w-full px-0.5 text-center truncate",
+          "transition-colors duration-200 z-10",
           collapsed
-            ? `${collapsedFontSize} font-extrabold text-center leading-tight max-w-full block`
-            : "text-[13px] font-bold flex-1 text-left tracking-tight",
+            ? "sr-only"
+            : "w-full truncate text-[13px] font-bold flex-1 text-left tracking-tight",
           isActive
             ? "text-indigo-600 dark:text-indigo-400 font-extrabold"
             : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 font-bold",
@@ -129,6 +125,12 @@ export function NavItem({
         </span>
       )}
 
+      {badge && !collapsed && (
+        <span className="ml-auto shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+          {badge}
+        </span>
+      )}
+
       {/* Floating Hover Tooltip Popover (Collapsed State) */}
       {collapsed && (
         <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[11px] font-extrabold py-1.5 px-3 rounded-xl shadow-lg border border-slate-800 z-50 whitespace-nowrap flex items-center gap-2">
@@ -138,6 +140,7 @@ export function NavItem({
               {count}
             </span>
           )}
+          {badge && <span className="text-[8px] font-black uppercase text-violet-300">{badge}</span>}
         </div>
       )}
     </motion.button>

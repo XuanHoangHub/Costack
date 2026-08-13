@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Task } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { 
   User as UserIcon, Camera, Mail, Briefcase, Shield, 
-  Phone, MapPin, Calendar, Activity, CheckCircle, 
-  Clock, Save, Upload, Sparkles, AlertCircle, Trash2, Plus, X, Globe, Star
+  Phone, Calendar, Activity, CheckCircle, 
+  Clock, Save, Sparkles, AlertCircle, Plus, X, Star, RotateCcw,
+  FileText, Check, Copy, ExternalLink, Lock
 } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import SignedImage from './SignedImage';
-
+import { presenceDotClass } from '../lib/presence';
 
 interface ProfilePageProps {
   currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member' | 'guest'; isPremium?: boolean };
@@ -23,7 +24,7 @@ interface ProfilePageProps {
   isOffline: boolean;
   addSyncLog: (action: string) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
-  onUpdateMember?: (member: User) => void;
+  onUpdateMember?: (member: User) => void | Promise<void>;
 }
 
 function ProfilePage({
@@ -38,6 +39,22 @@ function ProfilePage({
   onUpdateMember
 }: ProfilePageProps) {
   const { t, locale } = useTranslation();
+  
+  // Safe Translation Helper to prevent unrendered key leakage (e.g. dept_..., editProfileInfo, etc.)
+  const getText = (key: string, fallbackEn: string, fallbackVi?: string) => {
+    const translated = t(key);
+    if (!translated || translated === key || translated.startsWith('dept_') || translated === 'editProfileInfo' || translated === 'bioPlaceholder') {
+      return locale === 'vi' ? (fallbackVi || fallbackEn) : fallbackEn;
+    }
+    return translated;
+  };
+
+  const memberMe = useMemo(
+    () => members.find((member) => member.id === 'user' || member.email.toLowerCase() === currentUser.email.toLowerCase()),
+    [members, currentUser.email],
+  );
+  const accountPresenceStatus = isOffline ? 'offline' : (memberMe?.status || 'offline');
+  
   // Form states
   const [name, setName] = useState(currentUser.name);
   const [role, setRole] = useState(currentUser.role);
@@ -45,37 +62,40 @@ function ProfilePage({
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('');
   const [bio, setBio] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [newSkill, setNewSkill] = useState('');
-  const [skills, setSkills] = useState<string[]>(['Productivity', 'React', 'TypeScript', 'UI/UX Design']);
+  const [skills, setSkills] = useState<string[]>([]);
+  const [formError, setFormError] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'dirty'>('saved');
   const loadedProfileRef = useRef({ name: '', role: '', avatar: '', phone: '', department: '', bio: '', skills: [] as string[] });
-  const isFirstMountRef = useRef(true);
+  const initializedIdentityRef = useRef('');
 
-  // Load custom user info from localStorage if available
+  // Initialize profile data on load
   useEffect(() => {
+    const profileSourceKey = `${currentUser.email}:${memberMe?.id || 'pending'}`;
+    if (initializedIdentityRef.current === profileSourceKey) return;
+    initializedIdentityRef.current = profileSourceKey;
+
     setName(currentUser.name);
     setAvatar(currentUser.avatar);
     setRole(currentUser.role);
-    
-    const memberMe = members.find(m => m.id === 'user');
     const loadedPhone = memberMe?.phone || '';
     const loadedDept = memberMe?.department || '';
     const loadedBio = memberMe?.bio || '';
+    let loadedSkills = memberMe?.skills || [];
+
+    try {
+      const savedSkills = localStorage.getItem('apexa_user_skills');
+      const parsed = savedSkills ? JSON.parse(savedSkills) : null;
+      if (Array.isArray(parsed)) loadedSkills = parsed.filter(item => typeof item === 'string');
+    } catch (e) {}
 
     setPhone(loadedPhone);
     setDepartment(loadedDept);
     setBio(loadedBio);
-
-    // Load skills
-    try {
-      const savedSkills = localStorage.getItem('apexa_user_skills');
-      if (savedSkills) {
-        setSkills(JSON.parse(savedSkills));
-      }
-    } catch (e) {}
+    setSkills(loadedSkills);
 
     loadedProfileRef.current = {
       name: currentUser.name,
@@ -84,41 +104,59 @@ function ProfilePage({
       phone: loadedPhone,
       department: loadedDept,
       bio: loadedBio,
-      skills: skills
+      skills: loadedSkills,
     };
-
-    if (isFirstMountRef.current) {
-      isFirstMountRef.current = false;
-      setSaveStatus('saved');
-    }
-  }, [currentUser, members, skills]);
+    setSaveStatus('saved');
+    setFormError('');
+  }, [currentUser.email, currentUser.name, currentUser.avatar, currentUser.role, memberMe]);
 
   // Statistics calculation
-  const myTasks = tasks.filter(t => t.assigneeId === 'user' || (t.assigneeIds && t.assigneeIds.includes('user')));
-  const completedTasks = myTasks.filter(t => t.status === 'completed');
-  const pendingTasks = myTasks.filter(t => t.status !== 'completed');
-  const inProgressTasksCount = myTasks.filter(t => t.status === 'inprogress').length;
-  const reviewTasksCount = myTasks.filter(t => t.status === 'review').length;
-  const todoTasksCount = myTasks.filter(t => t.status === 'todo').length;
+  const myTasks = useMemo(() => tasks.filter(t => t.assigneeId === 'user' || (t.assigneeIds && t.assigneeIds.includes('user'))), [tasks]);
+  const completedTasks = useMemo(() => myTasks.filter(t => t.status === 'completed'), [myTasks]);
+  const inProgressTasksCount = useMemo(() => myTasks.filter(t => t.status === 'inprogress').length, [myTasks]);
+  const reviewTasksCount = useMemo(() => myTasks.filter(t => t.status === 'review').length, [myTasks]);
+  const todoTasksCount = useMemo(() => myTasks.filter(t => t.status === 'todo').length, [myTasks]);
+  
   const completionRate = myTasks.length > 0 ? Math.round((completedTasks.length / myTasks.length) * 100) : 0;
+  
+  const profileCompleteness = Math.round(([
+    name.trim(),
+    avatar,
+    phone.trim(),
+    department.trim(),
+    bio.trim(),
+    skills.length > 0,
+  ].filter(Boolean).length / 6) * 100);
 
-  // Pie chart stats distribution data
-  const statPieData = [
-    { name: 'To Do', value: todoTasksCount, color: '#6366f1' },
-    { name: 'In Progress', value: inProgressTasksCount, color: '#f59e0b' },
-    { name: 'Review', value: reviewTasksCount, color: '#a855f7' },
-    { name: 'Completed', value: completedTasks.length, color: '#10b981' }
-  ].filter(item => item.value > 0);
+  const presenceLabel = {
+    online: locale === 'vi' ? 'Đang hoạt động' : 'Online',
+    busy: locale === 'vi' ? 'Đang bận' : 'Busy',
+    away: locale === 'vi' ? 'Vắng mặt' : 'Away',
+    offline: locale === 'vi' ? 'Ngoại tuyến' : 'Offline',
+  }[accountPresenceStatus] || (locale === 'vi' ? 'Ngoại tuyến' : 'Offline');
 
-  // Handle local avatar file upload & convert to base64
+  // Chart statistics distribution data
+  const statPieData = useMemo(() => [
+    { name: locale === 'vi' ? 'Cần làm' : 'To Do', value: todoTasksCount, color: '#6366f1' },
+    { name: locale === 'vi' ? 'Đang làm' : 'In Progress', value: inProgressTasksCount, color: '#f59e0b' },
+    { name: locale === 'vi' ? 'Đang duyệt' : 'Review', value: reviewTasksCount, color: '#a855f7' },
+    { name: locale === 'vi' ? 'Đã xong' : 'Completed', value: completedTasks.length, color: '#10b981' }
+  ].filter(item => item.value > 0), [todoTasksCount, inProgressTasksCount, reviewTasksCount, completedTasks.length, locale]);
+
+  // Handle local avatar file upload & convert to base64 / upload to Supabase
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      triggerToast?.('error', locale === 'vi' ? 'Định dạng không hợp lệ' : 'Invalid format', locale === 'vi' ? 'Vui lòng chọn tệp ảnh JPG, PNG, WebP hoặc GIF.' : 'Please select a valid image file.');
+      e.target.value = '';
+      return;
+    }
+
     if (file.size > 2 * 1024 * 1024) {
-      if (triggerToast) {
-        triggerToast('error', 'Tệp quá lớn ⚠️', 'Vui lòng chọn ảnh nhỏ hơn 2MB để tối ưu hóa hiệu năng hệ thống.');
-      }
+      triggerToast?.('error', locale === 'vi' ? 'Tệp quá lớn ⚠️' : 'File too large', locale === 'vi' ? 'Vui lòng chọn ảnh nhỏ hơn 2MB.' : 'Please choose an image under 2MB.');
+      e.target.value = '';
       return;
     }
 
@@ -133,57 +171,53 @@ function ProfilePage({
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          if (triggerToast) {
-            triggerToast('error', 'Không tìm thấy phiên làm việc 👤', 'Vui lòng đăng nhập để đồng bộ ảnh đại diện.');
-          }
-          return;
-        }
+        if (!session?.user) return;
 
         const userId = session.user.id;
         const fileExt = file.name.split('.').pop();
         const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-        if (triggerToast) {
-          triggerToast('info', 'Đang đồng bộ ảnh ⚡', 'Đang tải ảnh đại diện lên đám mây Supabase...');
-        }
+        triggerToast?.('info', locale === 'vi' ? 'Đang đồng bộ ảnh ⚡' : 'Uploading avatar...', locale === 'vi' ? 'Đang tải ảnh đại diện lên đám mây Supabase...' : 'Uploading avatar image to Supabase...');
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
-        if (uploadError) {
-          throw uploadError;
-        }
+        if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
           .from('avatars')
           .getPublicUrl(fileName);
 
         setAvatar(publicUrl);
-
-        if (triggerToast) {
-          triggerToast('success', 'Tải ảnh hoàn tất 📸', 'Ảnh đại diện đã được lưu trữ an toàn trên Supabase Cloud.');
-        }
-        if ((window as any).playSystemSound) {
-          (window as any).playSystemSound('success');
-        }
+        triggerToast?.('success', locale === 'vi' ? 'Tải ảnh hoàn tất 📸' : 'Avatar updated', locale === 'vi' ? 'Ảnh đại diện đã được cập nhật thành công.' : 'Profile photo successfully uploaded.');
       } catch (err: any) {
         console.error('Lỗi khi tải ảnh đại diện lên Supabase:', err);
-        if (triggerToast) {
-          triggerToast('error', 'Lỗi tải ảnh ⚠️', err.message || 'Không thể đồng bộ ảnh đại diện lên Supabase Storage.');
-        }
-      }
-    } else {
-      if (triggerToast) {
-        triggerToast('info', 'Lưu trữ cục bộ 💾', 'Ảnh đại diện tạm thời được lưu dưới dạng Base64 do đang ngoại tuyến.');
+        triggerToast?.('error', locale === 'vi' ? 'Lỗi tải ảnh ⚠️' : 'Upload error', err.message || 'Không thể đồng bộ ảnh đại diện.');
       }
     }
   };
 
+  const validateProfile = () => {
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) return locale === 'vi' ? 'Họ tên phải có ít nhất 2 ký tự.' : 'Name must contain at least 2 characters.';
+    if (trimmedName.length > 80) return locale === 'vi' ? 'Họ tên không được vượt quá 80 ký tự.' : 'Name cannot exceed 80 characters.';
+    if (phone.trim() && !/^[+()\d\s.-]{7,24}$/.test(phone.trim())) return locale === 'vi' ? 'Số điện thoại chưa đúng định dạng.' : 'Phone number format is invalid.';
+    if (department.trim().length > 80) return locale === 'vi' ? 'Phòng ban không được vượt quá 80 ký tự.' : 'Department cannot exceed 80 characters.';
+    if (bio.trim().length > 500) return locale === 'vi' ? 'Giới thiệu không được vượt quá 500 ký tự.' : 'Bio cannot exceed 500 characters.';
+    return '';
+  };
+
   const triggerSave = async () => {
+    const validationError = validateProfile();
+    if (validationError) {
+      setFormError(validationError);
+      triggerToast?.('error', locale === 'vi' ? 'Không thể lưu hồ sơ' : 'Unable to save profile', validationError);
+      return false;
+    }
+
+    setFormError('');
     setSaveStatus('saving');
-    setIsSaving(true);
 
     const updatedUser = {
       ...currentUser,
@@ -192,42 +226,41 @@ function ProfilePage({
       role: role
     };
 
-    setCurrentUser(updatedUser);
-
     const sessionObj = {
       user: updatedUser,
-      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 1 month
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
     };
-    localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
 
-    // Save skills
-    localStorage.setItem('apexa_user_skills', JSON.stringify(skills));
-
-    const myJoinedDate = members.find(m => m.id === 'user')?.joinedDate || '2026';
+    const currentMember = memberMe;
+    const myJoinedDate = currentMember?.joinedDate || new Date().getFullYear().toString();
     const updatedMemberObj: User = {
-      id: 'user',
+      id: currentMember?.id || 'user',
       name: updatedUser.name,
       email: updatedUser.email,
       avatar: updatedUser.avatar,
       role: updatedUser.role,
-      status: 'online',
+      status: currentMember?.status || 'offline',
+      customStatus: currentMember?.customStatus,
+      statusMessage: currentMember?.statusMessage,
+      statusEmoji: currentMember?.statusEmoji,
+      lastSeenAt: currentMember?.lastSeenAt,
       phone: phone.trim(),
       department: department.trim(),
       bio: bio.trim(),
+      skills,
       joinedDate: myJoinedDate
     };
 
-    if (onUpdateMember) {
-      onUpdateMember(updatedMemberObj);
-    } else {
-      setMembers(prev => prev.map(m => m.id === 'user' ? updatedMemberObj : m));
-    }
+    try {
+      if (onUpdateMember) {
+        await onUpdateMember(updatedMemberObj);
+      } else {
+        setMembers(prev => prev.map(m => m.id === updatedMemberObj.id ? updatedMemberObj : m));
+      }
 
-    if (!isOffline) {
-      try {
+      if (!isOffline) {
         const { data: { session } } = await supabase.auth.getSession();
-        
-        await supabase.auth.updateUser({
+        const { error: authError } = await supabase.auth.updateUser({
           data: { 
             name: updatedUser.name,
             role: updatedUser.role,
@@ -235,11 +268,13 @@ function ProfilePage({
             department: department.trim(),
             avatar: updatedUser.avatar,
             bio: bio.trim(),
-            joinedDate: myJoinedDate
+            joinedDate: myJoinedDate,
+            skills,
           }
         });
+        if (authError) throw authError;
 
-        if (session?.user) {
+        if (session?.user && !onUpdateMember) {
           const dbId = `user-${session.user.id}`;
           await supabase.from('members').update({
             name: updatedUser.name,
@@ -254,27 +289,34 @@ function ProfilePage({
         }
 
         addSyncLog('Đã tự động lưu hồ sơ cá nhân lên Supabase');
-      } catch (err) {
-        console.error('Lỗi tự động lưu hồ sơ:', err);
       }
+    } catch (err) {
+      console.error('Lỗi lưu hồ sơ:', err);
+      setSaveStatus('dirty');
+      setFormError(locale === 'vi' ? 'Không thể đồng bộ hồ sơ. Vui lòng kiểm tra kết nối.' : 'Profile sync failed. Check your connection.');
+      return false;
     }
 
+    setCurrentUser(updatedUser);
+    localStorage.setItem('apexa_session', JSON.stringify(sessionObj));
+    localStorage.setItem('apexa_user_skills', JSON.stringify(skills));
+
     loadedProfileRef.current = {
-      name: name,
+      name: updatedUser.name,
       role: role,
       avatar: avatar,
-      phone: phone,
-      department: department,
-      bio: bio,
+      phone: updatedMemberObj.phone || '',
+      department: updatedMemberObj.department || '',
+      bio: updatedMemberObj.bio || '',
       skills: skills
     };
 
-    setIsSaving(false);
     setSaveStatus('saved');
+    return true;
   };
 
   useEffect(() => {
-    if (isFirstMountRef.current) return;
+    if (!initializedIdentityRef.current || saveStatus === 'saving') return;
 
     const isDirty =
       name !== loadedProfileRef.current.name ||
@@ -286,26 +328,31 @@ function ProfilePage({
       JSON.stringify(skills) !== JSON.stringify(loadedProfileRef.current.skills);
 
     setSaveStatus(isDirty ? 'dirty' : 'saved');
-  }, [name, role, avatar, phone, department, bio, skills]);
+  }, [name, role, avatar, phone, department, bio, skills, saveStatus]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    await triggerSave();
+    const saved = await triggerSave();
+    if (!saved) return;
 
-    if (triggerToast) {
-      triggerToast('success', 'Đã lưu thay đổi', 'Hồ sơ người dùng của bạn đã được cập nhật thành công!');
-    }
-    if ((window as any).playSystemSound) {
-      (window as any).playSystemSound('success');
-    }
+    triggerToast?.('success', locale === 'vi' ? 'Đã lưu thay đổi ✨' : 'Profile updated', locale === 'vi' ? 'Hồ sơ người dùng đã được lưu thành công!' : 'Your profile details have been saved.');
   };
 
   const handleAddSkill = (e: React.FormEvent) => {
     e.preventDefault();
     const val = newSkill.trim();
-    if (val && !skills.includes(val)) {
+    if (skills.length >= 12) {
+      setFormError(locale === 'vi' ? 'Bạn có thể thêm tối đa 12 kỹ năng.' : 'You can add up to 12 skills.');
+      return;
+    }
+    if (val.length > 40) {
+      setFormError(locale === 'vi' ? 'Mỗi kỹ năng không được vượt quá 40 ký tự.' : 'Skill name cannot exceed 40 characters.');
+      return;
+    }
+    if (val && !skills.some(skill => skill.toLowerCase() === val.toLowerCase())) {
       setSkills(prev => [...prev, val]);
       setNewSkill('');
+      setFormError('');
     }
   };
 
@@ -313,28 +360,59 @@ function ProfilePage({
     setSkills(prev => prev.filter(s => s !== skillToRemove));
   };
 
+  const handleResetForm = () => {
+    const initial = loadedProfileRef.current;
+    setName(initial.name);
+    setRole(initial.role as 'admin' | 'member' | 'guest');
+    setAvatar(initial.avatar);
+    setPhone(initial.phone);
+    setDepartment(initial.department);
+    setBio(initial.bio);
+    setSkills(initial.skills);
+    setFormError('');
+    setSaveStatus('saved');
+  };
+
+  const handleCopyProfileLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopiedLink(true);
+    triggerToast?.('success', locale === 'vi' ? 'Đã sao chép liên kết 🔗' : 'Link copied', locale === 'vi' ? 'Liên kết hồ sơ đã được sao chép vào bộ nhớ tạm.' : 'Profile link copied to clipboard.');
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto font-sans animate-fadeIn text-left pb-12 select-none text-slate-800 dark:text-slate-100">
+    <div className="w-full max-w-7xl mx-auto font-sans text-left pb-16 text-slate-800 dark:text-slate-100 select-none space-y-6">
       
-      {/* ── Visual Banner Header ── */}
-      <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-300">
-        {/* Glowing Aura Banner */}
-        <div className="h-44 md:h-52 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-black/20" />
-          <div className="absolute -top-24 -left-24 w-72 h-72 bg-indigo-400/30 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-pink-400/30 rounded-full blur-3xl" />
+      {/* ── 1. Hero Header Banner Card ── */}
+      <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-xl transition-all">
+        {/* Animated Mesh Gradient Background Banner */}
+        <div className="h-48 md:h-56 bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-slate-950/40" />
+          <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-400/35 rounded-full blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-pink-400/35 rounded-full blur-3xl" />
           
-          <div className="absolute top-4 right-4 flex gap-2">
-            <span className="px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 dark:bg-black/40 text-white backdrop-blur-md border border-white/20 shadow-md flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
-              {isOffline ? 'Offline' : 'Online'}
+          {/* Top Badges Bar */}
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <span className="px-3.5 py-1.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-black/30 text-white backdrop-blur-md border border-white/20 shadow-md flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${presenceDotClass(accountPresenceStatus, true)}`} />
+              {presenceLabel}
             </span>
+            <button
+              type="button"
+              onClick={handleCopyProfileLink}
+              className="p-2 rounded-full bg-black/30 hover:bg-black/40 text-white backdrop-blur-md border border-white/20 shadow-md transition-all cursor-pointer"
+              title={locale === 'vi' ? 'Sao chép liên kết hồ sơ' : 'Copy profile link'}
+            >
+              {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
-        {/* User Profile Info Overlay */}
-        <div className="px-6 md:px-8 py-6 pt-0 relative flex flex-col md:flex-row items-center md:items-end gap-6">
-          <div className="relative -mt-16 md:-mt-20 shrink-0 group">
+        {/* User Identity Info Overlay */}
+        <div className="px-6 md:px-8 pb-6 relative flex flex-col md:flex-row items-center md:items-start gap-6">
+          
+          {/* Avatar Container with Upload Hover */}
+          <div className="relative shrink-0 group -mt-14 md:-mt-18 z-10">
             <div className="relative rounded-3xl overflow-hidden ring-4 ring-white dark:ring-slate-900 shadow-2xl bg-slate-100 dark:bg-slate-800">
               <SignedImage 
                 filePath={avatar} 
@@ -344,47 +422,58 @@ function ProfilePage({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-1.5 cursor-pointer"
+                className="absolute inset-0 bg-slate-950/70 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-1.5 cursor-pointer"
+                aria-label={locale === 'vi' ? 'Thay ảnh đại diện' : 'Change profile photo'}
               >
-                <Camera className="w-6 h-6 text-white/90 animate-bounce" />
-                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full border border-white/30">
+                <Camera className="w-6 h-6 text-white" />
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full border border-white/30 backdrop-blur-md">
                   {locale === 'vi' ? 'Tải ảnh lên' : 'Upload photo'}
                 </span>
               </button>
               <input 
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleAvatarChange}
                 className="hidden"
               />
             </div>
-            <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 shadow-lg flex items-center justify-center text-white text-[10px]" />
+            <div
+              className={`absolute bottom-1 right-1 w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 shadow-lg ${presenceDotClass(accountPresenceStatus, true)}`}
+              title={accountPresenceStatus}
+            />
           </div>
 
-          <div className="flex-1 text-center md:text-left space-y-1.5 mb-1">
+          {/* User Name & Metadata */}
+          <div className="flex-1 text-center md:text-left space-y-2 pt-2 md:pt-3">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
-              <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
                 {name}
-              </h2>
+              </h1>
               {currentUser.isPremium ? (
                 <span className="text-[10px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full uppercase shadow-sm flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> PRO
                 </span>
               ) : (
-                <span className="text-[10px] font-black tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full uppercase font-mono border border-slate-200/80 dark:border-slate-700">
+                <span className="text-[10px] font-black tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full uppercase font-mono border border-slate-200 dark:border-slate-700">
                   FREE
                 </span>
               )}
             </div>
 
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center md:justify-start gap-1.5">
-              <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{role === 'admin' ? (t('roleAdmin') || 'Admin') : (t('roleMember') || 'Member')}</span>
-              {department && <span className="text-slate-400 dark:text-slate-600">• {t('dept_' + department + '_name') || department}</span>}
-            </p>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                <Briefcase className="w-3.5 h-3.5" />
+                {role === 'admin' ? (t('roleAdmin') || 'Admin') : role === 'guest' ? 'Guest' : (t('roleMember') || 'Member')}
+              </span>
+              {department && (
+                <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                  • {department}
+                </span>
+              )}
+            </div>
 
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-5 gap-y-1.5 pt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-5 gap-y-1.5 pt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
               <span className="flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-indigo-400" />
                 {currentUser.email}
@@ -400,109 +489,120 @@ function ProfilePage({
         </div>
       </div>
 
-      {/* ── Left Stats & Right Settings Form Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* ── 2. Grid Layout Section (Left Stats & Right Info Form) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column (5 columns width) */}
-        <div className="lg:col-span-5 space-y-6 flex flex-col">
+        {/* Left Column (5 Cols): Statistics, Skills & Membership */}
+        <div className="lg:col-span-5 space-y-6">
           
-          {/* Donut Progress Stats Card */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left flex flex-col justify-between hover:shadow-md transition-shadow">
+          {/* Work Statistics Donut Card */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-6 rounded-3xl shadow-sm text-left space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                {t('workStatistics') || 'Task Statistics'}
-              </h3>
-              <Activity className="w-4 h-4 text-indigo-500" />
+              <div>
+                <h2 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  {getText('workStatistics', 'Work Statistics', 'Thống kê công việc')}
+                </h2>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
+                  {locale === 'vi' ? 'Tổng quan tiến độ nhiệm vụ' : 'Overview of assigned tasks'}
+                </p>
+              </div>
+              <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                <Activity className="w-4 h-4" />
+              </div>
             </div>
             
-            <div className="flex items-center gap-6 py-4">
+            <div className="flex items-center gap-6 py-2">
+              {/* Donut Chart */}
               <div className="relative w-28 h-28 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statPieData.length > 0 ? statPieData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]}
+                      data={statPieData.length > 0 ? statPieData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
-                      innerRadius={35}
+                      innerRadius={36}
                       outerRadius={48}
                       paddingAngle={3}
                       dataKey="value"
                     >
-                      {(statPieData.length > 0 ? statPieData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
+                      {(statPieData.length > 0 ? statPieData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">{myTasks.length}</span>
+                  <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">{myTasks.length}</span>
                   <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-0.5">{t('tasks') || 'Tasks'}</span>
                 </div>
               </div>
 
+              {/* Progress Bar & Rate */}
               <div className="flex-1 space-y-2">
-                <div className="flex justify-between text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                  <span>{t('completionRate') || 'Completion rate'}</span>
+                <div className="flex justify-between text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                  <span>{getText('completionRate', 'Completion Rate', 'Tỷ lệ hoàn thành')}</span>
                   <span className="text-emerald-500 font-mono font-bold">{completionRate}%</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
                   <div 
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.3)]" 
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-500" 
                     style={{ width: `${completionRate}%` }} 
                   />
                 </div>
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-                  {t('doneTasks').replace('{completed}', String(completedTasks.length)).replace('{total}', String(myTasks.length))}
+                  {completedTasks.length} / {myTasks.length} {locale === 'vi' ? 'nhiệm vụ hoàn thành' : 'tasks completed'}
                 </p>
               </div>
             </div>
 
-            {/* List breakdown */}
-            <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-left">
-                <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 block flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {t('inProgress') || 'In Progress'}
+            {/* Detailed Status Grid */}
+            <div className="grid grid-cols-2 gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-left">
+                <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 block flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  {locale === 'vi' ? 'Đang thực hiện' : 'In Progress'}
                 </span>
-                <span className="text-base font-black text-slate-800 dark:text-slate-100 mt-1 block">
-                  {locale === 'vi' ? `${inProgressTasksCount} việc` : `${inProgressTasksCount} tasks`}
+                <span className="text-base font-black text-slate-900 dark:text-white mt-1 block">
+                  {inProgressTasksCount}
                 </span>
               </div>
-              <div className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/20 text-left">
-                <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 block flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
-                  {t('inReview') || 'In Review'}
+              <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-left">
+                <span className="text-xs font-extrabold text-purple-600 dark:text-purple-400 block flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5" />
+                  {locale === 'vi' ? 'Đang duyệt' : 'In Review'}
                 </span>
-                <span className="text-base font-black text-slate-800 dark:text-slate-100 mt-1 block">
-                  {locale === 'vi' ? `${reviewTasksCount} việc` : `${reviewTasksCount} tasks`}
+                <span className="text-base font-black text-slate-900 dark:text-white mt-1 block">
+                  {reviewTasksCount}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Interactive Skills Tags Cloud Card */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4 hover:shadow-md transition-shadow">
+          {/* Skills & Expertise Tag Cloud */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-6 rounded-3xl shadow-sm text-left space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                  {t('skillsAndExpertise') || 'Skills & Expertise'}
-                </h3>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                  {t('tagStrengths') || 'Tag your technical strengths'}
+                <h2 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                  {getText('skillsAndExpertise', 'Skills & Expertise', 'Kỹ năng & Chuyên môn')}
+                </h2>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold tracking-wider mt-0.5">
+                  {locale === 'vi' ? 'Gắn thẻ các thế mạnh chuyên môn' : 'Tag your technical strengths'}
                 </p>
               </div>
-              <Star className="w-4 h-4 text-amber-400" />
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+                <Star className="w-4 h-4" />
+              </div>
             </div>
 
-            {/* Tags Cloud */}
+            {/* Tag List */}
             <div className="flex flex-wrap gap-2 py-1 min-h-[44px]">
               {skills.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">{locale === 'vi' ? 'Chưa gắn thẻ kỹ năng nào.' : 'No skills tagged yet.'}</p>
+                <p className="text-xs text-slate-400 italic">{locale === 'vi' ? 'Chưa thêm kỹ năng nào.' : 'No skills tagged yet.'}</p>
               ) : (
                 skills.map(skill => (
                   <span 
                     key={skill}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs hover:border-indigo-300 transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs"
                   >
                     <span>{skill}</span>
                     <button 
@@ -517,241 +617,323 @@ function ProfilePage({
               )}
             </div>
 
-            {/* Add skill input */}
+            {/* Add Skill Form */}
             <form onSubmit={handleAddSkill} className="flex gap-2">
               <input
                 type="text"
                 value={newSkill}
                 onChange={e => setNewSkill(e.target.value)}
-                placeholder={t('addSkillPlaceholder') || 'Add a new skill (e.g. Next.js)...'}
-                className="flex-1 text-xs font-bold px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-all"
+                placeholder={locale === 'vi' ? 'Thêm kỹ năng mới (ví dụ: Next.js)...' : 'Add a skill (e.g. React, Python)...'}
+                className="flex-1 text-xs font-bold px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
               />
               <button 
                 type="submit"
-                className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-sm hover:shadow-indigo-500/25 transition-all cursor-pointer flex items-center justify-center"
+                className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-sm transition-all cursor-pointer flex items-center justify-center"
               >
                 <Plus className="w-4 h-4" />
               </button>
             </form>
           </div>
 
-          {/* Account Tier Panel */}
-          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 rounded-3xl shadow-sm text-left space-y-4 relative overflow-hidden flex-1 hover:shadow-md transition-shadow">
-            <div className="absolute -top-12 -right-12 w-28 h-28 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
-            <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-              {t('accountTier') || 'Account Tier'}
-            </h3>
-            
+          {/* Account Tier Card */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-6 rounded-3xl shadow-sm text-left space-y-4 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div>
-                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                  {t('account') || 'Account'}
+                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  {locale === 'vi' ? 'Gói tài khoản' : 'Account Tier'}
                 </span>
-                <span className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                  {currentUser.isPremium ? 'Apexa Premium Pro' : (locale === 'vi' ? 'Gói miễn phí (Free Tier)' : 'Free Tier Package')}
+                <span className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  {currentUser.isPremium ? 'Apexa Premium Pro' : (locale === 'vi' ? 'Gói Miễn Phí (Free Tier)' : 'Free Tier')}
                 </span>
               </div>
               <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                <Sparkles className="w-5 h-5 animate-pulse" />
+                <Sparkles className="w-5 h-5" />
               </div>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
               {currentUser.isPremium 
                 ? (locale === 'vi' ? 'Đã kích hoạt toàn bộ công cụ AI thông minh, Gantt chart, whiteboards không giới hạn.' : 'Full access to smart AI tools, Gantt charts, and unlimited whiteboards.')
-                : (locale === 'vi' ? 'Nâng cấp để sử dụng các tính năng Gantt chart nâng cao và Gemini AI.' : 'Upgrade to use advanced Gantt charts and Gemini AI features.')}
+                : (locale === 'vi' ? 'Nâng cấp để mở khóa trợ lý AI thông minh, sơ đồ Gantt và tính năng làm việc nhóm cao cấp.' : 'Upgrade to unlock AI Copilot, Gantt chart timelines, and advanced team features.')}
             </p>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if ((window as any).showPremiumModal) {
-                    (window as any).showPremiumModal();
-                  } else if (triggerToast) {
-                    triggerToast('info', locale === 'vi' ? 'Thông báo' : 'Notification', locale === 'vi' ? 'Vui lòng sử dụng tài khoản Premium để truy cập toàn bộ tính năng.' : 'Please use a Premium account to access all features.');
-                  }
-                }}
-                className={`w-full py-3 rounded-2xl text-xs font-black tracking-wide text-center transition-all duration-200 cursor-pointer shadow-sm ${
-                  currentUser.isPremium
-                    ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                    : 'text-white bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:brightness-110 shadow-amber-500/20'
-                }`}
-              >
-                {currentUser.isPremium 
-                  ? (locale === 'vi' ? 'Quản lý gói đăng ký' : 'Manage Subscription') 
-                  : (locale === 'vi' ? 'Nâng cấp Premium ngay' : 'Upgrade to Premium Now')}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if ((window as any).showPremiumModal) {
+                  (window as any).showPremiumModal();
+                } else if (triggerToast) {
+                  triggerToast('info', locale === 'vi' ? 'Nâng cấp tài khoản' : 'Upgrade Account', locale === 'vi' ? 'Vui lòng chọn gói đăng ký để tiếp tục.' : 'Please choose a plan to proceed.');
+                }
+              }}
+              className={`w-full py-3 rounded-2xl text-xs font-black tracking-wide text-center transition-all cursor-pointer shadow-sm ${
+                currentUser.isPremium
+                  ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                  : 'text-white bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:brightness-110 shadow-amber-500/20'
+              }`}
+            >
+              {currentUser.isPremium 
+                ? (locale === 'vi' ? 'Quản lý gói đăng ký' : 'Manage Subscription') 
+                : (locale === 'vi' ? 'Nâng cấp Pro Ngay ✨' : 'Upgrade to Pro Now ✨')}
+            </button>
           </div>
+
         </div>
 
-        {/* Right Column: Profile Form Settings (7 columns width) */}
+        {/* Right Column (7 Cols): Personal Information Form */}
         <div className="lg:col-span-7">
           <form 
             onSubmit={handleSaveProfile} 
-            className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 md:p-7 rounded-3xl shadow-sm space-y-6 flex flex-col h-full justify-between hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-8 rounded-3xl shadow-sm space-y-6 flex flex-col justify-between"
           >
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 text-left">
+              
+              {/* Card Header & Profile Completeness */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-5 text-left">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    {t('personalInfo') || 'Personal Information'}
-                  </h3>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                    {t('editProfileInfo') || 'Edit your profile details'}
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    {getText('personalInfo', 'Personal Information', 'Thông tin cá nhân')}
+                  </h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                    {getText('editProfileInfo', 'Manage and edit your public profile details', 'Quản lý và chỉnh sửa chi tiết hồ sơ cá nhân')}
                   </p>
                 </div>
-                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
-                  <UserIcon className="w-5 h-5 shrink-0" />
+                
+                <div className="flex items-center gap-3">
+                  <div className="hidden sm:block text-right">
+                    <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                      {locale === 'vi' ? 'Hoàn thiện hồ sơ' : 'Profile completeness'}
+                    </span>
+                    <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                      {profileCompleteness}%
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                    <UserIcon className="w-5 h-5 shrink-0" />
+                  </div>
                 </div>
               </div>
 
-              {/* Input grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+              {/* Completeness Bar */}
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div 
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-300" 
+                  style={{ width: `${profileCompleteness}%` }} 
+                />
+              </div>
+
+              {/* Form Input Fields Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
+                
                 {/* Full Name */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    {t('fullName') || 'Full Name'}
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
+                    <UserIcon className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{getText('fullName', 'Full Name', 'Họ và tên')}</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full text-xs font-bold p-3 pl-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
-                      placeholder={t('fullNamePlaceholder') || 'Full Name...'}
-                      required
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    maxLength={80}
+                    className="w-full text-xs font-bold p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                    placeholder={locale === 'vi' ? 'Nhập họ và tên...' : 'Enter your full name...'}
+                    required
+                  />
                 </div>
 
-                {/* Role / Profession */}
+                {/* Role / Profession (Read-only System Role) */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    {t('roleProfession') || 'Role / Profession'}
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{getText('roleProfession', 'Role / Profession', 'Vai trò / Chức vụ')}</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
-                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all cursor-pointer"
-                    >
-                      <option value="member">{t('roleMember') || 'Member'}</option>
-                      <option value="admin">{t('roleAdmin') || 'Admin'}</option>
-                    </select>
+                  <div className="w-full text-xs font-bold p-3.5 bg-slate-100/80 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>{role === 'admin' ? (t('roleAdmin') || 'Admin') : role === 'guest' ? 'Guest' : (t('roleMember') || 'Member')}</span>
+                    <Shield className="h-4 w-4 text-slate-400" />
                   </div>
+                  <p className="text-[9.5px] text-slate-400 font-medium">
+                    {locale === 'vi' ? 'Vai trò do quản trị viên Workspace kiểm soát.' : 'Workspace roles are managed by an administrator.'}
+                  </p>
                 </div>
 
                 {/* Phone Number */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    {t('phoneNumber') || 'Phone Number'}
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{getText('phoneNumber', 'Phone Number', 'Số điện thoại')}</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
-                      placeholder={t('phonePlaceholder') || 'Phone number...'}
-                    />
-                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    autoComplete="tel"
+                    maxLength={24}
+                    className="w-full text-xs font-bold p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                    placeholder={locale === 'vi' ? 'Nhập số điện thoại (ví dụ: 0987654321)...' : 'Enter phone number...'}
+                  />
                 </div>
 
                 {/* Department */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                    {t('department') || 'Department'}
+                  <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{getText('department', 'Department', 'Phòng ban')}</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      className="w-full text-xs font-bold p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
-                      placeholder={t('departmentPlaceholder') || 'Working department...'}
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    autoComplete="organization-title"
+                    maxLength={80}
+                    className="w-full text-xs font-bold p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-all"
+                    placeholder={locale === 'vi' ? 'Nhập tên phòng ban làm việc...' : 'Working department...'}
+                  />
                 </div>
               </div>
 
-              {/* Short Bio */}
+              {/* Short Bio TextArea */}
               <div className="space-y-1.5 text-left">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                  {t('shortBio') || 'Short Bio'}
+                <label className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{getText('shortBio', 'Short Bio', 'Tiểu sử giới thiệu')}</span>
                 </label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
+                  maxLength={500}
                   rows={4}
-                  className="w-full text-xs font-medium p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 resize-none transition-all leading-relaxed"
-                  placeholder={t('bioPlaceholder') || 'Introduce yourself and your responsibilities...'}
+                  className="w-full text-xs font-medium p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 dark:text-slate-100 resize-none transition-all leading-relaxed"
+                  placeholder={locale === 'vi' ? 'Mô tả bản thân, kinh nghiệm và trách nhiệm chính...' : 'Introduce yourself and your responsibilities...'}
                 />
+                <div className="flex justify-end text-[10px] font-bold text-slate-400">
+                  <span>{bio.length} / 500</span>
+                </div>
               </div>
 
-              {/* Email (Readonly) */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left space-y-1">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                  <span>{t('emailReadOnly') || 'Account email (Read-only)'}</span>
-                </label>
-                <p className="text-xs font-mono text-slate-600 dark:text-slate-300 font-semibold pt-0.5">
-                  {currentUser.email}
-                </p>
+              {formError && (
+                <div role="alert" className="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              {/* Readonly Account Email Banner */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{locale === 'vi' ? 'Email tài khoản (Cố định)' : 'Account Email (Read-only)'}</span>
+                  </span>
+                  <p className="text-xs font-mono text-slate-700 dark:text-slate-200 font-bold pt-1">
+                    {currentUser.email}
+                  </p>
+                </div>
+                <Lock className="w-4 h-4 text-slate-400" />
               </div>
             </div>
 
-            {/* Action buttons bar */}
+            {/* Bottom Action Button Bar */}
             <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5 mt-6">
               <div>
                 {saveStatus === 'saved' && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>{t('allChangesSaved') || 'All changes saved'}</span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>{locale === 'vi' ? 'Đã lưu tất cả thay đổi' : 'All changes saved'}</span>
                   </span>
                 )}
                 {saveStatus === 'dirty' && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
-                    <Clock className="w-3.5 h-3.5 animate-spin" />
-                    <span>{t('waitingForChanges') || 'Waiting for changes...'}</span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>{locale === 'vi' ? 'Có thay đổi chưa lưu' : 'Unsaved changes'}</span>
                   </span>
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={saveStatus !== 'dirty' || !name.trim()}
-                className={`px-7 py-3 rounded-2xl text-xs font-black tracking-wide shadow-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
-                  saveStatus === 'saved'
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 opacity-70'
-                    : saveStatus === 'saving'
-                    ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400 opacity-80 animate-pulse'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20 hover:shadow-md'
-                }`}
-              >
-                {saveStatus === 'saving' ? (
-                  <>
-                    <Clock className="w-4 h-4 animate-spin" />
-                    <span>{t('saving') || 'Saving...'}</span>
-                  </>
-                ) : saveStatus === 'saved' ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>{t('savedSuccessfully') || 'Saved successfully'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>{t('saveProfile') || 'Save Profile'}</span>
-                  </>
+              <div className="flex items-center gap-2">
+                {saveStatus === 'dirty' && (
+                  <button
+                    type="button"
+                    onClick={handleResetForm}
+                    className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>{locale === 'vi' ? 'Hoàn tác' : 'Reset'}</span>
+                  </button>
                 )}
-              </button>
+                <button
+                  type="submit"
+                  disabled={saveStatus !== 'dirty' || !name.trim()}
+                  className={`px-6 py-3 rounded-2xl text-xs font-black tracking-wide shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed ${
+                    saveStatus === 'saved'
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 opacity-70'
+                      : saveStatus === 'saving'
+                      ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400 opacity-80 animate-pulse'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20 hover:shadow-md'
+                  }`}
+                >
+                  {saveStatus === 'saving' ? (
+                    <>
+                      <Clock className="w-4 h-4 animate-spin" />
+                      <span>{locale === 'vi' ? 'Đang lưu...' : 'Saving...'}</span>
+                    </>
+                  ) : saveStatus === 'saved' ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>{locale === 'vi' ? 'Đã lưu thành công' : 'Saved'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>{locale === 'vi' ? 'Lưu hồ sơ cá nhân' : 'Save Profile'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>
 
       </div>
+
+      {/* ── 3. Floating Unsaved Changes Sticky Notification Bar ── */}
+      <AnimatePresence>
+        {saveStatus === 'dirty' && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-2xl bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 shadow-2xl backdrop-blur-xl border border-slate-800 dark:border-slate-200"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+              <span className="text-xs font-bold">
+                {locale === 'vi' ? 'Bạn có thay đổi chưa lưu trong hồ sơ!' : 'You have unsaved changes in profile!'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetForm}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white dark:text-slate-600 dark:hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                {locale === 'vi' ? 'Hủy' : 'Reset'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                className="px-4 py-1.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{locale === 'vi' ? 'Lưu ngay' : 'Save Changes'}</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
