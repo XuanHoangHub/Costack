@@ -19,7 +19,7 @@ export const useAuthStore = create<AuthState>()(
         })),
     }),
     {
-      name: 'avaxa_auth',
+      name: 'apexa_auth',
       partialize: (state) => ({ currentUser: state.currentUser }),
     }
   )

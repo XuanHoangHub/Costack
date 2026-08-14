@@ -34,7 +34,7 @@ export const useSpaceStore = create<SpaceState>()(
         })),
     }),
     {
-      name: 'avaxa_spaces',
+      name: 'apexa_spaces',
     }
   )
 );

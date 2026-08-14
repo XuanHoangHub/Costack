@@ -26,7 +26,7 @@ export const useDocStore = create<DocState>()(
         })),
     }),
     {
-      name: 'avaxa_docs',
+      name: 'apexa_docs',
     }
   )
 );

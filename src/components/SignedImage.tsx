@@ -66,16 +66,19 @@ const getGradient = (name: string) => {
   return PRESET_GRADIENTS[index];
 };
 
-export default function SignedImage({ filePath, fallback, id, className, style, alt, title, bucket = 'avatars', ...props }: SignedImageProps) {
+export default function SignedImage({ filePath, fallback, id, className, style, alt, title, bucket = 'avatars', src: providedSrc, onError, ...props }: SignedImageProps) {
   const [src, setSrc] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [imageFailed, setImageFailed] = useState<boolean>(false);
 
-  const activePath = filePath || (props as any).src;
+  const providedSrcString = typeof providedSrc === 'string' ? providedSrc : undefined;
+  const activePath = filePath || providedSrcString;
 
   useEffect(() => {
     let active = true;
+    setImageFailed(false);
     if (!filePath) {
-      setSrc(fallback || '');
+      setSrc(providedSrcString || fallback || '');
       return;
     }
 
@@ -117,9 +120,9 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     return () => {
       active = false;
     };
-  }, [filePath, fallback, bucket]);
+  }, [filePath, fallback, bucket, providedSrcString]);
 
-  if (isDefaultAvatar(activePath)) {
+  if (isDefaultAvatar(activePath) || imageFailed) {
     const initial = getInitial(activePath, fallback, alt);
     const gradient = getGradient(alt || fallback || activePath || 'User');
     return (
@@ -162,7 +165,11 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
       alt={alt || 'Apexa Storage File'} 
       className={className}
       style={style}
-      {...props} 
+      {...props}
+      onError={(event) => {
+        setImageFailed(true);
+        onError?.(event);
+      }}
     />
   );
 }

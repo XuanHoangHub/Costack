@@ -640,10 +640,17 @@ export function useAppActions() {
     const currentWS = workspaces.find(w => w.id === activeWsId);
     const inviterName = currentUser?.name || 'Workspace Admin';
 
-    for (const email of emails) {
+    if (!activeWsId || !currentWS) {
+      throw new Error('Please select a workspace before inviting people.');
+    }
+
+    const cleanEmails = Array.from(new Set(emails.map(email => email.trim().toLowerCase()).filter(Boolean)));
+    const createdInvites: WorkspaceInvitation[] = [];
+    const failures: string[] = [];
+
+    for (const cleanEmail of cleanEmails) {
       const inviteId = crypto.randomUUID();
-      const cleanEmail = email.trim().toLowerCase();
-      const newInvite: WorkspaceInvitation = {
+      let newInvite: WorkspaceInvitation = {
         id: inviteId,
         workspaceId: activeWsId,
         workspaceName: currentWS?.name || 'Apexa Workspace',
@@ -657,28 +664,31 @@ export function useAppActions() {
 
       if (!isOffline) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.user) throw new Error('You must be signed in to invite members.');
-          await supabase.from('workspace_invitations').delete().eq('workspace_id', newInvite.workspaceId).eq('email', newInvite.email).eq('status', 'pending');
-          const { error } = await supabase.from('workspace_invitations').insert([{
-            id: newInvite.id,
-            workspace_id: newInvite.workspaceId,
-            workspace_name: newInvite.workspaceName,
-            email: newInvite.email,
-            role: newInvite.role,
-            invited_by: session.user.id,
-            invited_by_name: newInvite.invitedByName,
-            status: 'pending',
-            created_at: newInvite.createdAt
-          }]);
-          if (error) {
-            throw error;
-          }
+          const { data, error } = await supabase.rpc('create_workspace_invitation', {
+            p_workspace_id: activeWsId,
+            p_email: cleanEmail,
+            p_role: newInvite.role,
+            p_inviter_name: inviterName
+          });
+          if (error) throw error;
+
+          const record = data as any;
+          newInvite = {
+            ...newInvite,
+            id: record.id,
+            token: record.token,
+            workspaceName: record.workspace_name || newInvite.workspaceName,
+            createdAt: record.created_at,
+            expiresAt: record.expires_at
+          };
         } catch (e) {
           console.error('Exception inserting invitation:', e);
-          throw e;
+          failures.push(`${cleanEmail}: ${e instanceof Error ? e.message : 'Could not create invitation'}`);
+          continue;
         }
       }
+
+      createdInvites.push(newInvite);
 
       if (typeof window !== 'undefined') {
         const localInvitesRaw = localStorage.getItem('apexa_workspace_invitations');
@@ -689,25 +699,32 @@ export function useAppActions() {
       }
     }
 
+    if (createdInvites.length === 0) {
+      throw new Error(failures[0] || 'No invitations were created.');
+    }
+
     triggerToast({
       id: generateId(),
       type: 'success',
-      title: 'Invitations Sent',
-      message: `Successfully sent invitation(s) to ${emails.length} email address(es).`,
+      title: 'Invitations Ready',
+      message: failures.length > 0
+        ? `${createdInvites.length} invitation(s) created; ${failures.length} could not be created.`
+        : `${createdInvites.length} secure invitation link(s) are ready to share.`,
       duration: 4000
     });
-    addSyncLog(`Sent workspace invitations to: ${emails.join(', ')}`);
+    addSyncLog(`Created workspace invitations for: ${createdInvites.map(invite => invite.email).join(', ')}`);
   }, [workspaces, currentUser, isOffline, triggerToast, addSyncLog]);
 
   const handleAcceptWorkspaceInvite = useCallback(async (inviteId: string, workspaceId: string, role: string) => {
     let targetWS = workspaces.find(w => w.id === workspaceId);
 
     if (!isOffline) {
-      const { error } = await supabase.rpc('accept_workspace_invitation', { invitation_id: inviteId });
+      const { data: joinedWorkspaceId, error } = await supabase.rpc('accept_workspace_invitation', { invitation_id: inviteId });
       if (error) {
         triggerToast({ id: generateId(), type: 'info', title: 'Could not join workspace', message: error.message, duration: 4000 });
         return;
       }
+      workspaceId = (joinedWorkspaceId as string) || workspaceId;
     }
 
     if (typeof window !== 'undefined') {
@@ -737,7 +754,8 @@ export function useAppActions() {
             user_id: wsData.user_id,
             coverUrl: wsData.coverUrl || '',
             logoUrl: wsData.logoUrl || '',
-            settings: wsData.settings || {}
+            settings: wsData.settings || {},
+            membershipRole: (role as any) || 'member'
           };
           targetWS = mappedWS;
           setWorkspaces(prev => {
@@ -763,6 +781,15 @@ export function useAppActions() {
 
     useWorkspaceStore.getState().setActiveWorkspaceId(workspaceId);
 
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('invite_token')) {
+        url.searchParams.delete('invite_token');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+      sessionStorage.removeItem('apexa_pending_workspace_invite');
+    }
+
     triggerToast({
       id: generateId(),
       type: 'success',
@@ -771,6 +798,12 @@ export function useAppActions() {
       duration: 4000
     });
     addSyncLog(`Accepted invitation and joined workspace "${targetWS?.name || workspaceId}"`);
+
+    // Re-run the authenticated data bootstrap so spaces, lists, tasks and docs that
+    // just became visible through RLS are available immediately in the new workspace.
+    if (!isOffline && typeof window !== 'undefined') {
+      window.setTimeout(() => window.location.reload(), 700);
+    }
   }, [currentUser, workspaces, members, isOffline, setMembers, setWorkspaces, triggerToast, addSyncLog]);
 
   const handleDeclineWorkspaceInvite = useCallback(async (inviteId: string) => {
@@ -789,6 +822,12 @@ export function useAppActions() {
         localStorage.setItem('apexa_workspace_invitations', JSON.stringify(parsed.map(i => i.id === inviteId ? { ...i, status: 'declined' as const } : i)));
       }
       window.dispatchEvent(new CustomEvent('apexa-invitation-updated', { detail: { inviteId, status: 'declined' } }));
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('invite_token')) {
+        url.searchParams.delete('invite_token');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+      sessionStorage.removeItem('apexa_pending_workspace_invite');
     }
 
     triggerToast({
@@ -858,7 +897,6 @@ export function useAppActions() {
 
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
         localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
       } catch (e) {}
     }
@@ -888,7 +926,19 @@ export function useAppActions() {
               whiteboards: space.whiteboards || [],
               channels: space.channels || [],
               statuses: space.statuses || [],
-              click_apps: space.clickApps || {},
+              click_apps: {
+                ...(space.clickApps || {}),
+                spacePreferences: {
+                  description: space.description || '',
+                  isFavorite: !!space.isFavorite,
+                  isHidden: !!space.isHidden,
+                  isArchived: !!space.isArchived,
+                  listPreferences: Object.fromEntries((space.lists || []).map(list => [list.id, {
+                    isFavorite: !!list.isFavorite,
+                    isArchived: !!list.isArchived
+                  }]))
+                }
+              },
               custom_fields_config: space.customFields || [],
               user_id: userId,
               is_private: space.isPrivate || false,
@@ -963,7 +1013,7 @@ export function useAppActions() {
     setActiveTab('tasks');
     triggerToast({ id: generateId(), type: 'success', title: 'Space Created! 🎉', message: `Đã tạo space "${newSpace.name}" thành công.`, duration: 4000 });
     addSyncLog(`Created new Space: "${newSpace.name}"`);
-  }, [activeWorkspaceId, spaces, handleSaveSpaces, setActiveSpaceId, setActiveListId, setActiveTab, triggerToast, addSyncLog]);
+  }, [activeWorkspaceId, spaces, currentUser?.isPremium, handleSaveSpaces, setActiveSpaceId, setActiveListId, setActiveTab, setShowPremiumModal, triggerToast, addSyncLog]);
 
   const handleDeleteSpace = useCallback((spaceId: string) => {
     const updated = spaces.filter(s => s.id !== spaceId);

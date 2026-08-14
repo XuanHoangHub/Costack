@@ -26,7 +26,7 @@ export const useTaskStore = create<TaskState>()(
         })),
     }),
     {
-      name: 'avaxa_tasks',
+      name: 'apexa_tasks',
     }
   )
 );

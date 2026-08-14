@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
     const { image, mode, prompt, model, temperature } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     if (!image) {
       return NextResponse.json({ success: false, error: "Image is required" }, { status: 400 });
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
       // mode is 'explain' or 'optimize'
       const systemInstruction = mode === "optimize"
         ? "Bạn là Chuyên gia Kiến trúc Hệ thống & Tối ưu hóa Quy trình. Hãy phân tích bản vẽ bảng trắng và đề xuất các điểm cải tiến, phát hiện điểm nghẽn, hoặc lỗi thiết kế quy trình/kiến trúc bằng Tiếng Việt chuẩn mực."
-        : "Bạn là siêu trợ lý AI Avaxa Brain. Hãy giải thích và lập tài liệu mô tả chi tiết cho sơ đồ/bản vẽ bảng trắng được cung cấp. Phản hồi bằng Tiếng Việt lưu loát, cấu trúc Markdown rõ ràng.";
+        : "Bạn là siêu trợ lý AI Apexa Brain. Hãy giải thích và lập tài liệu mô tả chi tiết cho sơ đồ/bản vẽ bảng trắng được cung cấp. Phản hồi bằng Tiếng Việt lưu loát, cấu trúc Markdown rõ ràng.";
 
       const userPrompt = prompt || (mode === "optimize" ? "Hãy đề xuất các giải pháp tối ưu cho sơ đồ này." : "Hãy giải thích sơ đồ này.");
 
@@ -83,6 +82,6 @@ export async function POST(request: Request) {
     }
   } catch (error: any) {
     console.error("Whiteboard AI analysis error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to analyze whiteboard image" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Failed to analyze whiteboard image') }, { status: getAiErrorStatus(error) });
   }
 }

@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { Badge } from './ui';
 import { useTranslation } from '../contexts/TranslationContext';
+import { callAiApi } from '@/lib/aiClient';
 
 interface DashboardOverviewProps {
   tasks: Task[];
@@ -54,14 +55,13 @@ function DashboardOverview({
   // Daily morning briefing notification state
   const [showBriefing, setShowBriefing] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('avaxa_show_briefing_panel');
+      const saved = localStorage.getItem('apexa_show_briefing_panel');
       if (saved !== null) return JSON.parse(saved);
     } catch (e) {}
     return true;
   });
   const [briefingTasks, setBriefingTasks] = useState<Task[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
-  const [isBriefingChecked, setIsBriefingChecked] = useState<boolean>(false);
 
   // Checks task deadlines once per calendar day
   useEffect(() => {
@@ -86,25 +86,7 @@ function DashboardOverview({
     setBriefingTasks(nearList);
     setOverdueTasks(overdueList);
 
-    if (!isBriefingChecked && (nearList.length > 0 || overdueList.length > 0)) {
-      const todayStr = now.toLocaleDateString('vi-VN');
-      const lastTriggerDate = localStorage.getItem('avaxa_last_briefing_trigger_date');
-
-      if (lastTriggerDate !== todayStr) {
-        if (triggerToast) {
-          triggerToast(
-            'deadline',
-            t('dashboardMorningBriefing') || 'Bản tin Sáng nay ☀️',
-            locale === 'vi' 
-              ? `Bạn có ${overdueList.length} việc quá hạn & ${nearList.length} việc sắp đến hạn chót cần hoàn tất.`
-              : `You have ${overdueList.length} overdue tasks & ${nearList.length} tasks due soon.`
-          );
-          localStorage.setItem('avaxa_last_briefing_trigger_date', todayStr);
-        }
-      }
-      setIsBriefingChecked(true);
-    }
-  }, [tasks, isBriefingChecked, triggerToast, locale, t]);
+  }, [tasks]);
 
   const handleGenerateReport = async () => {
     if (!currentUser?.isPremium) {
@@ -114,11 +96,7 @@ function DashboardOverview({
     setIsGenerating(true);
     setReportError('');
     try {
-      const response = await fetch('/api/ai/productivity-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks, members })
-      });
+      const response = await callAiApi('/api/ai/productivity-report', { tasks, members });
       const data = await response.json();
       if (data.success) {
         setReportText(data.text);
@@ -364,7 +342,7 @@ function DashboardOverview({
               type="button" 
               onClick={() => {
                 setShowBriefing(false);
-                try { localStorage.setItem('avaxa_show_briefing_panel', 'false'); } catch (e) {}
+                try { localStorage.setItem('apexa_show_briefing_panel', 'false'); } catch (e) {}
               }}
               className="p-1.5 rounded-lg hover:bg-amber-500/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
             >
@@ -394,7 +372,7 @@ function DashboardOverview({
           </div>
 
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-            {t('goodMorning') || 'Chào buổi sáng'}, <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-400 dark:via-violet-400 dark:to-purple-400 bg-clip-text text-transparent">{currentUser?.name || 'Avaxa Member'}</span> 👋
+            {t('goodMorning') || 'Chào buổi sáng'}, <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-400 dark:via-violet-400 dark:to-purple-400 bg-clip-text text-transparent">{currentUser?.name || 'Apexa Member'}</span> 👋
           </h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
             {t('dashboardSyncDescription') || 'Tất cả tài liệu, lịch biểu, nhiệm vụ và báo cáo năng suất được đồng bộ thời gian thực liền mạch.'}
@@ -840,7 +818,7 @@ function DashboardOverview({
           >
             <div className="absolute top-0 right-0 p-3 text-[9px] font-mono text-indigo-500 dark:text-indigo-400 uppercase font-black flex items-center gap-1 bg-white/60 dark:bg-slate-900/60 rounded-bl-xl border-l border-b border-indigo-200/40 dark:border-indigo-800/40">
               <Bot className="w-3.5 h-3.5 animate-bounce" />
-              <span>Avaxa AI Drafted</span>
+              <span>Apexa AI Drafted</span>
             </div>
             
             <div className="prose max-w-none pt-2">

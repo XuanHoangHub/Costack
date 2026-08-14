@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -8,8 +8,7 @@ export async function POST(request: Request) {
     if (!prompt || !prompt.trim()) {
       return NextResponse.json({ success: false, error: "Prompt không được để trống" }, { status: 400 });
     }
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     const aiPrompt = `Based on the user request: "${prompt}". Analyze and propose a structured list of actionable tasks to accomplish it.`;
 

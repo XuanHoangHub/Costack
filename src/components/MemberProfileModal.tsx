@@ -18,14 +18,14 @@ interface MemberProfileModalProps {
 }
 
 const statusColors: Record<string, string> = {
-  online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]',
-  busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]',
-  away: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]',
-  offline: 'bg-slate-400',
+  online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30 animate-pulse',
+  busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
+  away: 'bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
+  offline: 'bg-slate-400 ring-2 ring-slate-400/20',
 };
 
 const statusLabels: Record<string, { vi: string; en: string }> = {
-  online: { vi: 'Đang hoạt động', en: 'Online' },
+  online: { vi: 'Trực tuyến', en: 'Online' },
   busy: { vi: 'Đang bận', en: 'Busy' },
   away: { vi: 'Vắng mặt', en: 'Away' },
   offline: { vi: 'Ngoại tuyến', en: 'Offline' },
@@ -184,7 +184,6 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <span>{member.email}</span>
               </p>
               <div className="mt-2 flex items-center gap-2 text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                <span className={`h-2 w-2 rounded-full ${statusColors[member.status || 'offline']}`} />
                 <span>{statusLabels[member.status || 'offline']?.[locale === 'vi' ? 'vi' : 'en']}</span>
                 {member.status !== 'online' && <span>• {formatLastSeen(member.lastSeenAt)}</span>}
               </div>

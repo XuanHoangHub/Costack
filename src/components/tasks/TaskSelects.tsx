@@ -389,8 +389,8 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     const handleFormatChange = () => {
       setDateFormat(getStoredDateFormat());
     };
-    window.addEventListener('avaxa-field-config-changed', handleFormatChange);
-    return () => window.removeEventListener('avaxa-field-config-changed', handleFormatChange);
+    window.addEventListener('apexa-field-config-changed', handleFormatChange);
+    return () => window.removeEventListener('apexa-field-config-changed', handleFormatChange);
   }, []);
   
   const [activeTab, setActiveTab] = useState<'start' | 'due'>(() => {

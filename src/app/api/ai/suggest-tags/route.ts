@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
     const { title, description, model, temperature } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     const prompt = `Hãy phân tích tiêu đề công việc: "${title}" và mô tả chi tiết: "${description || 'Không có mô tả chi tiết'}".
 Dựa trên ý nghĩa ngữ cảnh và các từ khoá, hãy gợi ý các nhãn phù hợp từ danh sách sau: ['Design', 'Frontend', 'Backend', 'Bugs', 'API', 'Marketing', 'Research', 'DevOps'].`;

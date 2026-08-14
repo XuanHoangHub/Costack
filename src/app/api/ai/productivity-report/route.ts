@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
     const { tasks, members, model, temperature } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     const totalT = (tasks || []).length;
     const completedT = (tasks || []).filter((t: any) => t.status === "completed").length;
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
       memberContributions: assigneeStats
     };
 
-    const systemInstruction = `Bạn là Trưởng phòng Vận hành và Chuyên gia Phân tích Hiệu suất của Avaxa Suite System (hệ điều hành cộng tác tối ưu). 
+    const systemInstruction = `Bạn là Trưởng phòng Vận hành và Chuyên gia Phân tích Hiệu suất của Apexa Suite System (hệ điều hành cộng tác tối ưu).
 Nhiệm vụ của bạn là lập "Báo cáo Đánh giá Năng suất Tuần" cực kỳ sâu sắc, chuyên sâu và truyền cảm hứng dựa trên các chỉ số công việc thực tế được cung cấp.
 Hãy trả lời hoàn toàn bằng tiếng Việt với văn văn phong chuyên nghiệp, mạch lạc, tinh tế. Dùng cấu trúc Markdown chuẩn: tiêu đề con là '###', in đậm, và gạch đầu dòng để làm thông tin cực kỳ nổi bật, dễ đọc.
 Tránh lặp lại dữ liệu thô một cách buồn tẻ; tập trung giải thích ý nghĩa các con số (ví dụ: tỉ lệ tiêu thụ thời gian, hiệu suất làm việc của đội ngũ, điểm nghẽn dự án, hướng xử lý).`;
@@ -75,6 +74,6 @@ Yêu cầu báo cáo bao gồm 4 phần chính bằng Tiếng Việt:
     return NextResponse.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error("Productivity Report error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Lỗi tạo báo cáo AI" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi tạo báo cáo AI') }, { status: getAiErrorStatus(error) });
   }
 }

@@ -7,21 +7,21 @@ import SecurityGuard from "@/components/SecurityGuard";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
   weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Avaxa Productivity",
+  title: "Apexa Productivity",
   description: "All-in-one productivity workspace for engineering, design, and business.",
 };
-
-
 
 export default function RootLayout({
   children,
@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="vi"
       suppressHydrationWarning
       className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
@@ -39,7 +39,7 @@ export default function RootLayout({
           id="initial-theme"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var saved=localStorage.getItem('avaxa_dark_mode');var dark=saved===null?window.matchMedia('(prefers-color-scheme: dark)').matches:saved==='true';var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`,
+            __html: `(function(){try{var saved=localStorage.getItem('apexa_dark_mode');var dark=saved===null?window.matchMedia('(prefers-color-scheme: dark)').matches:saved==='true';var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`,
           }}
         />
         <Script
@@ -88,7 +88,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)]`}>
+      <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
         <SecurityGuard />
         <TranslationProvider>
           {children}

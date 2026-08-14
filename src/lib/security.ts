@@ -1,5 +1,5 @@
 /**
- * Security & Data Sanitization Utilities for Avaxa OS
+ * Security & Data Sanitization Utilities for Apexa OS
  * Protection against XSS, Injection, Prototype Pollution, and Tabnabbing.
  */
 

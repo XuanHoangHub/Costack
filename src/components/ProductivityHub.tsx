@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Task, User } from '../types';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
+import { callAiApi } from '@/lib/aiClient';
 
 interface ProductivityHubProps {
   tasks: Task[];
@@ -56,8 +57,8 @@ export default function ProductivityHub({
 }: ProductivityHubProps) {
   const { t, locale } = useTranslation();
   // Local storage keys
-  const HABITS_STORAGE_KEY = 'avaxa_productivity_habits';
-  const FOCUS_LOG_STORAGE_KEY = 'avaxa_productivity_focus_sessions';
+  const HABITS_STORAGE_KEY = 'apexa_productivity_habits';
+  const FOCUS_LOG_STORAGE_KEY = 'apexa_productivity_focus_sessions';
 
   // State definitions
   const [habits, setHabits] = useState<Habit[]>(() => {
@@ -546,14 +547,7 @@ export default function ProductivityHub({
     setReportText('');
 
     try {
-      const res = await fetch('/api/ai/productivity-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tasks: tasks,
-          members: members
-        })
-      });
+      const res = await callAiApi('/api/ai/productivity-report', { tasks, members });
 
       const data = await res.json();
       if (data.success) {
@@ -764,7 +758,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="avaxa_productivity_dashboard_view">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="apexa_productivity_dashboard_view">
       {/* LEFT AREA: Stats and Pomodoro (Lg Span 8) */}
       <div className="lg:col-span-8 space-y-6">
         

@@ -42,7 +42,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
     }),
     {
-      name: 'avaxa_workspaces',
+      name: 'apexa_workspaces',
     }
   )
 );

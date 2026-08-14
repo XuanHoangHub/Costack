@@ -317,7 +317,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
           <div className="px-6 py-3 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Avaxa Engine: {rules.filter(rule => rule.enabled).length} rules active</span>
+              <span>Apexa Engine: {rules.filter(rule => rule.enabled).length} rules active</span>
             </span>
           </div>
         </motion.div>

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
     const { message, history, model, temperature, googleSearch } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
-    const systemPrompt = "You are Avaxa Brain, the AI assistant integrated into Avaxa Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
+    const systemPrompt = "You are Apexa Brain, the AI assistant integrated into Apexa Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
 
     // Map history to Content[] format
     const contents: any[] = [];
@@ -52,6 +51,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error("AI Chat error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Lỗi xử lý AI" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi xử lý AI') }, { status: getAiErrorStatus(error) });
   }
 }

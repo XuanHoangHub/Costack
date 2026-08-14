@@ -89,9 +89,9 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
   useEffect(() => {
     if (isOpen) {
       setError('');
-      const pendingCycle = window.localStorage.getItem('avaxa_pending_upgrade_cycle');
+      const pendingCycle = window.localStorage.getItem('apexa_pending_upgrade_cycle');
       if (pendingCycle === 'monthly' || pendingCycle === 'yearly') setCycle(pendingCycle);
-      window.localStorage.removeItem('avaxa_pending_upgrade_cycle');
+      window.localStorage.removeItem('apexa_pending_upgrade_cycle');
       void Promise.all([refreshEntitlement(), refreshPrices()]);
     }
   }, [isOpen, refreshEntitlement, refreshPrices]);

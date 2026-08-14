@@ -36,10 +36,10 @@ export const DEFAULT_COLUMN_NAMES: Record<string, string> = {
 };
 
 const STORAGE_KEYS = {
-  columnNames: 'avaxa_field_column_names',
-  statuses: 'avaxa_field_statuses',
-  priorities: 'avaxa_field_priorities',
-  customFields: 'avaxa_field_custom_configs'
+  columnNames: 'apexa_field_column_names',
+  statuses: 'apexa_field_statuses',
+  priorities: 'apexa_field_priorities',
+  customFields: 'apexa_field_custom_configs'
 };
 
 export function getStoredColumnNames(): Record<string, string> {
@@ -148,7 +148,7 @@ export const DATE_FORMAT_PRESETS: { id: DateFormatOption; label: string; sample:
 export function getStoredDateFormat(): DateFormatOption {
   if (typeof window === 'undefined') return 'MMM DD, YYYY';
   try {
-    const raw = localStorage.getItem('avaxa_date_format');
+    const raw = localStorage.getItem('apexa_date_format');
     return (raw as DateFormatOption) || 'MMM DD, YYYY';
   } catch (e) {
     return 'MMM DD, YYYY';
@@ -158,7 +158,7 @@ export function getStoredDateFormat(): DateFormatOption {
 export function saveDateFormat(format: DateFormatOption) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem('avaxa_date_format', format);
+    localStorage.setItem('apexa_date_format', format);
   } catch (e) {
     console.error(e);
   }

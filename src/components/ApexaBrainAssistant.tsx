@@ -10,7 +10,7 @@ import {
 import { Task, Document, User } from '../types';
 import { callAiApi } from '@/lib/aiClient';
 
-interface AvaxaBrainAssistantProps {
+interface ApexaBrainAssistantProps {
   tasks: Task[];
   documents: Document[];
   members: User[];
@@ -25,7 +25,7 @@ import { useUiStore } from '../store/uiStore';
 
 type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
 
-export default function AvaxaBrainAssistant({
+export default function ApexaBrainAssistant({
   tasks,
   documents,
   members,
@@ -33,7 +33,7 @@ export default function AvaxaBrainAssistant({
   onUpdateTask,
   onAddTask,
   onAddSyncLog
-}: AvaxaBrainAssistantProps) {
+}: ApexaBrainAssistantProps) {
   const { t, locale } = useTranslation();
   const appActiveTab = useUiStore((s) => s.activeTab);
   const [isOpen, setIsOpen] = useState(false);
@@ -62,7 +62,7 @@ export default function AvaxaBrainAssistant({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const searchDefault = localStorage.getItem('avaxa_ai_search_grounding') === 'true';
+      const searchDefault = localStorage.getItem('apexa_ai_search_grounding') === 'true';
       setSearchWeb(searchDefault);
     }
   }, []);
@@ -208,6 +208,7 @@ export default function AvaxaBrainAssistant({
         tasks,
         documents,
         members,
+        now: new Date().toISOString(),
         googleSearch: searchWeb
       });
 
@@ -689,10 +690,10 @@ Based on current information, here is a quick summary:
                       <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quick analysis requests</label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
+                          { text: "Bản tin công việc hôm nay", q: "Kiểm tra công việc hôm nay: việc nào quá hạn, đến hạn hôm nay hoặc ngày mai? Hãy chọn tối đa 3 việc tôi cần tập trung trước và giải thích ngắn gọn." },
                           { text: "Task progress summary", q: "Analyze and summarize the progress status of current tasks. How many tasks are running, overdue, and completed?" },
                           { text: "What are the urgent tasks?", q: "Which tasks have urgent or high priority? What issues require attention?" },
-                          { text: "Resource allocation summary", q: "Summarize task allocation for each team member. Who has the most tasks assigned?" },
-                          { text: "Operational feedback", q: "Act as a project operations expert and give me performance optimization advice based on the current task list." }
+                          { text: "Resource allocation summary", q: "Summarize task allocation for each team member. Who has the most tasks assigned?" }
                         ].map((btn, index) => (
                           <button
                             key={index}

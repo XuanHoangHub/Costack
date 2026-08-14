@@ -99,8 +99,8 @@ export function useSupabaseSync() {
 
         if (!active) return;
 
-        const finalMembers = dbMembers || [];
-        const myDbProfile = finalMembers.find(m => m.id === myMemberId);
+        let finalMembers = dbMembers || [];
+        let myDbProfile = finalMembers.find(m => m.id === myMemberId || m.user_id === userId || (m.email && myEmail && m.email.toLowerCase().trim() === myEmail.toLowerCase().trim()));
 
         if (!myDbProfile) {
           const newProfile = {
@@ -119,35 +119,92 @@ export function useSupabaseSync() {
           };
           await supabase.from('members').upsert([newProfile], { onConflict: 'id' });
           finalMembers.push(newProfile);
+          myDbProfile = newProfile;
         } else {
-          const updatedFields: any = {};
-          let needsUpdate = false;
-          if (!myDbProfile.phone && session.user.user_metadata?.phone) { updatedFields.phone = session.user.user_metadata.phone; myDbProfile.phone = session.user.user_metadata.phone; needsUpdate = true; }
-          if (!myDbProfile.department && session.user.user_metadata?.department) { updatedFields.department = session.user.user_metadata.department; myDbProfile.department = session.user.user_metadata.department; needsUpdate = true; }
-          if (!myDbProfile.bio && session.user.user_metadata?.bio) { updatedFields.bio = session.user.user_metadata.bio; myDbProfile.bio = session.user.user_metadata.bio; needsUpdate = true; }
-          if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) { updatedFields.joined_date = session.user.user_metadata.joinedDate; myDbProfile.joined_date = session.user.user_metadata.joinedDate; needsUpdate = true; }
-          if (!myDbProfile.avatar && session.user.user_metadata?.avatar) { updatedFields.avatar = session.user.user_metadata.avatar; myDbProfile.avatar = session.user.user_metadata.avatar; needsUpdate = true; }
-          if (needsUpdate) {
-            await supabase.from('members').update(updatedFields).eq('id', myMemberId);
+          if (myDbProfile.id !== myMemberId) {
+            const oldId = myDbProfile.id;
+            const updatedProfile = {
+              ...myDbProfile,
+              id: myMemberId,
+              user_id: userId,
+              name: myDbProfile.name || myName,
+              avatar: myDbProfile.avatar || myAvatar,
+              status: 'offline',
+              role: myDbProfile.role || myRole
+            };
+            await supabase.from('members').delete().eq('id', oldId);
+            await supabase.from('members').upsert([updatedProfile], { onConflict: 'id' });
+            myDbProfile = updatedProfile;
+            finalMembers = finalMembers.filter(m => m.id !== oldId && m.id !== myMemberId);
+            finalMembers.push(updatedProfile);
+          } else {
+            const updatedFields: any = {};
+            let needsUpdate = false;
+            if (!myDbProfile.phone && session.user.user_metadata?.phone) { updatedFields.phone = session.user.user_metadata.phone; myDbProfile.phone = session.user.user_metadata.phone; needsUpdate = true; }
+            if (!myDbProfile.department && session.user.user_metadata?.department) { updatedFields.department = session.user.user_metadata.department; myDbProfile.department = session.user.user_metadata.department; needsUpdate = true; }
+            if (!myDbProfile.bio && session.user.user_metadata?.bio) { updatedFields.bio = session.user.user_metadata.bio; myDbProfile.bio = session.user.user_metadata.bio; needsUpdate = true; }
+            if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) { updatedFields.joined_date = session.user.user_metadata.joinedDate; myDbProfile.joined_date = session.user.user_metadata.joinedDate; needsUpdate = true; }
+            if (!myDbProfile.avatar && session.user.user_metadata?.avatar) { updatedFields.avatar = session.user.user_metadata.avatar; myDbProfile.avatar = session.user.user_metadata.avatar; needsUpdate = true; }
+            if (needsUpdate) {
+              await supabase.from('members').update(updatedFields).eq('id', myMemberId);
+            }
           }
         }
 
+        if (myEmail) {
+          const myEmailLower = myEmail.toLowerCase().trim();
+          finalMembers = finalMembers.filter(m => {
+            if (m.id === myMemberId) return true;
+            if (m.email && m.email.toLowerCase().trim() === myEmailLower) return false;
+            return true;
+          });
+        }
+
+        if (myDbProfile) {
+          useAuthStore.getState().updateCurrentUser({
+            id: userId,
+            name: myDbProfile.name || myName,
+            email: myEmail,
+            avatar: myDbProfile.avatar || myAvatar,
+            role: (myDbProfile.role || myRole) as any,
+            status: 'online',
+            isPremium: Boolean(myDbProfile.is_premium)
+          });
+        }
+
         if (finalMembers.length > 0) {
-          const userEmail = session.user.email || 'default';
-          const storedWorkspaceMapRaw = typeof window !== 'undefined' ? localStorage.getItem(`apexa_member_workspaces_${userEmail}`) : null;
+          const userEmail = (session.user.email || '').toLowerCase().trim();
+          const storedWorkspaceMapRaw = typeof window !== 'undefined' ? localStorage.getItem(`apexa_member_workspaces_${userEmail || 'default'}`) : null;
           const storedWorkspaceMap = storedWorkspaceMapRaw ? JSON.parse(storedWorkspaceMapRaw) : {};
 
-          setMembers(finalMembers.map(m => {
-            const isMe = m.id === myMemberId;
+          const seenIds = new Set<string>();
+          const seenEmails = new Set<string>();
+          const deduplicated: User[] = [];
+
+          for (const m of finalMembers) {
+            const isMe = m.id === myMemberId || m.user_id === userId || (m.email && userEmail && m.email.toLowerCase().trim() === userEmail);
             const memberId = isMe ? 'user' : m.id;
+            const memberEmail = (m.email || '').toLowerCase().trim();
+
+            if (isMe) {
+              if (seenIds.has('user')) continue;
+              seenIds.add('user');
+              if (memberEmail) seenEmails.add(memberEmail);
+            } else {
+              if (memberEmail && seenEmails.has(memberEmail)) continue;
+              if (seenIds.has(memberId)) continue;
+              if (memberEmail) seenEmails.add(memberEmail);
+              seenIds.add(memberId);
+            }
+
             const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || ['w1', 'w2', 'w3'];
-            return {
+            deduplicated.push({
               id: memberId,
-              userId: m.user_id || undefined,
-              name: m.name,
+              userId: m.user_id || (isMe ? userId : undefined),
+              name: isMe ? (m.name || myName) : m.name,
               email: m.email,
-              avatar: m.avatar,
-              role: m.role as any,
+              avatar: isMe ? (m.avatar || myAvatar) : m.avatar,
+              role: isMe ? (m.role || myRole) : (m.role as any),
               // Presence is the only source of truth for connectivity.
               status: 'offline',
               customStatus: m.custom_status || 'online',
@@ -160,9 +217,11 @@ export function useSupabaseSync() {
               bio: m.bio || '',
               skills: isMe && Array.isArray(session.user.user_metadata?.skills) ? session.user.user_metadata.skills : [],
               joinedDate: m.joined_date || '2026',
-              isPremium: Boolean(m.is_premium)
-            };
-          }));
+              isPremium: isMe ? Boolean(myDbProfile?.is_premium ?? m.is_premium) : Boolean(m.is_premium)
+            });
+          }
+
+          setMembers(deduplicated);
         }
 
         const { data: dbTasks, error: tasksErr } = await supabase
@@ -276,7 +335,7 @@ export function useSupabaseSync() {
 
             const finalSpaces = dbSpaces || [];
             const hasSeededSpaces = typeof window !== 'undefined'
-              ? (localStorage.getItem(`avaxa_seeded_spaces_${userId}`) || localStorage.getItem(`apexa_seeded_spaces_${userId}`))
+              ? (localStorage.getItem(`apexa_seeded_spaces_${userId}`) || localStorage.getItem(`apexa_seeded_spaces_${userId}`))
               : null;
 
             if (finalSpaces.length > 0) {
@@ -289,13 +348,19 @@ export function useSupabaseSync() {
                 user_id: s.user_id,
                 isPrivate: s.is_private || false,
                 shareSettings: s.share_settings || {},
+                description: s.click_apps?.spacePreferences?.description || '',
+                isFavorite: !!s.click_apps?.spacePreferences?.isFavorite,
+                isHidden: !!s.click_apps?.spacePreferences?.isHidden,
+                isArchived: !!s.click_apps?.spacePreferences?.isArchived,
                 lists: (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
                   id: l.id,
                   name: l.name,
                   folderId: l.folder_id || undefined,
                   user_id: l.user_id,
                   isPrivate: l.is_private || false,
-                  shareSettings: l.share_settings || {}
+                  shareSettings: l.share_settings || {},
+                  isFavorite: !!s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isFavorite,
+                  isArchived: !!s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isArchived
                 })),
                 folders: s.folders || [],
                 whiteboards: s.whiteboards || [],
@@ -307,7 +372,7 @@ export function useSupabaseSync() {
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
                 try {
-                  localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true');
+                  localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
                   localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
                 } catch (e) {}
               }
@@ -316,7 +381,7 @@ export function useSupabaseSync() {
 
             if (hasSeededSpaces) {
               const savedSpaces = typeof window !== 'undefined'
-                ? (localStorage.getItem(`avaxa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
+                ? (localStorage.getItem(`apexa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
                 : null;
               if (savedSpaces) {
                 try {
@@ -341,7 +406,7 @@ export function useSupabaseSync() {
         
         if (!spacesSuccess && active) {
           const savedSpaces = typeof window !== 'undefined'
-            ? (localStorage.getItem(`avaxa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
+            ? (localStorage.getItem(`apexa_spaces_${userId}`) || localStorage.getItem(`apexa_spaces_${userId}`))
             : null;
           let localSpaces: Space[] = [];
           if (savedSpaces) {
@@ -638,22 +703,34 @@ export function useSupabaseSync() {
   }, [currentUser, isOffline]);
 }
 
-export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: boolean) {
+export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: boolean, inviteToken?: string | null) {
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadInvitations = useCallback(async () => {
     if (!currentUserEmail || typeof window === 'undefined') return;
 
-    const storedRaw = localStorage.getItem('apexa_workspace_invitations');
-    const localList: WorkspaceInvitation[] = storedRaw ? JSON.parse(storedRaw) : [];
-    const emailLower = currentUserEmail.trim().toLowerCase();
+    setIsLoading(true);
+    setHasLoaded(false);
 
-    if (!isOffline) {
-      try {
+    try {
+      const storedRaw = localStorage.getItem('apexa_workspace_invitations');
+      const localList: WorkspaceInvitation[] = storedRaw ? JSON.parse(storedRaw) : [];
+      const emailLower = currentUserEmail.trim().toLowerCase();
+      const isPendingAndValid = (invitation: WorkspaceInvitation) => (
+        invitation.email.toLowerCase() === emailLower
+        && invitation.status === 'pending'
+        && (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() > Date.now())
+      );
+
+      if (!isOffline) {
         const { data, error } = await supabase
           .from('workspace_invitations')
           .select('*')
-          .eq('email', emailLower);
+          .ilike('email', emailLower)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
 
         if (!error && data) {
           const mapped: WorkspaceInvitation[] = data.map(i => ({
@@ -664,26 +741,36 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
             role: i.role || 'member',
             invitedBy: i.invited_by,
             invitedByName: i.invited_by_name || i.invited_by,
+            token: i.token,
             status: i.status || 'pending',
-            createdAt: i.created_at
+            createdAt: i.created_at,
+            expiresAt: i.expires_at
           }));
 
           const map = new Map<string, WorkspaceInvitation>();
           localList.forEach(i => map.set(i.id, i));
           mapped.forEach(i => map.set(i.id, i));
-          const merged = Array.from(map.values()).filter(i => 
-            i.email.toLowerCase() === emailLower && i.status === 'pending'
-          );
+          const merged = Array.from(map.values())
+            .filter(isPendingAndValid)
+            .sort((a, b) => {
+              if (inviteToken && a.token === inviteToken) return -1;
+              if (inviteToken && b.token === inviteToken) return 1;
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
           setInvitations(merged);
           return;
         }
-      } catch (e) {
-        console.warn('Exception loading workspace invitations:', e);
       }
-    }
 
-    setInvitations(localList.filter(i => i.email.toLowerCase() === emailLower && i.status === 'pending'));
-  }, [currentUserEmail, isOffline]);
+      setInvitations(localList.filter(isPendingAndValid));
+    } catch (e) {
+      console.warn('Exception loading workspace invitations:', e);
+      setInvitations([]);
+    } finally {
+      setIsLoading(false);
+      setHasLoaded(true);
+    }
+  }, [currentUserEmail, inviteToken, isOffline]);
 
   useEffect(() => {
     loadInvitations();
@@ -718,5 +805,5 @@ export function useWorkspaceInvitations(currentUserEmail?: string, isOffline?: b
     };
   }, [loadInvitations, currentUserEmail, isOffline]);
 
-  return { invitations, refreshInvitations: loadInvitations };
+  return { invitations, isLoading, hasLoaded, refreshInvitations: loadInvitations };
 }

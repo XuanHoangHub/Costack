@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { UiPresenceStatus } from '@/lib/presence';
 
 interface PomodoroState {
   workDuration: number;
@@ -8,7 +9,7 @@ interface PomodoroState {
   pomodoroMode: 'work' | 'short' | 'long';
   pomodoroTime: number;
   pomodoroActive: boolean;
-  previousStatus: 'online' | 'focused' | 'away';
+  previousStatus: UiPresenceStatus;
   showPomoSettings: boolean;
   setWorkDuration: (d: number) => void;
   setShortBreakDuration: (d: number) => void;
@@ -16,7 +17,7 @@ interface PomodoroState {
   setPomodoroMode: (mode: 'work' | 'short' | 'long') => void;
   setPomodoroTime: (time: number | ((prev: number) => number)) => void;
   setPomodoroActive: (active: boolean) => void;
-  setPreviousStatus: (status: 'online' | 'focused' | 'away') => void;
+  setPreviousStatus: (status: UiPresenceStatus) => void;
   setShowPomoSettings: (show: boolean) => void;
 }
 
@@ -41,7 +42,7 @@ export const usePomodoroStore = create<PomodoroState>()(
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
     }),
     {
-      name: 'avaxa_pomodoro',
+      name: 'apexa_pomodoro',
     }
   )
 );

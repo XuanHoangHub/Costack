@@ -385,7 +385,7 @@ function ProductMockup() {
           <div className="w-3 h-3 rounded-full bg-amber-500/80" />
           <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
           <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 ml-2 font-mono">
-            avaxa.app / workspace / main-sprint
+            apexa.app / workspace / main-sprint
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -814,7 +814,7 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
     : 0;
 
   const startPlan = (planId: string) => {
-    if (planId === 'pro') localStorage.setItem('avaxa_pending_upgrade_cycle', billingCycle);
+    if (planId === 'pro') localStorage.setItem('apexa_pending_upgrade_cycle', billingCycle);
     onSignUp();
   };
 

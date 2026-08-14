@@ -1,4 +1,5 @@
 export type PresenceStatus = 'online' | 'busy' | 'away' | 'offline';
+export type UiPresenceStatus = 'online' | 'focused' | 'away' | 'offline';
 
 export interface PresencePayload {
   user_id?: string;
@@ -68,22 +69,45 @@ export function resolvePresence(payloads: PresencePayload[]): ResolvedPresence |
   };
 }
 
+/**
+ * Presence has historically used both an auth UUID and `user-${uuid}` as its key.
+ * Return every equivalent form so a member can be matched across old and new data.
+ */
+export function presenceKeyAliases(...values: Array<string | null | undefined>): string[] {
+  const aliases = new Set<string>();
+
+  for (const value of values) {
+    const normalized = value?.trim();
+    if (!normalized) continue;
+
+    aliases.add(normalized);
+    if (normalized.startsWith('user-')) {
+      const authUserId = normalized.slice(5);
+      if (authUserId) aliases.add(authUserId);
+    } else {
+      aliases.add(`user-${normalized}`);
+    }
+  }
+
+  return [...aliases];
+}
+
 export function presenceDotClass(status: PresenceStatus, pulse = false): string {
   const color = {
-    online: 'bg-emerald-500',
-    busy: 'bg-rose-500',
-    away: 'bg-amber-400',
-    offline: 'bg-slate-400',
-  }[status];
+    online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30',
+    busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
+    away: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
+    offline: 'bg-slate-400 ring-2 ring-slate-400/20',
+  }[status] || 'bg-slate-400';
 
   return `${color}${pulse && status === 'online' ? ' animate-pulse' : ''}`;
 }
 
-export function uiStatusToPresence(status: 'online' | 'focused' | 'away'): PresenceStatus {
+export function uiStatusToPresence(status: UiPresenceStatus): PresenceStatus {
   return status === 'focused' ? 'busy' : status;
 }
 
-export function presenceStatusToUi(status: PresenceStatus): 'online' | 'focused' | 'away' {
+export function presenceStatusToUi(status: PresenceStatus): UiPresenceStatus {
   if (status === 'busy') return 'focused';
-  return status === 'away' ? 'away' : 'online';
+  return status;
 }

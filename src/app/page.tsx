@@ -62,7 +62,7 @@ const Whiteboard = dynamic(() => import('../components/Whiteboard'), { loading: 
 const WhiteboardHub = dynamic(() => import('../components/WhiteboardHub'), { loading: ComponentLoading, ssr: false });
 const ChatRoom = dynamic(() => import('../components/ChatRoom'), { loading: ComponentLoading });
 const TeamDirectory = dynamic(() => import('../components/TeamDirectory'), { loading: ComponentLoading });
-const AvaxaBrainAssistant = dynamic(() => import('../components/AvaxaBrainAssistant'), { loading: ComponentLoading, ssr: false });
+const ApexaBrainAssistant = dynamic(() => import('../components/ApexaBrainAssistant'), { loading: ComponentLoading, ssr: false });
 const SettingsPanel = dynamic(() => import('../components/SettingsPanel'), { loading: ComponentLoading });
 const ProfilePage = dynamic(() => import('../components/ProfilePage'), { loading: ComponentLoading });
 const ProductivityHub = dynamic(() => import('../components/ProductivityHub'), { loading: ComponentLoading });
@@ -336,15 +336,23 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const u = session.user;
-        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('avaxa_session') : null;
+        let cachedUser: any = null;
+        try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch (e) {}
+
+        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
+        const userRole = (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' || cachedUser?.role === 'admin' ? 'admin' : 'member') as 'admin' | 'member';
+        const userIsPremium = cachedUser?.isPremium || false;
+
         const userObj = {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
-          role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          avatar: displayAvatar,
+          role: userRole,
           status: 'online' as const,
-          isPremium: false
+          isPremium: userIsPremium
         };
         updateCurrentUser(userObj);
         
@@ -362,15 +370,23 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const u = session.user;
-        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('avaxa_session') : null;
+        let cachedUser: any = null;
+        try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch (e) {}
+
+        const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Avaxa Champion';
+        const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
+        const userRole = (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' || cachedUser?.role === 'admin' ? 'admin' : 'member') as 'admin' | 'member';
+        const userIsPremium = cachedUser?.isPremium || false;
+
         const userObj = {
           id: u.id,
           name: displayName,
           email: u.email || '',
-          avatar: u.user_metadata?.avatar_url || u.user_metadata?.avatar || '',
-          role: (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member') as 'admin' | 'member',
+          avatar: displayAvatar,
+          role: userRole,
           status: 'online' as const,
-          isPremium: false
+          isPremium: userIsPremium
         };
         updateCurrentUser(userObj);
         
@@ -1532,13 +1548,39 @@ export default function App() {
   // Synchronize dynamic members configuration when current user state loads or toggles
   useEffect(() => {
     if (currentUser) {
-      setMembers(prev => prev.map(m => m.id === 'user' ? {
-        ...m,
-        name: currentUser.name,
-        email: currentUser.email,
-        avatar: currentUser.avatar,
-        role: currentUser.role
-      } : m));
+      setMembers(prev => {
+        const curEmail = currentUser.email?.toLowerCase().trim();
+        let list = prev;
+        if (curEmail) {
+          list = list.filter(m => m.id === 'user' || m.email?.toLowerCase().trim() !== curEmail);
+        }
+        const hasMe = list.some(m => m.id === 'user');
+        if (hasMe) {
+          return list.map(m => m.id === 'user' ? {
+            ...m,
+            name: currentUser.name || m.name,
+            email: currentUser.email || m.email,
+            avatar: currentUser.avatar || m.avatar,
+            role: currentUser.role || m.role,
+            isPremium: currentUser.isPremium ?? m.isPremium
+          } : m);
+        } else {
+          return [{
+            id: 'user',
+            name: currentUser.name,
+            email: currentUser.email,
+            avatar: currentUser.avatar,
+            role: currentUser.role,
+            status: 'online',
+            workspaceIds: ['w1', 'w2', 'w3'],
+            phone: '',
+            department: '',
+            bio: '',
+            joinedDate: '2026',
+            isPremium: currentUser.isPremium
+          }, ...list];
+        }
+      });
     }
   }, [currentUser, setMembers]);
 
@@ -1980,18 +2022,46 @@ export default function App() {
             ...myDbProfile,
             id: myMemberId,
             user_id: userId,
-            name: myName,
-            avatar: myAvatar,
+            name: myDbProfile.name || myName,
+            avatar: myDbProfile.avatar || myAvatar,
             status: 'offline',
-            role: myRole
+            role: myDbProfile.role || myRole
           };
           
           await supabase.from('members').delete().eq('id', oldId);
-          await supabase.from('members').insert([updatedProfile]);
+          await supabase.from('members').upsert([updatedProfile], { onConflict: 'id' });
           
           myDbProfile = updatedProfile;
-          finalMembers = finalMembers.filter(m => m.id !== oldId);
+          finalMembers = finalMembers.filter(m => m.id !== oldId && m.id !== myMemberId);
           finalMembers.push(updatedProfile);
+        }
+
+        // Clean out any other duplicate records with the same email in finalMembers
+        if (myEmail) {
+          const myEmailLower = myEmail.toLowerCase().trim();
+          finalMembers = finalMembers.filter(m => {
+            if (m.id === myMemberId) return true;
+            if (m.email && m.email.toLowerCase().trim() === myEmailLower) return false;
+            return true;
+          });
+        }
+
+        if (myDbProfile) {
+          // Synchronize database profile details back to currentUser
+          const syncedAvatar = myDbProfile.avatar || myAvatar;
+          const syncedName = myDbProfile.name || myName;
+          const syncedRole = myDbProfile.role || myRole;
+          const syncedIsPremium = Boolean(myDbProfile.is_premium);
+
+          updateCurrentUser({
+            id: userId,
+            name: syncedName,
+            email: myEmail,
+            avatar: syncedAvatar,
+            role: syncedRole as any,
+            status: 'online',
+            isPremium: syncedIsPremium
+          });
         }
 
         // If the query failed completely (network issue), do not trigger onboarding.
@@ -2166,23 +2236,40 @@ export default function App() {
           }
         }
 
-        // Load members list
+        // Load members list with strict deduplication
         if (finalMembers.length > 0) {
-          const userEmail = session.user.email || 'default';
-          const storedWorkspaceMapRaw = localStorage.getItem(`avaxa_member_workspaces_${userEmail}`);
+          const userEmail = (session.user.email || '').toLowerCase().trim();
+          const storedWorkspaceMapRaw = localStorage.getItem(`avaxa_member_workspaces_${userEmail || 'default'}`);
           const storedWorkspaceMap = storedWorkspaceMapRaw ? JSON.parse(storedWorkspaceMapRaw) : {};
 
-          setMembers(finalMembers.map(m => {
-            const isMe = m.id === myMemberId;
+          const seenIds = new Set<string>();
+          const seenEmails = new Set<string>();
+          const deduplicated: User[] = [];
+
+          for (const m of finalMembers) {
+            const isMe = m.id === myMemberId || m.user_id === userId || (m.email && userEmail && m.email.toLowerCase().trim() === userEmail);
             const memberId = isMe ? 'user' : m.id;
+            const memberEmail = (m.email || '').toLowerCase().trim();
+
+            if (isMe) {
+              if (seenIds.has('user')) continue;
+              seenIds.add('user');
+              if (memberEmail) seenEmails.add(memberEmail);
+            } else {
+              if (memberEmail && seenEmails.has(memberEmail)) continue;
+              if (seenIds.has(memberId)) continue;
+              if (memberEmail) seenEmails.add(memberEmail);
+              seenIds.add(memberId);
+            }
+
             const workspaceIds = m.workspace_ids || storedWorkspaceMap[m.id] || [];
-            return {
+            deduplicated.push({
               id: memberId,
-              userId: m.user_id || undefined,
-              name: m.name,
+              userId: m.user_id || (isMe ? userId : undefined),
+              name: isMe ? (m.name || myName) : m.name,
               email: m.email,
-              avatar: m.avatar,
-              role: m.role as any,
+              avatar: isMe ? (m.avatar || myAvatar) : m.avatar,
+              role: isMe ? (m.role || myRole) : (m.role as any),
               // Connectivity is resolved exclusively by Realtime Presence.
               status: 'offline',
               customStatus: m.custom_status || 'online',
@@ -2195,9 +2282,11 @@ export default function App() {
               bio: m.bio || '',
               skills: isMe && Array.isArray(session.user.user_metadata?.skills) ? session.user.user_metadata.skills : [],
               joinedDate: m.joined_date || '2026',
-              isPremium: Boolean(m.is_premium)
-            };
-          }));
+              isPremium: isMe ? Boolean(myDbProfile?.is_premium ?? m.is_premium) : Boolean(m.is_premium)
+            });
+          }
+
+          setMembers(deduplicated);
         }
 
         // B. Load Tasks from Supabase

@@ -249,7 +249,7 @@ export default function SpaceOverviewTab({
   const [quickTaskListId, setQuickTaskListId] = useState<string | null>(null);
 
   const theme = THEME_COLORS[space.themeColor || 'indigo'] || THEME_COLORS.indigo;
-  const bookmarkKey = activeFolderId ? `avaxa_bookmarks_folder_${activeFolderId}` : `avaxa_bookmarks_${space.id}`;
+  const bookmarkKey = activeFolderId ? `apexa_bookmarks_folder_${activeFolderId}` : `apexa_bookmarks_${space.id}`;
 
   useEffect(() => {
     try {

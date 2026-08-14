@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
     const { tasks, model, temperature } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     const inputTasks = (tasks || []).map((t: any) => ({
       id: t.id,
@@ -19,7 +18,7 @@ export async function POST(request: Request) {
       hoursEstimate: t.hoursEstimate || 0,
     }));
 
-    const systemInstruction = `Bạn là Giám đốc Dự án và Chuyên gia tối ưu hóa hiệu suất thông minh của Avaxa OS.
+    const systemInstruction = `Bạn là Giám đốc Dự án và Chuyên gia tối ưu hóa hiệu suất thông minh của Apexa OS.
 Nhiệm vụ của bạn là phân tích danh sách công việc hiện có (đặc biệt chú ý đến DEADLINE và ĐỘ KHÓ tự đánh giá từ mô tả/tên việc/ước lượng thời gian/số lượng công việc phụ) để đưa ra đề xuất ƯU TIÊN hành động tối ưu giúp người dùng tập trung vào các việc quan trọng nhất.
 
 Hãy trả về một phản hồi JSON có cấu trúc chính xác như sau:
@@ -76,6 +75,6 @@ Chỉ trả về JSON hợp lệ theo đúng cấu trúc trên. Không giải th
     return NextResponse.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error("Priority suggestions error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Lỗi phân tích thứ tự ưu tiên" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi phân tích thứ tự ưu tiên') }, { status: getAiErrorStatus(error) });
   }
 }

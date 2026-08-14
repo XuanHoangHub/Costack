@@ -17,7 +17,7 @@ interface UiState {
   showAddWorkspaceModal: boolean;
   showNotificationsMenu: boolean;
   showStatusMenu: boolean;
-  userStatus: 'online' | 'focused' | 'away';
+  userStatus: 'online' | 'focused' | 'away' | 'offline';
   blurIntensity: 'soft' | 'default' | 'immersive';
   accentPreset: 'indigo' | 'ocean' | 'forest' | 'sunset';
   soundEnabled: boolean;
@@ -82,7 +82,7 @@ interface UiState {
   setShowAddWorkspaceModal: (show: boolean) => void;
   setShowNotificationsMenu: (show: boolean) => void;
   setShowStatusMenu: (show: boolean) => void;
-  setUserStatus: (status: 'online' | 'focused' | 'away') => void;
+  setUserStatus: (status: 'online' | 'focused' | 'away' | 'offline') => void;
   setBlurIntensity: (intensity: 'soft' | 'default' | 'immersive') => void;
   setAccentPreset: (preset: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
   setSoundEnabled: (enabled: boolean) => void;
@@ -249,7 +249,7 @@ export const useUiStore = create<UiState>()(
       setSidebarOrder: (sidebarOrder) => set({ sidebarOrder }),
     }),
     {
-      name: 'avaxa_ui',
+      name: 'apexa_ui',
     }
   )
 );

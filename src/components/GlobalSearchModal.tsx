@@ -156,18 +156,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     {
       id: 'goto-base',
       name: '/base',
-      label: 'Open Avaxa Base',
+      label: 'Open Apexa Base',
       description: 'No-code database tables and records',
       icon: Database,
       action: () => {
         onNavigateTab('base');
-        addSyncLog('Command: Opened Avaxa Base');
+        addSyncLog('Command: Opened Apexa Base');
       },
     },
     {
       id: 'open-ai',
       name: '/ai',
-      label: 'Launch Avaxa Brain AI Assistant',
+      label: 'Launch Apexa Brain AI Assistant',
       description: 'Ask AI, summarize workspace, generate tasks or PRDs',
       icon: Sparkles,
       action: () => {
@@ -175,7 +175,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           const aiBtn = document.getElementById('btn_apexa_ai_float');
           if (aiBtn) aiBtn.click();
         }
-        addSyncLog('Command: Launched Avaxa Brain AI Assistant');
+        addSyncLog('Command: Launched Apexa Brain AI Assistant');
       },
     },
     {
@@ -278,7 +278,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const workspaceChannels = useMemo(() => {
     const directory = [
       { id: `${activeWorkspaceId}:general`, name: 'general', description: 'General workspace discussion', type: 'public' },
-      { id: `${activeWorkspaceId}:avaxa-brain-ai`, name: 'avaxa-brain-ai', description: 'Workspace AI assistant', type: 'public' },
+      { id: `${activeWorkspaceId}:apexa-brain-ai`, name: 'apexa-brain-ai', description: 'Workspace AI assistant', type: 'public' },
       ...activeSpaces.flatMap(space => (space.channels || []).map(channel => ({
         ...channel,
         id: channel.id.includes(':') ? channel.id : `${activeWorkspaceId}:space-${space.id}-${channel.id}`,

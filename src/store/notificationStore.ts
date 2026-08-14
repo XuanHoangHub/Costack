@@ -65,7 +65,7 @@ export const useNotificationStore = create<NotificationState>()(
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
     }),
     {
-      name: 'avaxa_notifications',
+      name: 'apexa_notifications',
       version: 2,
       migrate: (persistedState: any) => ({
         ...persistedState,

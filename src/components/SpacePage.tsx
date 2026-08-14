@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, TaskStatus, Priority, User, Space, Document, SyncLog, Workspace, TaskAttachment } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { callAiApi } from '@/lib/aiClient';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -80,6 +81,8 @@ interface SpacePageProps {
   onAddDocToSpace?: (spaceId: string, title: string) => void;
   onAddWhiteboardToSpace?: (spaceId: string, name: string) => void;
   onAddListToFolder?: (spaceId: string, folderId: string, name: string) => void;
+  onDeleteSpace?: (spaceId: string) => void;
+  onOpenAutomations?: () => void;
   onAddDoc?: (d: any) => void;
   onUpdateDoc?: (d: any) => void;
   onDeleteDoc?: (id: string) => void;
@@ -107,7 +110,7 @@ export default function SpacePage({
   myTasksOnly = false, onOpenSpaceSettings, onAddListSpace, onAddSpace,
   syncLogs = [], onNavigate, onToggleOffline,
   onAddFolderToSpace, onAddDocToSpace, onAddWhiteboardToSpace, onAddListToFolder,
-  onAddDoc, onUpdateDoc, onDeleteDoc,
+  onAddDoc, onUpdateDoc, onDeleteDoc, onDeleteSpace, onOpenAutomations,
   globalActiveTaskId = null, globalActiveElapsed = 0, globalIsPaused = false,
   onStartGlobalTimer, onStopGlobalTimer, onTogglePauseGlobalTimer
 }: SpacePageProps) {
@@ -223,8 +226,6 @@ export default function SpacePage({
     }
   };
 
-  // Favorite star state
-  const [isFavorite, setIsFavorite] = useState(false);
   const [showQuickTools, setShowQuickTools] = useState(false);
 
   // Active View Tab State (Overview, List, Board, Table, Gantt, etc.)
@@ -377,9 +378,70 @@ export default function SpacePage({
   const [newChanName, setNewChanName] = useState('');
   const [newChanDesc, setNewChanDesc] = useState('');
   const [newChanScope, setNewChanScope] = useState<'space' | 'folder' | 'list'>('space');
-  const [showAllSpacesToggle, setShowAllSpacesToggle] = useState(true);
+  const [showHiddenSpaces, setShowHiddenSpaces] = useState(false);
   const [showArchivedToggle, setShowArchivedToggle] = useState(false);
   const [expandedSpaceIds, setExpandedSpaceIds] = useState<Record<string, boolean>>({});
+
+  const sidebarSpaces = useMemo(() => {
+    const query = spacesSearchQuery.trim().toLowerCase();
+    return spaces
+      .filter(hasSpaceAccess)
+      .filter(space => showHiddenSpaces || !space.isHidden)
+      .filter(space => showArchivedToggle ? !!space.isArchived : !space.isArchived)
+      .filter(space => !query || `${space.name} ${space.description || ''}`.toLowerCase().includes(query))
+      .sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite) || a.name.localeCompare(b.name));
+  }, [hasSpaceAccess, showArchivedToggle, showHiddenSpaces, spaces, spacesSearchQuery]);
+
+  const updateSpaceProperties = (spaceId: string, patch: Partial<Space>, successMessage?: string) => {
+    const target = spaces.find(space => space.id === spaceId);
+    if (!target || !onSaveSpaces) return;
+    onSaveSpaces(spaces.map(space => space.id === spaceId ? { ...space, ...patch } : space));
+    if (successMessage) triggerToast?.('success', 'Đã cập nhật Space', successMessage);
+  };
+
+  const toggleSpaceFavorite = (space: Space) => {
+    updateSpaceProperties(
+      space.id,
+      { isFavorite: !space.isFavorite },
+      space.isFavorite ? `Đã bỏ ${space.name} khỏi mục yêu thích.` : `Đã ghim ${space.name} lên đầu danh sách.`
+    );
+    onAddSyncLog(`${space.isFavorite ? 'Unfavorited' : 'Favorited'} Space "${space.name}"`);
+  };
+
+  const duplicateSpace = (space: Space) => {
+    if (!onSaveSpaces) return;
+    const suffix = crypto.randomUUID();
+    const folderIdMap = new Map((space.folders || []).map(folder => [folder.id, `folder-${crypto.randomUUID()}`]));
+    const clonedSpace: Space = {
+      ...space,
+      id: `s-${suffix}`,
+      name: `${space.name} (Bản sao)`,
+      user_id: currentUser?.id,
+      isFavorite: false,
+      isHidden: false,
+      isArchived: false,
+      folders: (space.folders || []).map(folder => ({ ...folder, id: folderIdMap.get(folder.id)! })),
+      lists: (space.lists || []).map(list => ({
+        ...list,
+        id: `l-${crypto.randomUUID()}`,
+        folderId: list.folderId ? folderIdMap.get(list.folderId) : undefined,
+        user_id: currentUser?.id
+      })),
+      whiteboards: (space.whiteboards || []).map(board => ({
+        ...board,
+        id: `wb-${crypto.randomUUID()}`,
+        folderId: board.folderId ? folderIdMap.get(board.folderId) : undefined
+      })),
+      channels: (space.channels || []).map(channel => ({ ...channel, id: `channel-${crypto.randomUUID()}` }))
+    };
+    onSaveSpaces([...spaces, clonedSpace]);
+    setActiveSpaceId?.(clonedSpace.id);
+    setActiveListId?.(null);
+    setActiveFolderId(null);
+    setActiveView('overview');
+    triggerToast?.('success', 'Đã nhân bản Space', `Đã sao chép cấu trúc của “${space.name}”.`);
+    onAddSyncLog(`Duplicated Space "${space.name}" as "${clonedSpace.name}"`);
+  };
   useEffect(() => {
     const currentList = activeSpace.lists?.find(l => l.id === activeListId);
     if (currentList) {
@@ -421,6 +483,16 @@ export default function SpacePage({
   };
   const [breadcrumbSearch, setBreadcrumbSearch] = useState('');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !activeSpaceId) return;
+    const linkedFolderId = new URLSearchParams(window.location.search).get('folder');
+    if (!linkedFolderId || !activeSpace.folders?.some(folder => folder.id === linkedFolderId)) return;
+    setActiveFolderId(linkedFolderId);
+    setActiveListId?.(null);
+    setActiveTabId('tab-overview');
+    setActiveView('overview');
+  }, [activeSpace, activeSpaceId, setActiveListId]);
 
   // Automatically close mobile sidebar when the active list, folder, or space changes
   useEffect(() => {
@@ -717,13 +789,6 @@ export default function SpacePage({
        if (triggerToast) {
          triggerToast('success', 'Pomodoro Session Finished!', `Focus block on "${timerTask?.title || 'task'}" completed.`);
        }
-       if (!isMuted) {
-         try {
-           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-200.wav');
-           audio.volume = 0.3;
-           audio.play();
-         } catch (e) {}
-       }
      }
       return () => { if (interval) clearInterval(interval); };
    }, [timerRunning, timeLeft, timerTask, triggerToast, isMuted]);
@@ -894,11 +959,7 @@ export default function SpacePage({
         setLoadingAiPriority(false);
         return;
       }
-      const res = await fetch('/api/ai/priority-suggestions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks: active })
-      });
+      const res = await callAiApi('/api/ai/priority-suggestions', { tasks: active });
       const data = await res.json();
       if (data.success && data.text) {
         setAiSuggestions(JSON.parse(data.text));
@@ -918,11 +979,7 @@ export default function SpacePage({
     }
     setAiGenerating(true);
     try {
-      const res = await fetch('/api/ai/subtasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: task.title, description: task.description })
-      });
+      const res = await callAiApi('/api/ai/subtasks', { title: task.title, description: task.description });
       const data = await res.json();
       if (data.success && Array.isArray(data.subtasks)) {
         const gen = data.subtasks.map((t: string, i: number) => ({
@@ -955,11 +1012,7 @@ export default function SpacePage({
     setIsSummarizing(true);
     try {
       const assignee = members.find(m => m.id === task.assigneeId);
-      const res = await fetch('/api/ai/task-summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task, assigneeName: assignee?.name || 'Unassigned' })
-      });
+      const res = await callAiApi('/api/ai/task-summarize', { task, assigneeName: assignee?.name || 'Unassigned' });
       const data = await res.json();
       if (data.success && data.text) {
         setAiSummary(data.text);
@@ -1090,13 +1143,23 @@ export default function SpacePage({
             }`}
           >
             {/* Header: Spaces */}
-            <div className="p-4 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between shrink-0">
-              <span className="text-sm font-extrabold text-slate-850 dark:text-slate-100 uppercase tracking-wider">Spaces</span>
+            <div className="border-b border-slate-200/60 p-3 dark:border-slate-800/80 shrink-0">
+              <div className="flex items-center justify-between">
+              <div><span className="text-sm font-extrabold text-slate-850 dark:text-slate-100">Spaces</span><p className="mt-0.5 text-[9px] font-semibold text-slate-400">{spaces.filter(space => !space.isArchived).length} đang hoạt động</p></div>
               <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => setShowSpacesSearch(value => !value)}
+                  className={`rounded-lg p-1.5 transition-colors ${showSpacesSearch ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400' : 'hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800'}`}
+                  title="Tìm Space"
+                  aria-label="Tìm Space"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
                 <button 
                   onClick={() => onAddSpace?.()}
-                  className="p-1 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded cursor-pointer transition-colors" 
-                  title="Add Space"
+                  className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg cursor-pointer transition-colors"
+                  title="Tạo Space"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -1107,6 +1170,14 @@ export default function SpacePage({
                 >
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
                 </button>
+              </div>
+              </div>
+              <AnimatePresence>
+                {showSpacesSearch && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden"><div className="relative mt-3"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input autoFocus value={spacesSearchQuery} onChange={event => setSpacesSearchQuery(event.target.value)} placeholder="Tìm Space..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-xs font-semibold outline-none focus:border-indigo-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />{spacesSearchQuery && <button type="button" onClick={() => setSpacesSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"><X className="h-3.5 w-3.5" /></button>}</div></motion.div>}
+              </AnimatePresence>
+              <div className="mt-3 flex gap-1.5">
+                <button type="button" onClick={() => setShowHiddenSpaces(value => !value)} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[9px] font-black transition ${showHiddenSpaces ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}><EyeOff className="h-3 w-3" /> Đã ẩn {spaces.filter(space => space.isHidden).length}</button>
+                <button type="button" onClick={() => setShowArchivedToggle(value => !value)} className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[9px] font-black transition ${showArchivedToggle ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}><Archive className="h-3 w-3" /> Lưu trữ {spaces.filter(space => space.isArchived).length}</button>
               </div>
             </div>
 
@@ -1135,12 +1206,7 @@ export default function SpacePage({
 
               {/* Spaces list */}
               <div className="space-y-1">
-                {spaces.filter(space => {
-                  if (showSpacesSearch && spacesSearchQuery.trim()) {
-                    return space.name.toLowerCase().includes(spacesSearchQuery.toLowerCase());
-                  }
-                  return true;
-                }).filter(hasSpaceAccess).map(space => {
+                {sidebarSpaces.map(space => {
                   const isSpaceActive = activeSpaceId === space.id && activeListId === null;
                   const isAnyChildActive = activeSpaceId === space.id;
                   const isExpanded = expandedSpaceIds[space.id] !== undefined 
@@ -1209,6 +1275,9 @@ export default function SpacePage({
                             </div>
                           )}
                           <span className="truncate font-extrabold">{space.name}</span>
+                          {space.isFavorite && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-500" />}
+                          {space.isHidden && <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />}
+                          {space.isArchived && <Archive className="h-3 w-3 shrink-0 text-slate-400" />}
                           {space.isPrivate && <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0 ml-0.5" />}
                         </div>
 
@@ -1279,9 +1348,9 @@ export default function SpacePage({
                           )}
                           
                           {/* Render Folders */}
-                          {space.folders?.map(folder => {
+                          {space.folders?.filter(folder => showArchivedToggle ? folder.isArchived : !folder.isArchived).sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite)).map(folder => {
                             const isFolderOpen = expandedFolders[folder.id];
-                            const folderLists = (space.lists?.filter(l => l.folderId === folder.id) || []).filter(l => hasListAccess(space, l));
+                            const folderLists = (space.lists?.filter(l => l.folderId === folder.id && (showArchivedToggle ? l.isArchived : !l.isArchived)) || []).filter(l => hasListAccess(space, l)).sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite));
                             const folderDocs = allDocs?.filter(d => d.folderId === folder.id) || [];
                             const folderWhiteboards = space.whiteboards?.filter(w => w.folderId === folder.id) || [];
                             return (
@@ -1504,7 +1573,7 @@ export default function SpacePage({
                           })}
 
                           {/* Render direct Lists */}
-                          {space.lists?.filter(l => !l.folderId).filter(l => hasListAccess(space, l)).map(list => {
+                          {space.lists?.filter(l => !l.folderId && (showArchivedToggle ? l.isArchived : !l.isArchived)).filter(l => hasListAccess(space, l)).sort((a, b) => Number(!!b.isFavorite) - Number(!!a.isFavorite)).map(list => {
                             const isListActive = activeSpaceId === space.id && activeListId === list.id;
                             const taskCount = tasks.filter(t => t.listId === list.id).length;
                             return (
@@ -1652,6 +1721,7 @@ export default function SpacePage({
                     </div>
                   );
                 })}
+                {!sidebarSpaces.length && <div className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center dark:border-slate-800"><FolderOpen className="mx-auto h-6 w-6 text-slate-300" /><p className="mt-2 text-[11px] font-bold text-slate-500">Không có Space phù hợp</p><p className="mt-1 text-[9px] leading-relaxed text-slate-400">Thử đổi bộ lọc hoặc tạo Space mới.</p><button type="button" onClick={() => onAddSpace?.()} className="mt-3 rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-black text-white">Tạo Space</button></div>}
               </div>
 
               {/* Create space row */}
@@ -1905,11 +1975,12 @@ export default function SpacePage({
 
               {/* Star Button */}
               <button 
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={() => toggleSpaceFavorite(activeSpace)}
                 className="p-1 text-slate-400 hover:text-amber-500 rounded-md transition-colors cursor-pointer shrink-0"
-                title="Favorite"
+                title={activeSpace.isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
+                aria-label={activeSpace.isFavorite ? 'Bỏ Space khỏi yêu thích' : 'Thêm Space vào yêu thích'}
               >
-                <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
+                <Star className={`w-3.5 h-3.5 ${activeSpace.isFavorite ? 'fill-amber-500 text-amber-500' : ''}`} />
               </button>
 
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
@@ -2029,7 +2100,7 @@ export default function SpacePage({
                       </div>
                       
                       <button
-                        onClick={() => { setShowQuickTools(false); alert("Starting workspace call..."); }}
+                        onClick={() => { setShowQuickTools(false); setActiveTabId('tab-channel'); setActiveView('channel'); triggerToast?.('info', 'Phòng trao đổi đã mở', 'Bắt đầu cuộc gọi hoặc trao đổi nhanh trong Channel của Space.'); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
@@ -2042,7 +2113,7 @@ export default function SpacePage({
                       </button>
 
                       <button
-                        onClick={() => { setShowQuickTools(false); alert("Opening agents center..."); }}
+                        onClick={() => { setShowQuickTools(false); triggerToast?.('info', 'AI theo ngữ cảnh Space', 'Mở Apexa AI từ nút trợ lý nổi để làm việc với dữ liệu hiện tại.'); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
@@ -2055,7 +2126,7 @@ export default function SpacePage({
                       </button>
 
                       <button
-                        onClick={() => { setShowQuickTools(false); alert("Opening automations dashboard..."); }}
+                        onClick={() => { setShowQuickTools(false); onOpenAutomations?.(); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
@@ -2068,7 +2139,7 @@ export default function SpacePage({
                       </button>
 
                       <button
-                        onClick={() => { setShowQuickTools(false); alert("Triggering AI Brain² assistant..."); }}
+                        onClick={() => { setShowQuickTools(false); triggerToast?.('info', 'Apexa AI', 'Trợ lý sẽ sử dụng Space và danh sách đang mở làm ngữ cảnh.'); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/30 transition-all text-left cursor-pointer group border border-indigo-500/10"
                       >
                         <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
@@ -2087,7 +2158,7 @@ export default function SpacePage({
                       </div>
                       
                       <button
-                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'Layout Columns', 'Adjust table column visibility in sidebar panel.'); }}
+                        onClick={() => { setShowQuickTools(false); setActiveView('table'); setShowFieldsPanel(true); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
@@ -2126,7 +2197,7 @@ export default function SpacePage({
                       </button>
 
                       <button
-                        onClick={() => { setShowQuickTools(false); if (triggerToast) triggerToast('info', 'List Calendar', 'Specify list deadline or schedule.'); }}
+                        onClick={() => { setShowQuickTools(false); setActiveTabId('tab-calendar'); setActiveView('calendar'); }}
                         className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-slate-105 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-500/10 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 flex items-center justify-center shrink-0 transition-colors">
@@ -2904,6 +2975,7 @@ export default function SpacePage({
               onUpdateTask(t);
               setSelectedTask(t);
             }}
+            onCreateTask={onAddTask}
             onDeleteTask={(id) => {
               onDeleteTask(id);
               setSelectedTask(null);
@@ -3755,7 +3827,7 @@ export default function SpacePage({
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveSpaceSettings(null);
-                    alert("Added Space to favorites!");
+                    toggleSpaceFavorite(space);
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
@@ -3763,7 +3835,7 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-amber-100 dark:group-hover/item:bg-amber-950/50 group-hover/item:text-amber-500 transition-colors shrink-0">
                       <Star className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">Favorite</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors">{space.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-amber-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
                 </button>
@@ -3798,10 +3870,16 @@ export default function SpacePage({
                     e.stopPropagation();
                     setActiveSpaceSettings(null);
                     if (typeof window !== 'undefined') {
-                      navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}`);
+                      const shareUrl = new URL(window.location.href);
+                      shareUrl.searchParams.set('workspace', space.workspaceId);
+                      shareUrl.searchParams.set('space', space.id);
+                      void navigator.clipboard.writeText(shareUrl.toString()).then(() => {
+                        triggerToast?.('success', 'Đã sao chép liên kết', `Liên kết tới “${space.name}” đã sẵn sàng để chia sẻ.`);
+                      }).catch(() => {
+                        triggerToast?.('warning', 'Không thể sao chép', 'Trình duyệt chưa cấp quyền truy cập clipboard.');
+                      });
                     }
                     onAddSyncLog(`Copied space link for space ${space.name}`);
-                    alert("Copied Space link to clipboard!");
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
@@ -3809,7 +3887,7 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <LinkIcon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Copy link</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Sao chép liên kết</span>
                   </div>
                 </button>
               </div>
@@ -3844,14 +3922,14 @@ export default function SpacePage({
                 {/* Color & Icon */}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Color & Icon options can be set inside Workspace settings."); }}
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenSpaceSettings?.(space); }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <Droplet className="w-3.5 h-3.5 text-indigo-500" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Color & Icon</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Màu sắc & biểu tượng</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
                 </button>
@@ -3859,14 +3937,14 @@ export default function SpacePage({
                 {/* Automations */}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Automations dashboard loaded."); }}
+                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); onOpenAutomations?.(); }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-violet-100 dark:group-hover/item:bg-violet-950/50 group-hover/item:text-violet-500 transition-colors shrink-0">
                       <Zap className="w-3.5 h-3.5 text-violet-500 fill-violet-500/20" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-violet-600 dark:group-hover/item:text-violet-400 transition-colors">Automations</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-violet-600 dark:group-hover/item:text-violet-400 transition-colors">Tự động hóa</span>
                   </div>
                 </button>
               </div>
@@ -3878,7 +3956,12 @@ export default function SpacePage({
                 {/* Hide Space */}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space hidden from sidebar."); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    updateSpaceProperties(space.id, { isHidden: !space.isHidden }, space.isHidden ? `Đã hiển thị lại ${space.name}.` : `Đã ẩn ${space.name} khỏi danh sách mặc định.`);
+                    onAddSyncLog(`${space.isHidden ? 'Unhid' : 'Hid'} Space "${space.name}"`);
+                  }}
                   className="w-full p-2 rounded-2xl text-left hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
                   <div className="flex items-center gap-2.5">
@@ -3886,9 +3969,9 @@ export default function SpacePage({
                       <EyeOff className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <span className="font-extrabold text-[12px] text-slate-700 dark:text-slate-200 block group-hover/item:text-slate-900 dark:group-hover/item:text-white transition-colors">Hide Space</span>
+                      <span className="font-extrabold text-[12px] text-slate-700 dark:text-slate-200 block group-hover/item:text-slate-900 dark:group-hover/item:text-white transition-colors">{space.isHidden ? 'Hiển thị Space' : 'Ẩn Space'}</span>
                       <span className="block text-[9.5px] text-slate-400 dark:text-slate-500 font-medium leading-tight mt-0.5">
-                        You'll retain access to this Space, but it won't show in your sidebar
+                        {space.isHidden ? 'Đưa Space trở lại danh sách mặc định' : 'Vẫn giữ quyền truy cập và toàn bộ dữ liệu'}
                       </span>
                     </div>
                   </div>
@@ -3900,9 +3983,7 @@ export default function SpacePage({
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveSpaceSettings(null);
-                    const newSpace = { ...space, id: `s-${Date.now()}`, name: `${space.name} (Copy)` };
-                    onSaveSpaces?.([...spaces, newSpace]);
-                    onAddSyncLog(`Duplicated Space "${space.name}"`);
+                    duplicateSpace(space);
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
@@ -3910,21 +3991,31 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <Copy className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Duplicate</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Nhân bản cấu trúc</span>
                   </div>
                 </button>
 
                 {/* Archive */}
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveSpaceSettings(null); alert("Space archived successfully."); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSpaceSettings(null);
+                    updateSpaceProperties(space.id, { isArchived: !space.isArchived }, space.isArchived ? `Đã khôi phục ${space.name}.` : `Đã chuyển ${space.name} vào lưu trữ.`);
+                    if (!space.isArchived && activeSpaceId === space.id) {
+                      setActiveSpaceId?.(spaces.find(candidate => candidate.id !== space.id && !candidate.isArchived && !candidate.isHidden)?.id || null);
+                      setActiveListId?.(null);
+                      setActiveFolderId(null);
+                    }
+                    onAddSyncLog(`${space.isArchived ? 'Restored' : 'Archived'} Space "${space.name}"`);
+                  }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <Archive className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Archive</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">{space.isArchived ? 'Khôi phục' : 'Lưu trữ'}</span>
                   </div>
                 </button>
 
@@ -3939,7 +4030,8 @@ export default function SpacePage({
                       description: `Bạn có chắc chắn muốn xóa Space "${space.name}"? Tất cả các thư mục, danh sách và công việc trong Space này cũng sẽ bị xóa vĩnh viễn.`,
                       onConfirm: () => {
                         const updated = spaces.filter(s => s.id !== space.id);
-                        onSaveSpaces?.(updated);
+                        if (onDeleteSpace) onDeleteSpace(space.id);
+                        else onSaveSpaces?.(updated);
                         if (activeSpaceId === space.id) {
                           if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
                           if (setActiveListId) setActiveListId(null);
@@ -3954,7 +4046,7 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center text-rose-500 group-hover/item:bg-rose-100 dark:group-hover/item:bg-rose-900/60 transition-colors shrink-0">
                       <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                     </div>
-                    <span className="font-extrabold text-[12px]">Delete</span>
+                    <span className="font-extrabold text-[12px]">Xóa Space</span>
                   </div>
                 </button>
               </div>
@@ -4161,13 +4253,15 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveListSettings(null);
-                  alert("Added List to favorites!");
+                  const updatedLists = space.lists.map(item => item.id === list.id ? { ...item, isFavorite: !item.isFavorite } : item);
+                  onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, lists: updatedLists } : item));
+                  triggerToast?.('success', 'Đã cập nhật danh sách', list.isFavorite ? `Đã bỏ “${list.name}” khỏi yêu thích.` : `Đã ghim “${list.name}”.`);
                 }}
                 className="w-full flex items-center justify-between px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <Star className="w-3.5 h-3.5 text-slate-450" />
-                  <span className="font-bold">Favorite</span>
+                  <Star className={`w-3.5 h-3.5 ${list.isFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-450'}`} />
+                  <span className="font-bold">{list.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4199,10 +4293,13 @@ export default function SpacePage({
                   e.stopPropagation();
                   setActiveListSettings(null);
                   if (typeof window !== 'undefined') {
-                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}/list/${list.id}`);
+                    const shareUrl = new URL(window.location.href);
+                    shareUrl.searchParams.set('workspace', space.workspaceId);
+                    shareUrl.searchParams.set('space', space.id);
+                    shareUrl.searchParams.set('list', list.id);
+                    void navigator.clipboard.writeText(shareUrl.toString()).then(() => triggerToast?.('success', 'Đã sao chép liên kết', `Đã sao chép liên kết tới “${list.name}”.`));
                   }
                   onAddSyncLog(`Copied list link for list ${list.name}`);
-                  alert("Copied List link to clipboard!");
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
               >
@@ -4232,7 +4329,7 @@ export default function SpacePage({
               {canEditList(space, list) && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List Automations settings loaded."); }}
+                  onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); setActiveSpaceId?.(space.id); setActiveListId?.(list.id); onOpenAutomations?.(); }}
                   className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
                 >
                   <Zap className="w-3.5 h-3.5 text-slate-455" />
@@ -4269,7 +4366,7 @@ export default function SpacePage({
                     e.stopPropagation();
                     setActiveListSettings(null);
                     const newListName = `${list.name} (Copy)`;
-                    const updatedLists = [...space.lists, { id: `l-${Date.now()}`, name: newListName, folderId: list.folderId }];
+                    const updatedLists = [...space.lists, { ...list, id: `l-${crypto.randomUUID()}`, name: newListName, isFavorite: false, isArchived: false, user_id: currentUser?.id }];
                     const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
                     onSaveSpaces?.(updated);
                     onAddSyncLog(`Duplicated List "${list.name}"`);
@@ -4284,11 +4381,18 @@ export default function SpacePage({
               {/* Archive */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveListSettings(null); alert("List archived successfully."); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveListSettings(null);
+                  const updatedLists = space.lists.map(item => item.id === list.id ? { ...item, isArchived: !item.isArchived } : item);
+                  onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, lists: updatedLists } : item));
+                  if (!list.isArchived && activeListId === list.id) setActiveListId?.(null);
+                  triggerToast?.('success', list.isArchived ? 'Đã khôi phục danh sách' : 'Đã lưu trữ danh sách', `“${list.name}” đã được cập nhật.`);
+                }}
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
               >
                 <Archive className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Archive</span>
+                <span className="font-bold">{list.isArchived ? 'Khôi phục' : 'Lưu trữ'}</span>
               </button>
 
               {/* Delete */}
@@ -4301,6 +4405,7 @@ export default function SpacePage({
                     title: 'Xóa danh sách',
                     description: `Bạn có chắc chắn muốn xóa danh sách "${list.name}"? Tất cả các công việc trong danh sách này cũng sẽ bị xóa vĩnh viễn.`,
                     onConfirm: () => {
+                      tasks.filter(task => task.listId === list.id).forEach(task => onDeleteTask(task.id));
                       const updatedLists = space.lists.filter(l => l.id !== list.id);
                       const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
                       onSaveSpaces?.(updated);
@@ -4343,13 +4448,15 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveFolderSettings(null);
-                  alert("Added Folder to favorites!");
+                  const updatedFolders = space.folders?.map(item => item.id === folder.id ? { ...item, isFavorite: !item.isFavorite } : item) || [];
+                  onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, folders: updatedFolders } : item));
+                  triggerToast?.('success', 'Đã cập nhật thư mục', folder.isFavorite ? `Đã bỏ “${folder.name}” khỏi yêu thích.` : `Đã ghim “${folder.name}”.`);
                 }}
                 className="w-full flex items-center justify-between px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Star className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Favorite</span>
+                  <Star className={`w-3.5 h-3.5 ${folder.isFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">{folder.isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4381,10 +4488,13 @@ export default function SpacePage({
                   e.stopPropagation();
                   setActiveFolderSettings(null);
                   if (typeof window !== 'undefined') {
-                    navigator.clipboard.writeText(`${window.location.origin}/space/${space.id}/folder/${folder.id}`);
+                    const shareUrl = new URL(window.location.href);
+                    shareUrl.searchParams.set('workspace', space.workspaceId);
+                    shareUrl.searchParams.set('space', space.id);
+                    shareUrl.searchParams.set('folder', folder.id);
+                    void navigator.clipboard.writeText(shareUrl.toString()).then(() => triggerToast?.('success', 'Đã sao chép liên kết', `Đã sao chép liên kết tới “${folder.name}”.`));
                   }
                   onAddSyncLog(`Copied folder link for folder ${folder.name}`);
-                  alert("Copied Folder link to clipboard!");
                 }}
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
@@ -4468,7 +4578,7 @@ export default function SpacePage({
               {/* Automations */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Folder Automations settings loaded."); }}
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); setActiveSpaceId?.(space.id); setActiveListId?.(null); setActiveFolderId(folder.id); onOpenAutomations?.(); }}
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Zap className="w-3.5 h-3.5 text-slate-400" />
@@ -4492,7 +4602,7 @@ export default function SpacePage({
               {/* Task statuses */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Manage Task Statuses for this Folder."); }}
+                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); onOpenSpaceSettings?.(space); }}
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -4562,8 +4672,10 @@ export default function SpacePage({
                   e.stopPropagation();
                   setActiveFolderSettings(null);
                   const newFolderName = `${folder.name} (Copy)`;
-                  const updatedFolders = [...(space.folders || []), { id: `f-${Date.now()}`, name: newFolderName }];
-                  const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders } : s);
+                  const newFolderId = `folder-${crypto.randomUUID()}`;
+                  const updatedFolders = [...(space.folders || []), { ...folder, id: newFolderId, name: newFolderName, isFavorite: false, isArchived: false }];
+                  const clonedLists = space.lists.filter(item => item.folderId === folder.id).map(item => ({ ...item, id: `l-${crypto.randomUUID()}`, folderId: newFolderId, isFavorite: false, isArchived: false, user_id: currentUser?.id }));
+                  const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: [...s.lists, ...clonedLists] } : s);
                   onSaveSpaces?.(updated);
                   onAddSyncLog(`Duplicated Folder "${folder.name}"`);
                 }}
@@ -4576,11 +4688,18 @@ export default function SpacePage({
               {/* Archive */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveFolderSettings(null); alert("Folder archived successfully."); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFolderSettings(null);
+                  const updatedFolders = space.folders?.map(item => item.id === folder.id ? { ...item, isArchived: !item.isArchived } : item) || [];
+                  onSaveSpaces?.(spaces.map(item => item.id === space.id ? { ...item, folders: updatedFolders } : item));
+                  if (!folder.isArchived && activeFolderId === folder.id) setActiveFolderId(null);
+                  triggerToast?.('success', folder.isArchived ? 'Đã khôi phục thư mục' : 'Đã lưu trữ thư mục', `“${folder.name}” đã được cập nhật.`);
+                }}
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Archive className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Archive</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">{folder.isArchived ? 'Khôi phục' : 'Lưu trữ'}</span>
               </button>
 
               {/* Delete */}
@@ -4593,6 +4712,8 @@ export default function SpacePage({
                     title: 'Xóa thư mục',
                     description: `Bạn có chắc chắn muốn xóa thư mục "${folder.name}" cùng tất cả danh sách bên trong? Tất cả các công việc trong thư mục này cũng sẽ bị xóa vĩnh viễn.`,
                     onConfirm: () => {
+                      const removedListIds = new Set(space.lists.filter(item => item.folderId === folder.id).map(item => item.id));
+                      tasks.filter(task => task.listId && removedListIds.has(task.listId)).forEach(task => onDeleteTask(task.id));
                       const updatedFolders = space.folders?.filter(f => f.id !== folder.id) || [];
                       const updatedLists = space.lists?.filter(l => l.folderId !== folder.id) || [];
                       const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists } : s);
@@ -4619,7 +4740,13 @@ export default function SpacePage({
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveFolderSettings(null);
-                    alert("Sharing & Permissions settings loaded.");
+                    setSharingTargetType('space');
+                    setSharingTargetId(space.id);
+                    setSharingTargetName(space.name);
+                    setSharingTargetIsPrivate(!!space.isPrivate);
+                    setSharingTargetShareSettings(space.shareSettings || {});
+                    setSharingModalOpen(true);
+                    triggerToast?.('info', 'Quyền của thư mục', 'Thư mục đang kế thừa quyền truy cập từ Space.');
                   }}
                   className="w-full py-1.5 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
                 >

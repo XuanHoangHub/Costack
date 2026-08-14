@@ -84,8 +84,8 @@ const TaskListView = React.memo(function TaskListView({
 
   React.useEffect(() => {
     reloadMeta();
-    window.addEventListener('avaxa-field-config-changed', reloadMeta);
-    return () => window.removeEventListener('avaxa-field-config-changed', reloadMeta);
+    window.addEventListener('apexa-field-config-changed', reloadMeta);
+    return () => window.removeEventListener('apexa-field-config-changed', reloadMeta);
   }, []);
 
   const dynamicStatusMeta = useMemo(() => {

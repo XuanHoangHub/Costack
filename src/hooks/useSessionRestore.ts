@@ -23,13 +23,13 @@ export function useSessionRestore() {
     if (typeof window === 'undefined') return;
 
     try {
-      const savedSession = localStorage.getItem('avaxa_session');
+      const savedSession = localStorage.getItem('apexa_session');
       if (savedSession) {
         const parsed = safeJsonParse<{ user: any; expiresAt: number } | null>(savedSession, null);
         if (parsed && parsed.user && typeof parsed.expiresAt === 'number' && Date.now() < parsed.expiresAt) {
           setCurrentUser(parsed.user);
         } else {
-          localStorage.removeItem('avaxa_session');
+          localStorage.removeItem('apexa_session');
         }
       }
     } catch (e) {
@@ -37,7 +37,7 @@ export function useSessionRestore() {
     }
 
     try {
-      const savedDark = localStorage.getItem('avaxa_dark_mode');
+      const savedDark = localStorage.getItem('apexa_dark_mode');
       if (savedDark !== null) {
         const isDark = savedDark === 'true';
         useUiStore.getState().setIsDarkMode(isDark);
@@ -52,7 +52,7 @@ export function useSessionRestore() {
     } catch (e) {}
 
     try {
-      const saved = localStorage.getItem('avaxa_accent_preset');
+      const saved = localStorage.getItem('apexa_accent_preset');
       if (saved === 'ocean' || saved === 'forest' || saved === 'sunset' || saved === 'indigo') {
         setAccentPreset(saved as any);
         useUiStore.getState().setAccentPreset(saved as any);
@@ -62,30 +62,30 @@ export function useSessionRestore() {
     }
 
     try {
-      const savedSound = localStorage.getItem('avaxa_sound_enabled');
+      const savedSound = localStorage.getItem('apexa_sound_enabled');
       if (savedSound !== null) {
         setSoundEnabled(savedSound !== 'false');
       }
     } catch (e) {}
 
     try {
-      const savedBlur = localStorage.getItem('avaxa_blur_intensity');
+      const savedBlur = localStorage.getItem('apexa_blur_intensity');
       if (savedBlur === 'soft' || savedBlur === 'default' || savedBlur === 'immersive') {
         setBlurIntensity(savedBlur);
       }
     } catch (e) {}
 
     try {
-      const savedNotifications = localStorage.getItem('avaxa_notification_settings');
+      const savedNotifications = localStorage.getItem('apexa_notification_settings');
       if (savedNotifications) {
         setNotificationSettings((prev: any) => ({ ...prev, ...JSON.parse(savedNotifications) }));
       }
     } catch (e) {}
 
     try {
-      const workVal = localStorage.getItem('avaxa_pomo_work');
-      const shortVal = localStorage.getItem('avaxa_pomo_short');
-      const longVal = localStorage.getItem('avaxa_pomo_long');
+      const workVal = localStorage.getItem('apexa_pomo_work');
+      const shortVal = localStorage.getItem('apexa_pomo_short');
+      const longVal = localStorage.getItem('apexa_pomo_long');
       if (workVal) {
         const workNum = Number(workVal);
         setWorkDuration(workNum);

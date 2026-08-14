@@ -95,9 +95,9 @@ export function usePomodoroEngine() {
     setShortBreakDuration(shortVal);
     setLongBreakDuration(longVal);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('avaxa_pomo_work', String(workVal));
-      localStorage.setItem('avaxa_pomo_short', String(shortVal));
-      localStorage.setItem('avaxa_pomo_long', String(longVal));
+      localStorage.setItem('apexa_pomo_work', String(workVal));
+      localStorage.setItem('apexa_pomo_short', String(shortVal));
+      localStorage.setItem('apexa_pomo_long', String(longVal));
     }
     const currentDuration = pomodoroMode === 'work' ? workVal : (pomodoroMode === 'short' ? shortVal : longVal);
     if (!pomodoroActive) {

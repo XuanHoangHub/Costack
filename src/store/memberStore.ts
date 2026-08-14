@@ -26,7 +26,7 @@ export const useMemberStore = create<MemberState>()(
         })),
     }),
     {
-      name: 'avaxa_members',
+      name: 'apexa_members',
     }
   )
 );

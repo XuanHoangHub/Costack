@@ -558,7 +558,7 @@ export default function Whiteboard({
   useEffect(() => {
     if (!whiteboardId) return;
     try {
-      const saved = localStorage.getItem(`avaxa_whiteboard_${whiteboardId}`);
+      const saved = localStorage.getItem(`apexa_whiteboard_${whiteboardId}`);
       if (saved) {
         setElements(JSON.parse(saved));
       } else {
@@ -573,7 +573,7 @@ export default function Whiteboard({
   useEffect(() => {
     if (!whiteboardId) return;
     try {
-      localStorage.setItem(`avaxa_whiteboard_${whiteboardId}`, JSON.stringify(elements));
+      localStorage.setItem(`apexa_whiteboard_${whiteboardId}`, JSON.stringify(elements));
     } catch (e) {}
   }, [elements, whiteboardId]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -1826,7 +1826,7 @@ export default function Whiteboard({
     // Download triggers
     const dataUrl = tempCanvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `whiteboard-avaxa-${Date.now()}.png`;
+    link.download = `whiteboard-apexa-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
     onAddSyncLog('Whiteboard: Exported diagram to PNG image successfully');

@@ -290,9 +290,9 @@ export default function TaskTableView({
     const handleConfigChange = () => {
       reloadConfigs();
     };
-    window.addEventListener('avaxa-field-config-changed', handleConfigChange);
+    window.addEventListener('apexa-field-config-changed', handleConfigChange);
     return () => {
-      window.removeEventListener('avaxa-field-config-changed', handleConfigChange);
+      window.removeEventListener('apexa-field-config-changed', handleConfigChange);
     };
   }, []);
 
@@ -500,7 +500,7 @@ export default function TaskTableView({
       }
       
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('avaxa-field-config-changed'));
+        window.dispatchEvent(new Event('apexa-field-config-changed'));
       }
       
       if (onAddSyncLog) onAddSyncLog(`Updated settings for standard field "${id}"`);
@@ -540,7 +540,7 @@ export default function TaskTableView({
       }
 
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('avaxa-field-config-changed'));
+        window.dispatchEvent(new Event('apexa-field-config-changed'));
       }
 
       if (onAddSyncLog) onAddSyncLog(`Updated settings for custom field "${newName}"`);
@@ -1206,7 +1206,7 @@ export default function TaskTableView({
                       setColumnNames(nextNames);
                       saveColumnNames(nextNames);
                       if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new Event('avaxa-field-config-changed'));
+                        window.dispatchEvent(new Event('apexa-field-config-changed'));
                       }
                       if (onAddSyncLog) onAddSyncLog(`Renamed column "${activeMenu.fieldId}" to "${newName.trim()}"`);
                     }
@@ -1448,7 +1448,7 @@ export default function TaskTableView({
                       onClick={() => {
                         saveDateFormat(preset.id);
                         if (typeof window !== 'undefined') {
-                          window.dispatchEvent(new Event('avaxa-field-config-changed'));
+                          window.dispatchEvent(new Event('apexa-field-config-changed'));
                         }
                         if (onAddSyncLog) onAddSyncLog(`Changed date format to: "${preset.label}"`);
                         setActiveMenu(null);

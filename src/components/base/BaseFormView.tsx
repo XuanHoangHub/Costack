@@ -79,7 +79,7 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
             type="submit"
             disabled={submitted}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black text-white transition-all cursor-pointer disabled:opacity-70"
-            style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start, #7B61FF), var(--avaxa-gradient-end, #FF3366))' }}
+            style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}
           >
             {submitted ? (
               <><Check className="w-4 h-4" /> Submitted!</>

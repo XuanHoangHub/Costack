@@ -22,6 +22,14 @@ export async function callAiApi(endpoint: string, body: Record<string, unknown> 
     headers["x-gemini-api-key"] = savedApiKey;
   }
 
+  if (!savedApiKey && typeof window !== 'undefined') {
+    const { supabase } = await import('@/lib/supabaseClient');
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      headers.Authorization = `Bearer ${data.session.access_token}`;
+    }
+  }
+
   // Determine if this request should enable Google Search grounding
   // Priority: explicit call parameter > localStorage saved setting
   const googleSearchEnabled = body.googleSearch !== undefined ? body.googleSearch : searchGrounding;
@@ -82,4 +90,3 @@ export async function suggestTaskPriorityWithAi(title: string): Promise<'urgent'
   }
   return 'low';
 }
-

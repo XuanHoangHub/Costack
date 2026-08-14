@@ -63,6 +63,7 @@ export interface CustomFieldDefinition {
 export interface Space {
   id: string;
   name: string;
+  description?: string;
   emoji?: string;
   themeColor?: string;
   workspaceId: string;
@@ -79,6 +80,13 @@ export interface Space {
     relationships?: boolean;
     subtasks?: boolean;
     priorities?: boolean;
+    spacePreferences?: {
+      description?: string;
+      isFavorite?: boolean;
+      isHidden?: boolean;
+      isArchived?: boolean;
+      listPreferences?: Record<string, { isFavorite?: boolean; isArchived?: boolean }>;
+    };
   };
   customFields?: CustomFieldDefinition[];
   isPrivate?: boolean;

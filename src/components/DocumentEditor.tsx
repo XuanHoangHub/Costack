@@ -320,6 +320,7 @@ export default function DocumentEditor({
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const titleSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedDocumentId = useRef<string | null>(null);
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null);
@@ -337,7 +338,7 @@ export default function DocumentEditor({
   const getCommentAuthor = (userId: string) => {
     const member = members.find(m => m.id === `user-${userId}` || m.id === userId || (m as any).user_id === userId);
     return {
-      name: member?.name || 'Thành viên Avaxa',
+      name: member?.name || 'Thành viên Apexa',
       avatar: member?.avatar || null
     };
   };
@@ -505,6 +506,11 @@ export default function DocumentEditor({
     const coords = view.coordsAtPos(selection.from);
     const workspaceBounds = editorWorkspaceRef.current?.getBoundingClientRect() || view.dom.getBoundingClientRect();
     const menuWidth = 320;
+    const menuHeight = 300;
+    const spaceBelow = window.innerHeight - coords.bottom;
+    const topPos = spaceBelow < menuHeight && coords.top > menuHeight
+      ? coords.top - workspaceBounds.top - menuHeight - 8
+      : coords.bottom - workspaceBounds.top + 8;
 
     slashRangeRef.current = range;
     filteredSlashCommandsRef.current = filteredCommands;
@@ -513,7 +519,7 @@ export default function DocumentEditor({
     setSlashQuery(query);
     setSlashActiveIndex(0);
     setSlashMenuCoords({
-      top: coords.bottom - workspaceBounds.top + 8,
+      top: topPos,
       left: Math.max(8, Math.min(coords.left - workspaceBounds.left, workspaceBounds.width - menuWidth - 8)),
     });
     setSlashMenuOpen(true);
@@ -543,7 +549,7 @@ export default function DocumentEditor({
     extensions: editorExtensions,
     editorProps: {
       attributes: {
-        class: 'document-editor prose prose-sm dark:prose-invert focus:outline-none max-w-none text-sm font-medium text-slate-800 dark:text-slate-200 min-h-[450px] select-text leading-relaxed',
+        class: 'document-editor prose prose-sm dark:prose-invert focus:outline-none max-w-none text-sm font-medium text-slate-800 dark:text-slate-200 min-h-[450px] select-text leading-relaxed break-words',
       },
       handleKeyDown: (_view, event) => {
         if (!slashMenuOpenRef.current) return false;
@@ -605,8 +611,9 @@ export default function DocumentEditor({
           const endCoords = view.coordsAtPos(to);
           const editorBounds = editorWorkspaceRef.current?.getBoundingClientRect() || view.dom.getBoundingClientRect();
           
-          const left = (startCoords.left + endCoords.left) / 2 - editorBounds.left;
-          const top = startCoords.top - editorBounds.top - 48;
+          const left = Math.max(16, Math.min((startCoords.left + endCoords.left) / 2 - editorBounds.left, editorBounds.width - 240));
+          const rawTop = startCoords.top - editorBounds.top - 48;
+          const top = rawTop < 10 ? startCoords.bottom - editorBounds.top + 8 : rawTop;
           
           setBubbleMenuCoords({ top, left });
           setBubbleMenuOpen(true);
@@ -869,130 +876,148 @@ export default function DocumentEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 select-text overflow-y-auto font-sans relative">
+    <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 select-text overflow-y-auto font-sans relative scrollbar-thin">
       
-      {/* 1. Cover Image Banner */}
-      <div 
-        className="relative w-full h-36 md:h-48 group select-none shrink-0 transition-all duration-300" 
-        style={{ background: docDetails.cover_url || COVERS[0] }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-4 gap-2 z-10">
-          <div className="relative">
-            <button
-              onClick={() => setShowCoverPicker(!showCoverPicker)}
-              className="px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white text-slate-800 dark:text-slate-100 text-xs font-bold backdrop-blur-md shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Đổi ảnh bìa</span>
-            </button>
+      {/* Exit Focus Mode Floating Pill */}
+      {isFocusMode && (
+        <div className="sticky top-3 z-50 flex justify-center pointer-events-none select-none">
+          <button
+            type="button"
+            onClick={() => setIsFocusMode(false)}
+            className="pointer-events-auto px-4 py-1.5 rounded-full bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900 text-xs font-extrabold shadow-xl backdrop-blur-md hover:scale-105 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-600" />
+            <span>Thoát chế độ tập trung</span>
+          </button>
+        </div>
+      )}
 
-            {/* Cover Picker Popover */}
-            {showCoverPicker && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="absolute right-0 bottom-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 w-64 space-y-2 text-left"
+      {/* 1. Cover Image Banner (Hidden in Focus Mode) */}
+      {!isFocusMode && (
+        <div 
+          className="relative w-full h-36 md:h-48 group select-none shrink-0 transition-all duration-300 shadow-inner" 
+          style={{ background: docDetails.cover_url || COVERS[0] }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-4 gap-2 z-10">
+            <div className="relative">
+              <button
+                onClick={() => setShowCoverPicker(!showCoverPicker)}
+                className="px-3.5 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white text-slate-800 dark:text-slate-100 text-xs font-extrabold backdrop-blur-md shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
-                <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Chọn dải màu Gradient</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {COVERS.map((c, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => selectCover(c)}
-                      className="h-10 rounded-xl border border-white/40 hover:scale-105 transition-transform shadow-xs cursor-pointer"
-                      style={{ background: c }}
-                    />
-                  ))}
-                </div>
-                <div className="pt-2 border-t border-slate-150 dark:border-slate-800">
-                  <button
-                    onClick={() => selectCover(null)}
-                    className="w-full text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1.5 rounded-xl transition-colors"
-                  >
-                    Gỡ ảnh bìa
-                  </button>
-                </div>
-              </motion.div>
-            )}
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Đổi ảnh bìa</span>
+              </button>
+
+              {/* Cover Picker Popover */}
+              {showCoverPicker && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="absolute right-0 bottom-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 w-64 space-y-2 text-left"
+                >
+                  <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Chọn dải màu Gradient</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {COVERS.map((c, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => selectCover(c)}
+                        className="h-10 rounded-xl border border-white/40 hover:scale-105 transition-transform shadow-xs cursor-pointer"
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-slate-150 dark:border-slate-800">
+                    <button
+                      onClick={() => selectCover(null)}
+                      className="w-full text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1.5 rounded-xl transition-colors"
+                    >
+                      Gỡ ảnh bìa
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-4xl w-full mx-auto px-6 md:px-12 pb-24 mt-[-28px] relative flex flex-col flex-grow text-left">
+      <div className={`max-w-4xl w-full mx-auto px-6 md:px-12 pb-24 relative flex flex-col flex-grow text-left ${isFocusMode ? 'pt-8' : 'mt-[-28px]'}`}>
         
         {/* 2. Page Icon & Realtime Active Users Header */}
-        <div className="relative select-none z-20 flex justify-between items-end">
-          
-          {/* Icon Button & Popover */}
-          <div className="relative group/emoji">
-            <button 
-              onClick={() => setShowIconPicker(!showIconPicker)}
-              className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-3xl cursor-pointer hover:scale-105 transition-transform"
-            >
-              {docDetails.icon ? renderSpaceIcon(docDetails.icon, "w-8 h-8 text-slate-700 dark:text-slate-200") : '📝'}
-            </button>
+        {!isFocusMode && (
+          <div className="relative select-none z-20 flex justify-between items-end">
             
-            {showIconPicker && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="absolute left-0 top-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 grid grid-cols-6 gap-1.5 w-64"
+            {/* Icon Button & Popover */}
+            <div className="relative group/emoji">
+              <button 
+                onClick={() => setShowIconPicker(!showIconPicker)}
+                className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-3xl cursor-pointer hover:scale-105 transition-transform"
               >
-                {EMOJIS.map(emo => (
-                  <button
-                    key={emo}
-                    onClick={() => selectEmoji(emo)}
-                    className="w-8 h-8 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl flex items-center justify-center text-xl cursor-pointer hover:scale-110 transition-transform"
-                  >
-                    {emo}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </div>
+                {docDetails.icon ? renderSpaceIcon(docDetails.icon, "w-8 h-8 text-slate-700 dark:text-slate-200") : '📝'}
+              </button>
+              
+              {showIconPicker && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="absolute left-0 top-full mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 grid grid-cols-6 gap-1.5 w-64"
+                >
+                  {EMOJIS.map(emo => (
+                    <button
+                      key={emo}
+                      onClick={() => selectEmoji(emo)}
+                      className="w-8 h-8 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl flex items-center justify-center text-xl cursor-pointer hover:scale-110 transition-transform"
+                    >
+                      {emo}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
 
-          {/* Active Collaborators Presence Stack & Status */}
-          <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-950/60 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 select-none shadow-2xs">
-            <span className={`flex items-center gap-1.5 text-[11px] font-bold ${isOffline ? 'text-amber-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
-              <span className="relative flex h-2 w-2">
-                {!isOffline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            {/* Active Collaborators Presence Stack & Status */}
+            <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-slate-950/60 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 select-none shadow-2xs">
+              <span className={`flex items-center gap-1.5 text-[11px] font-extrabold ${isOffline ? 'text-amber-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                <span className="relative flex h-2 w-2">
+                  {!isOffline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                </span>
+                {isOffline ? 'Ngoại tuyến' : 'Đã lưu tự động'}
               </span>
-              {isOffline ? 'Ngoại tuyến' : 'Đã lưu tự động'}
-            </span>
 
-            {/* User Avatars */}
-            {activeUsers.length > 0 && (
-              <div className="flex -space-x-2 overflow-hidden pl-1">
-                {activeUsers.map((user, idx) => (
-                  <div 
-                    key={user.id || idx}
-                    className="relative group/avatar cursor-pointer"
-                  >
-                    {user.avatar ? (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.name} 
-                        className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 object-cover shadow-xs" 
-                        style={{ borderColor: user.color }}
-                      />
-                    ) : (
-                      <div 
-                        className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-black text-white shadow-xs" 
-                        style={{ backgroundColor: user.color }}
-                      >
-                        {user.name.charAt(0).toUpperCase()}
+              {/* User Avatars */}
+              {activeUsers.length > 0 && (
+                <div className="flex -space-x-2 overflow-hidden pl-1">
+                  {activeUsers.map((user, idx) => (
+                    <div 
+                      key={user.id || idx}
+                      className="relative group/avatar cursor-pointer"
+                    >
+                      {user.avatar ? (
+                        <img 
+                          src={user.avatar} 
+                          alt={user.name} 
+                          className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 object-cover shadow-xs" 
+                          style={{ borderColor: user.color }}
+                        />
+                      ) : (
+                        <div 
+                          className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-black text-white shadow-xs" 
+                          style={{ backgroundColor: user.color }}
+                        >
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-slate-900 text-white text-[9px] font-bold rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover/avatar:opacity-100 transition-opacity pointer-events-none z-30">
+                        {user.name} {user.id === authUserId ? '(Bạn)' : ''}
                       </div>
-                    )}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-slate-900 text-white text-[9px] font-bold rounded-lg shadow-lg whitespace-nowrap opacity-0 group-hover/avatar:opacity-100 transition-opacity pointer-events-none z-30">
-                      {user.name} {user.id === authUserId ? '(Bạn)' : ''}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 3. Document Title Input */}
         <div className="mt-4">
@@ -1007,96 +1032,107 @@ export default function DocumentEditor({
         </div>
 
         {/* Document Actions Bar */}
-        <div className="flex items-center justify-between gap-3 mt-3 select-none pb-2 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* AI Assistant Button */}
-            <div className="relative">
+        {!isFocusMode && (
+          <div className="flex items-center justify-between gap-3 mt-3 select-none pb-2 border-b border-slate-150 dark:border-slate-800">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* AI Assistant Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowAiMenu(!showAiMenu)}
+                  disabled={isAiProcessing}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:to-pink-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Wand2 className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
+                  <span>{isAiProcessing ? 'AI đang viết...' : 'AI Assistant'}</span>
+                </button>
+
+                {showAiMenu && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="absolute left-0 top-full mt-2 w-60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1.5 z-40 space-y-1 text-left"
+                  >
+                    <button 
+                      onClick={() => handleAiAction('expand')}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
+                    >
+                      ✨ Viết tiếp & Phát triển ý
+                    </button>
+                    <button 
+                      onClick={() => handleAiAction('summarize')}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
+                    >
+                      📝 Tóm tắt nội dung
+                    </button>
+                    <button 
+                      onClick={() => handleAiAction('translate')}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
+                    >
+                      🌐 Dịch sang Tiếng Anh
+                    </button>
+                    <button 
+                      onClick={() => handleAiAction('formal')}
+                      className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
+                    >
+                      👔 Đổi văn phong Trang trọng
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Export Markdown Button */}
               <button
-                onClick={() => setShowAiMenu(!showAiMenu)}
-                disabled={isAiProcessing}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:to-pink-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                onClick={handleExportMarkdown}
+                className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Xuất file Markdown (.md)"
               >
-                <Wand2 className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
-                <span>{isAiProcessing ? 'AI đang viết...' : 'AI Assistant'}</span>
+                <Download className="w-4 h-4" />
               </button>
 
-              {showAiMenu && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="absolute left-0 top-full mt-2 w-60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1.5 z-40 space-y-1 text-left"
-                >
-                  <button 
-                    onClick={() => handleAiAction('expand')}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
-                  >
-                    ✨ Viết tiếp & Phát triển ý
-                  </button>
-                  <button 
-                    onClick={() => handleAiAction('summarize')}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
-                  >
-                    📝 Tóm tắt nội dung
-                  </button>
-                  <button 
-                    onClick={() => handleAiAction('translate')}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
-                  >
-                    🌐 Dịch sang Tiếng Anh
-                  </button>
-                  <button 
-                    onClick={() => handleAiAction('formal')}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl cursor-pointer flex items-center gap-2"
-                  >
-                    👔 Đổi văn phong Trang trọng
-                  </button>
-                </motion.div>
-              )}
+              {/* History Button */}
+              <button
+                onClick={openHistory}
+                disabled={isOffline}
+                className={`p-1.5 rounded-xl transition-colors disabled:opacity-40 cursor-pointer ${showHistory ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                title="Lịch sử phiên bản"
+              >
+                <History className="w-4 h-4" />
+              </button>
+
+              {/* Share Button */}
+              <button
+                onClick={openShareMenu}
+                disabled={isOffline}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all disabled:opacity-40 flex items-center gap-1.5 cursor-pointer ${showShareMenu ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Chia sẻ</span>
+              </button>
+
+              {/* Focus Mode Toggle */}
+              <button
+                onClick={() => setIsFocusMode(!isFocusMode)}
+                className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Chế độ tập trung (Focus Mode)"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Export Markdown Button */}
-            <button
-              onClick={handleExportMarkdown}
-              className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Xuất file Markdown (.md)"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-
-            {/* History Button */}
-            <button
-              onClick={openHistory}
-              disabled={isOffline}
-              className={`p-1.5 rounded-xl transition-colors disabled:opacity-40 cursor-pointer ${showHistory ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              title="Lịch sử phiên bản"
-            >
-              <History className="w-4 h-4" />
-            </button>
-
-            {/* Share Button */}
-            <button
-              onClick={openShareMenu}
-              disabled={isOffline}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 cursor-pointer ${showShareMenu ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>Chia sẻ</span>
-            </button>
+            {/* Word Count Stats */}
+            {editor && (() => {
+              const words = editor.getText().trim().split(/\s+/).filter(Boolean).length;
+              const readTime = Math.max(1, Math.ceil(words / 200));
+              return (
+                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 shrink-0 bg-slate-100/60 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl">
+                  <span>{words} từ</span>
+                  <span>•</span>
+                  <span>{readTime} phút đọc</span>
+                </div>
+              );
+            })()}
           </div>
-
-          {/* Word Count Stats */}
-          {editor && (() => {
-            const words = editor.getText().trim().split(/\s+/).filter(Boolean).length;
-            const readTime = Math.max(1, Math.ceil(words / 200));
-            return (
-              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 shrink-0">
-                <span>{words} từ</span>
-                <span>•</span>
-                <span>{readTime} phút đọc</span>
-              </div>
-            );
-          })()}
-        </div>
+        )}
 
         {/* Drawers: History & Share */}
         <AnimatePresence initial={false}>

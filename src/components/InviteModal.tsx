@@ -4,14 +4,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, ChevronDown, User, Users, ShieldCheck, 
-  Check, Plus, AlertCircle 
+  Check, Plus, AlertCircle, Loader2
 } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 interface InviteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendInvites: (emails: string[], role: string) => void;
+  onSendInvites: (emails: string[], role: string) => void | Promise<void>;
   workspaceName?: string;
 }
 
@@ -50,6 +50,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
   const [selectedRoleId, setSelectedRoleId] = useState('member');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +111,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
     }
   };
 
-  const handleSendInvite = (e: React.FormEvent) => {
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError('');
 
@@ -133,13 +134,18 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
       return;
     }
 
-    onSendInvites(finalEmails, selectedRoleId);
-    
-    // Reset state
-    setInputValue('');
-    setEmails([]);
-    setSelectedRoleId('member');
-    onClose();
+    setIsSending(true);
+    try {
+      await onSendInvites(finalEmails, selectedRoleId);
+      setInputValue('');
+      setEmails([]);
+      setSelectedRoleId('member');
+      onClose();
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : 'Could not create the invitation. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const activeRole = getSelectedRoleDisplay();
@@ -307,9 +313,11 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
               <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer hover:shadow-blue-500/10"
+                  disabled={isSending}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer hover:shadow-blue-500/10 flex items-center gap-2"
                 >
-                  Send Invitation
+                  {isSending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {isSending ? 'Creating links…' : 'Send Invitation'}
                 </button>
               </div>
             </form>

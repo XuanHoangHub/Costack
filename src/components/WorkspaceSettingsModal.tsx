@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Upload, Trash2, Loader2, AlertTriangle, 
   Briefcase, Sliders, ShieldCheck,
-  UserPlus, UserMinus, Search, X, Check, Users
+  UserPlus, UserMinus, Search, X, Check, Users, Copy, RefreshCw
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Workspace, User, WorkspaceInvitation, WorkspaceRole } from '../types';
@@ -143,10 +143,12 @@ export default function WorkspaceSettingsModal({
           email: inv.email,
           role: inv.role,
           invitedBy: inv.invited_by,
+          invitedByName: inv.invited_by_name,
           token: inv.token,
           status: inv.status,
           createdAt: inv.created_at,
-          expiresAt: inv.expires_at
+          expiresAt: inv.expires_at,
+          workspaceName: inv.workspace_name
         })));
       }
     } catch (err) {
@@ -420,33 +422,31 @@ export default function WorkspaceSettingsModal({
 
   const handleResendInvite = async (inv: WorkspaceInvitation) => {
     try {
-      const newExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { error } = await supabase
-        .from('workspace_invitations')
-        .update({ created_at: new Date().toISOString(), expires_at: newExpires })
-        .eq('id', inv.id);
+      const { data, error } = await supabase.rpc('resend_workspace_invitation', { invitation_id: inv.id });
 
       if (!error) {
-        fetchInvitations();
+        await fetchInvitations();
+        const refreshed = data as any;
         triggerToast({
           id: generateId(),
           type: 'success',
           title: 'Resent Invitation',
-          message: `Link for ${inv.email}: ${window.location.origin}/?invite_token=${inv.token}`,
+          message: `A fresh link is ready for ${inv.email}.`,
           duration: 10000
         });
+        if (refreshed?.token) await copyInviteLink(refreshed.token);
+      } else {
+        throw error;
       }
     } catch (err) {
       console.error('Exception resending invite:', err);
+      triggerToast({ id: generateId(), type: 'info', title: 'Could not resend invitation', message: err instanceof Error ? err.message : 'Please try again.', duration: 4000 });
     }
   };
 
   const handleRevokeInvite = async (invId: string) => {
     try {
-      const { error } = await supabase
-        .from('workspace_invitations')
-        .delete()
-        .eq('id', invId);
+      const { error } = await supabase.rpc('revoke_workspace_invitation', { invitation_id: invId });
 
       if (!error) {
         setInvitations(prev => prev.filter(inv => inv.id !== invId));
@@ -460,6 +460,23 @@ export default function WorkspaceSettingsModal({
       }
     } catch (err) {
       console.error('Exception revoking invite:', err);
+      triggerToast({ id: generateId(), type: 'info', title: 'Could not revoke invitation', message: err instanceof Error ? err.message : 'Please try again.', duration: 4000 });
+    }
+  };
+
+  const copyInviteLink = async (token?: string) => {
+    if (!token) {
+      triggerToast({ id: generateId(), type: 'info', title: 'Link unavailable', message: 'Resend this invitation to generate a new secure link.', duration: 3500 });
+      return;
+    }
+
+    try {
+      const inviteUrl = new URL(window.location.origin);
+      inviteUrl.searchParams.set('invite_token', token);
+      await navigator.clipboard.writeText(inviteUrl.toString());
+      triggerToast({ id: generateId(), type: 'success', title: 'Invitation link copied', message: 'Share it only with the invited email address.', duration: 3000 });
+    } catch {
+      triggerToast({ id: generateId(), type: 'info', title: 'Could not copy link', message: 'Clipboard access was blocked by the browser.', duration: 3500 });
     }
   };
 
@@ -1039,6 +1056,44 @@ export default function WorkspaceSettingsModal({
                       })}
                     </div>
                   </div>
+
+                  {canAdminister && invitations.some(invitation => invitation.status === 'pending') && (
+                    <div className="space-y-2 text-left">
+                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
+                        Pending invitations ({invitations.filter(invitation => invitation.status === 'pending').length})
+                      </span>
+                      <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50/20 p-2 dark:border-slate-800/80">
+                        {invitations.filter(invitation => invitation.status === 'pending').map(invitation => {
+                          const expired = Boolean(invitation.expiresAt && new Date(invitation.expiresAt).getTime() <= Date.now());
+                          return (
+                            <div key={invitation.id} className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-800/50 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate text-xs font-black text-slate-800 dark:text-slate-200">{invitation.email}</span>
+                                  <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">{invitation.role}</span>
+                                  {expired && <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">Expired</span>}
+                                </div>
+                                <p className="mt-1 text-[9.5px] font-medium text-slate-400">
+                                  {invitation.expiresAt ? `Expires ${new Date(invitation.expiresAt).toLocaleDateString()}` : 'Valid for 7 days'}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <button type="button" onClick={() => copyInviteLink(invitation.token)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[9px] font-black text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300" title="Copy secure invitation link">
+                                  <Copy className="h-3 w-3" /> Copy link
+                                </button>
+                                <button type="button" onClick={() => handleResendInvite(invitation)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/30" title="Generate a fresh link">
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                                <button type="button" onClick={() => handleRevokeInvite(invitation.id)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30" title="Revoke invitation">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -206,7 +206,7 @@ export default function PageTreeSidebar({
                   initial={{ opacity: 0, scale: 0.95, y: -5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-[100] min-w-[150px] space-y-0.5"
+                  className="absolute right-0 top-7 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl p-1.5 z-[100] min-w-[160px] space-y-0.5 select-none"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -317,24 +317,33 @@ export default function PageTreeSidebar({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/50">
+        <div className="flex items-center gap-1 bg-slate-200/60 dark:bg-slate-900/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
           <SlidersHorizontal className="w-3 h-3 text-slate-400 shrink-0 ml-1.5 mr-0.5" />
           {([
-            ['all', 'Tất cả'],
-            ['favorites', 'Yêu thích'],
-            ['published', 'Đã chia sẻ']
-          ] as const).map(([value, label]) => (
+            ['all', 'Tất cả', activeDocs.length],
+            ['favorites', 'Yêu thích', documents.filter(d => !d.is_archived && d.workspace_id === workspaceId && d.is_favorite).length],
+            ['published', 'Đã chia sẻ', documents.filter(d => !d.is_archived && d.workspace_id === workspaceId && d.is_published).length]
+          ] as const).map(([value, label, count]) => (
             <button
               key={value}
               type="button"
               onClick={() => setScope(value)}
-              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer text-center ${
+              className={`flex-1 py-1 px-1.5 rounded-xl text-[10.5px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 ${
                 scope === value
-                  ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              {label}
+              <span>{label}</span>
+              {count > 0 && (
+                <span className={`text-[9px] px-1 py-0.2 rounded-full font-bold ${
+                  scope === value
+                    ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300'
+                    : 'bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {count}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -343,19 +352,19 @@ export default function PageTreeSidebar({
       {/* Main Page Tree List */}
       <div className="flex-1 overflow-y-auto px-2 space-y-0.5 scrollbar-thin min-h-0 py-1">
         {rootDocs.length === 0 ? (
-          <div className="py-8 text-center px-4 space-y-2">
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex items-center justify-center mx-auto text-slate-400">
-              <FileText className="w-5 h-5 stroke-[1.5]" />
+          <div className="py-10 text-center px-4 space-y-2.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-100 to-indigo-50/50 dark:from-slate-900 dark:to-indigo-950/30 border border-slate-200/60 dark:border-slate-800 flex items-center justify-center mx-auto text-slate-400 shadow-xs">
+              <FileText className="w-6 h-6 stroke-[1.5] text-indigo-500/70" />
             </div>
-            <p className="text-slate-400 dark:text-slate-500 text-xs font-medium">
+            <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold">
               {searchQuery.trim() ? 'Không tìm thấy tài liệu nào' : 'Chưa có tài liệu nào'}
             </p>
             {!searchQuery.trim() && (
               <button
                 onClick={() => onAddDoc()}
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 rounded-xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 inline-flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
               >
-                <Plus className="w-3 h-3" /> Tạo trang đầu tiên
+                <Plus className="w-3.5 h-3.5" /> Tạo trang đầu tiên
               </button>
             )}
           </div>
@@ -372,9 +381,14 @@ export default function PageTreeSidebar({
         >
           <span className="flex items-center gap-2">
             <Trash2 className="w-3.5 h-3.5 text-slate-400" />
-            Thùng rác ({archivedDocs.length})
+            Thùng rác
           </span>
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${showTrash ? 'rotate-90' : ''}`} />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-400">
+              {archivedDocs.length}
+            </span>
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${showTrash ? 'rotate-90' : ''}`} />
+          </div>
         </button>
 
         <AnimatePresence>
@@ -390,11 +404,11 @@ export default function PageTreeSidebar({
                   Thùng rác trống
                 </div>
               ) : (
-                <div className="mt-1.5 max-h-44 overflow-y-auto px-1 space-y-1 py-1 rounded-xl bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/50 scrollbar-thin">
+                <div className="mt-1.5 max-h-44 overflow-y-auto px-1 space-y-1 py-1 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 shadow-xs scrollbar-thin">
                   {archivedDocs.map(doc => (
                     <div 
                       key={doc.id}
-                      className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 group"
+                      className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-[11.5px] font-semibold text-slate-700 dark:text-slate-300 group"
                     >
                       <span className="truncate flex-1 pr-2">{doc.title || 'Chưa có tiêu đề'}</span>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

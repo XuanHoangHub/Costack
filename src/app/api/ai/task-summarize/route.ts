@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
@@ -8,8 +8,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Thiếu thông tin công việc." }, { status: 400 });
     }
 
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     const subtasksText = task.subtasks && task.subtasks.length > 0
       ? task.subtasks.map((s: any, idx: number) => `  ${idx + 1}. [${s.completed ? "x" : " "}] ${s.title}`).join("\n")
@@ -17,7 +16,7 @@ export async function POST(request: Request) {
 
     const tagsText = task.tags && task.tags.length > 0 ? task.tags.join(", ") : "Không có";
 
-    const systemInstruction = `Bạn là Giám đốc Dự án và Cố vấn Vận hành thông thái của Avaxa Productivity OS.
+    const systemInstruction = `Bạn là Giám đốc Dự án và Cố vấn Vận hành thông thái của Apexa Productivity OS.
 Nhiệm vụ của bạn là lập một "Báo cáo Tóm tắt Trạng thái" (Status Report Summary) cực kỳ tinh tế, gãy gọn và giàu thông tin cho công việc được cung cấp.
 Văn phong của bạn phải chuyên nghiệp, súc tích, mang hơi thở công nghệ hiện đại và ấm áp, viết hoàn toàn bằng tiếng Việt.
 Hãy tận dụng định dạng Markdown (như sử dụng in đậm, các gạch đầu dòng có emoji phù hợp) để báo cáo dễ đọc và đẹp mắt.`;
@@ -54,6 +53,6 @@ Yêu cầu báo cáo bao gồm các mục tiêu chính sau (định dạng ngắ
     return NextResponse.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error("Task summarize error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Lỗi tóm tắt công việc bằng AI" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi tóm tắt công việc bằng AI') }, { status: getAiErrorStatus(error) });
   }
 }

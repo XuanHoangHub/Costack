@@ -10,7 +10,7 @@ export function getGeminiClient(customApiKey?: string): GoogleGenAI {
     apiKey: apiKey,
     httpOptions: {
       headers: {
-        'User-Agent': 'avaxa-productivity',
+        'User-Agent': 'apexa-productivity',
       }
     }
   });

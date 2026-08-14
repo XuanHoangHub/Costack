@@ -10,6 +10,7 @@ import SignedImage from '../SignedImage';
 import { supabase } from '../../lib/supabaseClient';
 import { useUiStore } from '../../store/uiStore';
 import { wouldCreateDependencyCycle } from '../../lib/taskRelationships';
+import { callAiApi } from '@/lib/aiClient';
 import {
   GripVertical,
   X,
@@ -148,7 +149,10 @@ export default function TaskDetailsPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [modalLayout, setModalLayout] = useState<'modal' | 'fullscreen' | 'sidebar'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('apexa_task_modal_layout') as any) || 'modal';
+      const savedLayout = localStorage.getItem('apexa_task_modal_layout');
+      if (savedLayout === 'modal' || savedLayout === 'fullscreen' || savedLayout === 'sidebar') {
+        return savedLayout;
+      }
     }
     return 'modal';
   });
@@ -167,12 +171,11 @@ export default function TaskDetailsPanel({
       localStorage.setItem('apexa_task_modal_sidebar_expanded', String(nextVal));
     }
   };
-  const [isStarred, setIsStarred] = useState(task.isPinned || false);
-
   // Redesign state variables
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGeneratingResponse, setAiGeneratingResponse] = useState(false);
   const [aiResponseText, setAiResponseText] = useState('');
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [timelineFilter, setTimelineFilter] = useState<'all' | 'comments' | 'system'>('all');
   const [logTimeValue, setLogTimeValue] = useState('');
   const [showLogTimeModal, setShowLogTimeModal] = useState(false);
@@ -225,6 +228,10 @@ export default function TaskDetailsPanel({
   const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false);
   const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null);
   const newSubtaskInputRef = React.useRef<HTMLInputElement | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement | null>(null);
+  const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const [fieldsExpanded, setFieldsExpanded] = useState(true);
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -306,13 +313,9 @@ export default function TaskDetailsPanel({
     setAiGeneratingResponse(true);
     setAiResponseText('');
     try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `Về công việc này:\n- Tiêu đề: ${task.title}\n- Mô tả: ${task.description || 'Không có'}\n- Trạng thái: ${task.status}\n- Độ ưu tiên: ${task.priority}\n\nYêu cầu trợ giúp: ${promptToSend}`,
-          history: []
-        })
+      const res = await callAiApi('/api/ai/chat', {
+        message: `Về công việc này:\n- Tiêu đề: ${task.title}\n- Mô tả: ${task.description || 'Không có'}\n- Trạng thái: ${task.status}\n- Độ ưu tiên: ${task.priority}\n\nYêu cầu trợ giúp: ${promptToSend}`,
+        history: []
       });
       const data = await res.json();
       if (data.success && data.text) {
@@ -333,11 +336,7 @@ export default function TaskDetailsPanel({
 
   const handleSuggestTags = async () => {
     try {
-      const res = await fetch('/api/ai/suggest-tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: task.title, description: task.description })
-      });
+      const res = await callAiApi('/api/ai/suggest-tags', { title: task.title, description: task.description });
       const data = await res.json();
       if (data.success && data.tags) {
         const mergedTags = Array.from(new Set([...(task.tags || []), ...data.tags]));
@@ -354,6 +353,23 @@ export default function TaskDetailsPanel({
   };
 
   React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return;
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => dialogRef.current?.focus(), 0);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [mounted]);
+
+  React.useEffect(() => {
     // Sync form state with task prop changes
     setTitleValue(task.title);
     setDescValue(task.description);
@@ -361,17 +377,50 @@ export default function TaskDetailsPanel({
 
   React.useEffect(() => {
     setAiResponseText('');
+    setAiPrompt('');
+    setIsAiPanelOpen(false);
     setConfirmDelete(false);
     setShowMoreMenu(false);
   }, [task.id]);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        if (layoutMenuOpen || showMoreMenu || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
+          setLayoutMenuOpen(false);
+          setShowMoreMenu(false);
+          setConfirmDelete(false);
+          setShowAssigneesDropdown(false);
+          setShowTagsDropdown(false);
+          setShowLinkTaskDropdown(false);
+          setShowLinkDocDropdown(false);
+          setShowBlockedByDropdown(false);
+          setShowBlocksDropdown(false);
+          return;
+        }
+        onClose();
+        return;
+      }
+
+      if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        )).filter(element => !element.hasAttribute('hidden') && element.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showTagsDropdown]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -652,8 +701,8 @@ export default function TaskDetailsPanel({
 
   const theme = PRIORITY_THEMES[task.priority];
 
-  let spaceName = 'Marketing';
-  let listName = 'Email Launch';
+  let spaceName = 'No space';
+  let listName = 'No list';
   if (spaces && spaces.length > 0) {
     for (const space of spaces) {
       if (space.id === task.spaceId) {
@@ -1483,7 +1532,7 @@ export default function TaskDetailsPanel({
             Attachments <span className="text-slate-400">{task.attachments?.length || 0}</span>
           </label>
         </div>
-        <button type="button" onClick={() => document.getElementById('task-file-upload')?.click()}
+        <button type="button" onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer shadow-3xs">
           <Upload className="w-3 h-3" /> Upload file
         </button>
@@ -1538,8 +1587,99 @@ export default function TaskDetailsPanel({
   );
 
   const renderAiAssistantPanel = () => {
-    return null;
+    const response = aiResponseText || aiSummary;
+
+    return (
+      <section className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/60 dark:from-indigo-950/30 dark:via-slate-950/50 dark:to-violet-950/20 overflow-hidden shadow-3xs">
+        <button
+          type="button"
+          onClick={() => setIsAiPanelOpen(open => !open)}
+          aria-expanded={isAiPanelOpen}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer hover:bg-white/50 dark:hover:bg-slate-900/30 transition-colors"
+        >
+          <span className="flex items-center gap-2.5 min-w-0">
+            <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+              <Bot className="w-4 h-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-black text-slate-800 dark:text-slate-100">Apexa Brain</span>
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">Summarize, improve, or ask about this task</span>
+            </span>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform ${isAiPanelOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isAiPanelOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 pt-1 border-t border-indigo-100/80 dark:border-indigo-900/40 space-y-3">
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <button type="button" onClick={() => onAiSummary(task)} disabled={isSummarizing}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200/70 dark:border-indigo-900/60 text-[10px] font-bold text-indigo-650 dark:text-indigo-300 disabled:opacity-50 cursor-pointer">
+                    <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} /> {isSummarizing ? 'Summarizing…' : 'Summarize'}
+                  </button>
+                  <button type="button" onClick={() => handleAiQuery('Cải thiện mô tả công việc này. Chỉ trả về phần mô tả đã cải thiện, rõ ràng và có thể hành động.')}
+                    disabled={aiGeneratingResponse}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-violet-200/70 dark:border-violet-900/60 text-[10px] font-bold text-violet-650 dark:text-violet-300 disabled:opacity-50 cursor-pointer">
+                    <Edit2 className="w-3 h-3" /> Improve description
+                  </button>
+                  <button type="button" onClick={() => onAiSubtasks(task)} disabled={aiGenerating}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900/60 text-[10px] font-bold text-emerald-650 dark:text-emerald-300 disabled:opacity-50 cursor-pointer">
+                    <CheckSquare className="w-3 h-3" /> {aiGenerating ? 'Generating…' : 'Generate subtasks'}
+                  </button>
+                </div>
+
+                <div className="flex items-end gap-2 rounded-xl bg-white/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-2 focus-within:border-indigo-400 transition-colors">
+                  <textarea
+                    value={aiPrompt}
+                    onChange={event => setAiPrompt(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        handleAiQuery();
+                      }
+                    }}
+                    rows={2}
+                    placeholder="Ask Apexa Brain about this task…"
+                    className="flex-1 resize-none bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
+                  />
+                  <button type="button" onClick={() => handleAiQuery()} disabled={!aiPrompt.trim() || aiGeneratingResponse}
+                    aria-label="Send question to Apexa Brain"
+                    className="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shrink-0">
+                    {aiGeneratingResponse ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                {response && (
+                  <div className="rounded-xl bg-white/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800 p-3 space-y-2">
+                    <p className="text-[11.5px] leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300">{response}</p>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => navigator.clipboard.writeText(response)}
+                        className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 cursor-pointer">Copy</button>
+                      <button type="button" onClick={() => {
+                        setDescValue(response);
+                        onUpdateTask({ ...task, description: response });
+                        onAddSyncLog(`Applied an AI-generated description to "${task.title}"`);
+                        triggerToast?.('success', 'Description updated', 'The AI response was applied to this task.');
+                      }}
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 cursor-pointer">Use as description</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    );
   };
+
+  if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
@@ -1552,6 +1692,11 @@ export default function TaskDetailsPanel({
       >
         <motion.div 
           {...panelAnimation}
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="task-modal-title"
+          tabIndex={-1}
           onClick={e => e.stopPropagation()}
           className={`${panelClass} overflow-hidden`}
         >
@@ -1645,7 +1790,6 @@ export default function TaskDetailsPanel({
                   onClick={() => {
                     const pinned = !task.isPinned;
                     onUpdateTask({ ...task, isPinned: pinned });
-                    setIsStarred(pinned);
                   }}
                   className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
                     task.isPinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-955/25 hover:bg-amber-100 dark:hover:bg-amber-950/40' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-850'
@@ -1748,13 +1892,13 @@ export default function TaskDetailsPanel({
                   </button>
                 )}
 
-                <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer">
+                <button type="button" onClick={onClose} aria-label="Close task details" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
             <input
-              id="task-file-upload"
+              ref={fileInputRef}
               type="file"
               onChange={event => {
                 const file = event.target.files?.[0];
@@ -1827,7 +1971,7 @@ export default function TaskDetailsPanel({
                           onBlur={saveTitle}
                           className="w-full text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
                       ) : (
-                        <h2 onClick={() => setEditingTitle(true)}
+                        <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
                           className="text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
                           <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-500' : ''}`}>{task.title}</span>
                           <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-405 transition-opacity mt-2 shrink-0" />
@@ -1850,7 +1994,7 @@ export default function TaskDetailsPanel({
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
                       <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
                     </button>
-                    <button onClick={() => { const fileInput = document.getElementById('task-file-upload'); fileInput?.click(); }} 
+                    <button onClick={() => fileInputRef.current?.click()}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
                       <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Attach file
                     </button>
@@ -2271,7 +2415,7 @@ export default function TaskDetailsPanel({
                       onBlur={saveTitle}
                       className="w-full text-xl font-bold text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
                   ) : (
-                    <h2 onClick={() => setEditingTitle(true)}
+                    <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
                       className="text-xl font-bold text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
                       <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-505' : ''}`}>{task.title}</span>
                       <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-1.5 shrink-0" />
@@ -2311,7 +2455,7 @@ export default function TaskDetailsPanel({
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
                     <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
                   </button>
-                  <button onClick={() => { const fileInput = document.getElementById('task-file-upload'); fileInput?.click(); }} 
+                  <button onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
                     <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Attach file
                   </button>

@@ -3,7 +3,14 @@
 import { useEffect, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
-import { presenceStatusToUi, resolvePresence, type PresencePayload, type PresenceStatus } from '@/lib/presence';
+import {
+  presenceKeyAliases,
+  presenceStatusToUi,
+  resolvePresence,
+  type PresencePayload,
+  type PresenceStatus,
+  type ResolvedPresence,
+} from '@/lib/presence';
 import { useAuthStore } from '@/store';
 import { useMemberStore } from '@/store/memberStore';
 import { useUiStore } from '@/store/uiStore';
@@ -32,6 +39,7 @@ let preference: PresencePreference = {
 };
 
 function setOwnMemberStatus(status: PresenceStatus, lastSeenAt?: string) {
+  useUiStore.getState().setUserStatus(presenceStatusToUi(status));
   useMemberStore.getState().setMembers((members) =>
     members.map((member) =>
       member.id === 'user'
@@ -164,7 +172,7 @@ export function useUserPresence() {
     let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
     let memberId: string | null = null;
 
-    if (!currentUserId || appIsOffline || browserIsOffline) {
+    if (appIsOffline || browserIsOffline) {
       setOwnMemberStatus('offline');
       return;
     }
@@ -219,8 +227,8 @@ export function useUserPresence() {
 
     const start = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!effectIsActive || !session?.user) {
-        setOwnMemberStatus('offline');
+      if (!effectIsActive) return;
+      if (!session?.user) {
         return;
       }
 
@@ -237,8 +245,9 @@ export function useUserPresence() {
 
       lastActivityAt = Date.now();
       isIdle = document.visibilityState === 'hidden';
+      setOwnMemberStatus(resolvedOwnStatus());
 
-      channel = supabase.channel('avaxa_presence', {
+      channel = supabase.channel('apexa_presence', {
         config: { presence: { key: memberId } },
       });
       activeChannel = channel;
@@ -247,40 +256,49 @@ export function useUserPresence() {
       const reconcileMembers = () => {
         if (!effectIsActive || !channel) return;
         const state = channel.presenceState<PresencePayload>();
-        const onlineAccounts = new Map(
-          Object.entries(state).map(([key, payloads]) => [key, resolvePresence(payloads)])
-        );
+        const onlineAccounts = new Map<string, ResolvedPresence>();
+
+        for (const [key, payloads] of Object.entries(state)) {
+          const resolved = resolvePresence(payloads);
+          if (!resolved) continue;
+
+          const payloadAccountIds = payloads.map((payload) => payload.user_id);
+          for (const alias of presenceKeyAliases(key, ...payloadAccountIds)) {
+            onlineAccounts.set(alias, resolved);
+          }
+        }
 
         setMembers((members) => {
           let changed = false;
           const nextMembers = members.map((member) => {
-              const databaseId = member.id === 'user' ? memberId! : member.id;
-              const resolved = onlineAccounts.get(databaseId);
-              if (!resolved || member.customStatus === 'offline') {
+              const accountIds = presenceKeyAliases(
+                member.id === 'user' ? memberId : member.id,
+                member.userId
+              );
+              const resolved = accountIds
+                .map((accountId) => onlineAccounts.get(accountId))
+                .find((presence): presence is ResolvedPresence => Boolean(presence));
+
+              if (!resolved) {
                 if (member.status === 'offline') return member;
                 changed = true;
                 return { ...member, status: 'offline' as const };
               }
-              const customStatus = member.customStatus || resolved.customStatus;
-              const status = customStatus === 'busy'
-                ? 'busy'
-                  : customStatus === 'away'
-                    ? 'away'
-                    : resolved.status;
+
               if (
-                member.status === status &&
-                member.customStatus === customStatus &&
-                member.statusMessage === (member.statusMessage ?? resolved.statusMessage) &&
-                member.statusEmoji === (member.statusEmoji ?? resolved.statusEmoji) &&
+                member.status === resolved.status &&
+                member.customStatus === resolved.customStatus &&
+                member.statusMessage === resolved.statusMessage &&
+                member.statusEmoji === resolved.statusEmoji &&
                 member.lastSeenAt === resolved.lastSeenAt
               ) return member;
               changed = true;
               return {
                 ...member,
-                status,
-                customStatus,
-                statusMessage: member.statusMessage ?? resolved.statusMessage,
-                statusEmoji: member.statusEmoji ?? resolved.statusEmoji,
+                status: resolved.status,
+                customStatus: resolved.customStatus,
+                statusMessage: resolved.statusMessage,
+                statusEmoji: resolved.statusEmoji,
                 lastSeenAt: resolved.lastSeenAt,
               };
             });

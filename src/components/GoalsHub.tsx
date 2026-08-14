@@ -72,7 +72,7 @@ export default function GoalsHub({
   // Load goals from local storage on mount/workspace change
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`avaxa_goals_${workspaceId}`);
+      const stored = localStorage.getItem(`apexa_goals_${workspaceId}`);
       if (stored) {
         try {
           setGoals(JSON.parse(stored));
@@ -107,7 +107,7 @@ export default function GoalsHub({
           }
         ];
         setGoals(sampleGoals);
-        localStorage.setItem(`avaxa_goals_${workspaceId}`, JSON.stringify(sampleGoals));
+        localStorage.setItem(`apexa_goals_${workspaceId}`, JSON.stringify(sampleGoals));
       }
     }
   }, [workspaceId, currentUser]);
@@ -115,7 +115,7 @@ export default function GoalsHub({
   // Sync back to local storage helper
   const saveGoals = (updatedGoals: Goal[]) => {
     setGoals(updatedGoals);
-    localStorage.setItem(`avaxa_goals_${workspaceId}`, JSON.stringify(updatedGoals));
+    localStorage.setItem(`apexa_goals_${workspaceId}`, JSON.stringify(updatedGoals));
   };
 
   // Create Goal
@@ -353,7 +353,7 @@ export default function GoalsHub({
             <span className="text-2xl font-black tabular-nums">{totalGoals}</span>
           </div>
           <div className="absolute right-4 top-4 text-[10px] font-black bg-indigo-50 dark:bg-indigo-955/40 text-indigo-600 px-2 py-0.5 rounded-lg">
-            Avaxa OKRs
+            Apexa OKRs
           </div>
         </div>
 
@@ -406,7 +406,7 @@ export default function GoalsHub({
           <button
             onClick={() => setShowCreateGoalModal(true)}
             className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-indigo-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+            style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
           >
             <Plus className="w-4 h-4" /> Create Goal
           </button>
@@ -672,7 +672,7 @@ export default function GoalsHub({
                     <button 
                       type="submit"
                       className="w-full py-1.5 rounded-xl text-xs font-black text-white shadow-sm hover:brightness-105 transition-all cursor-pointer text-center"
-                      style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                      style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                     >
                       Add Target
                     </button>
@@ -852,7 +852,7 @@ export default function GoalsHub({
                   <button 
                     type="submit"
                     className="flex-1 py-2 rounded-xl text-xs font-black text-white shadow-md hover:shadow-indigo-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center"
-                    style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                    style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                   >
                     Tạo mục tiêu
                   </button>

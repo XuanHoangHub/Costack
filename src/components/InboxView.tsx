@@ -11,6 +11,7 @@ import {
 import { Task, User, Workspace, WorkspaceInvitation } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SignedImage from './SignedImage';
+import { callAiApi } from '@/lib/aiClient';
 
 interface InboxViewProps {
   notificationsList: any[];
@@ -28,8 +29,9 @@ interface InboxViewProps {
   currentUser: any;
   onUpgradePremium: () => void;
   workspaceInvitations?: WorkspaceInvitation[];
-  onAcceptInvite?: (id: string, workspaceId: string, role: string) => void;
-  onDeclineInvite?: (id: string) => void;
+  highlightedInviteToken?: string | null;
+  onAcceptInvite?: (id: string, workspaceId: string, role: string) => void | Promise<void>;
+  onDeclineInvite?: (id: string) => void | Promise<void>;
 }
 
 export default function InboxView({
@@ -48,6 +50,7 @@ export default function InboxView({
   currentUser,
   onUpgradePremium,
   workspaceInvitations = [],
+  highlightedInviteToken,
   onAcceptInvite,
   onDeclineInvite
 }: InboxViewProps) {
@@ -65,6 +68,7 @@ export default function InboxView({
   // Inline Quick Reply input
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
 
   // Local states for TaskDetailsPanel
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -364,11 +368,7 @@ export default function InboxView({
     }
     setAiGenerating(true);
     try {
-      const res = await fetch('/api/ai/subtasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: task.title, description: task.description })
-      });
+      const res = await callAiApi('/api/ai/subtasks', { title: task.title, description: task.description });
       const data = await res.json();
       if (data.success && Array.isArray(data.subtasks)) {
         const gen = data.subtasks.map((t: string, i: number) => ({
@@ -399,11 +399,7 @@ export default function InboxView({
     setIsSummarizing(true);
     try {
       const assignee = members.find(m => m.id === task.assigneeId);
-      const res = await fetch('/api/ai/task-summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task, assigneeName: assignee?.name || 'Unassigned' })
-      });
+      const res = await callAiApi('/api/ai/task-summarize', { task, assigneeName: assignee?.name || 'Unassigned' });
       const data = await res.json();
       if (data.success && data.text) {
         setAiSummary(data.text);
@@ -602,7 +598,7 @@ export default function InboxView({
               {workspaceInvitations.map(inv => (
                 <div 
                   key={inv.id} 
-                  className="p-4 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border border-indigo-200/70 dark:border-indigo-800/50 rounded-2xl flex flex-col gap-3 shadow-xs"
+                  className={`p-4 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border rounded-2xl flex flex-col gap-3 shadow-xs ${inv.token && inv.token === highlightedInviteToken ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-indigo-200/70 dark:border-indigo-800/50'}`}
                 >
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="min-w-0 flex-1">
@@ -622,18 +618,26 @@ export default function InboxView({
                   </div>
                   <div className="flex gap-2 justify-end pt-1 border-t border-indigo-100/50 dark:border-indigo-900/30">
                     <button 
-                      onClick={() => onDeclineInvite?.(inv.id)}
+                      disabled={processingInviteId === inv.id}
+                      onClick={async () => {
+                        setProcessingInviteId(inv.id);
+                        try { await onDeclineInvite?.(inv.id); } finally { setProcessingInviteId(null); }
+                      }}
                       className="px-3.5 py-1.5 text-xs font-bold rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 cursor-pointer transition-all flex items-center gap-1.5"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Decline</span>
                     </button>
                     <button 
-                      onClick={() => onAcceptInvite?.(inv.id, inv.workspaceId, inv.role)}
+                      disabled={processingInviteId === inv.id}
+                      onClick={async () => {
+                        setProcessingInviteId(inv.id);
+                        try { await onAcceptInvite?.(inv.id, inv.workspaceId, inv.role); } finally { setProcessingInviteId(null); }
+                      }}
                       className="px-4 py-1.5 text-xs font-black rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>Accept & Join</span>
+                      <span>{processingInviteId === inv.id ? 'Joining…' : 'Accept & Join'}</span>
                     </button>
                   </div>
                 </div>

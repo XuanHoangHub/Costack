@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient } from "@/lib/gemini";
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
     const { title, content, action, model, temperature } = await request.json();
-    const customApiKey = request.headers.get("x-gemini-api-key") || undefined;
-    const client = getGeminiClient(customApiKey);
+    const client = await getAuthorizedGeminiClient(request);
 
     let instruction = "";
     if (action === "summarize") {
@@ -28,6 +27,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, text: response.text });
   } catch (error: any) {
     console.error("Document AI error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Lỗi xử lý AI tài liệu" }, { status: 500 });
+    return NextResponse.json({ success: false, error: getAiErrorMessage(error, 'Lỗi xử lý AI tài liệu') }, { status: getAiErrorStatus(error) });
   }
 }

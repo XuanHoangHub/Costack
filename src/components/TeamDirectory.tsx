@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Workspace, Task } from '../types';
+import { User, Workspace, Task, WorkspaceRole } from '../types';
 import { 
   Users, UserPlus, Shield, Sparkles, Mail, Circle,
   Key, Trash2, Globe, HeartHandshake, Compass, Upload,
@@ -19,12 +19,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
-import { useUiStore } from '../store/uiStore';
 import InviteModal from './InviteModal';
 import { setUserPresenceStatus } from '../hooks/useUserPresence';
 import { renderSpaceIcon } from './EmojiIconPicker';
 import { TeamCommandCenter, TeamIntegrations } from './team/TeamCommandCenter';
-import TeamManagement from './team/TeamManagement';
+import TeamManagement, { DepartmentRow, TeamMemberRow, TeamRow } from './team/TeamManagement';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -32,7 +31,7 @@ interface TeamDirectoryProps {
   workspaces: Workspace[];
   activeWorkspaceId: string;
   onAddMember: (member: Omit<User, 'id'>) => void;
-  onUpdateMember: (member: User) => void;
+  onUpdateMember: (member: User, options?: { persist?: boolean }) => void | Promise<void>;
   onDeleteMember: (id: string) => void;
   onAddSyncLog: (action: string) => void;
   currentUser?: any;
@@ -93,9 +92,13 @@ export default function TeamDirectory({
   
   // Custom status popover state
   const [showStatusPopover, setShowStatusPopover] = useState(false);
-  const me = members.find(m => m.id === 'user');
+  const me = members.find(m => m.id === currentUser?.id || m.userId === currentUser?.id || m.email === currentUser?.email)
+    || members.find(m => m.id === 'user');
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
-  const isOwner = currentUser?.role === 'admin'
+  const [workspaceRole, setWorkspaceRole] = useState<WorkspaceRole | null>(activeWorkspace?.membershipRole || null);
+  const isOwner = workspaceRole === 'owner'
+    || workspaceRole === 'admin'
+    || currentUser?.role === 'admin'
     || me?.role === 'admin'
     || activeWorkspace?.membershipRole === 'owner'
     || activeWorkspace?.membershipRole === 'admin'
@@ -106,10 +109,13 @@ export default function TeamDirectory({
   const [statusEmj, setStatusEmj] = useState(me?.statusEmoji || '');
 
   // DB Hierarchical Team OS states
-  const [dbDepts, setDbDepts] = useState<any[]>([]);
-  const [dbTeams, setDbTeams] = useState<any[]>([]);
-  const [dbTeamMembers, setDbTeamMembers] = useState<any[]>([]);
-  const [activeAnnouncementTeam, setActiveAnnouncementTeam] = useState<any | null>(null);
+  const [dbDepts, setDbDepts] = useState<DepartmentRow[]>([]);
+  const [dbTeams, setDbTeams] = useState<TeamRow[]>([]);
+  const [dbTeamMembers, setDbTeamMembers] = useState<TeamMemberRow[]>([]);
+  const [membershipRoles, setMembershipRoles] = useState<Record<string, WorkspaceRole>>({});
+  const [hierarchyLoading, setHierarchyLoading] = useState(true);
+  const [hierarchyError, setHierarchyError] = useState('');
+  const [activeAnnouncementTeam, setActiveAnnouncementTeam] = useState<TeamRow | null>(null);
   const [newAnnouncementText, setNewAnnouncementText] = useState('');
 
   // Keep state in sync when 'me' changes
@@ -123,29 +129,63 @@ export default function TeamDirectory({
 
   // Fetch db teams and depts hierarchy
   const fetchHierarchy = useCallback(async () => {
+    setHierarchyLoading(true);
+    setHierarchyError('');
     try {
-      const { data: depts } = await supabase.from('departments').select('*');
-      const { data: tms } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('workspace_id', activeWorkspaceId)
-        .order('created_at', { ascending: true });
+      const [departmentsResult, teamsResult, membershipsResult, sessionResult] = await Promise.all([
+        supabase.from('departments').select('id,name,description,parent_id,manager_id').order('name'),
+        supabase.from('teams').select('*').eq('workspace_id', activeWorkspaceId).order('created_at', { ascending: true }),
+        supabase.from('workspace_memberships').select('user_id,role,status').eq('workspace_id', activeWorkspaceId).eq('status', 'active'),
+        supabase.auth.getSession(),
+      ]);
+      if (departmentsResult.error) throw departmentsResult.error;
+      if (teamsResult.error) throw teamsResult.error;
+      if (membershipsResult.error) throw membershipsResult.error;
+
+      const depts = departmentsResult.data || [];
+      const tms = teamsResult.data || [];
       const teamIds = (tms || []).map(team => team.id);
-      const { data: membersMap } = teamIds.length
+      const membersResult = teamIds.length
         ? await supabase.from('team_members').select('*').in('team_id', teamIds)
-        : { data: [] };
-      
-      if (depts) setDbDepts(depts);
-      if (tms) setDbTeams(tms);
-      if (membersMap) setDbTeamMembers(membersMap);
+        : { data: [], error: null };
+      if (membersResult.error) throw membersResult.error;
+
+      const sessionUserId = sessionResult.data.session?.user.id;
+      const currentDatabaseMemberId = sessionUserId ? `user-${sessionUserId}` : null;
+      setDbDepts(depts);
+      setDbTeams(tms.map(team => ({
+        ...team,
+        leader_id: currentDatabaseMemberId && team.leader_id === currentDatabaseMemberId ? 'user' : team.leader_id,
+      })));
+      setDbTeamMembers((membersResult.data || []).map(item => ({
+        ...item,
+        member_id: currentDatabaseMemberId && item.member_id === currentDatabaseMemberId ? 'user' : item.member_id,
+      })));
+      const roles = Object.fromEntries((membershipsResult.data || []).map(item => [item.user_id, item.role as WorkspaceRole]));
+      setMembershipRoles(roles);
+      setWorkspaceRole(sessionUserId ? roles[sessionUserId] || activeWorkspace?.membershipRole || null : null);
     } catch (e) {
       console.warn('Hierarchy fetch failed:', e);
+      setHierarchyError(e instanceof Error ? e.message : 'Không thể tải dữ liệu Team.');
+    } finally {
+      setHierarchyLoading(false);
     }
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, activeWorkspace?.membershipRole]);
 
   useEffect(() => {
     fetchHierarchy();
   }, [fetchHierarchy]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`team-directory-${activeWorkspaceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `workspace_id=eq.${activeWorkspaceId}` }, fetchHierarchy)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, fetchHierarchy)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, fetchHierarchy)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_memberships', filter: `workspace_id=eq.${activeWorkspaceId}` }, fetchHierarchy)
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [activeWorkspaceId, fetchHierarchy]);
 
   // Relative time helper
   const formatLastSeen = (timestamp?: string) => {
@@ -197,19 +237,23 @@ export default function TeamDirectory({
 
   // Open detailing modal helper
   const handleOpenDetail = (member: User) => {
+    const membershipRole = member.userId ? membershipRoles[member.userId] : undefined;
     setSelectedMember(member);
     setDetailActiveTab('overview');
     setEditName(member.name);
     setEditEmail(member.email);
     setEditPhone(member.phone || '');
     setEditDepartment(member.department || 'd-eng');
-    setEditRole(member.role);
+    setEditRole(membershipRole === 'admin' || membershipRole === 'member' || membershipRole === 'guest' ? membershipRole : member.role);
     setEditBio(member.bio || '');
   };
 
-  const handleUpdateProfileSubmit = (e: React.FormEvent) => {
+  const handleUpdateProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMember) return;
+
+    const canEditProfile = isOwner || selectedMember.id === me?.id || selectedMember.userId === currentUser?.id;
+    if (!canEditProfile) return;
 
     const updatedUser: User = {
       ...selectedMember,
@@ -221,32 +265,92 @@ export default function TeamDirectory({
       bio: editBio
     };
 
-    onUpdateMember(updatedUser);
-    onAddSyncLog(`Updated member profile details: ${editName}`);
-    setSelectedMember(updatedUser); // Update local active item
-    
-    // Quick notification beep if enabled
-    (window as any).playSystemSound?.('success');
+    try {
+      if (isOwner && selectedMember.id !== me?.id) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const databaseMemberId = selectedMember.id === 'user' && session?.user
+          ? `user-${session.user.id}`
+          : selectedMember.id;
+        const { error } = await supabase.rpc('update_workspace_member_profile', {
+          p_workspace_id: activeWorkspaceId,
+          p_member_id: databaseMemberId,
+          p_name: editName,
+          p_phone: editPhone || null,
+          p_department: editDepartment || null,
+          p_bio: editBio || null,
+          p_role: editRole,
+        });
+        if (error) throw error;
+        await onUpdateMember(updatedUser, { persist: false });
+        if (selectedMember.userId) {
+          setMembershipRoles(prev => ({ ...prev, [selectedMember.userId!]: editRole }));
+        }
+      } else {
+        await onUpdateMember(updatedUser);
+      }
+      onAddSyncLog(`Updated member profile details: ${editName}`);
+      setSelectedMember(updatedUser);
+      (window as any).playSystemSound?.('success');
+    } catch (error) {
+      console.error('Unable to update team member:', error);
+      onAddSyncLog(`Could not update member: ${editName}`);
+    }
   };
 
+  // Deduplicated unified members list to prevent any duplicate accounts
+  const deduplicatedMembers = useMemo<User[]>(() => {
+    const seenEmails = new Set<string>();
+    const seenIds = new Set<string>();
+    const list: User[] = [];
+
+    for (const m of members) {
+      const email = (m.email || '').toLowerCase().trim();
+      const isMe = m.id === 'user' || m.id === currentUser?.id || m.userId === currentUser?.id || (email && currentUser?.email && email === currentUser.email.toLowerCase().trim());
+      
+      if (isMe) {
+        if (seenIds.has('user')) continue;
+        seenIds.add('user');
+        if (email) seenEmails.add(email);
+        list.push({
+          ...m,
+          name: currentUser?.name || m.name,
+          avatar: currentUser?.avatar || m.avatar,
+          role: currentUser?.role || m.role,
+          isPremium: currentUser?.isPremium ?? m.isPremium
+        });
+      } else {
+        if (email && seenEmails.has(email)) continue;
+        if (seenIds.has(m.id)) continue;
+        if (email) seenEmails.add(email);
+        seenIds.add(m.id);
+        list.push(m);
+      }
+    }
+    return list;
+  }, [members, currentUser]);
+
   // Statistics calculation for the active workspace
-  const workspaceMembers = members.filter(m => m.workspaceIds?.includes(activeWorkspaceId));
+  const workspaceMembers = useMemo<User[]>(() => {
+    return deduplicatedMembers.filter((m: User) => m.workspaceIds?.includes(activeWorkspaceId));
+  }, [deduplicatedMembers, activeWorkspaceId]);
+
+  const workspaceTasks = tasks.filter(task => !task.workspaceId || task.workspaceId === activeWorkspaceId);
   const totalWorkspaceCount = workspaceMembers.length;
   const onlineWorkspaceCount = workspaceMembers.filter(m => m.status === 'online').length;
   const busyWorkspaceCount = workspaceMembers.filter(m => m.status === 'busy').length;
 
   const statusColors = {
-    online: 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-950/40',
-    busy: 'bg-rose-500 ring-rose-100 dark:ring-rose-950/40',
-    away: 'bg-amber-500 ring-amber-100 dark:ring-amber-950/40',
-    offline: 'bg-slate-400 ring-slate-100 dark:ring-slate-900/40'
+    online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30 animate-pulse',
+    busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
+    away: 'bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
+    offline: 'bg-slate-400 ring-2 ring-slate-400/20'
   };
 
   const statusLabelsEng = {
-    online: t('online') || 'Online',
-    busy: t('busy') || 'Busy / DND',
+    online: locale === 'vi' ? 'Trực tuyến' : 'Online',
+    busy: locale === 'vi' ? 'Đang bận' : 'Busy / DND',
     away: locale === 'vi' ? 'Vắng mặt' : 'Away',
-    offline: t('offline') || 'Offline'
+    offline: locale === 'vi' ? 'Ngoại tuyến' : 'Offline'
   };
 
   const roleLabels = {
@@ -256,25 +360,47 @@ export default function TeamDirectory({
   };
 
   // Find users in the organization not yet in this active workspace
-  const membersAvailableToEnroll = members.filter(m => !m.workspaceIds?.includes(activeWorkspaceId));
+  const membersAvailableToEnroll = members.filter(m => Boolean(m.userId && !membershipRoles[m.userId]));
 
-  const handleEnrollExisting = (member: User) => {
-    const updatedIds = [...(member.workspaceIds || []), activeWorkspaceId];
-    onUpdateMember({
-      ...member,
-      workspaceIds: updatedIds
-    });
+  const handleEnrollExisting = async (member: User) => {
+    if (!isOwner || !member.userId) return;
+    const role: Exclude<WorkspaceRole, 'owner'> = member.role === 'admin' ? 'admin' : member.role;
+    const { error } = await supabase.from('workspace_memberships').upsert({
+      workspace_id: activeWorkspaceId,
+      user_id: member.userId,
+      role,
+      status: 'active',
+    }, { onConflict: 'workspace_id,user_id' });
+    if (error) {
+      onAddSyncLog(`Could not add "${member.name}" to workspace: ${error.message}`);
+      return;
+    }
+    const updatedIds = Array.from(new Set([...(member.workspaceIds || []), activeWorkspaceId]));
+    await onUpdateMember({ ...member, workspaceIds: updatedIds }, { persist: false });
+    setMembershipRoles(prev => ({ ...prev, [member.userId!]: role }));
     onAddSyncLog(`Appointed member "${member.name}" to workspace "${currentWorkspaceName}"`);
     setShowAddExistingDropdown(false);
   };
 
-  const handleRemoveFromWorkspace = (member: User) => {
-    if (member.id === 'user') return;
-    
+  const handleRemoveFromWorkspace = async (member: User) => {
+    if (!isOwner || member.id === me?.id || !member.userId) return;
+    if (membershipRoles[member.userId] === 'owner') return;
+    if (!window.confirm(`Xóa ${member.name} khỏi ${currentWorkspaceName}?`)) return;
+    const { error } = await supabase
+      .from('workspace_memberships')
+      .delete()
+      .eq('workspace_id', activeWorkspaceId)
+      .eq('user_id', member.userId);
+    if (error) {
+      onAddSyncLog(`Could not remove "${member.name}" from workspace: ${error.message}`);
+      return;
+    }
     const updatedIds = (member.workspaceIds || []).filter(id => id !== activeWorkspaceId);
-    onUpdateMember({
-      ...member,
-      workspaceIds: updatedIds
+    await onUpdateMember({ ...member, workspaceIds: updatedIds }, { persist: false });
+    setMembershipRoles(prev => {
+      const next = { ...prev };
+      delete next[member.userId!];
+      return next;
     });
     onAddSyncLog(`Removed member "${member.name}" from workspace "${currentWorkspaceName}"`);
     
@@ -366,7 +492,7 @@ export default function TeamDirectory({
     });
   };
 
-  const displayMembers = activeTab === 'workspace' ? workspaceMembers : members;
+  const displayMembers = activeTab === 'workspace' ? workspaceMembers : deduplicatedMembers;
 
   // Filter implementation
   const filteredMembers = displayMembers.filter(m => {
@@ -395,46 +521,50 @@ export default function TeamDirectory({
 
   // POST Announcement to a Team
   const handlePostAnnouncement = async () => {
-    if (!activeAnnouncementTeam || !newAnnouncementText.trim()) return;
+    if (!isOwner || !activeAnnouncementTeam) return;
 
     try {
       const { error } = await supabase
         .from('teams')
-        .update({ announcement: newAnnouncementText.trim() })
+        .update({ announcement: newAnnouncementText.trim() || null, updated_at: new Date().toISOString() })
         .eq('id', activeAnnouncementTeam.id);
 
-      if (!error) {
-        setDbTeams(prev => prev.map(t => t.id === activeAnnouncementTeam.id ? { ...t, announcement: newAnnouncementText.trim() } : t));
-        onAddSyncLog(`Posted new announcement for team: ${activeAnnouncementTeam.name}`);
-        setNewAnnouncementText('');
-        setActiveAnnouncementTeam(null);
-        (window as any).playSystemSound?.('success');
-      }
+      if (error) throw error;
+      await fetchHierarchy();
+      onAddSyncLog(newAnnouncementText.trim() ? `Posted new announcement for team: ${activeAnnouncementTeam.name}` : `Cleared announcement for team: ${activeAnnouncementTeam.name}`);
+      setNewAnnouncementText('');
+      setActiveAnnouncementTeam(null);
+      (window as any).playSystemSound?.('success');
     } catch (e) {
       console.warn(e);
+      onAddSyncLog(`Could not update announcement for ${activeAnnouncementTeam.name}`);
     }
   };
 
   return (
     <div className="space-y-6">
       
-      {/* Top Header Board Panel */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.01)] transition-all">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/30">
-              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+      {/* Team workspace header */}
+      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/90 p-5 md:p-6 shadow-sm backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-900/90 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25">
+            <Users className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 text-left">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white">Thành viên & Đội ngũ</h2>
+              <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/60 px-3 py-1 text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300">
+                {currentWorkspaceName}
+              </span>
             </div>
-            <div>
-              <h2 className="text-xl font-black font-display text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-2">
-                {locale === 'vi' ? 'Không gian điều hành đội nhóm' : 'Team OS Workspace Manager'}
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-550 font-medium leading-relaxed max-w-2xl text-left">
-                {locale === 'vi'
-                  ? 'Quản lý con người, cơ cấu tổ chức, năng lực, tiến độ và các kết nối của đội nhóm trong một không gian thống nhất.'
-                  : 'Manage people, structure, capacity, delivery and team connections in one unified workspace.'}
-              </p>
-            </div>
+            <p className="mt-1 text-xs font-semibold text-slate-400 flex items-center gap-2">
+              <span>{workspaceMembers.length} thành viên</span>
+              <span className="inline-block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {onlineWorkspaceCount + busyWorkspaceCount} đang hoạt động
+              </span>
+            </p>
           </div>
         </div>
 
@@ -445,10 +575,10 @@ export default function TeamDirectory({
               <button
                 id="btn_enroll_existing"
                 onClick={() => setShowAddExistingDropdown(!showAddExistingDropdown)}
-                className="py-2.5 px-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-855 dark:hover:bg-slate-800 dark:text-slate-200 border border-slate-250 dark:border-slate-800/80 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer select-none"
+                className="py-2.5 px-4 bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all shadow-2xs cursor-pointer select-none"
               >
-                <Plus className="w-4 h-4 text-slate-500" />
-                <span>{locale === 'vi' ? 'Phân công nhân sự' : 'Assign Staff'}</span>
+                <Plus className="w-4 h-4 text-indigo-500" />
+                <span>{locale === 'vi' ? 'Thêm từ tổ chức' : 'Add from organization'}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
@@ -463,7 +593,7 @@ export default function TeamDirectory({
                       className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl z-30 p-2 overflow-hidden"
                     >
                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
-                      Select staff to assign to {currentWorkspaceName}
+                      Chọn người để thêm vào {currentWorkspaceName}
                     </div>
                     <div className="max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-1 mt-1">
                       {membersAvailableToEnroll.map(m => (
@@ -497,7 +627,7 @@ export default function TeamDirectory({
               (window as any).playSystemSound?.('click');
               setShowInviteModal(true);
             }}
-            className="py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 dark:bg-indigo-550 dark:hover:bg-indigo-650 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer self-start lg:self-auto hover:shadow-indigo-500/10"
+            className="py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-2xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
           >
             <UserPlus className="w-4 h-4" />
             <span>{locale === 'vi' ? 'Thêm / Mời thành viên' : 'Add / Invite Staff'}</span>
@@ -505,39 +635,52 @@ export default function TeamDirectory({
         </div>
       </div>
 
-      {/* Primary Tab Selector for Team OS Views */}
-      <div className="flex overflow-x-auto border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-t-2xl p-1 scrollbar-none">
+      {/* Primary navigation */}
+      <nav aria-label="Điều hướng đội ngũ" className="flex gap-1.5 overflow-x-auto rounded-3xl border border-slate-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-xs scrollbar-none dark:border-slate-800/80 dark:bg-slate-900/90">
         {[
           { id: 'overview', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
-          { id: 'teams', label: 'Teams', icon: Users },
-          { id: 'directory', label: locale === 'vi' ? 'Danh bạ' : 'Staff Directory', icon: LayoutGrid },
-          { id: 'org_chart', label: locale === 'vi' ? 'Tổ chức & Nhóm' : 'Organization & Teams', icon: GitBranch },
-          { id: 'workload', label: locale === 'vi' ? 'Workload & Năng lực' : 'Workload & Capacity', icon: ClipboardList },
+          { id: 'teams', label: locale === 'vi' ? 'Nhóm' : 'Teams', icon: Users },
+          { id: 'directory', label: locale === 'vi' ? 'Thành viên' : 'Members', icon: LayoutGrid },
+          { id: 'org_chart', label: locale === 'vi' ? 'Sơ đồ tổ chức' : 'Organization', icon: GitBranch },
+          { id: 'workload', label: locale === 'vi' ? 'Năng lực' : 'Capacity', icon: ClipboardList },
           { id: 'integrations', label: locale === 'vi' ? 'Kết nối' : 'Integrations', icon: PlugZap }
         ].map(tab => (
           <button
             key={tab.id}
+            type="button"
+            aria-current={teamOSView === tab.id ? 'page' : undefined}
             onClick={() => {
               setTeamOSView(tab.id as any);
               (window as any).playSystemSound?.('click');
             }}
-            className={`min-w-36 flex-1 py-3 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex min-w-max flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-3.5 py-2.5 text-xs font-extrabold transition-all cursor-pointer ${
               teamOSView === tab.id
-                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 shadow-3xs'
-                : 'text-slate-500 hover:text-slate-750 dark:text-slate-400 dark:hover:text-slate-200'
+                ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900 scale-102'
+                : 'text-slate-500 hover:bg-slate-100/70 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/70 dark:hover:text-slate-100'
             }`}
           >
             <tab.icon className="w-4 h-4" />
             <span>{tab.label}</span>
           </button>
         ))}
-      </div>
+      </nav>
+
+      {hierarchyError && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-400 sm:flex-row sm:items-center sm:justify-between">
+          <span>Không thể đồng bộ dữ liệu Team: {hierarchyError}</span>
+          <button type="button" onClick={() => void fetchHierarchy()} className="rounded-lg bg-white px-3 py-1.5 text-[10px] font-black text-rose-600 shadow-sm dark:bg-slate-900">Thử lại</button>
+        </div>
+      )}
+
+      {hierarchyLoading && (teamOSView === 'teams' || teamOSView === 'org_chart') && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center text-xs font-bold text-slate-400 dark:border-slate-800 dark:bg-slate-900">Đang đồng bộ cấu trúc Team…</div>
+      )}
 
       {/* TAB CONTENT 0: TEAM COMMAND CENTER */}
       {teamOSView === 'overview' && (
         <TeamCommandCenter
-          members={members}
-          tasks={tasks}
+          members={workspaceMembers}
+          tasks={workspaceTasks}
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           onInvite={() => setShowInviteModal(true)}
@@ -552,12 +695,12 @@ export default function TeamDirectory({
         <TeamManagement
           teams={dbTeams}
           memberships={dbTeamMembers}
-          members={members}
-          tasks={tasks}
+          members={workspaceMembers}
+          tasks={workspaceTasks}
           activeWorkspaceId={activeWorkspaceId}
           canManage={Boolean(isOwner)}
-          onTeamsChange={setDbTeams}
-          onMembershipsChange={setDbTeamMembers}
+          departments={dbDepts}
+          onRefresh={fetchHierarchy}
           onAddSyncLog={onAddSyncLog}
         />
       )}
@@ -579,7 +722,7 @@ export default function TeamDirectory({
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-sm text-slate-855 dark:text-slate-55">My Availability Status</span>
+                    <span className="font-extrabold text-sm text-slate-855 dark:text-slate-55">Trạng thái của bạn</span>
                     <span className="text-[10px] font-black bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-650 dark:text-indigo-400 px-2 py-0.5 rounded-md uppercase tracking-wider">
                       {statusLabelsEng[me.status as keyof typeof statusLabelsEng]}
                     </span>
@@ -587,7 +730,7 @@ export default function TeamDirectory({
                   <p className="text-[11px] text-slate-550 dark:text-slate-400 mt-1 flex items-center gap-1.5">
                     {me.statusEmoji ? <span className="text-sm">{me.statusEmoji}</span> : null}
                     <span className={me.statusMessage ? "italic text-slate-700 dark:text-slate-300 font-medium" : "text-slate-400 italic"}>
-                      {me.statusMessage ? `"${me.statusMessage}"` : "No status message set. Click customize to add one."}
+                      {me.statusMessage ? `"${me.statusMessage}"` : "Chưa có lời nhắn trạng thái."}
                     </span>
                   </p>
                 </div>
@@ -598,7 +741,7 @@ export default function TeamDirectory({
                   onClick={() => setShowStatusPopover(!showStatusPopover)}
                   className="py-2 px-4 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs transition-all cursor-pointer select-none"
                 >
-                  <span>Customize Status</span>
+                  <span>Tùy chỉnh trạng thái</span>
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
 
@@ -614,7 +757,7 @@ export default function TeamDirectory({
                         className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-40 p-4 space-y-4"
                       >
                         <div className="text-xs font-black text-slate-855 dark:text-slate-200 pb-2 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider text-left">
-                          Set availability & status
+                          Cập nhật trạng thái
                         </div>
 
                         {/* Status radio choices */}
@@ -646,7 +789,7 @@ export default function TeamDirectory({
 
                         {/* Custom message input */}
                         <div className="space-y-1.5 text-left">
-                          <label className="text-[10px] font-black uppercase text-slate-400 font-sans">Status Message</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400 font-sans">Lời nhắn trạng thái</label>
                           <div className="flex gap-2">
                             <input
                               type="text"
@@ -661,7 +804,7 @@ export default function TeamDirectory({
                               maxLength={100}
                               value={statusMsg}
                               onChange={(e) => setStatusMsg(e.target.value)}
-                              placeholder="What is your status?"
+                              placeholder="Bạn đang tập trung vào việc gì?"
                               className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-250 dark:border-slate-808 bg-white dark:bg-slate-900 outline-none text-slate-800 dark:text-slate-100 placeholder-slate-405 font-semibold focus:border-indigo-500"
                             />
                           </div>
@@ -674,7 +817,7 @@ export default function TeamDirectory({
                             onClick={() => setShowStatusPopover(false)}
                             className="flex-1 py-2 bg-slate-55 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl text-xs font-bold transition-all cursor-pointer"
                           >
-                            Cancel
+                            Hủy
                           </button>
                           <button
                             type="button"
@@ -684,7 +827,7 @@ export default function TeamDirectory({
                             }}
                             className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-705 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
                           >
-                            Save Status
+                            Lưu trạng thái
                           </button>
                         </div>
                       </motion.div>
@@ -700,15 +843,15 @@ export default function TeamDirectory({
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Workspace Staff Scale
+                  Thành viên workspace
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight">
-                    {totalWorkspaceCount} <span className="text-xs font-bold text-slate-500">staff</span>
+                    {totalWorkspaceCount} <span className="text-xs font-bold text-slate-500">người</span>
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  In workspace: <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
+                  Trong <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
                 </p>
               </div>
               <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-indigo-550 dark:text-indigo-400">
@@ -719,16 +862,16 @@ export default function TeamDirectory({
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Online Activity Rate
+                  Đang hoạt động
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-1.5">
-                    {onlineWorkspaceCount} <span className="text-xs font-bold text-slate-500">Online</span>
+                    {onlineWorkspaceCount} <span className="text-xs font-bold text-slate-500">trực tuyến</span>
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500 inline-block animate-ping"></span>
-                  <span>{busyWorkspaceCount} busy in meetings/tasks</span>
+                  <span>{busyWorkspaceCount} đang bận hoặc trong cuộc họp</span>
                 </p>
               </div>
               <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-emerald-555 dark:text-emerald-400 font-black">
@@ -739,15 +882,15 @@ export default function TeamDirectory({
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Total Org Footprint
+                  Toàn tổ chức
                 </span>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight">
-                    {members.length} <span className="text-xs font-bold text-slate-500">total members</span>
+                    {members.length} <span className="text-xs font-bold text-slate-500">thành viên</span>
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Leveraging performance across {workspaces.length} connected spaces
+                  Phân bổ trên {workspaces.length} workspace kết nối
                 </p>
               </div>
               <div className="p-3 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl text-cyan-555 dark:text-cyan-400 font-black">
@@ -771,7 +914,7 @@ export default function TeamDirectory({
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Members in {currentWorkspaceName} ({totalWorkspaceCount})</span>
+                <span>Trong {currentWorkspaceName} ({totalWorkspaceCount})</span>
               </button>
               <button
                 onClick={() => {
@@ -785,12 +928,12 @@ export default function TeamDirectory({
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span>All Org Directory ({members.length})</span>
+                <span>Toàn tổ chức ({members.length})</span>
               </button>
             </div>
 
             <div className="text-[11px] px-3 pb-2 sm:pb-0 text-slate-400 dark:text-slate-550 font-bold italic">
-              Showing {filteredMembers.length} matching colleagues
+              Hiển thị {filteredMembers.length} thành viên phù hợp
             </div>
           </div>
 
@@ -805,7 +948,7 @@ export default function TeamDirectory({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, email, department, phone, biography..."
+                placeholder="Tìm theo tên, email, phòng ban, số điện thoại..."
                 className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white hover:bg-slate-50 focus:bg-white dark:bg-slate-900 dark:hover:bg-slate-850 dark:hover:border-slate-700 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 outline-none transition-all font-semibold"
               />
               {searchQuery && (
@@ -867,7 +1010,7 @@ export default function TeamDirectory({
           {/* Members Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredMembers.map((member) => {
-              const memberTasks = tasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+              const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
               const totalTaskCount = memberTasks.length;
               const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
               const pendingTaskCount = totalTaskCount - completedTaskCount;
@@ -913,6 +1056,7 @@ export default function TeamDirectory({
                           className="w-14 h-14 rounded-full bg-slate-50 dark:bg-slate-850 border-2 border-slate-200 dark:border-slate-800 group-hover/avatar:border-indigo-500/40 p-0.5 object-cover shrink-0 select-none group-hover/avatar:brightness-90 transition-all duration-300 ring-4 ring-indigo-500/0 group-hover/avatar:ring-indigo-500/10" 
                           alt={member.name} 
                         />
+                        <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']} shrink-0`} />
                         <label className="absolute inset-x-0 bottom-0 bg-black/60 rounded-b-full py-0.5 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
                           <span className="text-[8px] text-white font-extrabold select-none scale-90">EDIT PHOTO</span>
                           <input 
@@ -969,8 +1113,8 @@ export default function TeamDirectory({
                     {/* Task workload meter */}
                     <div className="bg-slate-50/40 dark:bg-slate-950/30 p-3 border border-slate-200/35 dark:border-slate-800/40 rounded-2xl space-y-2.5">
                       <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-400 dark:text-slate-550 block font-sans">Task Progress</span>
-                        <span className="text-indigo-600 dark:text-indigo-400">{completedTaskCount}/{totalTaskCount} tasks</span>
+                        <span className="text-slate-400 dark:text-slate-550 block font-sans">Tiến độ công việc</span>
+                        <span className="text-indigo-600 dark:text-indigo-400">{completedTaskCount}/{totalTaskCount} việc</span>
                       </div>
                       
                       {totalTaskCount > 0 ? (
@@ -982,20 +1126,20 @@ export default function TeamDirectory({
                             />
                           </div>
                           <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-555 font-semibold">
-                            <span>Completed: {completionPercent}%</span>
-                            <span className="text-amber-600 dark:text-amber-455 font-bold">{pendingTaskCount} pending</span>
+                            <span>Hoàn thành: {completionPercent}%</span>
+                            <span className="text-amber-600 dark:text-amber-455 font-bold">{pendingTaskCount} đang mở</span>
                           </div>
                         </div>
                       ) : (
                         <div className="text-[10px] text-slate-400 dark:text-slate-555 italic font-medium py-0.5 text-center">
-                          No tasks assigned
+                          Chưa được giao công việc
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
-                    <span className="text-[10px] text-slate-400 font-medium">Joined {member.joinedDate || '2026'}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Tham gia {member.joinedDate || '2026'}</span>
                     
                     <div className="flex items-center gap-1.5">
                       {!isCurrentUser && onStartChat && (
@@ -1008,7 +1152,7 @@ export default function TeamDirectory({
                           <span>Nhắn tin</span>
                         </button>
                       )}
-                      {!isCurrentUser && activeTab === 'workspace' && (
+                      {isOwner && !isCurrentUser && activeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
                         <button
                           onClick={() => handleRemoveFromWorkspace(member)}
                           className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
@@ -1033,7 +1177,7 @@ export default function TeamDirectory({
                 onClick={clearAllFilters}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
               >
-                Clear all filters
+                Xóa bộ lọc
               </button>
             </div>
           )}
@@ -1048,15 +1192,15 @@ export default function TeamDirectory({
             
             {/* Visual Header */}
             <div className="w-full border-b border-slate-200/50 dark:border-slate-800/60 pb-4 text-center">
-              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Apexa Corporate Hierarchy</span>
-              <h3 className="text-base font-black text-slate-850 dark:text-slate-100 mt-0.5">Dynamic Organizational Flow</h3>
+              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Sơ đồ tổ chức · {currentWorkspaceName}</span>
+              <h3 className="text-base font-black text-slate-850 dark:text-slate-100 mt-0.5">Cấu trúc phòng ban và nhóm</h3>
             </div>
 
             {/* Tree Nodes Renderer */}
             <div className="space-y-12 w-full max-w-3xl flex flex-col items-center">
               {/* Root node - HQ */}
               {dbDepts.filter(d => !d.parent_id).map(hq => {
-                const manager = members.find(m => m.id === hq.manager_id || (m.id === 'user' && hq.manager_id?.includes('user')));
+                const manager = workspaceMembers.find(m => m.id === hq.manager_id || (m.id === 'user' && hq.manager_id?.includes('user')));
                 return (
                   <div key={hq.id} className="flex flex-col items-center space-y-8 w-full">
                     {/* HQ Node Box */}
@@ -1092,7 +1236,7 @@ export default function TeamDirectory({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full relative">
                       
                       {dbDepts.filter(d => d.parent_id === hq.id).map(dept => {
-                        const deptManager = members.find(m => m.id === dept.manager_id || (m.id === 'user' && dept.manager_id?.includes('user')));
+                        const deptManager = workspaceMembers.find(m => m.id === dept.manager_id || (m.id === 'user' && dept.manager_id?.includes('user')));
                         const deptTeams = dbTeams.filter(t => t.department_id === dept.id);
 
                         return (
@@ -1123,7 +1267,7 @@ export default function TeamDirectory({
                             {/* Teams under this Department */}
                             <div className="space-y-4 w-full flex flex-col items-center">
                               {deptTeams.map(team => {
-                                const teamLeader = members.find(m => m.id === team.leader_id || (m.id === 'user' && team.leader_id?.includes('user')));
+                                const teamLeader = workspaceMembers.find(m => m.id === team.leader_id || (m.id === 'user' && team.leader_id?.includes('user')));
                                 const memberCount = dbTeamMembers.filter(tm => tm.team_id === team.id).length;
 
                                 return (
@@ -1171,6 +1315,13 @@ export default function TeamDirectory({
                   </div>
                 );
               })}
+              {!hierarchyLoading && !dbDepts.some(department => !department.parent_id) && (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-8 py-14 text-center dark:border-slate-700 dark:bg-slate-900">
+                  <GitBranch className="mx-auto h-9 w-9 text-slate-300" />
+                  <h4 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">Chưa có cấu trúc phòng ban</h4>
+                  <p className="mt-1 max-w-md text-xs text-slate-400">Migration Team sẽ tạo cấu trúc mặc định. Sau đó, gán Team vào phòng ban trong tab Nhóm.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1247,14 +1398,18 @@ export default function TeamDirectory({
       {/* TAB CONTENT 3: RESOURCE CAPACITY & WORKLOAD */}
       {teamOSView === 'workload' && (
         <div className="space-y-6">
+          <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-left"><h3 className="flex items-center gap-2 text-base font-black text-slate-900 dark:text-white"><ClipboardList className="h-5 w-5 text-indigo-500" /> Năng lực đội ngũ</h3><p className="mt-1 text-[11px] text-slate-400">Ước tính trên năng lực chuẩn 40 giờ mỗi tuần cho từng thành viên.</p></div>
+            <div className="flex gap-2 text-[10px] font-black"><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">{workspaceMembers.filter(member => { const hours = workspaceTasks.filter(task => task.status !== 'completed' && (task.assigneeId === member.id || task.assigneeIds?.includes(member.id))).reduce((sum, task) => sum + (task.hoursEstimate || 0), 0); return hours <= 32; }).length} cân bằng</span><span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">{workspaceMembers.filter(member => { const hours = workspaceTasks.filter(task => task.status !== 'completed' && (task.assigneeId === member.id || task.assigneeIds?.includes(member.id))).reduce((sum, task) => sum + (task.hoursEstimate || 0), 0); return hours > 40; }).length} quá tải</span></div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {members.map(member => {
+            {workspaceMembers.map(member => {
               // Retrieve active task workload stats
-              const memberTasks = tasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+              const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
               const activeTasks = memberTasks.filter(t => t.status !== 'completed');
               const totalTaskCount = memberTasks.length;
               const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
-              const totalEst = memberTasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0);
+              const totalEst = activeTasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0);
               const totalAct = memberTasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
               
               // Base standard capacity limit is 40 hours/week
@@ -1263,16 +1418,13 @@ export default function TeamDirectory({
               
               // Theme color of the allocation progress bar
               let barColor = 'from-emerald-500 to-emerald-600';
-              let barBg = 'bg-emerald-500/10';
               let textColor = 'text-emerald-650 dark:text-emerald-400';
               
               if (capacityRatio > 100) {
                 barColor = 'from-rose-500 to-rose-600';
-                barBg = 'bg-rose-500/10';
                 textColor = 'text-rose-600 dark:text-rose-455 font-black';
               } else if (capacityRatio > 80) {
                 barColor = 'from-amber-500 to-amber-600';
-                barBg = 'bg-amber-500/10';
                 textColor = 'text-amber-650 dark:text-amber-455';
               }
 
@@ -1301,7 +1453,7 @@ export default function TeamDirectory({
                     {/* Allocation progress bar */}
                     <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 border border-slate-205/40 dark:border-slate-805">
                       <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-450 dark:text-slate-500">Weekly Bandwidth</span>
+                        <span className="text-slate-450 dark:text-slate-500">Năng lực tuần</span>
                         <span className={textColor}>{totalEst}h / {weeklyCapacity}h ({capacityRatio}%)</span>
                       </div>
 
@@ -1313,32 +1465,32 @@ export default function TeamDirectory({
                       </div>
 
                       <div className="flex items-center justify-between text-[8.5px] text-slate-400 font-bold mt-1">
-                        <span>Logged actuals: {totalAct}h</span>
+                        <span>Đã ghi nhận: {totalAct}h</span>
                         {capacityRatio > 100 ? (
                           <span className="text-rose-500 flex items-center gap-0.5">
                             <ShieldAlert className="w-3 h-3 animate-pulse" />
-                            <span>Overload warning!</span>
+                            <span>Đang quá tải</span>
                           </span>
                         ) : (
-                          <span className="text-emerald-500 font-medium">Capacity healthy</span>
+                          <span className="text-emerald-500 font-medium">Năng lực ổn định</span>
                         )}
                       </div>
                     </div>
 
                     {/* Assigned task lists */}
                     <div className="space-y-2 text-left">
-                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Active Task Checklist ({activeTasks.length})</span>
+                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Công việc đang mở ({activeTasks.length})</span>
                       <div className="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
                         {activeTasks.length > 0 ? (
                           activeTasks.map(task => (
                             <div key={task.id} className="p-2.5 bg-white dark:bg-slate-850/50 border border-slate-150 dark:border-slate-800/80 rounded-xl text-[10.5px] font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2 justify-between">
                               <span className="line-clamp-1 truncate flex-1">{task.title}</span>
-                              <span className="text-[8.5px] text-slate-400 font-bold shrink-0">{task.hoursEstimate || 0}h est</span>
+                              <span className="text-[8.5px] text-slate-400 font-bold shrink-0">{task.hoursEstimate || 0}h dự kiến</span>
                             </div>
                           ))
                         ) : (
                           <div className="text-[9.5px] text-slate-400 italic py-2 text-center border border-dashed border-slate-205 dark:border-slate-805 rounded-xl bg-slate-50/20">
-                            Healthy. No pending tasks assigned.
+                            Chưa có công việc đang mở.
                           </div>
                         )}
                       </div>
@@ -1346,19 +1498,20 @@ export default function TeamDirectory({
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800/85 text-left text-[10px] text-slate-400 font-semibold flex items-center justify-between">
-                    <span>Task count: {totalTaskCount}</span>
-                    <span>Completed: {completedTaskCount}</span>
+                    <span>Tổng việc: {totalTaskCount}</span>
+                    <span>Hoàn thành: {completedTaskCount}</span>
                   </div>
                 </div>
               );
             })}
+            {!workspaceMembers.length && <div className="col-span-full rounded-3xl border border-dashed border-slate-300 bg-slate-50/50 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30"><Users className="mx-auto h-9 w-9 text-slate-300" /><h3 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">Chưa có dữ liệu năng lực</h3><p className="mt-1 text-xs text-slate-400">Mời thành viên vào workspace để bắt đầu phân bổ công việc.</p><button type="button" onClick={() => setShowInviteModal(true)} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white">Mời thành viên</button></div>}
           </div>
         </div>
       )}
 
       {/* TAB CONTENT 4: INTEGRATION HUB */}
       {teamOSView === 'integrations' && (
-        <TeamIntegrations workspaces={workspaces} members={members} tasks={tasks} />
+        <TeamIntegrations workspaces={workspaces} members={workspaceMembers} tasks={workspaceTasks} />
       )}
 
       {/* Member Details Modal Backdrop */}
@@ -1435,17 +1588,19 @@ export default function TeamDirectory({
                   <CheckSquare className="w-4 h-4" />
                   <span>Overview & Tasks</span>
                 </button>
-                <button
-                  onClick={() => setDetailActiveTab('settings')}
-                  className={`py-3.5 px-4 text-xs font-black transition-all relative cursor-pointer select-none flex items-center gap-2 ${
-                    detailActiveTab === 'settings'
-                      ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400'
-                      : 'text-slate-405 hover:text-slate-700 dark:hover:text-slate-350'
-                  }`}
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>Edit Profile Details</span>
-                </button>
+                {(isOwner || selectedMember.id === me?.id || selectedMember.userId === currentUser?.id) && (
+                  <button
+                    onClick={() => setDetailActiveTab('settings')}
+                    className={`py-3.5 px-4 text-xs font-black transition-all relative cursor-pointer select-none flex items-center gap-2 ${
+                      detailActiveTab === 'settings'
+                        ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400'
+                        : 'text-slate-405 hover:text-slate-700 dark:hover:text-slate-350'
+                    }`}
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit Profile Details</span>
+                  </button>
+                )}
               </div>
 
               {/* Modal Body Contents */}
@@ -1476,7 +1631,7 @@ export default function TeamDirectory({
 
                     {/* Key stats widgets row */}
                     {(() => {
-                      const memberTasks = tasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
+                      const memberTasks = workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
                       const totalAssigned = memberTasks.length;
                       const completed = memberTasks.filter(t => t.status === 'completed').length;
                       const ongoing = totalAssigned - completed;
@@ -1550,16 +1705,16 @@ export default function TeamDirectory({
                       <div className="space-y-3 text-left">
                         <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
                           <CheckSquare className="w-3.5 h-3.5 text-indigo-554" />
-                          <span>Task List ({tasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id)).length})</span>
+                          <span>Danh sách công việc ({workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id)).length})</span>
                         </h4>
                         
                         <div className="max-h-64 overflow-y-auto space-y-2.5 custom-scrollbar pr-1">
                           {(() => {
-                            const memberTasks = tasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
+                            const memberTasks = workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
                             if (memberTasks.length === 0) {
                               return (
                                 <div className="p-8 text-center border border-dashed border-slate-205 dark:border-slate-805 rounded-2xl text-slate-450 italic text-[11px] font-medium">
-                                  No tasks currently assigned to this colleague.
+                                  Thành viên này chưa được giao công việc nào.
                                 </div>
                               );
                             }
@@ -1660,7 +1815,7 @@ export default function TeamDirectory({
                       </div>
                     </div>
 
-                    <div className="space-y-1">
+                    {isOwner && membershipRoles[selectedMember.userId || ''] !== 'owner' && <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">System Authority Role</label>
                       <div className="grid grid-cols-3 gap-2">
                         {[
@@ -1683,7 +1838,7 @@ export default function TeamDirectory({
                           </button>
                         ))}
                       </div>
-                    </div>
+                    </div>}
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Biography / Personal Notes</label>

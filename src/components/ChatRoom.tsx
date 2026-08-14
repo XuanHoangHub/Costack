@@ -388,7 +388,7 @@ export default function ChatRoom({
   const [starredChannelIds, setStarredChannelIds] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('avaxa_starred_channels');
+        const saved = localStorage.getItem('apexa_starred_channels');
         return saved ? JSON.parse(saved) : [];
       } catch { return []; }
     }
@@ -397,7 +397,7 @@ export default function ChatRoom({
 
   useEffect(() => {
     try {
-      localStorage.setItem('avaxa_starred_channels', JSON.stringify(starredChannelIds));
+      localStorage.setItem('apexa_starred_channels', JSON.stringify(starredChannelIds));
     } catch (e) {}
   }, [starredChannelIds]);
 
@@ -566,7 +566,7 @@ export default function ChatRoom({
 
   const handleCreateVideoMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    const roomName = `avaxa-${activeChannelId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString(36)}`;
+    const roomName = `apexa-${activeChannelId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString(36)}`;
     const roomUrl = `https://meet.jit.si/${roomName}`;
     const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     
@@ -814,7 +814,7 @@ ${channelMessagesText}`;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const searchDefault = localStorage.getItem('avaxa_ai_search_grounding') === 'true';
+      const searchDefault = localStorage.getItem('apexa_ai_search_grounding') === 'true';
       setSearchWeb(searchDefault);
     }
   }, []);
@@ -897,27 +897,34 @@ ${channelMessagesText}`;
   };
 
   const ensureDefaultChannels = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.id) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
 
-    const defaults = [
-      { id: `${workspaceId}:general`, workspace_id: workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', channel_type: 'public', created_by: session.user.id },
-      { id: `${workspaceId}:avaxa-brain-ai`, workspace_id: workspaceId, name: 'avaxa-brain-ai', description: 'Trợ lý AI của workspace.', channel_type: 'public', created_by: session.user.id }
-    ];
-    const { error } = await supabase.from('chat_channels').upsert(defaults, { onConflict: 'id', ignoreDuplicates: true });
-    if (error) throw error;
+      const defaults = [
+        { id: `${workspaceId}:general`, workspace_id: workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', channel_type: 'public', created_by: session.user.id },
+        { id: `${workspaceId}:apexa-brain-ai`, workspace_id: workspaceId, name: 'apexa-brain-ai', description: 'Trợ lý AI của workspace.', channel_type: 'public', created_by: session.user.id }
+      ];
+      const { error } = await supabase.from('chat_channels').upsert(defaults, { onConflict: 'id', ignoreDuplicates: true });
+      if (error) {
+        console.warn('[ChatRoom] Note on ensuring default channels:', error.message || error);
+      }
+    } catch (err) {
+      console.warn('[ChatRoom] Exception in ensureDefaultChannels:', err);
+    }
   };
 
   // Initialize channels from the durable workspace chat directory.
   useEffect(() => {
     let active = true;
+    const defaultChannels: ChatChannel[] = [
+      { id: `${workspaceId}:general`, workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
+      { id: `${workspaceId}:apexa-brain-ai`, workspaceId, name: 'apexa-brain-ai', description: 'Trợ lý AI của workspace.', type: 'public' }
+    ];
+
     const loadChannels = async () => {
       if (isOffline) {
-        const defaults: ChatChannel[] = [
-          { id: `${workspaceId}:general`, workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
-          { id: `${workspaceId}:avaxa-brain-ai`, workspaceId, name: 'avaxa-brain-ai', description: 'Trợ lý AI của workspace.', type: 'public' }
-        ];
-        if (active) setChannels(defaults);
+        if (active) setChannels(defaultChannels);
         return;
       }
 
@@ -929,26 +936,41 @@ ${channelMessagesText}`;
           .eq('workspace_id', workspaceId)
           .eq('is_archived', false)
           .order('created_at', { ascending: true });
+
         if (error) throw error;
         if (!active) return;
-        const loaded: ChatChannel[] = (data || []).map((channel: any) => ({
-          id: channel.id,
-          workspaceId: channel.workspace_id,
-          name: channel.name,
-          description: channel.description || '',
-          type: channel.channel_type,
-          dmKey: channel.dm_key || undefined
-        }));
-        setChannels(loaded);
+
+        const loaded: ChatChannel[] = (data && data.length > 0)
+          ? data.map((channel: any) => ({
+              id: channel.id,
+              workspaceId: channel.workspace_id,
+              name: channel.name,
+              description: channel.description || '',
+              type: channel.channel_type,
+              dmKey: channel.dm_key || undefined
+            }))
+          : defaultChannels;
+
+        // Ensure default channels exist in loaded array if missing
+        const finalChannels = [...loaded];
+        for (const def of defaultChannels) {
+          if (!finalChannels.some(c => c.id === def.id)) {
+            finalChannels.unshift(def);
+          }
+        }
+
+        setChannels(finalChannels);
         setActiveChannelId(previous => {
-          const requested = initialSelectedChannelId && loaded.some(c => c.id === initialSelectedChannelId)
+          const requested = initialSelectedChannelId && finalChannels.some(c => c.id === initialSelectedChannelId)
             ? initialSelectedChannelId
             : previous;
-          return requested && loaded.some(c => c.id === requested) ? requested : `${workspaceId}:general`;
+          return requested && finalChannels.some(c => c.id === requested) ? requested : `${workspaceId}:general`;
         });
-      } catch (error) {
-        console.error('Unable to load chat channels:', error);
-        triggerToast?.('error', 'Không thể tải kênh', 'Vui lòng kiểm tra kết nối và thử lại.');
+      } catch (error: any) {
+        console.warn('[ChatRoom] Unable to load remote chat channels, falling back to defaults:', error?.message || error);
+        if (!active) return;
+        setChannels(defaultChannels);
+        setActiveChannelId(previous => previous || `${workspaceId}:general`);
       }
     };
     loadChannels();
@@ -1128,8 +1150,8 @@ ${channelMessagesText}`;
     if (!activeChannelId) return;
 
     const seedMessages: Record<string, ChatMessage[]> = {
-      'avaxa-brain-ai': [
-        { id: 'mai1', senderId: 'ai-brain', senderName: 'Avaxa Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AvaxaBrain', content: 'Xin chào! Tôi là trợ lý Avaxa Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
+      'apexa-brain-ai': [
+        { id: 'mai1', senderId: 'ai-brain', senderName: 'Apexa Brain AI', senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ApexaBrain', content: 'Xin chào! Tôi là trợ lý Apexa Brain của workspace hiện tại. Tại kênh truyền này, bạn có thể hỏi tôi bất kỳ điều gì: từ cách lập kế hoạch dự án, phân chia KPI, soạn thảo tài liệu, cho đến viết mã tối ưu. Hãy thử gửi tin nhắn ngay nhé! 💡', timestamp: '09:00', isAi: true }
       ]
     };
 
@@ -1884,8 +1906,8 @@ ${channelMessagesText}`;
           const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
-            senderId: 'avaxa-ai',
-            senderName: 'Avaxa Brain AI',
+            senderId: 'apexa-ai',
+            senderName: 'Apexa Brain AI',
             senderAvatar: '',
             content: data.text,
             timestamp: aiMsgTime,
@@ -1896,8 +1918,8 @@ ${channelMessagesText}`;
           if (!isOffline) {
             await supabase.from('chat_messages').insert({
               id: aiMsgId,
-              sender_id: 'avaxa-ai',
-              sender_name: 'Avaxa Brain AI',
+              sender_id: 'apexa-ai',
+              sender_name: 'Apexa Brain AI',
               sender_avatar: '',
               content: data.text,
               timestamp: aiMsgTime,
@@ -1998,12 +2020,12 @@ ${channelMessagesText}`;
       scrollToBottom();
 
       // Check if chat is with AI Assistant channel
-      if (activeChannelId.endsWith('avaxa-brain-ai')) {
+      if (activeChannelId.endsWith('apexa-brain-ai')) {
       setIsAiTyping(true);
       try {
         // Gather recent 10 messages for chat history
         const historyToSend = messages.slice(-10).map(m => ({
-          senderId: m.senderId === 'avaxa-ai' ? 'model' : 'user',
+          senderId: m.senderId === 'apexa-ai' ? 'model' : 'user',
           content: m.content
         }));
 
@@ -2020,8 +2042,8 @@ ${channelMessagesText}`;
           const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
           const aiResponseMsg: ChatMessage = {
             id: aiMsgId,
-            senderId: 'avaxa-ai',
-            senderName: 'Avaxa Brain AI',
+            senderId: 'apexa-ai',
+            senderName: 'Apexa Brain AI',
             senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
             content: data.text,
             timestamp: aiMsgTime,
@@ -2033,8 +2055,8 @@ ${channelMessagesText}`;
           if (!isOffline) {
             await supabase.from('chat_messages').insert({
               id: aiMsgId,
-              sender_id: 'avaxa-ai',
-              sender_name: 'Avaxa Brain AI',
+              sender_id: 'apexa-ai',
+              sender_name: 'Apexa Brain AI',
               sender_avatar: '',
               content: data.text,
               timestamp: aiMsgTime,
@@ -2150,7 +2172,7 @@ ${channelMessagesText}`;
   const isEditableChannel = useMemo(() => {
     if (!activeChannelId) return false;
     if (activeChannelId.includes(':dm-')) return false;
-    if (activeChannelId.endsWith('avaxa-brain-ai')) return false;
+    if (activeChannelId.endsWith('apexa-brain-ai')) return false;
     if (activeChannelId.includes(':folder-') || activeChannelId.includes(':list-')) return false;
     
     const localId = activeChannelId.split(':').pop() || '';
@@ -2275,7 +2297,7 @@ ${channelMessagesText}`;
                 </button>
               </div>
               <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && c.id !== `${workspaceId}:avaxa-brain-ai` && !c.id.includes(':space-')).map(c => {
+                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && c.id !== `${workspaceId}:apexa-brain-ai` && !c.id.includes(':space-')).map(c => {
                   const isActive = c.id === activeChannelId;
                   const isDefault = c.id === `${workspaceId}:general` || c.id === `${workspaceId}:project-planning` || c.id === `${workspaceId}:design-review`;
                   
@@ -2625,10 +2647,7 @@ ${channelMessagesText}`;
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                   {isDm ? (
-                    <>
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${presenceDotClass(isSelfDm ? ownPresenceStatus : (dmMember?.status || 'offline'))}`} />
-                      <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : dmMember?.status === 'busy' ? 'Đang bận' : dmMember?.status === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
-                    </>
+                    <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : dmMember?.status === 'busy' ? 'Đang bận' : dmMember?.status === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
                   ) : (
                     <>
                       <span className="shrink-0">{activeChannel?.type === 'group' ? 'Nhóm chat' : activeChannel?.type === 'private' ? 'Kênh riêng tư' : 'Kênh workspace'}</span>
@@ -3105,7 +3124,7 @@ ${channelMessagesText}`;
                 <Bot className="w-4.5 h-4.5 animate-spin" />
               </div>
               <div className="space-y-1 text-left">
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Avaxa Brain AI</span>
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Apexa Brain AI</span>
                 <div className="flex gap-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-100 max-w-sm">
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -3520,7 +3539,7 @@ ${channelMessagesText}`;
                       isSelfDm
                         ? `Nhắn tin cho chính bạn... (Space cho AI, / lệnh)`
                         : activeChannel?.name.includes('ai')
-                          ? "Hỏi Avaxa Brain AI bất cứ điều gì..."
+                          ? "Hỏi Apexa Brain AI bất cứ điều gì..."
                           : `Nhắn tin đến ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}...`
                     }
                     rows={1}
@@ -3613,7 +3632,7 @@ ${channelMessagesText}`;
                         <div className="absolute right-0 bottom-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
                           <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Avaxa AI Writer</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Apexa AI Writer</span>
                           </div>
                           <button type="button" onClick={() => handleAiEnhanceInput('expand')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
                             🪄 Viết tiếp & Mở rộng ý
@@ -3986,7 +4005,7 @@ ${channelMessagesText}`;
                 <button 
                   type="submit"
                   className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                 >
                   Create
                 </button>
@@ -4051,7 +4070,7 @@ ${channelMessagesText}`;
                 <button 
                   type="submit"
                   className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                 >
                   Save Changes
                 </button>
@@ -4227,7 +4246,7 @@ ${channelMessagesText}`;
                   onClick={handleCreateTaskFromMsg}
                   disabled={!convertTaskTitle.trim() || !convertTaskListId}
                   className="flex-1 py-2 rounded-xl text-xs font-black text-white shadow-md hover:shadow-indigo-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center disabled:opacity-50 disabled:pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, var(--avaxa-gradient-start), var(--avaxa-gradient-end))' }}
+                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                 >
                   Tạo công việc
                 </button>
@@ -4289,8 +4308,8 @@ ${channelMessagesText}`;
                         const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
                         const summaryMsg: ChatMessage = {
                           id: msgId,
-                          senderId: 'avaxa-ai',
-                          senderName: 'Avaxa Brain AI',
+                          senderId: 'apexa-ai',
+                          senderName: 'Apexa Brain AI',
                           senderAvatar: '',
                           content: `✨ **Bản tóm tắt kênh từ AI:**\n${aiSummaryText}`,
                           timestamp: timeStr,

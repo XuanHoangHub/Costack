@@ -12,7 +12,7 @@ export function applyAppTheme(isDark: boolean, persist = true) {
   root.style.colorScheme = isDark ? 'dark' : 'light';
 
   if (persist && typeof window !== 'undefined') {
-    localStorage.setItem('avaxa_dark_mode', String(isDark));
+    localStorage.setItem('apexa_dark_mode', String(isDark));
   }
 
   if (cleanupTimer !== null) clearTimeout(cleanupTimer);

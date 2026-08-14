@@ -413,20 +413,20 @@ function ProfilePage({
           
           {/* Avatar Container with Upload Hover */}
           <div className="relative shrink-0 group -mt-14 md:-mt-18 z-10">
-            <div className="relative rounded-3xl overflow-hidden ring-4 ring-white dark:ring-slate-900 shadow-2xl bg-slate-100 dark:bg-slate-800">
+            <div className="relative rounded-3xl overflow-hidden ring-4 ring-white dark:ring-slate-900 shadow-2xl bg-slate-100 dark:bg-slate-800 isolate">
               <SignedImage 
                 filePath={avatar} 
-                className="w-28 h-28 md:w-36 md:h-36 object-cover transition-transform duration-300 group-hover:scale-105" 
+                className="w-28 h-28 md:w-36 md:h-36 object-cover transition-transform duration-300 group-hover:scale-105 rounded-3xl" 
                 alt={name} 
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 bg-slate-950/70 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-1.5 cursor-pointer"
+                className="absolute inset-0 bg-slate-950/75 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 rounded-3xl flex flex-col items-center justify-center text-white gap-1.5 cursor-pointer"
                 aria-label={locale === 'vi' ? 'Thay ảnh đại diện' : 'Change profile photo'}
               >
                 <Camera className="w-6 h-6 text-white" />
-                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full border border-white/30 backdrop-blur-md">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full border border-white/30">
                   {locale === 'vi' ? 'Tải ảnh lên' : 'Upload photo'}
                 </span>
               </button>

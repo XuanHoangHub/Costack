@@ -22,10 +22,10 @@ export function useTranslation() {
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = React.useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('apexa_locale') || localStorage.getItem('avaxa_locale');
+      const saved = localStorage.getItem('apexa_locale') || localStorage.getItem('apexa_locale');
       if (saved) return saved;
       localStorage.setItem('apexa_locale', 'en');
-      localStorage.setItem('avaxa_locale', 'en');
+      localStorage.setItem('apexa_locale', 'en');
     }
     return 'en';
   });
@@ -34,8 +34,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     setLocaleState(newLocale);
     if (typeof window !== 'undefined') {
       localStorage.setItem('apexa_locale', newLocale);
-      localStorage.setItem('avaxa_locale', newLocale);
-      window.dispatchEvent(new Event('avaxa-locale-changed'));
+      localStorage.setItem('apexa_locale', newLocale);
+      window.dispatchEvent(new Event('apexa-locale-changed'));
     }
   }, []);
 

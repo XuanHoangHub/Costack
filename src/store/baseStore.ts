@@ -26,7 +26,7 @@ export const useBaseStore = create<BaseState>()(
         })),
     }),
     {
-      name: 'avaxa_bases',
+      name: 'apexa_bases',
     }
   )
 );

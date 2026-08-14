@@ -2,6 +2,12 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --font-sans: var(--font-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+}
+
 
 
 :root {
@@ -81,11 +87,11 @@
   --slate-905: #0f172a;
   --slate-955: #020617;
 
-  /* Avaxa Core Theme Color Gradients */
-  --avaxa-primary: #2563EB;
-  --avaxa-gradient-start: #2563EB;
-  --avaxa-gradient-end: #1D4ED8;
-  --avaxa-liquid-color: #33D1FF;
+  /* Apexa Core Theme Color Gradients */
+  --apexa-primary: #2563EB;
+  --apexa-gradient-start: #2563EB;
+  --apexa-gradient-end: #1D4ED8;
+  --apexa-liquid-color: #33D1FF;
 }
 
 .dark {
@@ -143,14 +149,14 @@
   --slate-905: #030406;
   --slate-955: #020204;
 
-  /* Avaxa Core Theme Color Gradients */
-  --avaxa-primary: #2563EB;
-  --avaxa-primary-hover: #1D4ED8;
-  --avaxa-primary-light: #eff6ff;
-  --avaxa-gradient-start: #2563EB;
-  --avaxa-gradient-end: #1D4ED8;
-  --avaxa-liquid-color: #33D1FF;
-  --avaxa-ring: rgba(37, 99, 235, 0.35);
+  /* Apexa Core Theme Color Gradients */
+  --apexa-primary: #2563EB;
+  --apexa-primary-hover: #1D4ED8;
+  --apexa-primary-light: #eff6ff;
+  --apexa-gradient-start: #2563EB;
+  --apexa-gradient-end: #1D4ED8;
+  --apexa-liquid-color: #33D1FF;
+  --apexa-ring: rgba(37, 99, 235, 0.35);
 }
 
 html, body, #root {
@@ -218,47 +224,6 @@ html.theme-switching *::after {
 }
 
 .dark .modal-backdrop-blur {
-  background-color: rgba(3, 4, 8, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.modal-glass-card {
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 25px 50px -12px rgba(123, 97, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.6);
-}
-
-.dark .modal-glass-card {
-  background-color: rgba(13, 14, 23, 0.92);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-
-  --color-indigo-50: var(--avaxa-primary-light, #f5f3ff);
-  --color-indigo-100: var(--avaxa-primary-light, #ede9fe);
-  --color-indigo-200: var(--avaxa-primary-light, #ddd6fe);
-  --color-indigo-300: var(--avaxa-primary-light, #c7d2fe);
-  --color-indigo-505: var(--avaxa-primary, #7B61FF);
-  --color-indigo-500: var(--avaxa-primary, #7B61FF);
-  --color-indigo-600: var(--avaxa-primary, #7B61FF);
-  --color-indigo-650: #6D55FE;
-  --color-indigo-700: var(--avaxa-primary-hover, #6045EB);
-  --color-indigo-800: var(--avaxa-primary-hover, #492FD4);
-  --color-indigo-900: var(--avaxa-primary-hover, #3E24A0);
-  
-  --color-pink-50: #fff1f2;
-  --color-pink-100: #ffe4e6;
-  --color-pink-200: #fecdd3;
   --color-pink-500: #FF3366;
   --color-pink-600: #e11d48;
   --color-pink-700: #be123c;
@@ -575,14 +540,14 @@ html.theme-switching *::after {
   z-index: 50;
 }
 
-/* Notion/ClickUp-style document blocks */
+/* Premium Editorial Document Styles (Notion/Craft/Linear Aesthetic) */
 .document-editor {
-  line-height: 1.65;
-  caret-color: #4f46e5;
+  line-height: 1.75;
+  caret-color: #6366f1;
 }
 
 .document-editor > * {
-  margin: 0.22rem 0;
+  margin: 0.35rem 0;
 }
 
 .document-editor p.is-editor-empty:first-child::before {
@@ -591,6 +556,8 @@ html.theme-switching *::after {
   float: left;
   height: 0;
   pointer-events: none;
+  font-style: normal;
+  opacity: 0.7;
 }
 
 .document-editor h1,
@@ -598,89 +565,157 @@ html.theme-switching *::after {
 .document-editor h3 {
   color: inherit;
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   line-height: 1.25;
-  margin-bottom: 0.35rem;
-  margin-top: 1.35rem;
+  margin-bottom: 0.5rem;
+  margin-top: 1.6rem;
 }
 
-.document-editor h1 { font-size: 1.75rem; }
-.document-editor h2 { font-size: 1.4rem; }
-.document-editor h3 { font-size: 1.15rem; }
+.document-editor h1 {
+  font-size: 1.85rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  padding-bottom: 0.4rem;
+}
+.dark .document-editor h1 {
+  border-bottom-color: rgba(51, 65, 85, 0.4);
+}
+
+.document-editor h2 {
+  font-size: 1.45rem;
+}
+
+.document-editor h3 {
+  font-size: 1.2rem;
+}
 
 .document-editor ul:not([data-type="taskList"]),
 .document-editor ol {
-  margin: 0.45rem 0;
+  margin: 0.5rem 0;
   padding-left: 1.5rem;
 }
 
 .document-editor ul:not([data-type="taskList"]) { list-style: disc; }
 .document-editor ol { list-style: decimal; }
-.document-editor li { margin: 0.18rem 0; }
+.document-editor li { margin: 0.25rem 0; }
+.document-editor li::marker { color: #818cf8; }
 
 .document-editor ul[data-type="taskList"] {
   list-style: none;
-  margin: 0.45rem 0;
+  margin: 0.5rem 0;
   padding: 0;
 }
 
 .document-editor ul[data-type="taskList"] li {
   align-items: flex-start;
   display: flex;
-  gap: 0.55rem;
+  gap: 0.6rem;
+  margin: 0.3rem 0;
 }
 
 .document-editor ul[data-type="taskList"] li > label {
-  margin-top: 0.22rem;
+  margin-top: 0.25rem;
   user-select: none;
+  cursor: pointer;
 }
 
 .document-editor ul[data-type="taskList"] li > div { flex: 1; }
-.document-editor ul[data-type="taskList"] input { accent-color: #4f46e5; }
+.document-editor ul[data-type="taskList"] input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  accent-color: #6366f1;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.document-editor ul[data-type="taskList"] input[type="checkbox"]:hover {
+  transform: scale(1.1);
+}
+
 .document-editor ul[data-type="taskList"] li[data-checked="true"] > div {
   color: #94a3b8;
   text-decoration: line-through;
+  opacity: 0.75;
 }
 
 .document-editor blockquote {
-  border-left: 3px solid #818cf8;
-  color: #64748b;
+  border-left: 4px solid transparent;
+  border-image: linear-gradient(to bottom, #6366f1, #a855f7) 1;
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 0 0.75rem 0.75rem 0;
+  color: #475569;
   font-style: italic;
-  margin: 0.75rem 0;
-  padding: 0.3rem 0 0.3rem 1rem;
+  margin: 1rem 0;
+  padding: 0.6rem 1rem;
 }
 
-.dark .document-editor blockquote { color: #94a3b8; }
+.dark .document-editor blockquote {
+  background: rgba(99, 102, 241, 0.08);
+  color: #cbd5e1;
+}
 
 .document-editor pre {
-  background: #0f172a;
-  border-radius: 0.8rem;
+  background: #090d16;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 0.85rem;
   color: #e2e8f0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  margin: 0.75rem 0;
+  font-size: 0.875rem;
+  margin: 1rem 0;
   overflow-x: auto;
-  padding: 0.85rem 1rem;
+  padding: 1rem 1.2rem;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .document-editor code:not(pre code) {
-  background: #eef2ff;
-  border-radius: 0.3rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 0.35rem;
   color: #4f46e5;
-  padding: 0.1rem 0.3rem;
+  font-weight: 600;
+  font-size: 0.875em;
+  padding: 0.125rem 0.35rem;
 }
 
 .dark .document-editor code:not(pre code) {
-  background: rgba(49, 46, 129, 0.45);
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(165, 180, 252, 0.25);
   color: #a5b4fc;
 }
 
 .document-editor hr {
   border: 0;
-  border-top: 1px solid #e2e8f0;
-  margin: 1.25rem 0;
+  border-top: 1px dashed #cbd5e1;
+  margin: 1.5rem 0;
 }
 
 .dark .document-editor hr { border-top-color: #334155; }
+
+/* Real-time Collaboration Caret Styling */
+.collaboration-cursor__caret {
+  border-left: 2px solid #000;
+  border-right: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+  position: relative;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  border-radius: 4px 4px 4px 0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  left: -1px;
+  line-height: normal;
+  padding: 2px 6px;
+  position: absolute;
+  top: -1.4em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
 /* ── iOS 27 Futuristic Aesthetic Utility System ── */
 .ios27-glass {
   background: rgba(255, 255, 255, 0.72);
@@ -777,7 +812,7 @@ html.theme-switching *::after {
 }
 
 /* ── Modern Premium UI/UX Utility Additions ── */
-.text-gradient-avaxa {
+.text-gradient-apexa {
   background: linear-gradient(135deg, #7B61FF 0%, #FF3366 50%, #33D1FF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -820,7 +855,7 @@ html.theme-switching *::after {
   box-shadow: 0 0 25px -5px rgba(51, 209, 255, 0.35);
 }
 
-.focus-ring-avaxa:focus-visible {
+.focus-ring-apexa:focus-visible {
   outline: none;
   ring: 2px;
   ring-color: #7B61FF;

@@ -71,7 +71,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             members: members,
           };
           const jsonStr = JSON.stringify(exportData, null, 2);
-          downloadFile(`avaxa_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
+          downloadFile(`apexa_workspace_export_${timestamp}.json`, jsonStr, 'application/json');
         } else if (exportFormat === 'csv') {
           // Convert tasks to CSV
           const headers = ['ID', 'Title', 'Status', 'Priority', 'Description', 'DueDate', 'AssigneeId', 'WorkspaceId'];
@@ -86,7 +86,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             `"${(t as any).workspaceId || activeWorkspaceId}"`,
           ]);
           const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-          downloadFile(`avaxa_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
+          downloadFile(`apexa_tasks_${timestamp}.csv`, csvContent, 'text/csv;charset=utf-8;');
         } else if (exportFormat === 'report') {
           // Formatted HTML Executive Report
           const reportHtml = `
@@ -168,7 +168,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 </body>
 </html>
           `;
-          downloadFile(`avaxa_executive_report_${timestamp}.html`, reportHtml, 'text/html');
+          downloadFile(`apexa_executive_report_${timestamp}.html`, reportHtml, 'text/html');
         }
 
         if (addSyncLog) addSyncLog(`Exported workspace data in ${exportFormat.toUpperCase()} format`);

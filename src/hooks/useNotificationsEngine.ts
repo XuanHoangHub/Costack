@@ -193,7 +193,7 @@ export function useNotificationsEngine() {
         if (upcomingTasks.length > 0) {
           let notifiedMap: Record<string, string> = {};
           try {
-            const stored = typeof window !== 'undefined' ? localStorage.getItem('avaxa_notified_deadlines') : null;
+            const stored = typeof window !== 'undefined' ? localStorage.getItem('apexa_notified_deadlines') : null;
             if (stored) notifiedMap = JSON.parse(stored);
           } catch (e) {
             console.error('Error loading notified deadlines:', e);
@@ -221,7 +221,7 @@ export function useNotificationsEngine() {
 
           if (wasUpdated) {
             try {
-              localStorage.setItem('avaxa_notified_deadlines', JSON.stringify(newNotifiedMap));
+              localStorage.setItem('apexa_notified_deadlines', JSON.stringify(newNotifiedMap));
             } catch (e) {
               console.error('Error saving notified deadlines:', e);
             }

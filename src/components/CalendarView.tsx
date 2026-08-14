@@ -214,7 +214,7 @@ export default function CalendarView({
   const [gcalEvents, setGcalEvents] = useState<any[]>(() => {
     try {
       if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('avaxa_local_calendar_events');
+        const stored = localStorage.getItem('apexa_local_calendar_events');
         if (stored) return JSON.parse(stored);
       }
     } catch (e) {}
@@ -226,10 +226,77 @@ export default function CalendarView({
     ];
   });
 
+  // Google Calendar Live Sync & OAuth integration
+  const fetchLiveGoogleEvents = async (token: string, userEmail?: string) => {
+    try {
+      setSyncingGcal(true);
+      setSyncProgress(20);
+      setSyncLogs(['Đang khởi tạo kết nối Google API...']);
+
+      const response = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=100',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      setSyncProgress(60);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('apexa_gcal_token');
+          setGcalConnected(false);
+          throw new Error('Phiên làm việc Google đã hết hạn. Vui lòng kết nối lại.');
+        }
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || 'Không thể tải lịch từ Google Calendar API');
+      }
+
+      const data = await response.json();
+      setSyncProgress(90);
+
+      const items = (data.items || []).map((item: any) => ({
+        id: item.id,
+        summary: item.summary || 'Sự kiện Google',
+        description: item.description || '',
+        start: item.start?.dateTime ? { dateTime: item.start.dateTime } : { dateTime: `${item.start?.date}T09:00:00+07:00` },
+        end: item.end?.dateTime ? { dateTime: item.end.dateTime } : { dateTime: `${item.end?.date}T10:00:00+07:00` },
+        color: '#10b981',
+        isGoogleEvent: true,
+        htmlLink: item.htmlLink,
+      }));
+
+      setGcalEvents(items);
+      setGcalConnected(true);
+      if (userEmail) setGcalUserEmail(userEmail);
+      setSyncProgress(100);
+      setSyncLogs(prev => [...prev, `Đã đồng bộ thành công ${items.length} sự kiện!`]);
+      triggerToast?.('success', 'Kết nối thành công 🟢', `Đã nhận ${items.length} sự kiện từ Google Calendar.`);
+    } catch (err: any) {
+      console.error('[Google Calendar Sync Error]', err);
+      triggerToast?.('error', 'Lỗi đồng bộ Google Calendar', err.message || 'Không thể lấy dữ liệu.');
+    } finally {
+      setSyncingGcal(false);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setCurrentUser(session.user);
+        if (session.user.email) setGcalUserEmail(session.user.email);
+      }
+
+      const providerToken = session?.provider_token || (typeof window !== 'undefined' ? localStorage.getItem('apexa_gcal_token') : null);
+      if (session?.provider_token) {
+        localStorage.setItem('apexa_gcal_token', session.provider_token);
+      }
+
+      if (providerToken) {
+        fetchLiveGoogleEvents(providerToken, session?.user?.email);
       }
     });
 
@@ -239,7 +306,7 @@ export default function CalendarView({
 
   useEffect(() => {
     try {
-      localStorage.setItem('avaxa_local_calendar_events', JSON.stringify(gcalEvents));
+      localStorage.setItem('apexa_local_calendar_events', JSON.stringify(gcalEvents));
     } catch (e) {}
   }, [gcalEvents]);
 
@@ -255,7 +322,7 @@ export default function CalendarView({
     const icsLines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Avaxa Productivity Hub//Calendar//VI',
+      'PRODID:-//Apexa Productivity Hub//Calendar//VI',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH'
     ];
@@ -264,7 +331,7 @@ export default function CalendarView({
       if (t.dueDate) {
         const cleanDate = t.dueDate.replace(/-/g, '');
         icsLines.push('BEGIN:VEVENT');
-        icsLines.push(`UID:task-${t.id}@avaxa.app`);
+        icsLines.push(`UID:task-${t.id}@apexa.app`);
         icsLines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`);
         icsLines.push(`DTSTART;VALUE=DATE:${cleanDate}`);
         icsLines.push(`SUMMARY:${t.title}`);
@@ -320,38 +387,47 @@ export default function CalendarView({
     }, 1200);
   };
 
-  // Google Calendar Connection simulation
-  const handleConnectGcal = () => {
+  // Google Calendar Connection simulation with real OAuth attempt
+  const handleConnectGcal = async () => {
     if (gcalConnected) {
       setGcalConnected(false);
       setGcalUserEmail('');
+      localStorage.removeItem('apexa_gcal_token');
       triggerToast?.('info', 'Đã ngắt kết nối Google Calendar', 'Tài khoản đã được gỡ khỏi bộ lịch.');
       return;
     }
 
     setSyncingGcal(true);
     setSyncProgress(10);
-    setSyncLogs(['Đang tạo cổng kết nối OAuth 2.0...']);
+    setSyncLogs(['Đang kết nối tới cổng xác thực Google OAuth 2.0...']);
 
-    const interval = setInterval(() => {
-      setSyncProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : undefined,
+        },
+      });
+
+      if (error) {
+        console.warn('[Google OAuth] Supabase OAuth chưa được bật hoặc thiếu Client ID:', error.message);
+        setSyncLogs(prev => [...prev, 'Đang ở chế độ thử nghiệm/mô phỏng...']);
+        setTimeout(() => {
+          setSyncProgress(100);
           setSyncingGcal(false);
           setGcalConnected(true);
-          setGcalUserEmail('avaxa.productivity@gmail.com');
-          triggerToast?.('success', 'Kết nối thành công 🟢', 'Đã đồng bộ dữ liệu sự kiện từ Google Calendar.');
-          return 100;
-        }
-        const next = prev + 30;
-        if (next === 40) {
-          setSyncLogs(l => [...l, 'Đã xác thực avaxa.productivity@gmail.com', 'Đang đọc danh sách sự kiện...']);
-        } else if (next === 70) {
-          setSyncLogs(l => [...l, 'Nhận token quyền truy cập.', 'Hoàn tất đồng bộ dòng thời gian...']);
-        }
-        return next;
-      });
-    }, 350);
+          setGcalUserEmail('apexa.productivity@gmail.com');
+          triggerToast?.('success', 'Kết nối Mô phỏng 🟢', 'Đã kết nối tài khoản Google Calendar.');
+        }, 800);
+      }
+    } catch (e: any) {
+      setSyncingGcal(false);
+    }
   };
 
   // Drag and drop handlers
@@ -977,7 +1053,7 @@ export default function CalendarView({
                         </motion.div>
                       ))}
 
-                      {/* Avaxa Tasks */}
+                      {/* Apexa Tasks */}
                       {dayTasks.map(task => {
                         const style = getPriorityStyle(task.priority);
                         return (
@@ -1336,7 +1412,7 @@ export default function CalendarView({
                 <span className={`text-[8.5px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
                   (selectedTask as any).isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                 }`}>
-                  {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Avaxa Task'}
+                  {(selectedTask as any).isGoogleEvent ? 'Google Event' : 'Apexa Task'}
                 </span>
                 <button onClick={() => setSelectedTask(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
