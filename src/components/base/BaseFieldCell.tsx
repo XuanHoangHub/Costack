@@ -75,7 +75,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
         value={String(value ?? '')}
         onChange={e => commit(e.target.value)}
         onBlur={() => setEditing(false)}
-        className="w-full text-xs border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full text-xs border border-indigo-300 dark:border-indigo-800 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
         onClick={e => e.stopPropagation()}
       >
         <option value="">—</option>
@@ -114,7 +114,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
         {member && (
           <SignedImage src={member.avatar} alt={name} className="w-5 h-5 rounded-full object-cover" />
         )}
-        <span className="text-xs font-medium text-slate-700 truncate">{name}</span>
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{name}</span>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
         value={String(value ?? '')}
         onChange={e => commit(e.target.value)}
         onBlur={() => setEditing(false)}
-        className="w-full text-xs border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:outline-none"
+        className="w-full text-xs border border-indigo-300 dark:border-indigo-800 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none"
         onClick={e => e.stopPropagation()}
       >
         <option value="">—</option>
@@ -157,7 +157,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
       ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value))
       : '';
     return (
-      <span onClick={handleClick} className={`text-xs font-medium text-slate-700 ${editable ? 'cursor-pointer' : ''}`}>
+      <span onClick={handleClick} className={`text-xs font-medium text-slate-700 dark:text-slate-300 ${editable ? 'cursor-pointer' : ''}`}>
         {formatted || <span className="text-slate-300">—</span>}
       </span>
     );
@@ -167,7 +167,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
     const pct = Number(value) || 0;
     return (
       <div onClick={handleClick} className={`flex items-center gap-2 ${editable ? 'cursor-pointer' : ''}`}>
-        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[60px]">
+        <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden min-w-[60px]">
           <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
         </div>
         <span className="text-[10px] font-bold text-slate-500 w-8">{pct}%</span>
@@ -194,7 +194,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
         value={String(value ?? '').split('T')[0]}
         onChange={e => commit(e.target.value)}
         onBlur={() => setEditing(false)}
-        className="w-full text-xs border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:outline-none"
+        className="w-full text-xs border border-indigo-300 dark:border-indigo-800 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none"
         onClick={e => e.stopPropagation()}
       />
     );
@@ -209,7 +209,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
         onBlur={() => commit(draft)}
         onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
         rows={2}
-        className="w-full text-xs border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:outline-none resize-none"
+        className="w-full text-xs border border-indigo-300 dark:border-indigo-800 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none resize-none"
         onClick={e => e.stopPropagation()}
       />
     );
@@ -237,7 +237,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
           }
           if (e.key === 'Escape') setEditing(false);
         }}
-        className="w-full text-xs border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        className="w-full text-xs border border-indigo-300 dark:border-indigo-800 rounded-lg px-2 py-1 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
         onClick={e => e.stopPropagation()}
       />
     );
@@ -247,7 +247,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
   return (
     <span
       onClick={handleClick}
-      className={`text-xs text-slate-700 truncate block max-w-full ${editable ? 'cursor-text hover:bg-indigo-50/50 rounded px-1 -mx-1' : ''} ${field.type === 'long_text' ? 'line-clamp-2 whitespace-normal' : ''}`}
+      className={`text-xs text-slate-700 dark:text-slate-300 truncate block max-w-full ${editable ? 'cursor-text hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 rounded px-1 -mx-1' : ''} ${field.type === 'long_text' ? 'line-clamp-2 whitespace-normal' : ''}`}
     >
       {display ?? <span className="text-slate-300">—</span>}
     </span>

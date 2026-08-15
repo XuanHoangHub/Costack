@@ -474,14 +474,14 @@ export default function InboxView({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-black text-slate-900 dark:text-white tracking-tight">ClickUp Inbox 3.0</h1>
+                  <h1 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Hộp thư Apexa 3.0</h1>
                   {inboxStats.unread > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 text-[10px] font-black">
                       {inboxStats.unread} unread
                     </span>
                   )}
                 </div>
-                <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500">Centralized notification & activity stream</p>
+                <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500">Luồng thông báo và hoạt động tập trung</p>
               </div>
             </div>
 
@@ -490,19 +490,19 @@ export default function InboxView({
                 onClick={handleMarkAllRead}
                 disabled={filteredNotifications.length === 0}
                 className="px-2.5 py-1.5 text-[10.5px] font-extrabold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1"
-                title="Mark all as read"
+                title="Đánh dấu tất cả đã đọc"
               >
                 <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="hidden sm:inline">Mark all read</span>
+                <span className="hidden sm:inline">Đánh dấu tất cả đã đọc</span>
               </button>
               <button 
                 onClick={handleClearAllVisible}
                 disabled={filteredNotifications.length === 0}
                 className="px-2.5 py-1.5 text-[10.5px] font-extrabold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1"
-                title="Clear all to archive"
+                title="Chuyển tất cả vào lưu trữ"
               >
                 <Archive className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Clear all</span>
+                <span className="hidden sm:inline">Xóa tất cả</span>
               </button>
             </div>
           </div>
@@ -542,7 +542,7 @@ export default function InboxView({
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <input 
                 type="text" 
-                placeholder="Search notifications, tasks, comments..." 
+                placeholder="Tìm thông báo, công việc, bình luận..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
@@ -559,7 +559,7 @@ export default function InboxView({
                 onChange={(e) => setFilterType(e.target.value)}
                 className="bg-transparent text-xs font-bold outline-none cursor-pointer text-slate-700 dark:text-slate-300 border-none pr-1"
               >
-                <option value="all">All Types</option>
+                <option value="all">Tất cả loại</option>
                 <option value="assignments">Assignments</option>
                 <option value="deadlines">Deadlines</option>
                 <option value="comments">Comments</option>
@@ -572,7 +572,7 @@ export default function InboxView({
         {/* Keyboard Shortcuts Hint Bar */}
         <div className="px-4 py-1.5 bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
           <div className="flex items-center gap-3">
-            <span>Shortcuts: <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">J</kbd> <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">K</kbd> navigate</span>
+            <span>Phím tắt: <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">J</kbd> <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">K</kbd> navigate</span>
             <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">E</kbd> clear</span>
             <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">S</kbd> snooze</span>
           </div>
@@ -591,7 +591,7 @@ export default function InboxView({
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
                   <span className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">
-                    Workspace Invitations ({workspaceInvitations.length})
+                    Lời mời vào không gian ({workspaceInvitations.length})
                   </span>
                 </div>
               </div>
@@ -612,7 +612,7 @@ export default function InboxView({
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-snug">
-                        <strong>{inv.invitedByName || inv.invitedBy || 'Admin'}</strong> invited you to join this workspace as <span className="font-extrabold uppercase text-indigo-600 dark:text-indigo-400">{inv.role}</span>.
+                        <strong>{inv.invitedByName || inv.invitedBy || 'Admin'}</strong> đã mời bạn tham gia không gian với vai trò <span className="font-extrabold uppercase text-indigo-600 dark:text-indigo-400">{inv.role}</span>.
                       </p>
                     </div>
                   </div>
@@ -704,7 +704,7 @@ export default function InboxView({
                     {hasTaskLink && (
                       <span className="text-[8.5px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-extrabold px-2 py-0.5 rounded-md tracking-wider uppercase flex items-center gap-1">
                         <CheckSquare className="w-2.5 h-2.5 text-indigo-500" />
-                        Task Attached
+                        Công việc đính kèm
                       </span>
                     )}
                   </div>
@@ -733,16 +733,16 @@ export default function InboxView({
                     <button 
                       onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === notif.id ? null : notif.id)}
                       className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.snoozedUntil ? 'text-indigo-600' : 'text-slate-400'}`}
-                      title="Snooze notification"
+                      title="Tạm ẩn thông báo"
                     >
                       <Clock className="w-3.5 h-3.5" />
                     </button>
 
                     {showSnoozeDropdownId === notif.id && (
                       <div className="absolute bottom-full right-0 mb-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 z-30 flex flex-col gap-1 text-xs min-w-[110px]">
-                        <button onClick={() => handleSnooze(notif.id, 2)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">In 2 Hours</button>
+                        <button onClick={() => handleSnooze(notif.id, 2)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Sau 2 giờ</button>
                         <button onClick={() => handleSnooze(notif.id, 24)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Tomorrow</button>
-                        <button onClick={() => handleSnooze(notif.id, 168)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Next Week</button>
+                        <button onClick={() => handleSnooze(notif.id, 168)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Tuần tới</button>
                       </div>
                     )}
                   </div>
@@ -751,7 +751,7 @@ export default function InboxView({
                     <button 
                       onClick={() => handleRestore(notif.id)}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Restore to Inbox"
+                      title="Khôi phục vào hộp thư"
                     >
                       <ArchiveRestore className="w-3.5 h-3.5" />
                     </button>
@@ -759,7 +759,7 @@ export default function InboxView({
                     <button 
                       onClick={() => handleClear(notif.id)}
                       className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Clear to Archive"
+                      title="Chuyển vào lưu trữ"
                     >
                       <Check className="w-3.5 h-3.5 text-emerald-500" />
                     </button>
@@ -776,8 +776,8 @@ export default function InboxView({
                 <Check className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">You&apos;re completely caught up!</h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">No pending notifications in this stream.</p>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">Bạn đã xem hết mọi thông báo!</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Không còn thông báo đang chờ trong luồng này.</p>
               </div>
             </div>
           )}
@@ -786,20 +786,20 @@ export default function InboxView({
         {/* Floating Bulk Triage Bar */}
         {selectedNotifIds.length > 0 && (
           <div className="p-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-2xl m-3 flex items-center justify-between shadow-xl">
-            <span className="text-xs font-black px-2">{selectedNotifIds.length} items selected</span>
+            <span className="text-xs font-black px-2">{selectedNotifIds.length} mục đã chọn</span>
             <div className="flex items-center gap-2">
               <button 
                 onClick={handleMarkReadSelected}
                 className="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-100 hover:bg-slate-700 text-xs font-bold transition-colors cursor-pointer"
               >
-                Mark Read
+                Đánh dấu đã đọc
               </button>
               <button 
                 onClick={handleClearSelected}
                 className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Check className="w-3.5 h-3.5" />
-                Clear Selected
+                Xóa mục đã chọn
               </button>
             </div>
           </div>
@@ -818,7 +818,7 @@ export default function InboxView({
               <div className="flex items-center gap-2 min-w-0">
                 <CheckSquare className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
-                  Task Discussion & Activity Context
+                  Thảo luận công việc và ngữ cảnh hoạt động
                 </span>
               </div>
               
@@ -829,7 +829,7 @@ export default function InboxView({
                     className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-xs font-black hover:bg-emerald-100 transition-colors cursor-pointer flex items-center gap-1"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Clear Notification</span>
+                    <span>Xóa thông báo</span>
                   </button>
                 )}
                 <button 
@@ -894,7 +894,7 @@ export default function InboxView({
           <div className="w-full h-full flex flex-col min-h-0 relative">
             <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shrink-0">
               <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                Notification Details
+                Chi tiết thông báo
               </span>
               <div className="flex items-center gap-2">
                 {selectedNotif.cleared ? (
@@ -947,9 +947,9 @@ export default function InboxView({
               <Inbox className="w-7 h-7 text-indigo-500" />
             </div>
             <div className="max-w-xs">
-              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">No Notification Selected</h3>
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Chưa chọn thông báo</h3>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 leading-normal">
-                Click on any notification in the left list to inspect task details, read comments, or reply inline in real-time.
+                Chọn một thông báo ở danh sách bên trái để xem chi tiết công việc, đọc bình luận hoặc phản hồi trực tiếp theo thời gian thực.
               </p>
             </div>
           </div>

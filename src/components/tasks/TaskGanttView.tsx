@@ -427,7 +427,7 @@ export default function TaskGanttView({
           <button 
             onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
             className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer border border-slate-200/80 dark:border-slate-800 transition-all bg-white dark:bg-slate-900 shadow-xs"
-            title={isLeftPanelCollapsed ? "Show Task List Sidebar" : "Hide Task List Sidebar"}
+            title={isLeftPanelCollapsed ? "Hiện thanh danh sách công việc" : "Ẩn thanh danh sách công việc"}
           >
             {isLeftPanelCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
@@ -456,9 +456,9 @@ export default function TaskGanttView({
               onChange={(e) => setGroupBy(e.target.value as GroupByMode)}
               className="bg-transparent border-none outline-none font-bold text-xs cursor-pointer pr-1"
             >
-              <option value="status">Group by Status</option>
-              <option value="priority">Group by Priority</option>
-              <option value="assignee">Group by Assignee</option>
+              <option value="status">Nhóm theo trạng thái</option>
+              <option value="priority">Nhóm theo mức ưu tiên</option>
+              <option value="assignee">Nhóm theo người phụ trách</option>
             </select>
           </div>
         </div>
@@ -476,7 +476,7 @@ export default function TaskGanttView({
             }`}
           >
             <Flame className="w-3.5 h-3.5" />
-            <span>Critical Path</span>
+            <span>Đường găng</span>
           </button>
 
           {/* Auto Cascading Switch */}
@@ -487,10 +487,10 @@ export default function TaskGanttView({
                 ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
                 : 'bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200/80 dark:border-slate-800 opacity-60'
             }`}
-            title="Auto-reschedule dependent tasks when predecessors shift"
+            title="Tự động xếp lại lịch khi công việc tiền nhiệm thay đổi"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>Auto-Schedule</span>
+            <span>Tự động xếp lịch</span>
           </button>
 
           {/* Time Zoom Controls */}
@@ -523,7 +523,7 @@ export default function TaskGanttView({
           {/* Header */}
           <div className="h-[60px] flex items-end justify-between px-4 pb-2.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-900/60">
             <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Tasks ({filteredTasks.length})
+              Công việc ({filteredTasks.length})
             </span>
             <span className="text-[9.5px] font-extrabold text-slate-400 uppercase">Duration</span>
           </div>
@@ -579,7 +579,7 @@ export default function TaskGanttView({
                         />
 
                         {isCritical && (
-                          <span title="Critical Path Task">
+                          <span title="Công việc trên đường găng">
                             <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           </span>
                         )}
@@ -829,7 +829,7 @@ export default function TaskGanttView({
                                 setConnectingSourceTaskId(isConnectingSource ? null : task.id);
                               }}
                               className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white dark:bg-slate-900 border-2 border-indigo-600 opacity-0 group-hover:opacity-100 transition-all cursor-crosshair shadow-md flex items-center justify-center text-indigo-600"
-                              title="Link dependency"
+                              title="Liên kết quan hệ phụ thuộc"
                             >
                               <Link2 className="w-2.5 h-2.5" />
                             </button>
@@ -852,7 +852,7 @@ export default function TaskGanttView({
                             className="absolute top-[8px] left-4 flex items-center gap-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700"
                             style={{ height: ROW_HEIGHT - 16 }}
                           >
-                            <span className="text-xs font-bold text-slate-400 italic">Unscheduled Task</span>
+                            <span className="text-xs font-bold text-slate-400 italic">Công việc chưa xếp lịch</span>
                           </div>
                         )}
                       </div>
@@ -876,12 +876,12 @@ export default function TaskGanttView({
           ))}
           <div className="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-4">
             <Flame className="w-3.5 h-3.5 text-rose-500" />
-            <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase">Critical Path</span>
+            <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase">Đường găng</span>
           </div>
         </div>
 
         <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500">
-          💡 Drag task bar to shift dates · Drag edges to extend duration · Click handle icon to link dependencies
+          💡 Kéo thanh công việc để đổi ngày · Kéo mép để thay đổi thời lượng · Nhấn biểu tượng liên kết để tạo quan hệ phụ thuộc
         </span>
       </div>
 

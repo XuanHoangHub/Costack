@@ -53,11 +53,11 @@ export default function BaseGridView({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 overflow-auto rounded-xl border border-slate-200/80 bg-white/80 shadow-sm">
+      <div className="flex-1 overflow-auto rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm">
         <table className="w-full border-collapse min-w-max">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-slate-50/95 backdrop-blur-sm border-b border-slate-200">
-              <th className="w-10 px-3 py-2.5 border-r border-slate-100">
+            <tr className="bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+              <th className="w-10 px-3 py-2.5 border-r border-slate-100 dark:border-slate-800">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -65,12 +65,12 @@ export default function BaseGridView({
                   className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer"
                 />
               </th>
-              <th className="w-8 px-2 py-2.5 text-[10px] font-black text-slate-400 border-r border-slate-100">#</th>
+              <th className="w-8 px-2 py-2.5 text-[10px] font-black text-slate-400 border-r border-slate-100 dark:border-slate-800">#</th>
               {fields.map(field => (
                 <th
                   key={field.id}
                   onClick={() => toggleSort(field.id)}
-                  className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors border-r border-slate-100 select-none"
+                  className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors border-r border-slate-100 dark:border-slate-800 select-none"
                   style={{ minWidth: field.width || 140 }}
                 >
                   <div className="flex items-center gap-1">
@@ -86,7 +86,7 @@ export default function BaseGridView({
                   type="button"
                   onClick={onAddField}
                   className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                  title="Add field"
+                  title="Thêm trường"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -97,9 +97,9 @@ export default function BaseGridView({
             {sortedRecords.map((record, idx) => (
               <tr
                 key={record.id}
-                className={`group border-b border-slate-100 hover:bg-indigo-50/30 transition-colors ${selectedIds.includes(record.id) ? 'bg-indigo-50/50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}
+                className={`group border-b border-slate-100 dark:border-slate-800 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 transition-colors ${selectedIds.includes(record.id) ? 'bg-indigo-50/50 dark:bg-indigo-950/40' : idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-950/30'}`}
               >
-                <td className="px-3 py-2 border-r border-slate-100">
+                <td className="px-3 py-2 border-r border-slate-100 dark:border-slate-800">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(record.id)}
@@ -109,9 +109,9 @@ export default function BaseGridView({
                     className="w-3.5 h-3.5 rounded accent-indigo-600 cursor-pointer"
                   />
                 </td>
-                <td className="px-2 py-2 text-[10px] font-bold text-slate-400 border-r border-slate-100 text-center">{idx + 1}</td>
+                <td className="px-2 py-2 text-[10px] font-bold text-slate-400 border-r border-slate-100 dark:border-slate-800 text-center">{idx + 1}</td>
                 {fields.map(field => (
-                  <td key={field.id} className="px-3 py-2 border-r border-slate-100 align-middle">
+                  <td key={field.id} className="px-3 py-2 border-r border-slate-100 dark:border-slate-800 align-middle">
                     <BaseFieldCell
                       field={field}
                       value={record.values[field.id]}
@@ -141,8 +141,8 @@ export default function BaseGridView({
 
         {sortedRecords.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <p className="text-sm font-medium">No records yet</p>
-            <p className="text-xs mt-1">Click &quot;Add record&quot; to get started</p>
+            <p className="text-sm font-medium">Chưa có bản ghi</p>
+            <p className="text-xs mt-1">Nhấn &quot;Thêm bản ghi&quot; để bắt đầu</p>
           </div>
         )}
       </div>
@@ -154,7 +154,7 @@ export default function BaseGridView({
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add record
+          Thêm bản ghi
         </button>
         {selectedIds.length > 0 && (
           <button

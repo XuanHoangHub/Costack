@@ -13,6 +13,7 @@ import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Workspace, Space, BaseApp, WorkspaceInvitation } from '@/types';
 import { extractTaskRelationships } from '@/lib/taskRelationships';
+import { resolveAppRole } from '@/lib/authRole';
 
 export function useSupabaseSync() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -91,7 +92,7 @@ export function useSupabaseSync() {
         const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Apexa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
         const myAvatar = currentUser?.avatar || '';
-        const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
+        const myRole = resolveAppRole(session.user);
 
         const { data: dbMembers, error: membersErr } = await supabase
           .from('members')
@@ -244,6 +245,7 @@ export function useSupabaseSync() {
             subtasks: t.subtasks || [],
             progress: t.progress || 0,
             createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+            completedAt: t.completedAt || undefined,
             hoursEstimate: t.hoursEstimate || undefined,
             hoursLogged: t.hoursLogged || undefined,
             commentsCount: t.commentsCount || 0,
@@ -513,6 +515,7 @@ export function useSupabaseSync() {
                   subtasks: t.subtasks || [],
                   progress: t.progress || 0,
                   createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+                  completedAt: t.completedAt || undefined,
                   hoursEstimate: t.hoursEstimate || undefined,
                   hoursLogged: t.hoursLogged || undefined,
                   commentsCount: t.commentsCount || 0,

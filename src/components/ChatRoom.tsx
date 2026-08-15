@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatChannel, User, Space, Priority } from '../types';
 import { supabase } from '../supabaseClient';
@@ -896,7 +896,7 @@ ${channelMessagesText}`;
     return null;
   };
 
-  const ensureDefaultChannels = async () => {
+  const ensureDefaultChannels = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id) return;
@@ -912,7 +912,7 @@ ${channelMessagesText}`;
     } catch (err) {
       console.warn('[ChatRoom] Exception in ensureDefaultChannels:', err);
     }
-  };
+  }, [workspaceId]);
 
   // Initialize channels from the durable workspace chat directory.
   useEffect(() => {
@@ -975,7 +975,7 @@ ${channelMessagesText}`;
     };
     loadChannels();
     return () => { active = false; };
-  }, [workspaceId, initialSelectedChannelId, isOffline]);
+  }, [workspaceId, initialSelectedChannelId, isOffline, ensureDefaultChannels]);
 
   // Channel Actions
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -1427,7 +1427,7 @@ ${channelMessagesText}`;
   };
 
   // Unread count helpers
-  const markChannelAsRead = (channelId: string) => {
+  const markChannelAsRead = useCallback((channelId: string) => {
     const readAt = new Date().toISOString();
     setUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
     setLastReadTimestamps(prev => ({ ...prev, [channelId]: readAt }));
@@ -1445,7 +1445,7 @@ ${channelMessagesText}`;
         });
       });
     }
-  };
+  }, [isOffline]);
 
   const openDirectMessage = async (member: User) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1564,7 +1564,7 @@ ${channelMessagesText}`;
       setShowHeaderMenu(false);
       setActiveChannelMenuId(null);
     }
-  }, [activeChannelId]);
+  }, [activeChannelId, markChannelAsRead]);
 
   useEffect(() => {
     if (isOffline || channels.length === 0) return;
@@ -1591,7 +1591,7 @@ ${channelMessagesText}`;
     };
     loadUnreadCounts();
     return () => { active = false; };
-  }, [channels, isOffline]);
+  }, [channels, isOffline, activeChannelId]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -2157,7 +2157,7 @@ ${channelMessagesText}`;
       const cleanId = m.id.replace(/^user-/, '');
       return dmPart.endsWith(m.id) || (cleanId !== '' && dmPart.endsWith(cleanId));
     });
-  }, [isDm, activeChannelId, members, currentUserId, currentUser.userId, channels]);
+  }, [isDm, activeChannelId, members, currentUserId, currentUser.id, currentUser.userId, channels]);
 
   const isSelfDm = isDm && (
     activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) ||
@@ -2235,14 +2235,14 @@ ${channelMessagesText}`;
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
           {/* Header area */}
           <div className="flex items-center justify-between px-2 py-1 select-none shrink-0">
-            <span className="text-[15px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Chat</span>
+            <span className="text-[15px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Trao đổi</span>
             <button
               onClick={() => {
                 const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
                 setActiveChannelId(selfDmId);
               }}
               className="p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 shadow-xs transition-all cursor-pointer active:scale-95"
-              title="New Chat"
+              title="Cuộc trò chuyện mới"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -2256,7 +2256,7 @@ ${channelMessagesText}`;
                 <div className="flex items-center justify-between px-2 mb-1.5">
                   <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    Starred
+                    Đã ghim
                   </span>
                   <span className="text-[9px] font-extrabold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full font-mono">
                     {starredChannelIds.length}
@@ -2330,13 +2330,13 @@ ${channelMessagesText}`;
                               e.stopPropagation();
                               setActiveChannelMenuId(activeChannelMenuId === c.id ? null : c.id);
                             }}
-                            className="p-1 mr-1.5 rounded-lg text-slate-450 hover:text-indigo-650 hover:bg-slate-100 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
-                            title="Channel options"
+                            className="p-1 mr-1.5 rounded-lg text-slate-450 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
+                            title="Tùy chọn kênh"
                           >
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
                           {activeChannelMenuId === c.id && (
-                            <div className="absolute right-0 top-6 bg-white border border-slate-200/80 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
+                            <div className="absolute right-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2346,7 +2346,7 @@ ${channelMessagesText}`;
                                   setRenameChannelDesc(c.description || '');
                                   setShowRenameModal(true);
                                 }}
-                                className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                               >
                                 <Edit2 className="w-3 h-3 text-slate-450" />
                                 Rename
@@ -2412,7 +2412,7 @@ ${channelMessagesText}`;
             {/* Direct Messages Section */}
             <div>
               <div className="flex items-center justify-between px-2 mb-1.5 mt-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Direct Messages</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Tin nhắn trực tiếp</span>
                 <div className="flex items-center gap-0.5">
                   <button onClick={() => setShowCreateGroupModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Tạo nhóm chat"><Users className="h-3.5 w-3.5" /></button>
                   <button onClick={() => setShowNewDmModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Nhắn tin với thành viên"><Plus className="h-3.5 w-3.5" /></button>
@@ -2432,11 +2432,11 @@ ${channelMessagesText}`;
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
                         isActive 
                           ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
                       <div className="relative shrink-0 flex">
-                        <SignedImage filePath={member.avatar} alt={member.name} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 bg-white animate-fadeIn" />
+                        <SignedImage filePath={member.avatar} alt={member.name} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white dark:bg-slate-800 animate-fadeIn" />
                         <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${presenceDotClass(member.status, true)}`}></span>
                       </div>
                       <span className="truncate flex-1 text-left">{member.name}</span>
@@ -2539,8 +2539,8 @@ ${channelMessagesText}`;
               <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/60 border-2 border-dashed border-indigo-400 dark:border-indigo-500 flex items-center justify-center">
                 <Paperclip className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <span className="text-sm font-black text-indigo-600 dark:text-indigo-300">Drop file here to send</span>
-              <span className="text-[10px] font-bold text-indigo-400 dark:text-indigo-400">Images, documents, audio files…</span>
+              <span className="text-sm font-black text-indigo-600 dark:text-indigo-300">Thả tệp vào đây để gửi</span>
+              <span className="text-[10px] font-bold text-indigo-400 dark:text-indigo-400">Hình ảnh, tài liệu, tệp âm thanh…</span>
             </div>
           </div>
         )}
@@ -2592,7 +2592,7 @@ ${channelMessagesText}`;
                     <button 
                       onClick={() => setShowHeaderMenu(!showHeaderMenu)}
                       className={`text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer transition-colors p-0.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 ${showHeaderMenu ? 'bg-slate-100 dark:bg-slate-800 text-indigo-650 dark:text-indigo-400' : ''}`}
-                      title="Channel options"
+                      title="Tùy chọn kênh"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
                     </button>
@@ -2615,7 +2615,7 @@ ${channelMessagesText}`;
                           className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                         >
                           <Edit2 className="w-3 h-3 text-slate-450" />
-                          Rename Channel
+                          Đổi tên kênh
                         </button>
                         <button
                           onClick={() => {
@@ -2628,7 +2628,7 @@ ${channelMessagesText}`;
                           className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/30 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
                         >
                           <Trash2 className="w-3 h-3 text-rose-450" />
-                          Delete Channel
+                          Xóa kênh
                         </button>
                       </div>
                     )}
@@ -2688,14 +2688,14 @@ ${channelMessagesText}`;
           <div className="px-5 py-2 bg-amber-50/40 border-b border-amber-100/60 flex items-center gap-3 overflow-x-auto shrink-0 select-none scrollbar-none">
             <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider flex items-center gap-1 shrink-0">
               <Pin className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-              Pinned:
+              Đã ghim:
             </span>
             <div className="flex items-center gap-2 overflow-x-auto min-w-0">
               {messages.filter(m => m.isPinned).map(msg => (
                 <div 
                   key={msg.id}
                   onClick={() => handleScrollToMessage(msg.id)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-white border border-amber-200/50 rounded-full text-xs font-bold text-slate-700 cursor-pointer shadow-xs hover:border-amber-300 transition-colors shrink-0 max-w-[200px]"
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-900 border border-amber-200/50 dark:border-amber-800/50 rounded-full text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs hover:border-amber-300 dark:hover:border-amber-700 transition-colors shrink-0 max-w-[200px]"
                 >
                   <span className="truncate flex-1 text-[11px] font-semibold">{msg.content || (msg.attachment ? '[Attachment]' : 'Tin nhắn')}</span>
                   <button 
@@ -2704,7 +2704,7 @@ ${channelMessagesText}`;
                       e.stopPropagation();
                       handleTogglePinMessage(msg.id, true);
                     }}
-                    className="text-slate-400 hover:text-rose-500 p-0.5 rounded-full hover:bg-slate-100 cursor-pointer"
+                    className="text-slate-400 hover:text-rose-500 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -2734,20 +2734,20 @@ ${channelMessagesText}`;
               <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-center mb-4 text-2xl">
                 🧠
               </div>
-              <h2 className="text-[15px] font-black text-slate-800 dark:text-slate-105 mb-1.5">This is your personal space</h2>
+              <h2 className="text-[15px] font-black text-slate-800 dark:text-slate-105 mb-1.5">Đây là không gian cá nhân của bạn</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-semibold">
-                It's just you and your brilliant ideas! Draft messages, set reminders, or store ideas and files for easy access later.
+                Chỉ có bạn và những ý tưởng tuyệt vời! Soạn tin nhắn, đặt lời nhắc hoặc lưu ý tưởng và tệp để dễ dàng truy cập sau này.
               </p>
               <button type="button" className="flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-850 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition-all w-full cursor-pointer shadow-xs">
-                <span>👤</span> View Profile
+                <span>👤</span> Xem hồ sơ
               </button>
               
               {/* Calendar option card */}
               <div className="mt-4 w-full p-4 border border-rose-100 bg-rose-50/20 dark:border-rose-955/40 dark:bg-rose-955/10 rounded-2xl flex items-center gap-3 text-left hover:bg-rose-50/40 dark:hover:bg-rose-955/20 transition-all cursor-pointer">
                 <span className="text-2xl">📅</span>
                 <div className="min-w-0">
-                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-150">View your calendar</span>
-                  <span className="block text-[10px] text-slate-455 dark:text-slate-400 font-medium mt-0.5">Create events or manage your schedule</span>
+                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-150">Xem lịch của bạn</span>
+                  <span className="block text-[10px] text-slate-455 dark:text-slate-400 font-medium mt-0.5">Tạo sự kiện hoặc quản lý lịch trình</span>
                 </div>
               </div>
             </div>
@@ -2773,7 +2773,7 @@ ${channelMessagesText}`;
                 {showDateSep && msgDateLabel && (
                   <div className="flex items-center gap-3 py-3 mb-2">
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                    <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 border border-slate-200/60 rounded-full shadow-sm whitespace-nowrap">
+                    <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-full shadow-sm whitespace-nowrap">
                       {msgDateLabel}
                     </span>
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
@@ -2800,7 +2800,7 @@ ${channelMessagesText}`;
                     className="rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer transition-transform active:scale-95 hover:opacity-85 group/avatar shrink-0"
                     title={`Xem hồ sơ của ${msg.senderName}`}
                   >
-                    <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/50 shrink-0 object-cover" />
+                    <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700 shrink-0 object-cover" />
                   </button>
                 )}
 
@@ -2837,10 +2837,10 @@ ${channelMessagesText}`;
                     )}
                     {msg.isAi && (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[7.5px] font-black bg-indigo-650 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none scale-90 select-none">AI BOT</span>
+                        <span className="text-[7.5px] font-black bg-indigo-650 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wide leading-none scale-90 select-none">TRỢ LÝ AI</span>
                         <button
                           onClick={() => handleToggleSpeech(msg.id, msg.content)}
-                          className="p-1 rounded hover:bg-slate-100 text-slate-450 hover:text-indigo-650 transition-colors cursor-pointer"
+                          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-450 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                           title={playingMsgId === msg.id ? "Mute speech" : "Read message out loud"}
                         >
                           {playingMsgId === msg.id ? <VolumeX className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -2855,7 +2855,7 @@ ${channelMessagesText}`;
                         type="text" 
                         value={editVal}
                         onChange={e => setEditVal(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl border border-indigo-400 text-xs outline-none bg-slate-50"
+                        className="w-full px-3 py-1.5 rounded-xl border border-indigo-400 text-xs outline-none bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100"
                         autoFocus
                         onKeyDown={e => {
                           if (e.key === 'Enter') handleEditMessage(msg.id, editVal);
@@ -2863,7 +2863,7 @@ ${channelMessagesText}`;
                         }}
                       />
                       <div className="flex gap-2 text-[9px] font-bold">
-                        <button onClick={() => handleEditMessage(msg.id, editVal)} className="text-indigo-650 hover:underline cursor-pointer">Save changes</button>
+                        <button onClick={() => handleEditMessage(msg.id, editVal)} className="text-indigo-650 hover:underline cursor-pointer">Lưu thay đổi</button>
                         <button onClick={() => setEditingMsgId(null)} className="text-slate-400 hover:underline cursor-pointer">Cancel</button>
                       </div>
                     </div>
@@ -2911,7 +2911,7 @@ ${channelMessagesText}`;
                                 className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md active:scale-98 cursor-pointer"
                               >
                                 <Video className="w-3.5 h-3.5" />
-                                Tham gia ngay (Join Meeting)
+                                Tham gia ngay
                               </a>
                             </div>
                           ) : (
@@ -2992,7 +2992,7 @@ ${channelMessagesText}`;
                         <button 
                           key={rIdx}
                           onClick={() => handleAddReaction(msg.id, react.emoji)}
-                          className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-[10px] flex items-center gap-1 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+                          className="px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[10px] flex items-center gap-1 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none"
                         >
                           <span>{react.emoji}</span>
                           <span className="font-bold text-slate-500 font-mono text-[9px]">{react.count}</span>
@@ -3053,7 +3053,7 @@ ${channelMessagesText}`;
                   <button 
                     onClick={() => handleOpenThread(msg)}
                     className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors"
-                    title="Reply in Thread"
+                    title="Phản hồi trong luồng"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                   </button>
@@ -3075,7 +3075,7 @@ ${channelMessagesText}`;
                   <button 
                     onClick={() => setForwardingMessage(msg)}
                     className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                    title="Forward message"
+                    title="Chuyển tiếp tin nhắn"
                   >
                     <Forward className="w-3.5 h-3.5" />
                   </button>
@@ -3097,14 +3097,14 @@ ${channelMessagesText}`;
                       <button 
                         onClick={() => { setEditingMsgId(msg.id); setEditVal(msg.content); }}
                         className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                        title="Edit Message"
+                        title="Sửa tin nhắn"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         onClick={() => handleDeleteMessage(msg.id)}
                         className="p-1 hover:bg-rose-50 rounded-md cursor-pointer text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Delete message"
+                        title="Xóa tin nhắn"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -3124,8 +3124,8 @@ ${channelMessagesText}`;
                 <Bot className="w-4.5 h-4.5 animate-spin" />
               </div>
               <div className="space-y-1 text-left">
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Apexa Brain AI</span>
-                <div className="flex gap-1.5 p-3 rounded-2xl bg-slate-50 border border-slate-100 max-w-sm">
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider">AI Apexa Brain</span>
+                <div className="flex gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 max-w-sm">
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -3632,7 +3632,7 @@ ${channelMessagesText}`;
                         <div className="absolute right-0 bottom-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
                           <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Apexa AI Writer</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Apexa</span>
                           </div>
                           <button type="button" onClick={() => handleAiEnhanceInput('expand')} className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2">
                             🪄 Viết tiếp & Mở rộng ý
@@ -3717,23 +3717,23 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left overflow-hidden relative"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden relative"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chat Details</span>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chi tiết cuộc trò chuyện</span>
                 <button onClick={() => setShowMemberDrawer(false)} className="p-0.5 rounded-md hover:bg-slate-150 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </div>
 
               {/* Tab selectors */}
-              <div className="flex bg-slate-100 p-0.5 rounded-xl text-[10px] font-black tracking-wide uppercase shrink-0">
+              <div className="flex bg-slate-100 dark:bg-slate-900 p-0.5 rounded-xl text-[10px] font-black tracking-wide uppercase shrink-0">
                 {(['members', 'search', 'files'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveSidebarTab(tab)}
                     className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
                       activeSidebarTab === tab 
-                        ? 'bg-white text-slate-800 shadow-sm' 
+                        ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm' 
                         : 'text-slate-405 hover:text-slate-650'
                     }`}
                   >
@@ -3754,7 +3754,7 @@ ${channelMessagesText}`;
                         title={`Xem hồ sơ của ${m.name}`}
                       >
                         <div className="relative shrink-0 flex">
-                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 object-cover bg-white animate-fadeIn group-hover/m:scale-105 transition-transform" />
+                          <SignedImage filePath={m.avatar} alt={m.name} className="w-6.5 h-6.5 rounded-full border border-slate-200/50 dark:border-slate-700 object-cover bg-white dark:bg-slate-800 animate-fadeIn group-hover/m:scale-105 transition-transform" />
                           <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${presenceDotClass(m.status, true)}`} />
                         </div>
                         <div className="min-w-0 leading-none">
@@ -3774,7 +3774,7 @@ ${channelMessagesText}`;
                         value={localSearchQuery}
                         onChange={e => setLocalSearchQuery(e.target.value)}
                         placeholder="Tìm tin nhắn..."
-                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200/60 outline-none text-[11px] font-medium placeholder-slate-400 focus:border-indigo-500 transition-colors"
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700 outline-none text-[11px] font-medium text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:border-indigo-500 transition-colors"
                       />
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     </div>
@@ -3782,12 +3782,12 @@ ${channelMessagesText}`;
                     <div className="space-y-2.5">
                       {localSearchQuery.trim() ? (
                         messages.filter(m => m.content.toLowerCase().includes(localSearchQuery.toLowerCase())).map(m => (
-                          <div key={m.id} className="p-2 rounded-xl bg-white border border-slate-150 text-[10.5px] text-left hover:border-indigo-250 transition-colors">
+                          <div key={m.id} className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 text-[10.5px] text-left hover:border-indigo-250 dark:hover:border-indigo-800 transition-colors">
                             <div className="flex justify-between font-bold text-slate-550 text-[9px] mb-1">
                               <span>{m.senderName}</span>
                               <span>{m.timestamp}</span>
                             </div>
-                            <p className="text-slate-700 font-semibold break-words leading-normal">{m.content}</p>
+                            <p className="text-slate-700 dark:text-slate-300 font-semibold break-words leading-normal">{m.content}</p>
                           </div>
                         ))
                       ) : (
@@ -3802,20 +3802,20 @@ ${channelMessagesText}`;
                     {messages.filter(m => m.attachment).map(m => {
                       const file = m.attachment!;
                       return (
-                        <div key={m.id} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-150 text-left hover:border-indigo-255 transition-colors">
+                        <div key={m.id} className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 text-left hover:border-indigo-255 dark:hover:border-indigo-800 transition-colors">
                           {file.isVoice ? (
                             <div className="p-2 rounded-lg bg-rose-50 text-rose-600 shrink-0">
                               <Mic className="w-4 h-4" />
                             </div>
                           ) : file.isImage ? (
-                            <SignedImage filePath={file.filePath} alt={file.name} bucket="chat-attachments" className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-slate-50 shrink-0" />
+                            <SignedImage filePath={file.filePath} alt={file.name} bucket="chat-attachments" className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 shrink-0" />
                           ) : (
                             <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
                               <Globe className="w-4 h-4" />
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <span className="block text-[10px] font-bold text-slate-700 truncate">{file.name}</span>
+                            <span className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">{file.name}</span>
                             <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono mt-0.5">
                               {file.isVoice ? 'Audio Voice' : file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'File'}
                             </span>
@@ -3825,7 +3825,7 @@ ${channelMessagesText}`;
                             download={file.name}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer shrink-0"
+                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
                           >
                             <ArrowRight className="w-3.5 h-3.5" />
                           </a>
@@ -3850,11 +3850,11 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 bg-slate-50/50 flex flex-col justify-between shrink-0 text-left overflow-hidden relative h-full"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden relative h-full"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Thread Discussion</span>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Thảo luận theo luồng</span>
                 <button onClick={() => setActiveThreadMessage(null)} className="p-0.5 rounded-md hover:bg-slate-150 text-slate-400 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
               </div>
 
@@ -3872,7 +3872,7 @@ ${channelMessagesText}`;
                   </button>
                   <span className="text-[9px] text-slate-400 ml-auto font-medium">{activeThreadMessage.timestamp}</span>
                 </div>
-                <div className="text-xs text-slate-700 leading-normal font-medium break-words">
+                <div className="text-xs text-slate-700 dark:text-slate-200 leading-normal font-medium break-words">
                   {formatMessageContent(activeThreadMessage.content)}
                 </div>
               </div>
@@ -3908,7 +3908,7 @@ ${channelMessagesText}`;
                   </div>
                 ))}
                 {messages.filter(m => m.parentId === activeThreadMessage.id).length === 0 && (
-                  <p className="text-[10px] text-slate-400 font-bold text-center py-8">No replies yet. Start the thread conversation!</p>
+                  <p className="text-[10px] text-slate-400 font-bold text-center py-8">Chưa có phản hồi. Hãy bắt đầu cuộc thảo luận!</p>
                 )}
               </div>
 
@@ -3918,8 +3918,8 @@ ${channelMessagesText}`;
                   type="text"
                   value={threadInputVal}
                   onChange={e => setThreadInputVal(e.target.value)}
-                  placeholder="Reply in thread..."
-                  className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200/60 focus:border-indigo-500 outline-none text-xs font-semibold placeholder-slate-400"
+                  placeholder="Phản hồi trong luồng..."
+                  className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400"
                 />
                 <button 
                   type="submit"
@@ -3939,16 +3939,16 @@ ${channelMessagesText}`;
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+            className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                 <Hash className="w-4.5 h-4.5 text-indigo-500" />
-                Create New Channel
+                Tạo kênh mới
               </h3>
               <button 
                 onClick={() => setShowCreateChannelModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3956,14 +3956,14 @@ ${channelMessagesText}`;
 
             <form onSubmit={handleCreateChannel} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tên kênh</label>
                 <input 
                   type="text" 
                   required 
                   value={newChannelName}
                   onChange={e => setNewChannelName(e.target.value)}
-                  placeholder="e.g. marketing, customer-support" 
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold"
+                  placeholder="Ví dụ: marketing, ho-tro-khach-hang" 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold"
                 />
               </div>
 
@@ -3972,8 +3972,8 @@ ${channelMessagesText}`;
                 <textarea 
                   value={newChannelDesc}
                   onChange={e => setNewChannelDesc(e.target.value)}
-                  placeholder="Briefly describe what this channel is for..." 
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold h-20 resize-none"
+                  placeholder="Mô tả ngắn mục đích của kênh..." 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold h-20 resize-none"
                 />
               </div>
 
@@ -3985,7 +3985,7 @@ ${channelMessagesText}`;
                       key={type}
                       type="button"
                       onClick={() => setNewChannelType(type)}
-                      className={`rounded-xl border px-3 py-2 text-left transition-colors ${newChannelType === type ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                      className={`rounded-xl border px-3 py-2 text-left transition-colors ${newChannelType === type ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                     >
                       <span className="block text-[11px] font-black">{type === 'public' ? 'Công khai' : 'Riêng tư'}</span>
                       <span className="block text-[9px] font-semibold mt-0.5">{type === 'public' ? 'Mọi thành viên workspace' : 'Chỉ thành viên được thêm'}</span>
@@ -3998,7 +3998,7 @@ ${channelMessagesText}`;
                 <button 
                   type="button"
                   onClick={() => setShowCreateChannelModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -4021,16 +4021,16 @@ ${channelMessagesText}`;
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+            className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                 <Edit2 className="w-4.5 h-4.5 text-indigo-500" />
-                Rename Channel
+                Đổi tên kênh
               </h3>
               <button 
                 onClick={() => setShowRenameModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4038,14 +4038,14 @@ ${channelMessagesText}`;
 
             <form onSubmit={handleRenameChannel} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Channel Name</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tên kênh</label>
                 <input 
                   type="text" 
                   required 
                   value={renameChannelName}
                   onChange={e => setRenameChannelName(e.target.value)}
-                  placeholder="e.g. marketing-updates" 
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold"
+                  placeholder="Ví dụ: cap-nhat-marketing" 
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold"
                 />
               </div>
 
@@ -4055,7 +4055,7 @@ ${channelMessagesText}`;
                   value={renameChannelDesc}
                   onChange={e => setRenameChannelDesc(e.target.value)}
                   placeholder="Briefly describe what this channel is for..." 
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-white focus:border-indigo-500 font-semibold h-20 resize-none"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold h-20 resize-none"
                 />
               </div>
 
@@ -4063,7 +4063,7 @@ ${channelMessagesText}`;
                 <button 
                   type="button"
                   onClick={() => setShowRenameModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -4072,7 +4072,7 @@ ${channelMessagesText}`;
                   className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                 >
-                  Save Changes
+                  Lưu thay đổi
                 </button>
               </div>
             </form>
@@ -4086,33 +4086,33 @@ ${channelMessagesText}`;
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
+            className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-left"
           >
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                 <Forward className="w-4.5 h-4.5 text-blue-500" />
-                Forward Message
+                Chuyển tiếp tin nhắn
               </h3>
               <button 
                 onClick={() => setForwardingMessage(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Preview of forwarded message */}
-            <div className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl text-left">
+            <div className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-xl text-left">
               <div className="flex items-center gap-1.5 mb-1">
                 <SignedImage filePath={forwardingMessage.senderAvatar} alt={forwardingMessage.senderName} className="w-4 h-4 rounded-full" />
-                <span className="text-[10px] font-black text-slate-700">{forwardingMessage.senderName}</span>
+                <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">{forwardingMessage.senderName}</span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold line-clamp-3">{forwardingMessage.content}</p>
             </div>
 
             {/* Channel select list */}
             <div className="space-y-1 max-h-[200px] overflow-y-auto">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Select channel</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Chọn kênh</span>
               {channels.filter(c => c.id !== activeChannelId).map(c => (
                 <button
                   key={c.id}
@@ -4120,7 +4120,7 @@ ${channelMessagesText}`;
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer text-left"
                 >
                   <Hash className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-[11px] font-bold text-slate-700">{c.name}</span>
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{c.name}</span>
                   <ArrowRight className="w-3 h-3 ml-auto text-slate-300" />
                 </button>
               ))}
@@ -4142,7 +4142,7 @@ ${channelMessagesText}`;
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                   <CheckSquare className="w-4.5 h-4.5 text-indigo-500" />
-                  Convert Message to Task
+                  Chuyển tin nhắn thành công việc
                 </h3>
                 <button 
                   onClick={() => setConvertTaskMessage(null)}
@@ -4160,20 +4160,20 @@ ${channelMessagesText}`;
 
               {/* Task Title Form */}
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Task Title</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tiêu đề công việc</label>
                 <input 
                   type="text" 
                   value={convertTaskTitle} 
                   onChange={e => setConvertTaskTitle(e.target.value)}
                   className="w-full text-xs font-semibold text-slate-805 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition-colors" 
-                  placeholder="Task title"
+                  placeholder="Tiêu đề công việc"
                 />
               </div>
 
               {/* Space & List selectors */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target Space</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Khu vực đích</label>
                   <select 
                     value={convertTaskSpaceId}
                     onChange={e => {
@@ -4189,7 +4189,7 @@ ${channelMessagesText}`;
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target List</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Danh sách đích</label>
                   <select 
                     value={convertTaskListId}
                     onChange={e => setConvertTaskListId(e.target.value)}
@@ -4197,7 +4197,7 @@ ${channelMessagesText}`;
                   >
                     {spaces.find(s => s.id === convertTaskSpaceId)?.lists?.map(l => (
                       <option key={l.id} value={l.id}>{l.name}</option>
-                    )) || <option value="">— No lists —</option>}
+                    )) || <option value="">— Chưa có danh sách —</option>}
                   </select>
                 </div>
               </div>
@@ -4224,7 +4224,7 @@ ${channelMessagesText}`;
                     onChange={e => setConvertTaskAssigneeId(e.target.value)}
                     className="w-full text-xs font-semibold text-slate-705 dark:text-slate-350 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-2 outline-none cursor-pointer"
                   >
-                    <option value="">— Unassigned —</option>
+                    <option value="">— Chưa giao —</option>
                     {members.map(m => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
@@ -4483,7 +4483,7 @@ ${channelMessagesText}`;
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="relative shrink-0">
-                            <SignedImage filePath={member.avatar} alt={member.name} className="w-8 h-8 rounded-full border border-slate-200/50 bg-white" />
+                            <SignedImage filePath={member.avatar} alt={member.name} className="w-8 h-8 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white dark:bg-slate-800" />
                             <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(member.status, true)}`}></span>
                           </div>
                           <div className="min-w-0 text-left">
@@ -4837,7 +4837,7 @@ ${channelMessagesText}`;
                   </label>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Webhook Integration URL</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">URL tích hợp webhook</label>
                     <input 
                       type="url"
                       value={webhookUrl}

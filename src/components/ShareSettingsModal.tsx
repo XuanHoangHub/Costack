@@ -125,7 +125,7 @@ export default function ShareSettingsModal({
 
         {/* 1. Privacy Toggle */}
         <div className="space-y-2">
-          <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Privacy Level</span>
+          <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Mức độ riêng tư</span>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -216,12 +216,12 @@ export default function ShareSettingsModal({
                   <div className="flex items-center gap-2.5 min-w-0">
                       <SignedImage 
                         filePath={currentUser?.avatar} 
-                        className="w-7 h-7 rounded-full border border-slate-200 object-cover" 
-                        alt={currentUser?.name || "Owner"} 
+                        className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
+                        alt={currentUser?.name || "Chủ sở hữu"} 
                       />
                     <div className="text-left min-w-0">
                       <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">
-                        {currentUser?.name || "Workspace Owner"}
+                        {currentUser?.name || "Chủ sở hữu không gian"}
                       </span>
                       <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold block truncate">
                         Chủ sở hữu
@@ -229,7 +229,7 @@ export default function ShareSettingsModal({
                     </div>
                   </div>
                   <span className="px-2 py-0.5 text-[8.5px] font-black uppercase rounded-lg bg-indigo-50 dark:bg-indigo-955/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100/10 shrink-0">
-                    Owner (Editor)
+                    Chủ sở hữu (Biên tập)
                   </span>
                 </div>
 
@@ -282,7 +282,7 @@ export default function ShareSettingsModal({
                             type="button"
                             onClick={() => handleRemoveMember(userId)}
                             className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg transition-colors cursor-pointer"
-                            title="Remove access"
+                            title="Thu hồi quyền truy cập"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

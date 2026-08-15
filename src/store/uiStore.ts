@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { NotificationSettings } from '@/types';
-import { applyAppTheme } from '@/lib/theme';
+import { applyThemePreference, getStoredThemePreference, type ThemePreference } from '@/lib/theme';
 
 interface UiState {
   activeTab: string;
@@ -22,6 +22,7 @@ interface UiState {
   accentPreset: 'indigo' | 'ocean' | 'forest' | 'sunset';
   soundEnabled: boolean;
   isDarkMode: boolean;
+  themePreference: ThemePreference;
   dateFormat: 'short' | 'full' | 'vi' | 'numeric' | 'clock';
   uiDensity: 'comfortable' | 'compact';
   notificationSettings: NotificationSettings;
@@ -87,6 +88,7 @@ interface UiState {
   setAccentPreset: (preset: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
   setSoundEnabled: (enabled: boolean) => void;
   setIsDarkMode: (isDarkMode: boolean) => void;
+  setThemePreference: (preference: ThemePreference) => void;
   setDateFormat: (format: 'short' | 'full' | 'vi' | 'numeric' | 'clock') => void;
   setUiDensity: (density: 'comfortable' | 'compact') => void;
   setNotificationSettings: (settings: NotificationSettings | ((prev: NotificationSettings) => NotificationSettings)) => void;
@@ -141,6 +143,7 @@ export const useUiStore = create<UiState>()(
       userStatus: 'online',
       blurIntensity: 'default',
       isDarkMode: false,
+      themePreference: 'system',
       accentPreset: 'indigo',
       dateFormat: 'short',
       uiDensity: 'comfortable',
@@ -210,8 +213,13 @@ export const useUiStore = create<UiState>()(
       setAccentPreset: (accentPreset) => set({ accentPreset }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
       setIsDarkMode: (isDarkMode) => {
-        applyAppTheme(isDarkMode);
-        set({ isDarkMode });
+        const themePreference: ThemePreference = isDarkMode ? 'dark' : 'light';
+        applyThemePreference(themePreference);
+        set({ isDarkMode, themePreference });
+      },
+      setThemePreference: (themePreference) => {
+        const isDarkMode = applyThemePreference(themePreference);
+        set({ themePreference, isDarkMode });
       },
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setUiDensity: (uiDensity) => set({ uiDensity }),
@@ -250,6 +258,21 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'apexa_ui',
+      version: 2,
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<UiState>;
+        return {
+          ...state,
+          themePreference: getStoredThemePreference(),
+        } as UiState;
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const themePreference = getStoredThemePreference();
+        const isDarkMode = applyThemePreference(themePreference, false, false);
+        state.themePreference = themePreference;
+        state.isDarkMode = isDarkMode;
+      },
     }
   )
 );

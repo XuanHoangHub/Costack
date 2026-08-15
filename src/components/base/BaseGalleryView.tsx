@@ -36,7 +36,7 @@ export default function BaseGalleryView({ table, records, members, onAddRecord }
         {records.map((record, idx) => (
           <div
             key={record.id}
-            className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all group"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group"
           >
             <div
               className="h-24 flex items-end p-3"
@@ -62,10 +62,10 @@ export default function BaseGalleryView({ table, records, members, onAddRecord }
         <button
           type="button"
           onClick={handleAdd}
-          className="rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 flex flex-col items-center justify-center gap-2 min-h-[180px] text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
+          className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 flex flex-col items-center justify-center gap-2 min-h-[180px] text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
         >
           <Plus className="w-6 h-6" />
-          <span className="text-xs font-bold">Add item</span>
+          <span className="text-xs font-bold">Thêm mục</span>
         </button>
       </div>
     </div>

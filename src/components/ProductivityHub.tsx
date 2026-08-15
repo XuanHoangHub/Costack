@@ -836,8 +836,8 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
           {/* Productivity Metrics Summary cards */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
             <div className="space-y-0.5 pb-2">
-              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">Today's Performance & Stats</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Distribution of productivity metrics and achievements progress</p>
+              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">Hiệu suất và thống kê hôm nay</h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Tổng quan các chỉ số năng suất và tiến độ thành tích</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 flex-1">
@@ -847,37 +847,37 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                   <span className="text-2xl font-black font-mono text-emerald-500">
                     {tasks.filter(t => t.status === 'completed').length} / {tasks.length}
                   </span>
-                  <p className="text-[10px] text-slate-400">total tasks</p>
+                  <p className="text-[10px] text-slate-400">tổng số công việc</p>
                 </div>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
-                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Logged Hours</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Giờ đã ghi nhận</span>
                 <div className="mt-2 space-y-1">
                   <span className="text-2xl font-black font-mono text-purple-500">
                     {tasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0)}h
                   </span>
-                  <p className="text-[10px] text-slate-400">total logged hours</p>
+                  <p className="text-[10px] text-slate-400">tổng số giờ đã ghi nhận</p>
                 </div>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
-                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Weekly Habits</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Thói quen hằng tuần</span>
                 <div className="mt-2 space-y-1">
                   <span className="text-2xl font-black font-mono text-orange-500">
                     {habits.reduce((sum, h) => sum + Object.keys(h.history).length, 0)}
                   </span>
-                  <p className="text-[10px] text-slate-400">positive check-ins</p>
+                  <p className="text-[10px] text-slate-400">lần duy trì tích cực</p>
                 </div>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
-                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Longest Streak ⚡</span>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-555 uppercase">Chuỗi dài nhất ⚡</span>
                 <div className="mt-2 space-y-1">
                   <span className="text-2xl font-black font-mono text-yellow-500">
                     {Math.max(...habits.map(h => h.streak), 0)} days
                   </span>
-                  <p className="text-[10px] text-slate-400">consecutive days streak</p>
+                  <p className="text-[10px] text-slate-400">ngày liên tiếp</p>
                 </div>
               </div>
             </div>
@@ -890,17 +890,17 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             <div className="space-y-0.5">
               <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 font-sans tracking-tight">
                 <Award className="w-5 h-5 text-amber-500 fill-amber-500/10" />
-                Achievements & Medals Hub
+                Trung tâm thành tích và huy chương
               </h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed max-w-xl">
-                Continuous performance challenge. Complete tasks and focus sessions to unlock prestigious trophies. Every step of your journey is tracked!
+                Thử thách hiệu suất liên tục. Hoàn thành công việc và phiên tập trung để mở khóa các danh hiệu. Mọi bước tiến của bạn đều được ghi nhận!
               </p>
             </div>
 
             {/* Achievement Rate */}
             <div className="flex flex-col items-end shrink-0 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-100 dark:border-slate-900">
               <span className="text-[11px] font-mono font-black text-indigo-600 dark:text-indigo-400">
-                Progress: {unlockedBadgesCount}/{totalBadges} badges ({badgeProgressPercent}%)
+                Tiến độ: {unlockedBadgesCount}/{totalBadges} huy hiệu ({badgeProgressPercent}%)
               </span>
               <div className="w-32 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 mt-1 overflow-hidden">
                 <div 
@@ -1087,18 +1087,18 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             {/* Box 1: Urgent & Important */}
             <div className="bg-rose-50/40 dark:bg-rose-950/15 border border-rose-100 dark:border-rose-900/50 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-rose-200/40 dark:border-rose-900/40 pb-2">
-                <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">🚨 Do First (Urgent & Important)</span>
+                <span className="text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">🚨 Làm trước (Khẩn cấp và quan trọng)</span>
                 <span className="text-[10px] font-mono bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded-full text-rose-600 dark:text-rose-400">{matrix.urgentImportant.length} tasks</span>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                 {matrix.urgentImportant.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">Great! No urgent and important tasks left.</p>
+                  <p className="text-[10px] text-slate-400 italic">Tuyệt vời! Không còn công việc khẩn cấp và quan trọng.</p>
                 ) : (
                   matrix.urgentImportant.map(t => (
                     <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-rose-100/40 dark:border-slate-800 flex items-center gap-2">
                       <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
                       <span className="truncate text-slate-700 dark:text-slate-300 flex-1">{t.title}</span>
-                      {t.dueDate && <span className="text-[9px] font-mono text-rose-500">Due: {t.dueDate}</span>}
+                      {t.dueDate && <span className="text-[9px] font-mono text-rose-500">Hạn: {t.dueDate}</span>}
                     </div>
                   ))
                 )}
@@ -1108,12 +1108,12 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             {/* Box 2: Important but Not Urgent */}
             <div className="bg-indigo-50/40 dark:bg-indigo-950/15 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-indigo-200/40 dark:border-indigo-900/40 pb-2">
-                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">📅 Schedule (Important, Not Urgent)</span>
+                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">📅 Lên lịch (Quan trọng, không khẩn cấp)</span>
                 <span className="text-[10px] font-mono bg-indigo-100 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full text-indigo-600 dark:text-indigo-400">{matrix.importantNotUrgent.length} tasks</span>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                 {matrix.importantNotUrgent.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">No tasks in this category.</p>
+                  <p className="text-[10px] text-slate-400 italic">Không có công việc trong nhóm này.</p>
                 ) : (
                   matrix.importantNotUrgent.map(t => (
                     <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-indigo-100/40 dark:border-slate-800 flex items-center gap-2">
@@ -1128,12 +1128,12 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             {/* Box 3: Urgent but Not Important */}
             <div className="bg-amber-50/40 dark:bg-amber-950/15 border border-amber-105 dark:border-amber-900/50 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-amber-200/40 dark:border-amber-900/40 pb-2">
-                <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">⚡ Delegate (Urgent, Not Important)</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">⚡ Giao việc (Khẩn cấp, không quan trọng)</span>
                 <span className="text-[10px] font-mono bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full text-amber-600 dark:text-amber-400">{matrix.urgentNotImportant.length} tasks</span>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                 {matrix.urgentNotImportant.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">No minor tasks in this category.</p>
+                  <p className="text-[10px] text-slate-400 italic">Không có công việc phụ trong nhóm này.</p>
                 ) : (
                   matrix.urgentNotImportant.map(t => (
                     <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-amber-100/40 dark:border-slate-800 flex items-center gap-2">
@@ -1148,12 +1148,12 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             {/* Box 4: Neither (Eliminate / Delay) */}
             <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800 rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200/40 dark:border-slate-800/40 pb-2">
-                <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">🗑️ Eliminate (Neither)</span>
+                <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">🗑️ Loại bỏ (Không thuộc hai nhóm trên)</span>
                 <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-400">{matrix.neither.length} tasks</span>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
                 {matrix.neither.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic">No redundant or delayed tasks.</p>
+                  <p className="text-[10px] text-slate-400 italic">Không có công việc dư thừa hoặc trì hoãn.</p>
                 ) : (
                   matrix.neither.map(t => (
                     <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-slate-200/40 dark:border-slate-800 flex items-center gap-2">
@@ -1277,10 +1277,10 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
           <div className="space-y-0.5">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Volume2 className="w-4 h-4 text-indigo-500" />
-              Ambient Focus Soundscapes
+              Âm thanh nền giúp tập trung
             </h2>
             <p className="text-[11px] text-slate-400 dark:text-slate-500 font-sans">
-              Nature & brainwave audio generator synthesized using Web Audio technology offline.
+              Âm thanh thiên nhiên và sóng não được tổng hợp ngoại tuyến bằng công nghệ Web Audio.
             </p>
           </div>
 
@@ -1294,7 +1294,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
               }`}
             >
               <div className="p-1.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-500">🌧️</div>
-              <span className="font-bold">Heavy Rain</span>
+              <span className="font-bold">Mưa lớn</span>
             </button>
 
             <button 
@@ -1306,7 +1306,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
               }`}
             >
               <div className="p-1.5 rounded-full bg-violet-100 dark:bg-violet-950/60 text-violet-500">🧘</div>
-              <span className="font-bold">Alpha Waves</span>
+              <span className="font-bold">Sóng Alpha</span>
             </button>
 
             <button 
@@ -1318,7 +1318,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
               }`}
             >
               <div className="p-1.5 rounded-full bg-cyan-100 dark:bg-cyan-950/60 text-cyan-500">🌊</div>
-              <span className="font-bold">Ocean Waves</span>
+              <span className="font-bold">Sóng biển</span>
             </button>
 
             <button 
@@ -1329,7 +1329,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
               <div className="p-1.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-500">
                 <VolumeX className="w-4 h-4" />
               </div>
-              <span className="font-bold">Mute Sounds</span>
+              <span className="font-bold">Tắt âm thanh</span>
             </button>
           </div>
         </div>
@@ -1340,13 +1340,13 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-teal-600 dark:text-teal-400 flex items-center gap-1">
                 <Sparkles className="w-4 h-4 fill-teal-500 text-teal-500" />
-                KEY PRODUCTIVITY INSIGHTS
+                PHÂN TÍCH NĂNG SUẤT NỔI BẬT
               </span>
               <button 
                 onClick={() => setReportText('')}
                 className="text-[10px] text-slate-400 hover:text-slate-500 transition-colors cursor-pointer"
               >
-                Close report
+                Đóng báo cáo
               </button>
             </div>
             

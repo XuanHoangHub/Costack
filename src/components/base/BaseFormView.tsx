@@ -50,10 +50,10 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
 
   return (
     <div className="max-w-xl mx-auto py-6 px-4">
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-          <h2 className="text-lg font-black text-slate-800">{table.name} — Form</h2>
-          <p className="text-xs text-slate-500 mt-1">Fill in the details below to add a new record</p>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40">
+          <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">{table.name} — Biểu mẫu</h2>
+          <p className="text-xs text-slate-500 mt-1">Điền thông tin bên dưới để thêm bản ghi mới</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -63,7 +63,7 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
                 {field.name}
                 {field.id === table.primaryFieldId && <span className="text-rose-400 ml-1">*</span>}
               </label>
-              <div className="bg-slate-50/50 rounded-xl border border-slate-200/60 px-3 py-2.5">
+              <div className="bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-200/60 dark:border-slate-800 px-3 py-2.5">
                 <BaseFieldCell
                   field={field}
                   value={draft[field.id]}
@@ -82,7 +82,7 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
             style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}
           >
             {submitted ? (
-              <><Check className="w-4 h-4" /> Submitted!</>
+              <><Check className="w-4 h-4" /> Đã gửi!</>
             ) : (
               <><Send className="w-4 h-4" /> Submit</>
             )}

@@ -23,6 +23,36 @@ export const DEFAULT_PRIORITIES: OptionConfig[] = [
   { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
 ];
 
+const VI_STANDARD_OPTION_LABELS: Record<string, string> = {
+  todo: 'Cần làm',
+  inprogress: 'Đang thực hiện',
+  review: 'Chờ duyệt',
+  completed: 'Hoàn thành',
+  urgent: 'Khẩn cấp',
+  high: 'Cao',
+  medium: 'Trung bình',
+  low: 'Thấp',
+};
+
+const STANDARD_LABEL_ALIASES: Record<string, string[]> = {
+  todo: ['to do', 'todo'],
+  inprogress: ['in progress', 'inprogress'],
+  review: ['review', 'under review'],
+  completed: ['done', 'complete', 'completed'],
+  urgent: ['urgent'],
+  high: ['high'],
+  medium: ['medium', 'normal'],
+  low: ['low'],
+};
+
+export function getLocalizedOptionLabel(id: string, label: string, locale: string) {
+  if (locale !== 'vi') return label;
+  const normalizedLabel = label.trim().toLowerCase();
+  return STANDARD_LABEL_ALIASES[id]?.includes(normalizedLabel)
+    ? VI_STANDARD_OPTION_LABELS[id] || label
+    : label;
+}
+
 export const DEFAULT_COLUMN_NAMES: Record<string, string> = {
   title: 'Task',
   status: 'Status',
@@ -202,4 +232,3 @@ export function formatCustomDate(dateValue: string, format: DateFormatOption): s
   
   return timePart ? `${formatted}, ${timePart}` : formatted;
 }
-

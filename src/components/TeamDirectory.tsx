@@ -132,11 +132,20 @@ export default function TeamDirectory({
     setHierarchyLoading(true);
     setHierarchyError('');
     try {
-      const [departmentsResult, teamsResult, membershipsResult, sessionResult] = await Promise.all([
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setDbDepts([]);
+        setDbTeams([]);
+        setDbTeamMembers([]);
+        setMembershipRoles({});
+        setWorkspaceRole(activeWorkspace?.membershipRole || null);
+        return;
+      }
+
+      const [departmentsResult, teamsResult, membershipsResult] = await Promise.all([
         supabase.from('departments').select('id,name,description,parent_id,manager_id').order('name'),
         supabase.from('teams').select('*').eq('workspace_id', activeWorkspaceId).order('created_at', { ascending: true }),
         supabase.from('workspace_memberships').select('user_id,role,status').eq('workspace_id', activeWorkspaceId).eq('status', 'active'),
-        supabase.auth.getSession(),
       ]);
       if (departmentsResult.error) throw departmentsResult.error;
       if (teamsResult.error) throw teamsResult.error;
@@ -150,8 +159,8 @@ export default function TeamDirectory({
         : { data: [], error: null };
       if (membersResult.error) throw membersResult.error;
 
-      const sessionUserId = sessionResult.data.session?.user.id;
-      const currentDatabaseMemberId = sessionUserId ? `user-${sessionUserId}` : null;
+      const sessionUserId = session.user.id;
+      const currentDatabaseMemberId = `user-${sessionUserId}`;
       setDbDepts(depts);
       setDbTeams(tms.map(team => ({
         ...team,
@@ -163,7 +172,7 @@ export default function TeamDirectory({
       })));
       const roles = Object.fromEntries((membershipsResult.data || []).map(item => [item.user_id, item.role as WorkspaceRole]));
       setMembershipRoles(roles);
-      setWorkspaceRole(sessionUserId ? roles[sessionUserId] || activeWorkspace?.membershipRole || null : null);
+      setWorkspaceRole(roles[sessionUserId] || activeWorkspace?.membershipRole || null);
     } catch (e) {
       console.warn('Hierarchy fetch failed:', e);
       setHierarchyError(e instanceof Error ? e.message : 'Không thể tải dữ liệu Team.');
@@ -1058,7 +1067,7 @@ export default function TeamDirectory({
                         />
                         <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']} shrink-0`} />
                         <label className="absolute inset-x-0 bottom-0 bg-black/60 rounded-b-full py-0.5 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
-                          <span className="text-[8px] text-white font-extrabold select-none scale-90">EDIT PHOTO</span>
+                          <span className="text-[8px] text-white font-extrabold select-none scale-90">SỬA ẢNH</span>
                           <input 
                             type="file"
                             accept="image/*"
@@ -1139,7 +1148,7 @@ export default function TeamDirectory({
                   </div>
 
                   <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
-                    <span className="text-[10px] text-slate-400 font-medium">Tham gia {member.joinedDate || '2026'}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Ngày tham gia {member.joinedDate || '2026'}</span>
                     
                     <div className="flex items-center gap-1.5">
                       {!isCurrentUser && onStartChat && (
@@ -1156,7 +1165,7 @@ export default function TeamDirectory({
                         <button
                           onClick={() => handleRemoveFromWorkspace(member)}
                           className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
-                          title="Dismiss from Workspace"
+                          title="Xóa khỏi không gian"
                         >
                           <UserMinus className="w-3.5 h-3.5" />
                         </button>
@@ -1171,8 +1180,8 @@ export default function TeamDirectory({
           {filteredMembers.length === 0 && (
             <div className="p-16 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/20">
               <Users className="w-10 h-10 mx-auto text-slate-350 dark:text-slate-700 mb-3" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No colleagues matching filter criteria</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-sm mx-auto">Adjust search keys or resets filters to view organization catalog.</p>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Không có đồng nghiệp phù hợp với bộ lọc</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-sm mx-auto">Điều chỉnh từ khóa hoặc đặt lại bộ lọc để xem danh bạ tổ chức.</p>
               <button
                 onClick={clearAllFilters}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
@@ -1439,7 +1448,7 @@ export default function TeamDirectory({
                       <div className="relative">
                         <SignedImage 
                           filePath={member.avatar} 
-                          className="w-10 h-10 rounded-full border border-slate-200 object-cover" 
+                          className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
                           alt={member.name} 
                         />
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors]} shrink-0`} />
@@ -1559,7 +1568,7 @@ export default function TeamDirectory({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-405">Status:</span>
+                  <span className="text-xs font-bold text-slate-405">Trạng thái:</span>
                   <div
                     className="py-1.5 px-3 bg-slate-50 dark:bg-slate-850 text-slate-750 dark:text-slate-100 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
                   >
@@ -1586,7 +1595,7 @@ export default function TeamDirectory({
                   }`}
                 >
                   <CheckSquare className="w-4 h-4" />
-                  <span>Overview & Tasks</span>
+                  <span>Tổng quan và công việc</span>
                 </button>
                 {(isOwner || selectedMember.id === me?.id || selectedMember.userId === currentUser?.id) && (
                   <button
@@ -1598,7 +1607,7 @@ export default function TeamDirectory({
                     }`}
                   >
                     <Edit className="w-4 h-4" />
-                    <span>Edit Profile Details</span>
+                    <span>Chỉnh sửa hồ sơ</span>
                   </button>
                 )}
               </div>
@@ -1612,17 +1621,17 @@ export default function TeamDirectory({
                     {(selectedMember.statusMessage || selectedMember.status === 'offline') && (
                       <div className="p-4 bg-indigo-500/5 dark:bg-indigo-950/10 border border-indigo-500/10 rounded-2xl flex items-center justify-between text-left">
                         <div className="text-left">
-                          <span className="text-[10px] font-black uppercase text-indigo-500 block mb-1">Current Status</span>
+                          <span className="text-[10px] font-black uppercase text-indigo-500 block mb-1">Trạng thái hiện tại</span>
                           <p className="text-xs text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1.5">
                             {selectedMember.statusEmoji ? <span className="text-sm">{selectedMember.statusEmoji}</span> : null}
                             <span className={selectedMember.statusMessage ? "italic" : "text-slate-400 italic"}>
-                              {selectedMember.statusMessage ? `"${selectedMember.statusMessage}"` : "No status message set"}
+                              {selectedMember.statusMessage ? `"${selectedMember.statusMessage}"` : "Chưa đặt thông điệp trạng thái"}
                             </span>
                           </p>
                         </div>
                         {selectedMember.status === 'offline' && (
                           <div className="text-right">
-                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Last Active</span>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Hoạt động gần nhất</span>
                             <span className="text-[10px] text-slate-500 font-bold">{formatLastSeen(selectedMember.lastSeenAt)}</span>
                           </div>
                         )}
@@ -1648,7 +1657,7 @@ export default function TeamDirectory({
                           <div className="p-3.5 bg-slate-50/10 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
                             <Clock className="w-5 h-5 mx-auto text-amber-500 mb-1" />
                             <p className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{ongoing}</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">In Progress</span>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Đang thực hiện</span>
                           </div>
 
                           <div className="p-3.5 bg-slate-50/10 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
@@ -1660,7 +1669,7 @@ export default function TeamDirectory({
                           <div className="p-3.5 bg-slate-50/10 dark:bg-slate-855/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
                             <Flame className="w-5 h-5 mx-auto text-rose-550 mb-1" />
                             <p className="text-xl font-black text-slate-800 dark:text-slate-101 leading-none">{ratio}%</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Completion %</span>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Tỷ lệ hoàn thành</span>
                           </div>
                         </div>
                       );
@@ -1753,7 +1762,7 @@ export default function TeamDirectory({
                                 <div className="flex items-center justify-between text-[10px] font-bold mt-1.5 text-slate-450">
                                   <span className={`${statusStrings[task.status].color}`}>{statusStrings[task.status].label}</span>
                                   {task.dueDate && (
-                                    <span>Due: <span className="text-slate-500">{task.dueDate}</span></span>
+                                    <span>Hạn: <span className="text-slate-500">{task.dueDate}</span></span>
                                   )}
                                 </div>
                               </div>
@@ -1768,7 +1777,7 @@ export default function TeamDirectory({
                   <form onSubmit={handleUpdateProfileSubmit} className="space-y-4 font-sans text-left">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-wider font-sans">Full Name</label>
+                        <label className="text-[10px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-wider font-sans">Họ và tên</label>
                         <input
                           type="text"
                           required
@@ -1779,7 +1788,7 @@ export default function TeamDirectory({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Email Address</label>
+                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Địa chỉ email</label>
                         <input
                           type="email"
                           required
@@ -1791,7 +1800,7 @@ export default function TeamDirectory({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Phone Number</label>
+                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Số điện thoại</label>
                         <input
                           type="text"
                           value={editPhone}
@@ -1816,7 +1825,7 @@ export default function TeamDirectory({
                     </div>
 
                     {isOwner && membershipRoles[selectedMember.userId || ''] !== 'owner' && <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">System Authority Role</label>
+                      <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Vai trò hệ thống</label>
                       <div className="grid grid-cols-3 gap-2">
                         {[
                           { id: 'admin', label: 'Admin (Quản trị)', desc: 'Full control' },
@@ -1841,12 +1850,12 @@ export default function TeamDirectory({
                     </div>}
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Biography / Personal Notes</label>
+                      <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Giới thiệu / Ghi chú cá nhân</label>
                       <textarea
                         rows={3}
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
-                        placeholder="Write a short summary..."
+                        placeholder="Viết mô tả ngắn..."
                         className="w-full p-3 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-semibold"
                       />
                     </div>
@@ -1863,7 +1872,7 @@ export default function TeamDirectory({
                         type="submit"
                         className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
                       >
-                        Save Profiles Details
+                        Lưu thông tin hồ sơ
                       </button>
                     </div>
                   </form>

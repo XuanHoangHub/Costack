@@ -96,7 +96,7 @@ export default function BaseGanttView({
   if (!startField) {
     return (
       <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-        Add a Date field to use Gantt view
+        Thêm trường Ngày để sử dụng chế độ xem Gantt
       </div>
     );
   }
@@ -109,12 +109,12 @@ export default function BaseGanttView({
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
+      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-200/60 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => navigate(-1)} className="p-1.5 hover:bg-slate-100 rounded-lg cursor-pointer">
+          <button type="button" onClick={() => navigate(-1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
             <ChevronLeft className="w-4 h-4 text-slate-500" />
           </button>
-          <button type="button" onClick={() => navigate(1)} className="p-1.5 hover:bg-slate-100 rounded-lg cursor-pointer">
+          <button type="button" onClick={() => navigate(1)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
             <ChevronRight className="w-4 h-4 text-slate-500" />
           </button>
           <div className="flex items-center gap-1 ml-2">
@@ -124,7 +124,7 @@ export default function BaseGanttView({
                 type="button"
                 onClick={() => setUnit(u)}
                 className={`px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer capitalize ${
-                  unit === u ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-100'
+                  unit === u ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {u}
@@ -142,15 +142,15 @@ export default function BaseGanttView({
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" /> Add task
+          <Plus className="w-3.5 h-3.5" /> Thêm công việc
         </button>
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-auto">
         <div className="min-w-[800px]">
           {/* Header */}
-          <div className="flex border-b border-slate-200/60 bg-slate-50/50 sticky top-0 z-10">
-            <div className="w-64 shrink-0 px-3 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-r border-slate-200/60">
+          <div className="flex border-b border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/70 sticky top-0 z-10">
+            <div className="w-64 shrink-0 px-3 py-2 text-[10px] font-black text-slate-400 uppercase tracking-wider border-r border-slate-200/60 dark:border-slate-800">
               Task
             </div>
             <div className="flex-1 flex">
@@ -165,7 +165,7 @@ export default function BaseGanttView({
                 return (
                   <div
                     key={i}
-                    className={`flex-1 text-center text-[10px] font-bold py-2 border-r border-slate-100 ${
+                    className={`flex-1 text-center text-[10px] font-bold py-2 border-r border-slate-100 dark:border-slate-800 ${
                       isToday ? 'text-indigo-700 bg-indigo-50/60' : 'text-slate-500'
                     }`}
                   >
@@ -180,7 +180,7 @@ export default function BaseGanttView({
           <div className="divide-y divide-slate-100">
             {recordsWithDates.length === 0 && (
               <div className="py-12 text-center text-xs text-slate-400">
-                No records with dates to display. Add a date field and create tasks.
+                Không có bản ghi có ngày để hiển thị. Hãy thêm trường ngày và tạo công việc.
               </div>
             )}
             {recordsWithDates.map(({ record, start, durationDays, progress }) => {
@@ -190,10 +190,10 @@ export default function BaseGanttView({
               const assignee = assigneeId ? members.find(m => m.id === assigneeId) : undefined;
 
               return (
-                <div key={record.id} className="flex hover:bg-slate-50/40 transition-colors group">
-                  <div className="w-64 shrink-0 px-3 py-2 border-r border-slate-100 flex items-center gap-2">
+                <div key={record.id} className="flex hover:bg-slate-50/40 dark:hover:bg-slate-800/40 transition-colors group">
+                  <div className="w-64 shrink-0 px-3 py-2 border-r border-slate-100 dark:border-slate-800 flex items-center gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 truncate">{title}</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{title}</p>
                       <p className="text-[10px] text-slate-400">
                         {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {durationDays}d
                       </p>
@@ -207,13 +207,13 @@ export default function BaseGanttView({
                   <div className="flex-1 relative h-14">
                     {/* Grid lines */}
                     {unit === 'day' && timeline.map((d, i) => (
-                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 ${i === todayIdx ? 'bg-indigo-50/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
+                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-800 ${i === todayIdx ? 'bg-indigo-50/30 dark:bg-indigo-950/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
                     ))}
                     {unit === 'week' && timeline.map((d, i) => (
-                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 ${i === todayIdx ? 'bg-indigo-50/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
+                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-800 ${i === todayIdx ? 'bg-indigo-50/30 dark:bg-indigo-950/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
                     ))}
                     {unit === 'month' && timeline.map((d, i) => (
-                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 ${i === todayIdx ? 'bg-indigo-50/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
+                      <div key={i} className={`absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-800 ${i === todayIdx ? 'bg-indigo-50/30 dark:bg-indigo-950/30' : ''}`} style={{ left: `${(i / timeline.length) * 100}%`, width: `${100 / timeline.length}%` }} />
                     ))}
 
                     {/* Today line */}

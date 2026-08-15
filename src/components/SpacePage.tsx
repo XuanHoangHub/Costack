@@ -509,22 +509,22 @@ export default function SpacePage({
   useEffect(() => {
     if (!activeListId) {
       setStaticTabs([
-        { id: 'tab-channel', label: 'Channel', icon: Hash, viewId: 'channel' },
-        { id: 'tab-overview', label: 'Overview', icon: FileText, viewId: 'overview' },
-        { id: 'tab-list', label: 'List', icon: List, viewId: 'list' },
-        { id: 'tab-board', label: 'Board', icon: Kanban, viewId: 'board' },
-        { id: 'tab-doc', label: 'Doc', icon: FileText, viewId: 'doc' },
-        { id: 'tab-calendar', label: 'Calendar', icon: Calendar, viewId: 'calendar' },
-        { id: 'tab-table', label: 'Table', icon: Table, viewId: 'table' },
+        { id: 'tab-channel', label: 'Trao đổi', icon: Hash, viewId: 'channel' },
+        { id: 'tab-overview', label: 'Tổng quan', icon: FileText, viewId: 'overview' },
+        { id: 'tab-list', label: 'Danh sách', icon: List, viewId: 'list' },
+        { id: 'tab-board', label: 'Bảng', icon: Kanban, viewId: 'board' },
+        { id: 'tab-doc', label: 'Tài liệu', icon: FileText, viewId: 'doc' },
+        { id: 'tab-calendar', label: 'Lịch', icon: Calendar, viewId: 'calendar' },
+        { id: 'tab-table', label: 'Bảng dữ liệu', icon: Table, viewId: 'table' },
       ]);
       setActiveTabId('tab-overview');
       setActiveView('overview');
     } else {
       setStaticTabs([
-        { id: 'tab-channel', label: 'Channel', icon: Hash, viewId: 'channel' },
-        { id: 'tab-table', label: 'Table', icon: Table, viewId: 'table' },
-        { id: 'tab-list', label: 'List', icon: List, viewId: 'list' },
-        { id: 'tab-board', label: 'Board', icon: Kanban, viewId: 'board' },
+        { id: 'tab-channel', label: 'Trao đổi', icon: Hash, viewId: 'channel' },
+        { id: 'tab-table', label: 'Bảng dữ liệu', icon: Table, viewId: 'table' },
+        { id: 'tab-list', label: 'Danh sách', icon: List, viewId: 'list' },
+        { id: 'tab-board', label: 'Bảng', icon: Kanban, viewId: 'board' },
         { id: 'tab-gantt', label: 'Gantt', icon: GanttChart, viewId: 'gantt' },
       ]);
       setActiveTabId('tab-table');
@@ -801,22 +801,19 @@ export default function SpacePage({
 
   // Modern style Views Dropdown Menu Definitions
   const POPULAR_VIEWS = [
-    { id: 'list', label: 'List', desc: 'Track tasks, bugs, people & more', icon: List, color: '#7c828d', bg: 'rgba(124, 130, 141, 0.08)' },
-    { id: 'gantt', label: 'Gantt Chart', desc: 'Plan dependencies & time', icon: GanttChart, color: '#f04438', bg: 'rgba(240, 68, 56, 0.08)' },
-    { id: 'calendar', label: 'Calendar', desc: 'Plan, schedule, & delegate', icon: Calendar, color: '#ff5f5f', bg: 'rgba(255, 95, 95, 0.08)' },
-    { id: 'doc', label: 'Doc Wiki', desc: 'Collaborate & document anything', icon: FileText, color: '#1570ef', bg: 'rgba(21, 112, 239, 0.08)' },
-    { id: 'board', label: 'Board Kanban', desc: 'Move tasks between columns', icon: Kanban, color: '#7b68ee', bg: 'rgba(123, 104, 238, 0.08)' },
-    { id: 'form', label: 'Form Survey', desc: 'Collect, track, & report data', icon: CheckSquare, color: '#9c27b0', bg: 'rgba(156, 39, 176, 0.08)' },
-    { id: 'ai', label: 'Create with AI', desc: 'Generate task views using AI', icon: Bot, color: '#aa33ff', bg: 'rgba(170, 51, 255, 0.08)' },
-    { id: 'dashboard', label: 'Dashboard Report', desc: 'Track metrics & insights', icon: SlidersHorizontal, color: '#ee46bc', bg: 'rgba(238, 70, 188, 0.08)' },
-    { id: 'table', label: 'Table', desc: 'Structured table format', icon: Table, color: '#12b76a', bg: 'rgba(18, 183, 106, 0.08)' },
-    { id: 'whiteboard', label: 'Whiteboard', desc: 'Visualize & brainstorm ideas', icon: Sparkles, color: '#f79009', bg: 'rgba(247, 144, 9, 0.08)' },
-    { id: 'timeline', label: 'Timeline', desc: 'See tasks by start & due date', icon: Clock, color: '#ff7e33', bg: 'rgba(255, 126, 51, 0.08)' },
-    { id: 'activity', label: 'Activity Feed', desc: 'Real-time activity feed', icon: Activity, color: '#00bcd4', bg: 'rgba(0, 188, 212, 0.08)' },
-    { id: 'workload', label: 'Workload Capacity', desc: 'Visualize team capacity', icon: Users, color: '#009688', bg: 'rgba(0, 150, 136, 0.08)' },
-    { id: 'mindmap', label: 'Mind Map', desc: 'Visual brainstorming of ideas', icon: Brain, color: '#e91e63', bg: 'rgba(233, 30, 99, 0.08)' },
-    { id: 'team', label: 'Team', desc: 'Monitor work being done', icon: UserIcon, color: '#9c27b0', bg: 'rgba(156, 39, 176, 0.08)' },
-    { id: 'map', label: 'Map', desc: 'Tasks visualized by address', icon: MapIcon, color: '#ff9800', bg: 'rgba(255, 152, 0, 0.08)' }
+    { id: 'list', label: 'Danh sách', desc: 'Theo dõi công việc theo nhóm', icon: List, color: '#7c828d', bg: 'rgba(124, 130, 141, 0.08)' },
+    { id: 'gantt', label: 'Biểu đồ Gantt', desc: 'Lập kế hoạch phụ thuộc và thời gian', icon: GanttChart, color: '#f04438', bg: 'rgba(240, 68, 56, 0.08)' },
+    { id: 'calendar', label: 'Lịch', desc: 'Lên lịch và phân công công việc', icon: Calendar, color: '#ff5f5f', bg: 'rgba(255, 95, 95, 0.08)' },
+    { id: 'doc', label: 'Tài liệu Wiki', desc: 'Cộng tác và ghi lại kiến thức', icon: FileText, color: '#1570ef', bg: 'rgba(21, 112, 239, 0.08)' },
+    { id: 'board', label: 'Bảng Kanban', desc: 'Di chuyển công việc giữa các cột', icon: Kanban, color: '#7b68ee', bg: 'rgba(123, 104, 238, 0.08)' },
+    { id: 'dashboard', label: 'Bảng điều khiển', desc: 'Theo dõi số liệu và tiến độ', icon: SlidersHorizontal, color: '#ee46bc', bg: 'rgba(238, 70, 188, 0.08)' },
+    { id: 'table', label: 'Bảng dữ liệu', desc: 'Quản lý dữ liệu theo cột', icon: Table, color: '#12b76a', bg: 'rgba(18, 183, 106, 0.08)' },
+    { id: 'whiteboard', label: 'Bảng trắng', desc: 'Phác thảo và kết nối ý tưởng', icon: Sparkles, color: '#f79009', bg: 'rgba(247, 144, 9, 0.08)' },
+    { id: 'timeline', label: 'Dòng thời gian', desc: 'Xem công việc theo ngày bắt đầu và hạn', icon: Clock, color: '#ff7e33', bg: 'rgba(255, 126, 51, 0.08)' },
+    { id: 'activity', label: 'Hoạt động', desc: 'Theo dõi thay đổi theo thời gian thực', icon: Activity, color: '#00bcd4', bg: 'rgba(0, 188, 212, 0.08)' },
+    { id: 'workload', label: 'Khối lượng công việc', desc: 'Theo dõi năng lực của đội ngũ', icon: Users, color: '#009688', bg: 'rgba(0, 150, 136, 0.08)' },
+    { id: 'mindmap', label: 'Sơ đồ tư duy', desc: 'Trực quan hóa cấu trúc ý tưởng', icon: Brain, color: '#e91e63', bg: 'rgba(233, 30, 99, 0.08)' },
+    { id: 'team', label: 'Đội ngũ', desc: 'Theo dõi thành viên và phần việc', icon: UserIcon, color: '#9c27b0', bg: 'rgba(156, 39, 176, 0.08)' }
   ];
 
   const MORE_VIEWS: any[] = [];
@@ -1145,7 +1142,7 @@ export default function SpacePage({
             {/* Header: Spaces */}
             <div className="border-b border-slate-200/60 p-3 dark:border-slate-800/80 shrink-0">
               <div className="flex items-center justify-between">
-              <div><span className="text-sm font-extrabold text-slate-850 dark:text-slate-100">Spaces</span><p className="mt-0.5 text-[9px] font-semibold text-slate-400">{spaces.filter(space => !space.isArchived).length} đang hoạt động</p></div>
+              <div><span className="text-sm font-extrabold text-slate-850 dark:text-slate-100">Không gian</span><p className="mt-0.5 text-[9px] font-semibold text-slate-400">{spaces.filter(space => !space.isArchived).length} đang hoạt động</p></div>
               <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
                 <button
                   type="button"
@@ -1166,7 +1163,7 @@ export default function SpacePage({
                 <button 
                   onClick={() => setIsSpacesExpanded(!isSpacesExpanded)}
                   className="p-1 hover:bg-slate-105 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-202 rounded cursor-pointer transition-colors"
-                  title="Expand/Collapse All"
+                  title="Mở rộng/Thu gọn tất cả"
                 >
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSpacesExpanded ? '' : '-rotate-90'}`} />
                 </button>
@@ -1200,7 +1197,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Star className="w-4 h-4 fill-amber-400 text-amber-500 shrink-0" />
-                  <span className="truncate">All Tasks - {currentUser?.name || 'Xuan Hoang'}</span>
+                  <span className="truncate">Tất cả công việc - {currentUser?.name || 'Xuan Hoang'}</span>
                 </div>
               </button>
 
@@ -1261,7 +1258,7 @@ export default function SpacePage({
                               }));
                             }}
                             className="p-0.5 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all cursor-pointer shrink-0"
-                            title={isExpanded ? "Collapse Space" : "Expand Space"}
+                            title={isExpanded ? "Thu gọn khu vực" : "Mở rộng khu vực"}
                           >
                             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
                           </button>
@@ -1300,7 +1297,7 @@ export default function SpacePage({
                               setActiveListMenu(null);
                             }}
                             className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
-                            title="Create menu"
+                            title="Trình đơn tạo mới"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -1322,7 +1319,7 @@ export default function SpacePage({
                               setActiveListMenu(null);
                             }}
                             className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
-                            title="Space Settings"
+                            title="Cài đặt khu vực"
                           >
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </button>
@@ -1342,7 +1339,7 @@ export default function SpacePage({
                                 <div className="w-4 h-4 rounded-md bg-slate-100 dark:bg-slate-800 group-hover/addlist:bg-indigo-100 dark:group-hover/addlist:bg-indigo-900/60 text-slate-500 group-hover/addlist:text-indigo-600 dark:group-hover/addlist:text-indigo-300 flex items-center justify-center transition-colors">
                                   <Plus className="w-3 h-3 stroke-[2.5]" />
                                 </div>
-                                <span>New List</span>
+                                <span>Danh sách mới</span>
                               </div>
                             </button>
                           )}
@@ -1400,7 +1397,7 @@ export default function SpacePage({
                                         setActiveListSettings(null);
                                       }}
                                       className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
-                                      title="Folder Settings"
+                                      title="Cài đặt thư mục"
                                     >
                                       <MoreHorizontal className="w-3 h-3" />
                                     </button>
@@ -1413,7 +1410,7 @@ export default function SpacePage({
                                         }
                                       }}
                                       className="opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-slate-250 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-all cursor-pointer"
-                                      title="Add List to Folder"
+                                      title="Thêm danh sách vào thư mục"
                                     >
                                       <Plus className="w-3 h-3" />
                                     </button>
@@ -1486,7 +1483,7 @@ export default function SpacePage({
                                                    setActiveListMenu(null);
                                                  }}
                                                  className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                                 title="Settings"
+                                                 title="Cài đặt"
                                                >
                                                  <MoreHorizontal className="w-3.5 h-3.5" />
                                                </button>
@@ -1511,7 +1508,7 @@ export default function SpacePage({
                                                    setActiveSpaceSettings(null);
                                                  }}
                                                  className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                                 title="Quick Create"
+                                                 title="Tạo nhanh"
                                                >
                                                  <Plus className="w-3.5 h-3.5" />
                                                </button>
@@ -1564,7 +1561,7 @@ export default function SpacePage({
                                     ))}
 
                                     {folderLists.length === 0 && folderDocs.length === 0 && folderWhiteboards.length === 0 && (
-                                      <div className="text-[10px] text-slate-400 italic pl-[28px] py-0.5">Empty folder.</div>
+                                      <div className="text-[10px] text-slate-400 italic pl-[28px] py-0.5">Thư mục trống.</div>
                                     )}
                                   </div>
                                 )}
@@ -1636,7 +1633,7 @@ export default function SpacePage({
                                         setActiveListMenu(null);
                                       }}
                                       className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                      title="Settings"
+                                      title="Cài đặt"
                                     >
                                       <MoreHorizontal className="w-3.5 h-3.5" />
                                     </button>
@@ -1661,7 +1658,7 @@ export default function SpacePage({
                                         setActiveSpaceSettings(null);
                                       }}
                                       className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition-colors"
-                                      title="Quick Create"
+                                      title="Tạo nhanh"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                     </button>
@@ -1714,7 +1711,7 @@ export default function SpacePage({
                           ))}
 
                           {(!space.lists || space.lists.length === 0) && (!space.folders || space.folders.length === 0) && (!space.whiteboards || space.whiteboards.length === 0) && (
-                            <div className="text-[10px] text-slate-455 italic pl-5 py-1 select-none font-medium text-left">No lists yet.</div>
+                            <div className="text-[10px] text-slate-455 italic pl-5 py-1 select-none font-medium text-left">Chưa có danh sách.</div>
                           )}
                         </div>
                       )}
@@ -1730,7 +1727,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 py-2 px-2.5 mt-1 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all cursor-pointer text-left"
               >
                 <Plus className="w-4 h-4 shrink-0" />
-                <span>New Space</span>
+                <span>Không gian mới</span>
               </button>
 
             </div>
@@ -1749,18 +1746,18 @@ export default function SpacePage({
         >
           {/* Custom Instructions Tooltip */}
           <div className="pointer-events-none absolute left-full ml-3 top-12 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[10px] py-2 px-3 rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.3)] border border-slate-800 z-50 whitespace-nowrap space-y-1.5 font-sans">
-            <div className="font-extrabold uppercase text-[8px] tracking-wider text-indigo-400">Sidebar Controls</div>
+            <div className="font-extrabold uppercase text-[8px] tracking-wider text-indigo-400">Điều khiển thanh bên</div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Resize</span>
-              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Drag</kbd>
+              <span className="text-slate-300">Đổi kích thước</span>
+              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Kéo</kbd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Toggle</span>
+              <span className="text-slate-300">Bật/tắt</span>
               <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Ctrl + \</kbd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Reset</span>
-              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Double Click</kbd>
+              <span className="text-slate-300">Đặt lại</span>
+              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Nhấp đúp</kbd>
             </div>
           </div>
         </div>
@@ -1772,7 +1769,7 @@ export default function SpacePage({
         <button
           onClick={() => setIsSubSidebarCollapsed(false)}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-white dark:bg-slate-900 border border-l-0 border-slate-200/80 dark:border-slate-800 rounded-r-xl shadow-md p-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer shrink-0 hidden md:block"
-          title="Expand Spaces Sidebar"
+          title="Mở rộng thanh khu vực"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -1782,10 +1779,10 @@ export default function SpacePage({
       <div className="flex-grow flex-1 flex flex-col h-full overflow-hidden relative">
         <header className="shrink-0 bg-white dark:bg-[#07080c]/90 border-b border-slate-200/60 dark:border-slate-800/80 flex flex-col relative z-30 select-none shadow-3xs">
           {/* Single Unified Header Row (UI/UX Upgraded, Clean & Compact) */}
-          <div className="flex items-center justify-between px-5 py-2 relative flex-wrap gap-3 min-h-[48px]">
+          <div className="flex items-center justify-between px-3 sm:px-5 py-2 relative flex-wrap gap-2 sm:gap-3 min-h-[48px]">
             
             {/* Left Side: Breadcrumbs, Divider, and View Switcher Tabs (Scrollable & Unified) */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 pr-2">
+            <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none flex-grow flex-shrink min-w-0 sm:pr-2">
               {/* Mobile Spaces sub-sidebar trigger drawer button */}
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
@@ -1887,7 +1884,7 @@ export default function SpacePage({
                                           e.currentTarget.blur();
                                         }
                                       }}
-                                      placeholder="List Name..."
+                                      placeholder="Tên danh sách..."
                                       className="flex-1 bg-transparent border-none outline-none font-bold text-slate-800 dark:text-slate-105 text-xs px-1 py-0.5"
                                     />
                                     <button 
@@ -1896,7 +1893,7 @@ export default function SpacePage({
                                         if (triggerToast) triggerToast('success', 'Link Copied', 'Copied list link to clipboard!');
                                       }}
                                       className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-650 cursor-pointer transition-colors"
-                                      title="Copy list link"
+                                      title="Sao chép liên kết danh sách"
                                     >
                                       <LinkIcon className="w-3.5 h-3.5" />
                                     </button>
@@ -1912,7 +1909,7 @@ export default function SpacePage({
                                         });
                                       }}
                                       className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                                      title="Delete list"
+                                      title="Xóa danh sách"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -2002,7 +1999,7 @@ export default function SpacePage({
                         setActiveTabId(tab.id);
                         setActiveView(tab.viewId);
                       }}
-                      className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                      className={`relative flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                         isActive
                           ? 'bg-white dark:bg-indigo-600/25 text-indigo-650 dark:text-indigo-300 shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/40'
@@ -2026,7 +2023,7 @@ export default function SpacePage({
                     setIsSearchViewOpen(true);
                   }}
                   className="flex items-center gap-1 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors cursor-pointer"
-                  title="Add View"
+                  title="Thêm chế độ xem"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -2040,7 +2037,7 @@ export default function SpacePage({
                         <input
                           type="text"
                           autoFocus
-                          placeholder="Search views..."
+                          placeholder="Tìm chế độ xem..."
                           value={searchViewQuery}
                           onChange={(e) => setSearchViewQuery(e.target.value)}
                           className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-indigo-500 transition-colors"
@@ -2076,17 +2073,17 @@ export default function SpacePage({
             </div>
 
             {/* Right Side: Quick Tools, Share, Cog Settings, and "+ Task" primary action */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex w-full sm:w-auto items-center justify-end gap-1.5 sm:gap-2 shrink-0 overflow-x-auto scrollbar-none">
               
               {/* Quick Tools Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowQuickTools(!showQuickTools)}
                   className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-205 dark:border-slate-800 text-[10.5px] font-extrabold text-slate-600 dark:text-slate-350 hover:text-slate-800 dark:hover:text-white rounded-lg flex items-center gap-1.5 hover:bg-slate-100/90 dark:hover:bg-slate-900 transition-colors cursor-pointer shadow-3xs"
-                  title="Workspace settings & tools"
+                  title="Cài đặt và công cụ không gian"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Tools</span>
+                  <span className="hidden lg:inline">Công cụ</span>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-450 transition-transform duration-200 ${showQuickTools ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -2096,7 +2093,7 @@ export default function SpacePage({
                     <div className="absolute left-0 top-full mt-1.5 w-[260px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-2xl z-50 p-2 font-sans select-none animate-in fade-in slide-in-from-top-2 duration-200">
                       
                       <div className="px-2.5 py-1.5 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none block mb-1">
-                        Workspace Actions
+                        Thao tác không gian
                       </div>
                       
                       <button
@@ -2107,8 +2104,8 @@ export default function SpacePage({
                           <Phone className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Start Audio Call</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Host an instant voice huddle</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Bắt đầu cuộc gọi thoại</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Mở cuộc trò chuyện thoại tức thì</span>
                         </div>
                       </button>
 
@@ -2120,8 +2117,8 @@ export default function SpacePage({
                           <Bot className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Workspace Agents</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Configure custom AI agents</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Trợ lý không gian</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Cấu hình trợ lý AI tùy chỉnh</span>
                         </div>
                       </button>
 
@@ -2133,8 +2130,8 @@ export default function SpacePage({
                           <SlidersHorizontal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Automations</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Create workflow trigger rules</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Tự động hóa</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Tạo quy tắc kích hoạt quy trình</span>
                         </div>
                       </button>
 
@@ -2147,14 +2144,14 @@ export default function SpacePage({
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className="text-[11.5px] font-black text-indigo-655 dark:text-indigo-400 block">Apexa AI</span>
-                          <span className="text-[9px] text-indigo-500/80 dark:text-indigo-400/80 block leading-normal mt-0.5 font-semibold">Consult the AI cognitive engine</span>
+                          <span className="text-[9px] text-indigo-500/80 dark:text-indigo-400/80 block leading-normal mt-0.5 font-semibold">Trao đổi với bộ máy trí tuệ AI</span>
                         </div>
                       </button>
 
                       <div className="border-t border-slate-100 dark:border-slate-808/60 my-1.5" />
                       
                       <div className="px-2.5 py-1.5 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none block mb-1">
-                        List Customizations
+                        Tùy chỉnh danh sách
                       </div>
                       
                       <button
@@ -2165,8 +2162,8 @@ export default function SpacePage({
                           <SlidersHorizontal className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Layout Columns</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Configure view custom fields</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Bố cục cột</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Cấu hình trường tùy chỉnh của chế độ xem</span>
                         </div>
                       </button>
 
@@ -2178,8 +2175,8 @@ export default function SpacePage({
                           <Users className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Assignees</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Assign tasks to multiple leads</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Người phụ trách</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Giao việc cho nhiều người phụ trách</span>
                         </div>
                       </button>
 
@@ -2191,8 +2188,8 @@ export default function SpacePage({
                           <Flag className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">List Priority</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Define priority weight thresholds</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Ưu tiên danh sách</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Xác định ngưỡng trọng số ưu tiên</span>
                         </div>
                       </button>
 
@@ -2204,8 +2201,8 @@ export default function SpacePage({
                           <Calendar className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Calendar Schedule</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Sync list cards to timelines</span>
+                          <span className="text-[11.5px] font-extrabold text-slate-700 dark:text-slate-250 block group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors">Lịch biểu</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-normal mt-0.5">Đồng bộ thẻ danh sách với dòng thời gian</span>
                         </div>
                       </button>
                       
@@ -2236,7 +2233,7 @@ export default function SpacePage({
                 className="py-1.5 px-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white text-[10.5px] font-extrabold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-slate-655 dark:text-slate-350 shadow-3xs hover:bg-slate-100 dark:hover:bg-slate-900"
               >
                 <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-500" />
-                <span>Share</span>
+                <span className="hidden sm:inline">Chia sẻ</span>
               </button>
 
               {/* Space settings Cog */}
@@ -2257,7 +2254,7 @@ export default function SpacePage({
                   setActiveListMenu(null);
                 }}
                 className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 rounded-lg text-slate-405 hover:text-slate-705 dark:hover:text-white transition-colors cursor-pointer relative border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50"
-                title="Space Settings"
+                title="Cài đặt khu vực"
               >
                 <Cog className="w-3.5 h-3.5" />
               </button>
@@ -2268,17 +2265,10 @@ export default function SpacePage({
               <div className="flex items-center rounded-xl overflow-hidden shadow-sm shadow-blue-500/20 bg-[#007fff] hover:bg-blue-600 transition-colors shrink-0">
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="pl-3 py-1.5 pr-1.5 text-white font-extrabold text-xs flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3 h-3 text-white stroke-[2.5px]" />
-                  <span>Task</span>
-                </button>
-                <div className="w-px h-3 bg-white/20" />
-                <button
-                  onClick={() => alert("More Task creation options.")}
-                  className="px-1.5 py-1.5 text-white cursor-pointer hover:bg-white/10"
-                >
-                  <ChevronDown className="w-3 h-3 text-white" />
+                  <span>Công việc</span>
                 </button>
               </div>
 
@@ -2288,14 +2278,14 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt views) ── */}
       {['list', 'board', 'table', 'gantt'].includes(activeView) && (
-        <div className="shrink-0 bg-white dark:bg-[#07080c]/90 border-b border-slate-200/50 dark:border-slate-800/60 px-5 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-3xs">
+        <div className="shrink-0 bg-white dark:bg-[#07080c]/90 border-b border-slate-200/50 dark:border-slate-800/60 px-3 sm:px-5 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-3xs">
           
           {/* Search task input */}
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl px-3 py-1.5 flex-1 max-w-sm">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl px-3 py-1.5 flex-1 w-full md:max-w-sm">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input 
               type="text" 
-              placeholder="Search tasks..." 
+              placeholder="Tìm công việc..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent text-[11px] font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
@@ -2316,7 +2306,7 @@ export default function SpacePage({
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
-              <span>Filter</span>
+              <span>Bộ lọc</span>
               {activeFilterCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[8px] font-black flex items-center justify-center">
                   {activeFilterCount}
@@ -2331,10 +2321,10 @@ export default function SpacePage({
                 onChange={(e) => setSortBy(e.target.value)}
                 className="appearance-none px-3 py-1.5 pr-7 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-900 text-slate-655 outline-none cursor-pointer"
               >
-                <option value="manual">Manual Sorting</option>
-                <option value="priority">Sort by Priority</option>
-                <option value="dueDate">Sort by Due Date</option>
-                <option value="title">Sort alphabetically (A-Z)</option>
+                <option value="manual">Sắp xếp thủ công</option>
+                <option value="priority">Sắp xếp theo ưu tiên</option>
+                <option value="dueDate">Sắp xếp theo hạn chót</option>
+                <option value="title">Sắp xếp theo bảng chữ cái (A-Z)</option>
               </select>
               <ArrowUpDown className="w-3 h-3 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -2352,7 +2342,7 @@ export default function SpacePage({
               className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 rounded-xl text-[11px] font-bold hover:bg-indigo-100 cursor-pointer flex items-center gap-1.5 transition-colors"
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>AI Priorities</span>
+              <span>Ưu tiên do AI đề xuất</span>
             </button>
 
             {/* Pomodoro Focus indicator */}
@@ -2381,29 +2371,29 @@ export default function SpacePage({
             {/* Top row: conjunction selection & preset management */}
             <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Match Type</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Kiểu khớp</span>
                 <div className="flex bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-800/80">
                   <button 
                     onClick={() => setFilterConjunction('AND')}
                     className={`px-2.5 py-1 text-[10px] font-bold rounded ${filterConjunction === 'AND' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-3xs' : 'text-slate-500'}`}
                   >
-                    AND
+                    VÀ
                   </button>
                   <button 
                     onClick={() => setFilterConjunction('OR')}
                     className={`px-2.5 py-1 text-[10px] font-bold rounded ${filterConjunction === 'OR' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-3xs' : 'text-slate-500'}`}
                   >
-                    OR
+                    HOẶC
                   </button>
                 </div>
-                <span className="text-[10.5px] text-slate-550 dark:text-slate-400">tasks matching these rules:</span>
+                <span className="text-[10.5px] text-slate-550 dark:text-slate-400">công việc khớp các quy tắc:</span>
               </div>
 
               {/* Presets manager */}
               <div className="flex items-center gap-2">
                 <input 
                   type="text" 
-                  placeholder="Save current filters as..." 
+                  placeholder="Lưu bộ lọc hiện tại với tên..." 
                   value={newPresetName}
                   onChange={e => setNewPresetName(e.target.value)}
                   className="px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none focus:border-indigo-500 text-slate-850 dark:text-slate-100"
@@ -2417,7 +2407,7 @@ export default function SpacePage({
                   }}
                   className="px-3 py-1.5 rounded-lg text-[10px] font-black bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-colors shadow-2xs"
                 >
-                  Save Preset
+                  Lưu bộ lọc mẫu
                 </button>
               </div>
             </div>
@@ -2425,7 +2415,7 @@ export default function SpacePage({
             {/* Presets List */}
             {filterPresets.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">Saved Presets:</span>
+                <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">Bộ lọc mẫu đã lưu:</span>
                 {filterPresets.map(preset => (
                   <div key={preset.name} className="flex items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-0.5 shadow-3xs">
                     <button 
@@ -2463,10 +2453,10 @@ export default function SpacePage({
                     onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: e.target.value as any, value: '' } : c))}
                     className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
                   >
-                    <option value="title">Task Name</option>
-                    <option value="status">Status</option>
-                    <option value="priority">Priority</option>
-                    <option value="assignee">Assignee</option>
+                    <option value="title">Tên công việc</option>
+                    <option value="status">Trạng thái</option>
+                    <option value="priority">Mức ưu tiên</option>
+                    <option value="assignee">Người phụ trách</option>
                   </select>
 
                   {/* Operator Dropdown */}
@@ -2475,10 +2465,10 @@ export default function SpacePage({
                     onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: e.target.value as any } : c))}
                     className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
                   >
-                    <option value="is">is</option>
-                    <option value="isNot">is not</option>
-                    <option value="contains">contains</option>
-                    <option value="isEmpty">is empty</option>
+                    <option value="is">là</option>
+                    <option value="isNot">không phải</option>
+                    <option value="contains">có chứa</option>
+                    <option value="isEmpty">đang trống</option>
                   </select>
 
                   {/* Value Picker */}
@@ -2490,11 +2480,11 @@ export default function SpacePage({
                           onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
                           className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
                         >
-                          <option value="">Select status...</option>
-                          <option value="todo">To Do</option>
-                          <option value="inprogress">In Progress</option>
-                          <option value="review">Review</option>
-                          <option value="completed">Done</option>
+                          <option value="">Chọn trạng thái...</option>
+                          <option value="todo">Cần làm</option>
+                          <option value="inprogress">Đang thực hiện</option>
+                          <option value="review">Đang duyệt</option>
+                          <option value="completed">Hoàn thành</option>
                         </select>
                       );
                     }
@@ -2505,11 +2495,11 @@ export default function SpacePage({
                           onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
                           className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
                         >
-                          <option value="">Select priority...</option>
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="">Chọn mức ưu tiên...</option>
+                          <option value="low">Thấp</option>
+                          <option value="medium">Trung bình</option>
+                          <option value="high">Cao</option>
+                          <option value="urgent">Khẩn cấp</option>
                         </select>
                       );
                     }
@@ -2520,8 +2510,8 @@ export default function SpacePage({
                           onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
                           className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
                         >
-                          <option value="">Select member...</option>
-                          <option value="user">Me</option>
+                          <option value="">Chọn thành viên...</option>
+                          <option value="user">Tôi</option>
                           {members.map(m => (
                             <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
@@ -2531,7 +2521,7 @@ export default function SpacePage({
                     return (
                       <input 
                         type="text" 
-                        placeholder="Type text value..." 
+                        placeholder="Nhập giá trị văn bản..." 
                         value={cond.value}
                         onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
                         className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-800 dark:text-slate-100"
@@ -2543,7 +2533,7 @@ export default function SpacePage({
                   <button 
                     onClick={() => setFilterConditions(prev => prev.filter(c => c.id !== cond.id))}
                     className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-500 rounded-lg cursor-pointer"
-                    title="Remove rule"
+                    title="Xóa điều kiện"
                   >
                     ✕
                   </button>
@@ -2557,7 +2547,7 @@ export default function SpacePage({
                 onClick={() => setFilterConditions(prev => [...prev, { id: `rule-${Date.now()}`, field: 'title', operator: 'contains', value: '' }])}
                 className="px-3 py-1.5 rounded-lg text-[10.5px] font-black border border-dashed border-slate-250 hover:border-indigo-500 text-indigo-650 dark:text-indigo-400 cursor-pointer hover:bg-indigo-50/20"
               >
-                + Add Rule
+                + Thêm quy tắc
               </button>
               <button 
                 onClick={() => {
@@ -2569,7 +2559,7 @@ export default function SpacePage({
                 }}
                 className="px-3 py-1.5 rounded-lg text-[10.5px] font-black bg-rose-50 dark:bg-rose-955/10 text-rose-600 dark:text-rose-455 hover:bg-rose-100 cursor-pointer"
               >
-                Reset Filter
+                Đặt lại bộ lọc
               </button>
             </div>
           </motion.div>
@@ -2577,7 +2567,7 @@ export default function SpacePage({
       </AnimatePresence>
 
       {/* ── Active Module Rendering Body Section ── */}
-      <main className="flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#07080c] flex flex-col">
+      <section className="flex-1 overflow-y-auto select-none scrollbar-none bg-white dark:bg-[#07080c] flex flex-col" aria-label="Không gian làm việc">
         
         {/* Render Overview Dashboard */}
         {activeView === 'overview' && (
@@ -2806,14 +2796,14 @@ export default function SpacePage({
           <div className="bg-white dark:bg-[#07080c]/90 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500" />
-              <span>Timeline view</span>
+              <span>Chế độ xem dòng thời gian</span>
             </h3>
-            <p className="text-xs text-slate-500 leading-relaxed text-left">Visualize your project schedule, deadlines, and milestones sequentially.</p>
+            <p className="text-xs text-slate-500 leading-relaxed text-left">Trực quan hóa lịch dự án, hạn chót và các cột mốc theo trình tự.</p>
             <div className="p-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-3 bg-slate-50/30">
               <Calendar className="w-10 h-10 text-slate-400 animate-pulse" />
               <div className="space-y-1">
-                <p className="text-xs font-black text-slate-700 dark:text-slate-250">No timeline items found</p>
-                <p className="text-[10px] text-slate-400">Add start and due dates to your tasks to populate the timeline.</p>
+                <p className="text-xs font-black text-slate-700 dark:text-slate-250">Chưa có mục nào trên dòng thời gian</p>
+                <p className="text-[10px] text-slate-400">Thêm ngày bắt đầu và hạn chót cho công việc để hiển thị trên dòng thời gian.</p>
               </div>
             </div>
           </div>
@@ -2824,7 +2814,7 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4 text-left">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-indigo-500 animate-pulse" />
-              <span>Activity Feed</span>
+              <span>Dòng hoạt động</span>
             </h3>
             <div className="space-y-3">
               {syncLogs && syncLogs.length > 0 ? (
@@ -2839,7 +2829,7 @@ export default function SpacePage({
                 ))
               ) : (
                 <div className="text-center py-10 text-slate-400 italic text-xs font-medium">
-                  No activities logged yet.
+                  Chưa ghi nhận hoạt động nào.
                 </div>
               )}
             </div>
@@ -2851,7 +2841,7 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4 text-left">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Users className="w-5 h-5 text-emerald-500" />
-              <span>Workload Capacity</span>
+              <span>Năng lực công việc</span>
             </h3>
             <div className="space-y-4">
               {members.map(member => {
@@ -2861,7 +2851,7 @@ export default function SpacePage({
                   <div key={member.id} className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-800 dark:text-slate-200">{member.name}</span>
-                      <span className="text-slate-400 font-semibold">{memberTasks.length} / 5 tasks</span>
+                      <span className="text-slate-400 font-semibold">{memberTasks.length} / 5 công việc</span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                       <div 
@@ -2881,7 +2871,7 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Brain className="w-5 h-5 text-pink-500" />
-              <span>Mind Map view</span>
+              <span>Chế độ sơ đồ tư duy</span>
             </h3>
             <div className="p-8 border border-slate-150 dark:border-slate-850 rounded-2xl bg-slate-50/20 dark:bg-slate-950/10 flex flex-col items-center space-y-4">
               <div className="px-4 py-2 bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-sm">
@@ -2906,22 +2896,22 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4 text-left">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <CheckSquare className="w-5 h-5 text-purple-500" />
-              <span>Form Survey Builder</span>
+              <span>Trình tạo biểu mẫu khảo sát</span>
             </h3>
             <div className="space-y-4 max-w-md">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Form Title</label>
-                <input type="text" defaultValue="Task Request Form" className="w-full bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiêu đề biểu mẫu</label>
+                <input type="text" defaultValue="Biểu mẫu yêu cầu công việc" className="w-full bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Form Fields</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trường biểu mẫu</label>
                 <div className="p-3 bg-slate-50/30 border border-slate-100 dark:border-slate-800 rounded-xl space-y-2 text-xs">
-                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Task Name</span><span className="text-[10px] text-slate-400 font-bold">Text</span></div>
-                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Description</span><span className="text-[10px] text-slate-400 font-bold">Textarea</span></div>
-                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Priority</span><span className="text-[10px] text-slate-400 font-bold">Select</span></div>
+                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Tên công việc</span><span className="text-[10px] text-slate-400 font-bold">Văn bản</span></div>
+                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Mô tả</span><span className="text-[10px] text-slate-400 font-bold">Văn bản dài</span></div>
+                  <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-150 dark:border-slate-800"><span>Mức ưu tiên</span><span className="text-[10px] text-slate-400 font-bold">Lựa chọn</span></div>
                 </div>
               </div>
-              <button onClick={() => alert("Form published!")} className="px-4 py-2 bg-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:bg-indigo-700 transition-colors">Publish Form</button>
+              <button onClick={() => alert("Form published!")} className="px-4 py-2 bg-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-sm hover:bg-indigo-700 transition-colors">Xuất bản biểu mẫu</button>
             </div>
           </div>
         )}
@@ -2931,13 +2921,13 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <MapIcon className="w-5 h-5 text-amber-600" />
-              <span>Map view</span>
+              <span>Chế độ bản đồ</span>
             </h3>
             <div className="h-64 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-center text-center text-slate-400 text-xs font-semibold relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(#ddd_1px,transparent_1px)] dark:bg-[radial-gradient(#333_1px,transparent_1px)] [background-size:16px_16px] opacity-60" />
               <div className="relative z-10 space-y-1">
-                <p className="font-extrabold text-slate-700 dark:text-slate-200">Interactive Map Sandbox</p>
-                <p className="text-[10px] text-slate-400">All tasks plotted on map based on location metadata tags.</p>
+                <p className="font-extrabold text-slate-700 dark:text-slate-200">Bản đồ tương tác</p>
+                <p className="text-[10px] text-slate-400">Tất cả công việc được đặt trên bản đồ theo nhãn dữ liệu vị trí.</p>
               </div>
             </div>
           </div>
@@ -2948,19 +2938,19 @@ export default function SpacePage({
           <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4 text-left">
             <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
               <Bot className="w-5 h-5 text-indigo-500 animate-pulse" />
-              <span>Apexa AI Generator</span>
+              <span>Trình tạo Apexa AI</span>
             </h3>
             <div className="space-y-4 max-w-lg">
-              <p className="text-xs text-slate-500 leading-relaxed">Let Apexa AI analyze your workspace context, suggest new lists, or generate workflow structures dynamically.</p>
+              <p className="text-xs text-slate-500 leading-relaxed">Cho phép Apexa AI phân tích ngữ cảnh, đề xuất danh sách mới hoặc tự động tạo cấu trúc quy trình.</p>
               <div className="flex gap-2">
-                <input type="text" placeholder="e.g. Generate a content marketing list with 5 tasks" className="w-full bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100" />
-                <button onClick={() => alert("AI generation started!")} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-colors shrink-0">Generate</button>
+                <input type="text" placeholder="Ví dụ: Tạo danh sách tiếp thị nội dung gồm 5 công việc" className="w-full bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100" />
+                <button onClick={() => alert("AI generation started!")} className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-colors shrink-0">Tạo</button>
               </div>
             </div>
           </div>
         )}
 
-      </main>
+      </section>
 
       {/* Task Detail Drawer Panel */}
       <AnimatePresence>
@@ -3021,7 +3011,7 @@ export default function SpacePage({
                   {selectedTaskIds.length}
                 </span>
               </div>
-              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">Selected</span>
+              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">Đã chọn</span>
             </div>
 
             {/* Actions Group */}
@@ -3040,17 +3030,17 @@ export default function SpacePage({
             <button
               onClick={handleBulkDelete}
               className="px-3.5 py-1.5 text-[11px] font-extrabold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/20 border border-rose-200/40 dark:border-rose-900/30 text-rose-600 dark:text-rose-450 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0"
-              title="Delete all selected tasks"
+              title="Xóa tất cả công việc đã chọn"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
+              <span>Xóa</span>
             </button>
 
             {/* Clear Selection */}
             <button
               onClick={() => setSelectedTaskIds([])}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/85 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer transition-colors shrink-0 active:scale-95"
-              title="Clear selection"
+              title="Bỏ chọn"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -3068,12 +3058,12 @@ export default function SpacePage({
             className="fixed top-20 right-6 z-[145] bg-slate-900 text-white rounded-xl shadow-xl p-3.5 flex flex-col gap-2 min-w-[280px] overflow-hidden"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold">Bulk action applied.</span>
+              <span className="text-xs font-semibold">Đã áp dụng thao tác hàng loạt.</span>
               <button
                 onClick={handleUndoBulkAction}
                 className="text-xs font-black text-indigo-400 hover:text-indigo-350 flex items-center gap-1 cursor-pointer"
               >
-                <span>Undo</span>
+                <span>Hoàn tác</span>
               </button>
             </div>
             {/* Timer visual count down bar */}
@@ -3104,7 +3094,7 @@ export default function SpacePage({
             <div className="flex items-center justify-between pt-1">
               <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-indigo-500" />
-                <span>Create New Task</span>
+                <span>Tạo công việc mới</span>
               </h3>
               <button 
                 onClick={() => setShowAddModal(false)}
@@ -3116,11 +3106,11 @@ export default function SpacePage({
 
             <form onSubmit={handleCreateTaskSubmit} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Task Title</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Tiêu đề công việc</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="What needs to be done?" 
+                  placeholder="Cần thực hiện việc gì?" 
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
@@ -3128,9 +3118,9 @@ export default function SpacePage({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Description</label>
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Mô tả</label>
                 <textarea 
-                  placeholder="Task details & notes..." 
+                  placeholder="Chi tiết và ghi chú công việc..." 
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   className="w-full h-24 px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-955/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-semibold transition-all"
@@ -3139,11 +3129,11 @@ export default function SpacePage({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Priority</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Mức ưu tiên</label>
                   <PriorityPillSelect value={newPrio} onChange={(v) => setNewPrio(v || 'medium')} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Assignee</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Người phụ trách</label>
                   <AssigneePillSelect 
                     members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))} 
                     value={newAssignee || null} 
@@ -3154,23 +3144,23 @@ export default function SpacePage({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Start Date</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Ngày bắt đầu</label>
                   <PremiumDatePicker 
                     startDateValue={newStartDate} 
                     onStartDateChange={(val) => setNewStartDate(val || '')} 
                     dateValue={newDueDate} 
                     onChange={(val) => setNewDueDate(val || '')} 
-                    label="Start"
+                    label="Bắt đầu"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Due Date</label>
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Hạn chót</label>
                   <PremiumDatePicker 
                     startDateValue={newStartDate} 
                     onStartDateChange={(val) => setNewStartDate(val || '')} 
                     dateValue={newDueDate} 
                     onChange={(val) => setNewDueDate(val || '')} 
-                    label="Due"
+                    label="Hạn"
                   />
                 </div>
               </div>
@@ -3181,13 +3171,13 @@ export default function SpacePage({
                   onClick={() => setShowAddModal(false)}
                   className="py-2.5 px-5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 font-bold cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button 
                   type="submit"
                   className="py-2.5 px-6 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Create Task
+                  Tạo công việc
                 </button>
               </div>
             </form>
@@ -3206,7 +3196,7 @@ export default function SpacePage({
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
                 <Bot className="w-5 h-5 text-indigo-500" />
-                <span>AI Urgency Suggestions</span>
+                <span>Đề xuất mức khẩn cấp từ AI</span>
               </h3>
               <button onClick={() => setShowAiPriorityModal(false)} className="text-slate-400 hover:text-slate-650 text-sm">✕</button>
             </div>
@@ -3214,7 +3204,7 @@ export default function SpacePage({
             {loadingAiPriority ? (
               <div className="text-center py-10 space-y-3">
                 <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
-                <p className="text-xs text-slate-400 font-bold">Apexa AI is calculating urgency factors...</p>
+                <p className="text-xs text-slate-400 font-bold">Apexa AI đang tính toán các yếu tố khẩn cấp...</p>
               </div>
             ) : (
               <div className="space-y-4 text-xs font-semibold text-slate-600 dark:text-slate-350">
@@ -3223,7 +3213,7 @@ export default function SpacePage({
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase">Recommended Actions</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase">Hành động đề xuất</h4>
                   {aiSuggestions?.suggestedTasks?.map((t: Task) => (
                     <div 
                       key={t.id} 
@@ -3262,13 +3252,13 @@ export default function SpacePage({
             <button 
               onClick={() => {
                 setViewContextMenu(prev => ({ ...prev, show: false }));
-                alert("Added view to favorites!");
+                alert("Đã thêm chế độ xem vào mục yêu thích!");
               }}
               className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
               <div className="flex items-center gap-2">
                 <Star className="w-3.5 h-3.5 text-slate-400" />
-                <span>Favorite</span>
+                <span>Yêu thích</span>
               </div>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
@@ -3285,7 +3275,7 @@ export default function SpacePage({
               className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-400" />
-              <span>Rename</span>
+              <span>Đổi tên</span>
             </button>
 
             {/* Copy link to view */}
@@ -3298,19 +3288,19 @@ export default function SpacePage({
               className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
               <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
-              <span>Copy link to view</span>
+              <span>Sao chép liên kết chế độ xem</span>
             </button>
 
             {/* Customize view */}
             <button 
               onClick={() => {
                 setViewContextMenu(prev => ({ ...prev, show: false }));
-                alert("Customize view settings.");
+                alert("Tùy chỉnh cài đặt chế độ xem.");
               }}
               className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
               <Cog className="w-3.5 h-3.5 text-slate-400" />
-              <span>Customize view</span>
+              <span>Tùy chỉnh chế độ xem</span>
             </button>
 
             <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
@@ -3340,11 +3330,11 @@ export default function SpacePage({
             <button 
               onClick={() => {
                 setViewContextMenu(prev => ({ ...prev, show: false }));
-                alert("Exporting view data...");
+                alert("Đang xuất dữ liệu chế độ xem...");
               }}
               className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
-              <span>Export view</span>
+              <span>Xuất chế độ xem</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -3352,11 +3342,11 @@ export default function SpacePage({
             <button 
               onClick={() => {
                 setViewContextMenu(prev => ({ ...prev, show: false }));
-                alert("Opening view templates...");
+                alert("Đang mở thư viện mẫu chế độ xem...");
               }}
               className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
-              <span>Templates</span>
+              <span>Mẫu</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -3364,11 +3354,11 @@ export default function SpacePage({
             <button 
               onClick={() => {
                 setViewContextMenu(prev => ({ ...prev, show: false }));
-                alert("Move view action.");
+                alert("Di chuyển chế độ xem.");
               }}
               className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
-              <span>Move</span>
+              <span>Di chuyển</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -3384,7 +3374,7 @@ export default function SpacePage({
               }}
               className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold"
             >
-              <span>Duplicate view</span>
+              <span>Nhân bản chế độ xem</span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -3406,18 +3396,18 @@ export default function SpacePage({
               }}
               className="w-full flex items-center gap-2 px-3.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-red-600"
             >
-              <span>Delete view</span>
+              <span>Xóa chế độ xem</span>
             </button>
 
             <div className="p-2 pt-1 border-t border-slate-100 dark:border-slate-800/80 mt-1">
               <button 
                 onClick={() => {
                   setViewContextMenu(prev => ({ ...prev, show: false }));
-                  alert("Opening Sharing & Permissions settings...");
+                  alert("Đang mở cài đặt chia sẻ và phân quyền...");
                 }}
                 className="w-full py-1.5 bg-[#007fff] hover:bg-blue-650 text-white font-extrabold text-center rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                Sharing & Permissions
+                Chia sẻ và phân quyền
               </button>
             </div>
           </div>
@@ -3437,7 +3427,7 @@ export default function SpacePage({
             className="w-[280px] p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-50 text-left font-sans select-none animate-fadeIn max-h-[80vh] overflow-y-auto scrollbar-none"
           >
             {/* Section: CREATE */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Create</div>
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Tạo</div>
             <div className="space-y-0.5">
               {/* List */}
               <button 
@@ -3452,8 +3442,8 @@ export default function SpacePage({
                   <List className="w-4 h-4 text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">List</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track tasks, projects, people & more</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Danh sách</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Theo dõi công việc, dự án, thành viên và hơn thế nữa</p>
                 </div>
               </button>
 
@@ -3473,8 +3463,8 @@ export default function SpacePage({
                   <Folder className="w-4 h-4 text-indigo-500 group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Folder</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Group Lists, Docs & more</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Thư mục</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Nhóm danh sách, tài liệu và nội dung khác</p>
                 </div>
               </button>
 
@@ -3494,8 +3484,8 @@ export default function SpacePage({
                   <RefreshCw className="w-4 h-4 text-cyan-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-455 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Sprint Folder</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Manage iterations and sprints</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Thư mục Sprint</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Quản lý chu kỳ và Sprint</p>
                 </div>
               </button>
             </div>
@@ -3503,7 +3493,7 @@ export default function SpacePage({
             <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
 
             {/* Section: DOCS & VIEWS */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Docs & Views</div>
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Tài liệu và chế độ xem</div>
             <div className="space-y-0.5">
               {/* Doc */}
               <button 
@@ -3521,8 +3511,8 @@ export default function SpacePage({
                   <FileText className="w-4 h-4 text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Doc</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collaborate & document anything</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Tài liệu</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Cộng tác và ghi chép mọi nội dung</p>
                 </div>
               </button>
 
@@ -3533,7 +3523,7 @@ export default function SpacePage({
                   if (triggerToast) {
                     triggerToast('success', 'Dashboard View Mocked', 'A new dashboard view has been added to this Space.');
                   } else {
-                    alert("Dashboard view simulated!");
+                    alert("Đã mô phỏng chế độ xem bảng điều khiển!");
                   }
                   setActiveSpaceMenu(null);
                 }}
@@ -3543,8 +3533,8 @@ export default function SpacePage({
                   <Activity className="w-4 h-4 text-pink-500 group-hover:text-pink-650 dark:group-hover:text-pink-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Dashboard</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Track metrics & insights</p>
+                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Bảng điều khiển</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Theo dõi chỉ số và thông tin chuyên sâu</p>
                 </div>
               </button>
 
@@ -3564,8 +3554,8 @@ export default function SpacePage({
                   <Sparkles className="w-4 h-4 text-amber-500 group-hover:text-amber-650 dark:group-hover:text-amber-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Whiteboard</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Visualize & brainstorm ideas</p>
+                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Bảng trắng</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Trực quan hóa và động não ý tưởng</p>
                 </div>
               </button>
 
@@ -3586,8 +3576,8 @@ export default function SpacePage({
                   <CheckSquare className="w-4 h-4 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Form</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Collect, track, & report data</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Biểu mẫu</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Thu thập, theo dõi và báo cáo dữ liệu</p>
                 </div>
               </button>
             </div>
@@ -3595,7 +3585,7 @@ export default function SpacePage({
             <div className="border-t border-slate-100 dark:border-slate-800 my-2" />
 
             {/* Section: MORE */}
-            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">More</div>
+            <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Thêm</div>
             <div className="space-y-0.5">
               {/* Imports */}
               <button 
@@ -3604,7 +3594,7 @@ export default function SpacePage({
                   if (triggerToast) {
                     triggerToast('success', 'Imports Triggered', 'Select a CSV or Excel file to import your tasks.');
                   } else {
-                    alert("Imports triggered!");
+                    alert("Đã bắt đầu nhập dữ liệu!");
                   }
                   setActiveSpaceMenu(null);
                 }}
@@ -3614,8 +3604,8 @@ export default function SpacePage({
                   <LinkIcon className="w-4 h-4 text-teal-500 group-hover:text-teal-655 dark:group-hover:text-teal-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Imports</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Bring work in from other apps</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Nhập dữ liệu</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Nhập công việc từ ứng dụng khác</p>
                 </div>
               </button>
 
@@ -3636,8 +3626,8 @@ export default function SpacePage({
                   <Star className="w-4 h-4 text-amber-500 fill-amber-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Templates</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Create from ready-made templates</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Mẫu</p>
+                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Tạo từ mẫu có sẵn</p>
                 </div>
               </button>
             </div>
@@ -3681,7 +3671,7 @@ export default function SpacePage({
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <Rocket className="w-3.5 h-3.5" /> Space
+                      <Rocket className="w-3.5 h-3.5" /> Không gian
                     </button>
                     <button
                       type="button"
@@ -3695,7 +3685,7 @@ export default function SpacePage({
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <Folder className="w-3.5 h-3.5" /> Folder
+                      <Folder className="w-3.5 h-3.5" /> Thư mục
                     </button>
                     <button
                       type="button"
@@ -3709,7 +3699,7 @@ export default function SpacePage({
                           : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <List className="w-3.5 h-3.5" /> List
+                      <List className="w-3.5 h-3.5" /> Danh sách
                     </button>
                   </div>
                 </div>
@@ -3846,7 +3836,7 @@ export default function SpacePage({
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveSpaceSettings(null);
-                    const newName = prompt("Rename Space:", space.name);
+                    const newName = prompt("Đổi tên khu vực:", space.name);
                     if (newName?.trim()) {
                       const updated = spaces.map(s => s.id === space.id ? { ...s, name: newName.trim() } : s);
                       onSaveSpaces?.(updated);
@@ -3859,7 +3849,7 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <Pencil className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Rename</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Đổi tên</span>
                   </div>
                 </button>
 
@@ -3914,7 +3904,7 @@ export default function SpacePage({
                     <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-450 group-hover/item:bg-indigo-50 dark:group-hover/item:bg-indigo-950/50 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors shrink-0">
                       <Plus className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Create new</span>
+                    <span className="font-extrabold text-[12px] group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">Tạo mới</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all duration-200" />
                 </button>
@@ -4068,7 +4058,7 @@ export default function SpacePage({
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black text-xs shadow-md shadow-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/35 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <Shield className="w-3.5 h-3.5 text-white/90" />
-                  <span>Sharing & Permissions</span>
+                  <span>Chia sẻ và phân quyền</span>
                 </button>
               </div>
             </motion.div>
@@ -4091,7 +4081,7 @@ export default function SpacePage({
               }}
               className="w-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 text-left font-sans select-none overflow-hidden py-1.5 text-xs animate-fadeIn text-slate-700 dark:text-slate-200"
             >
-              <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">Create</div>
+              <div className="px-3 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">Tạo</div>
               
               {/* Task */}
               <button
@@ -4118,8 +4108,8 @@ export default function SpacePage({
               >
                 <span className="text-sm shrink-0">➕</span>
                 <div>
-                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Task</p>
-                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Create individual tasks to manage your work</p>
+                  <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Công việc</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Tạo từng công việc để quản lý tiến độ</p>
                 </div>
               </button>
               
@@ -4148,7 +4138,7 @@ export default function SpacePage({
                 <List className="w-4 h-4 text-slate-455 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-bold text-slate-805 dark:text-slate-200">List</p>
-                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Track tasks, projects, people & more</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Theo dõi công việc, dự án, thành viên và hơn thế nữa</p>
                 </div>
               </button>
               
@@ -4177,7 +4167,7 @@ export default function SpacePage({
                 <RefreshCw className="w-4 h-4 text-indigo-550 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-bold text-slate-805 dark:text-slate-200">Sprint</p>
-                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Plan a new Sprint</p>
+                  <p className="text-[9px] text-slate-455 leading-none mt-0.5">Lập kế hoạch Sprint mới</p>
                 </div>
               </button>
 
@@ -4197,17 +4187,17 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
               >
                 <span className="text-sm shrink-0">📄</span>
-                <span>Doc</span>
+                <span>Tài liệu</span>
               </button>
 
               {/* Dashboard */}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveListMenu(null); alert("Dashboard creation triggered."); }}
+                onClick={(e) => { e.stopPropagation(); setActiveListMenu(null); alert("Đã bắt đầu tạo bảng điều khiển."); }}
                 className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
               >
                 <Activity className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-                <span>Dashboard</span>
+                <span>Bảng điều khiển</span>
               </button>
               
               {/* Whiteboard */}
@@ -4224,7 +4214,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-550 dark:hover:bg-slate-800 text-left cursor-pointer font-bold text-slate-700 dark:text-slate-200"
               >
                 <Brain className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>Whiteboard</span>
+                <span>Bảng trắng</span>
               </button>
             </div>
           </Portal>
@@ -4272,7 +4262,7 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveListSettings(null);
-                  const newName = prompt("Rename List:", list.name);
+                  const newName = prompt("Đổi tên danh sách:", list.name);
                   if (newName?.trim()) {
                     const updatedLists = space.lists.map(l => l.id === list.id ? { ...l, name: newName.trim() } : l);
                     const updated = spaces.map(s => s.id === space.id ? { ...s, lists: updatedLists } : s);
@@ -4283,7 +4273,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Rename</span>
+                <span className="font-bold">Đổi tên</span>
               </button>
 
               {/* Copy Link */}
@@ -4304,7 +4294,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer"
               >
                 <LinkIcon className="w-3.5 h-3.5 text-slate-450" />
-                <span className="font-bold">Copy link</span>
+                <span className="font-bold">Sao chép liên kết</span>
               </button>
 
               <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
@@ -4321,7 +4311,7 @@ export default function SpacePage({
                   className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-slate-450" />
-                  <span className="font-bold">Custom Fields</span>
+                  <span className="font-bold">Trường tùy chỉnh</span>
                 </button>
               )}
 
@@ -4333,7 +4323,7 @@ export default function SpacePage({
                   className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-855 text-left cursor-pointer"
                 >
                   <Zap className="w-3.5 h-3.5 text-slate-455" />
-                  <span className="font-bold">Automations</span>
+                  <span className="font-bold">Tự động hóa</span>
                 </button>
               )}
 
@@ -4353,7 +4343,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-indigo-650 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-left cursor-pointer"
               >
                 <Shield className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="font-bold">Sharing & Permissions</span>
+                <span className="font-bold">Chia sẻ và phân quyền</span>
               </button>
 
               <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
@@ -4419,7 +4409,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-955/20 text-left cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                <span className="font-bold">Delete</span>
+                <span className="font-bold">Xóa</span>
               </button>
             </div>
           </Portal>
@@ -4467,7 +4457,7 @@ export default function SpacePage({
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveFolderSettings(null);
-                  const newName = prompt("Rename Folder:", folder.name);
+                  const newName = prompt("Đổi tên thư mục:", folder.name);
                   if (newName?.trim()) {
                     const updatedFolders = space.folders?.map(f => f.id === folder.id ? { ...f, name: newName.trim() } : f) || [];
                     const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders } : s);
@@ -4478,7 +4468,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Rename</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Đổi tên</span>
               </button>
 
               {/* Copy Link */}
@@ -4499,7 +4489,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Copy link</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Sao chép liên kết</span>
               </button>
 
                    {/* Create new */}
@@ -4517,7 +4507,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <Plus className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-355">Create new</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-355">Tạo mới</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4534,7 +4524,7 @@ export default function SpacePage({
                 >
                   <div className="flex items-center gap-2">
                     <Droplet className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-semibold text-slate-650 dark:text-slate-355">Folder color</span>
+                    <span className="font-semibold text-slate-650 dark:text-slate-355">Màu thư mục</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full border border-slate-200/50" style={{ backgroundColor: folder.color || '#6366f1' }} />
@@ -4582,7 +4572,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Zap className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Automations</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Tự động hóa</span>
               </button>
 
               {/* Custom Fields */}
@@ -4596,7 +4586,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Custom Fields</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Trường tùy chỉnh</span>
               </button>
 
               {/* Task statuses */}
@@ -4606,7 +4596,7 @@ export default function SpacePage({
                 className="w-full flex items-center gap-2 px-3.5 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 text-left cursor-pointer transition-colors"
               >
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-semibold text-slate-650 dark:text-slate-350">Task statuses</span>
+                <span className="font-semibold text-slate-650 dark:text-slate-350">Trạng thái công việc</span>
               </button>
 
               {/* More */}
@@ -4617,7 +4607,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">More</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Thêm</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4632,7 +4622,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Imports</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Nhập dữ liệu</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4645,7 +4635,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Templates</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Mẫu</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4660,7 +4650,7 @@ export default function SpacePage({
               >
                 <div className="flex items-center gap-2">
                   <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="font-semibold text-slate-650 dark:text-slate-350">Move</span>
+                  <span className="font-semibold text-slate-650 dark:text-slate-350">Di chuyển</span>
                 </div>
                 <ChevronRight className="w-3 h-3 text-slate-400" />
               </button>
@@ -4750,7 +4740,7 @@ export default function SpacePage({
                   }}
                   className="w-full py-1.5 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer"
                 >
-                  Sharing & Permissions
+                  Chia sẻ và phân quyền
                 </button>
               </div>
             </div>
@@ -4769,7 +4759,7 @@ export default function SpacePage({
             <div className="flex items-center justify-between pb-3 border-b border-slate-205 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-slate-500" />
-                <span className="font-black text-[13px] text-slate-800 dark:text-slate-100 uppercase tracking-wider">Fields</span>
+                <span className="font-black text-[13px] text-slate-800 dark:text-slate-100 uppercase tracking-wider">Trường</span>
               </div>
               <button 
                 onClick={() => setShowFieldsPanel(false)}
@@ -4991,7 +4981,7 @@ function CustomFieldsTabs({
           type="text" 
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search Task Fields" 
+          placeholder="Tìm trường công việc" 
           className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 transition-colors text-slate-700 dark:text-slate-250 font-bold" 
         />
       </div>
@@ -5001,20 +4991,20 @@ function CustomFieldsTabs({
           onClick={() => setTab('create')}
           className={`flex-1 pb-2 border-b-2 text-center cursor-pointer transition-all ${tab === 'create' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-605'}`}
         >
-          Create new
+          Tạo mới
         </button>
         <button 
           onClick={() => setTab('add')}
           className={`flex-1 pb-2 border-b-2 text-center cursor-pointer transition-all ${tab === 'add' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-605'}`}
         >
-          Add existing
+          Thêm nội dung có sẵn
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-0.5 space-y-4">
         {tab === 'create' && (
           <div className="space-y-3">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Popular</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phổ biến</div>
             <div className="grid grid-cols-1 gap-1">
               {filteredCatalog.slice(0, 7).map(fc => (
                 <button
@@ -5028,7 +5018,7 @@ function CustomFieldsTabs({
               ))}
             </div>
             
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2">All</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2">Tất cả</div>
             <div className="grid grid-cols-1 gap-1">
               {filteredCatalog.map(fc => (
                 <button
@@ -5047,7 +5037,7 @@ function CustomFieldsTabs({
         {tab === 'add' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1">
-              <span>Shown</span>
+              <span>Đang hiển thị</span>
               <span>{visibleFields.length}</span>
             </div>
             <div className="space-y-1">
@@ -5065,7 +5055,7 @@ function CustomFieldsTabs({
                             handleDeleteField(p.key);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-rose-500/10 text-rose-500 rounded transition-all cursor-pointer shrink-0"
-                          title="Delete Field"
+                          title="Xóa trường"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -5086,7 +5076,7 @@ function CustomFieldsTabs({
             </div>
 
             <div className="flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1 pt-2">
-              <span>Properties</span>
+              <span>Thuộc tính</span>
               <span>{filteredProperties.length - visibleFields.length}</span>
             </div>
             <div className="space-y-1">
@@ -5104,7 +5094,7 @@ function CustomFieldsTabs({
                             handleDeleteField(p.key);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-rose-500/10 text-rose-500 rounded transition-all cursor-pointer shrink-0"
-                          title="Delete Field"
+                          title="Xóa trường"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

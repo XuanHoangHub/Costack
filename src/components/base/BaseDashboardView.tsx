@@ -84,7 +84,7 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
   if (records.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-        Add records to see dashboard insights
+        Thêm bản ghi để xem phân tích trên bảng điều khiển
       </div>
     );
   }
@@ -95,9 +95,9 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
         {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {metrics.map((m, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
               <p className="text-[10px] font-black uppercase text-slate-400 mb-1">{m.label}</p>
-              <p className="text-lg font-black text-slate-800">{m.value}</p>
+              <p className="text-lg font-black text-slate-800 dark:text-slate-100">{m.value}</p>
               {m.sub && <p className="text-[10px] text-slate-400 mt-0.5">{m.sub}</p>}
             </div>
           ))}
@@ -106,8 +106,8 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {barData.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-              <h3 className="text-xs font-black text-slate-700 mb-3">Sum by {selectFields[0]?.name}</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 mb-3">Tổng theo {selectFields[0]?.name}</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barData}>
@@ -126,8 +126,8 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
           )}
 
           {timeSeries.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-              <h3 className="text-xs font-black text-slate-700 mb-3">{numericFields[0]?.name} over time</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 mb-3">{numericFields[0]?.name} theo thời gian</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={timeSeries}>
@@ -142,8 +142,8 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
           )}
 
           {categoricalData.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-              <h3 className="text-xs font-black text-slate-700 mb-3">Distribution</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
+              <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 mb-3">Distribution</h3>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -170,12 +170,12 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
         </div>
 
         {/* Recent records table */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-          <h3 className="text-xs font-black text-slate-700 mb-3">Recent Records</h3>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
+          <h3 className="text-xs font-black text-slate-700 dark:text-slate-200 mb-3">Bản ghi gần đây</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   {table.fields.slice(0, 5).map(f => (
                     <th key={f.id} className="text-left py-2 px-2 text-[10px] font-black text-slate-400 uppercase">{f.name}</th>
                   ))}
@@ -183,9 +183,9 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
               </thead>
               <tbody>
                 {records.slice(0, 5).map(r => (
-                  <tr key={r.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                  <tr key={r.id} className="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/60">
                     {table.fields.slice(0, 5).map(f => (
-                      <td key={f.id} className="py-2 px-2 text-slate-700 truncate max-w-[160px]">
+                      <td key={f.id} className="py-2 px-2 text-slate-700 dark:text-slate-300 truncate max-w-[160px]">
                         {String(r.values[f.id] ?? '')}
                       </td>
                     ))}

@@ -517,7 +517,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           transition={{ duration: 0.15, ease: 'easeOut' }}
           className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-700/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh] z-10 font-sans"
         >
-          <h2 id="global-search-title" className="sr-only">Global search</h2>
+          <h2 id="global-search-title" className="sr-only">Tìm kiếm toàn cục</h2>
           {/* Searching Bar Input Field */}
           <div className="px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between gap-3 bg-white/40 dark:bg-slate-900/40 focus-within:border-indigo-500/50 transition-colors">
             {isCommandMode ? (
@@ -528,9 +528,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             <input
               ref={inputRef}
               type="text"
-              placeholder={isCommandMode ? "Type a command or query..." : "Search for tasks, documents, spaces, chat channels..."}
+              placeholder={isCommandMode ? "Nhập lệnh hoặc nội dung tìm kiếm..." : "Tìm công việc, tài liệu, khu vực, kênh trò chuyện..."}
               value={searchQuery}
-              aria-label="Search tasks, documents, spaces, channels, and members"
+              aria-label="Tìm công việc, tài liệu, khu vực, kênh và thành viên"
               aria-controls="global-search-results"
               aria-activedescendant={flatResults[selectedIndex] ? `global-search-result-${selectedIndex}` : undefined}
               onKeyDown={handleKeyDown}
@@ -555,7 +555,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             )}
             <button
               type="button"
-              aria-label="Close global search"
+              aria-label="Đóng tìm kiếm toàn cục"
               onClick={() => {
                 onClose();
                 setSearchQuery('');
@@ -578,7 +578,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
                 }`}
               >
-                All ({totalResultsCount})
+                Tất cả ({totalResultsCount})
               </button>
               <button
                 onClick={() => setSearchCategory('tasks')}
@@ -590,7 +590,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Briefcase className="w-3 h-3 shrink-0" />
-                <span>Tasks ({filteredTasks.length})</span>
+                <span>Công việc ({filteredTasks.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('docs')}
@@ -602,7 +602,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <FileText className="w-3 h-3 shrink-0" />
-                <span>Documents ({filteredDocs.length})</span>
+                <span>Tài liệu ({filteredDocs.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('spaces')}
@@ -614,7 +614,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Layers3 className="w-3 h-3 shrink-0" />
-                <span>Spaces ({filteredSpaces.length})</span>
+                <span>Khu vực ({filteredSpaces.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('channels')}
@@ -626,7 +626,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Hash className="w-3 h-3 shrink-0" />
-                <span>Chat ({filteredChannels.length})</span>
+                <span>Trò chuyện ({filteredChannels.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('members')}
@@ -638,7 +638,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <UserIcon className="w-3 h-3 shrink-0" />
-                <span>Members ({filteredMembers.length})</span>
+                <span>Thành viên ({filteredMembers.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('commands')}
@@ -650,7 +650,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Terminal className="w-3 h-3 shrink-0" />
-                <span>Commands ({filteredCommands.length})</span>
+                <span>Lệnh ({filteredCommands.length})</span>
               </button>
             </div>
           )}
@@ -661,7 +661,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               // Default Quick Suggestions Screen (Exact UI design match)
               <div className="space-y-3.5 p-2">
                 <span className="text-[10px] uppercase font-mono font-extrabold tracking-wider text-slate-400 dark:text-slate-500 block px-1">
-                  QUICK SUGGESTIONS
+                  GỢI Ý NHANH
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
@@ -675,7 +675,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
                         <Briefcase className="w-4 h-4 font-bold" />
                       </div>
-                      <span className="font-semibold">UI/UX Interface Design</span>
+                      <span className="font-semibold">Thiết kế giao diện UI/UX</span>
                     </div>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </button>
@@ -691,7 +691,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
                         <Briefcase className="w-4 h-4 font-bold" />
                       </div>
-                      <span className="font-semibold">Offline Algorithms</span>
+                      <span className="font-semibold">Thuật toán ngoại tuyến</span>
                     </div>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </button>
@@ -707,7 +707,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 shrink-0">
                         <Hash className="w-4 h-4 font-bold" />
                       </div>
-                      <span className="font-semibold">Apexa AI Core</span>
+                      <span className="font-semibold">Lõi AI Apexa</span>
                     </div>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </button>
@@ -723,7 +723,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       <div className="p-2 rounded-xl bg-pink-50 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 shrink-0">
                         <FileText className="w-4 h-4 font-bold" />
                       </div>
-                      <span className="font-semibold">CRM Culture Deck Document</span>
+                      <span className="font-semibold">Tài liệu văn hóa CRM</span>
                     </div>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                   </button>
@@ -743,11 +743,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       >
                         /
                       </button>{' '}
-                      to see all available commands, hit{' '}
+                      để xem toàn bộ lệnh, nhấn{' '}
                       <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-700 dark:text-slate-300">
                         Tab
                       </kbd>{' '}
-                      to see additional actions
+                      để xem các thao tác khác
                     </span>
                   </span>
                   <button
@@ -757,7 +757,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                       onClose();
                     }}
                     className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer flex items-center justify-center"
-                    title="Search Settings"
+                    title="Cài đặt tìm kiếm"
                   >
                     <Cog className="w-3.5 h-3.5" />
                   </button>
@@ -766,7 +766,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             ) : flatResults.length === 0 ? (
               // Empty State
               <div className="py-10 text-center space-y-2">
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No matching results found</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Không tìm thấy kết quả phù hợp</p>
                 <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
                   {isCommandMode
                     ? 'No system commands match this keyword. Try typing /task, /doc, /chat, or /settings.'
@@ -892,7 +892,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                               {d.title}
                             </span>
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
-                              Category: {d.category || 'General'} • Author: {d.updatedBy || 'System'}
+                              Danh mục: {d.category || 'General'} • Tác giả: {d.updatedBy || 'System'}
                             </span>
                           </div>
                         </div>
@@ -931,7 +931,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                               {space.emoji ? `${space.emoji} ` : ''}{space.name}
                             </span>
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
-                              {space.lists?.length || 0} lists · {space.channels?.length || 0} channels
+                              {space.lists?.length || 0} danh sách · {space.channels?.length || 0} channels
                             </span>
                           </div>
                         </div>

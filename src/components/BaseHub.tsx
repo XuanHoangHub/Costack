@@ -274,7 +274,7 @@ export default function BaseHub({
   // ─── Hub View (list of bases / spaces) ───
   if (!activeBase && !activeSpace) {
     return (
-      <div className="h-full flex flex-col overflow-hidden">
+      <div className="h-full flex flex-col overflow-hidden bg-transparent text-slate-800 dark:text-slate-100">
         {/* Header */}
         <div className="shrink-0 px-6 pt-6 pb-4">
           <div className="flex items-start justify-between gap-4">
@@ -284,9 +284,9 @@ export default function BaseHub({
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}>
                   <Database className="w-4.5 h-4.5" />
                 </div>
-                <h1 className="text-xl font-black font-display text-slate-800 tracking-tight">Apexa Base</h1>
+                <h1 className="text-xl font-black font-display text-slate-800 dark:text-slate-100 tracking-tight">Cơ sở dữ liệu Apexa</h1>
               </div>
-              <p className="text-xs text-slate-500 ml-11">No-code databases + Spaces — structure your work</p>
+              <p className="text-xs text-slate-500 ml-11">Cơ sở dữ liệu không cần mã + Khu vực — tổ chức công việc khoa học</p>
             </div>
             <div className="flex items-center gap-2">
               {hubModule === 'spaces' ? (
@@ -296,7 +296,7 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  New Space
+                  Khu vực mới
                 </button>
               ) : (
                 <button
@@ -305,39 +305,39 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  New Base
+                  Cơ sở dữ liệu mới
                 </button>
               )}
             </div>
           </div>
 
           {/* Module Tabs */}
-          <div className="mt-4 flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl w-fit">
+          <div className="mt-4 flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/80 p-1 rounded-xl w-fit border border-transparent dark:border-slate-800">
             <button
               type="button"
               onClick={() => { setHubModule('bases'); setHubSearch(''); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 hubModule === 'bases'
-                  ? 'bg-white text-slate-800 shadow-xs border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-xs border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               <Database className="w-3.5 h-3.5" />
               Bases
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${hubModule === 'bases' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'}`}>{bases.length}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${hubModule === 'bases' ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300'}`}>{bases.length}</span>
             </button>
             <button
               type="button"
               onClick={() => { setHubModule('spaces'); setHubSearch(''); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 hubModule === 'spaces'
-                  ? 'bg-white text-slate-800 shadow-xs border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-xs border border-slate-200/60 dark:border-slate-700'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               <FolderOpen className="w-3.5 h-3.5" />
               Spaces
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{spaces.length}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">{spaces.length}</span>
             </button>
           </div>
 
@@ -348,7 +348,7 @@ export default function BaseHub({
                 value={hubSearch}
                 onChange={e => setHubSearch(e.target.value)}
                 placeholder={hubModule === 'bases' ? 'Search bases...' : 'Search spaces...'}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
               />
             </div>
           )}
@@ -359,12 +359,12 @@ export default function BaseHub({
           {hubModule === 'bases' ? (
             filteredBases.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center mb-4">
                   <Database className="w-8 h-8 text-indigo-400" />
                 </div>
-                <h2 className="text-lg font-black text-slate-800 mb-2">Build your first Base</h2>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Tạo cơ sở dữ liệu đầu tiên</h2>
                 <p className="text-sm text-slate-500 mb-6">
-                  Create flexible databases for CRM, project management, inventory tracking and more — no code required.
+                  Tạo cơ sở dữ liệu linh hoạt cho CRM, quản lý dự án, theo dõi kho và nhiều mục đích khác — không cần lập trình.
                 </p>
                 <button
                   type="button"
@@ -373,7 +373,7 @@ export default function BaseHub({
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}
                 >
                   <Sparkles className="w-4 h-4" />
-                  Choose a template
+                  Chọn mẫu
                 </button>
               </div>
             ) : (
@@ -386,12 +386,12 @@ export default function BaseHub({
                       type="button"
                       whileHover={{ y: -2 }}
                       onClick={() => { setActiveBaseId(base.id); setActiveViewId(null); }}
-                      className="text-left bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer group"
+                      className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer group"
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <span className="text-2xl">{base.emoji || '📋'}</span>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{base.name}</h3>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{base.name}</h3>
                           {base.description && (
                             <p className="text-[11px] text-slate-400 truncate mt-0.5">{base.description}</p>
                           )}
@@ -411,22 +411,22 @@ export default function BaseHub({
                 <button
                   type="button"
                   onClick={() => setShowTemplateModal(true)}
-                  className="rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
+                  className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
                 >
                   <Plus className="w-6 h-6" />
-                  <span className="text-xs font-bold">New Base</span>
+                  <span className="text-xs font-bold">Cơ sở dữ liệu mới</span>
                 </button>
               </div>
             )
           ) : (
             filteredSpaces.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center mb-4">
                   <FolderOpen className="w-8 h-8 text-indigo-400" />
                 </div>
-                <h2 className="text-lg font-black text-slate-800 mb-2">Create your first Space</h2>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Tạo khu vực đầu tiên</h2>
                 <p className="text-sm text-slate-500 mb-6">
-                  Spaces organize tasks, lists, and teams for your projects.
+                  Khu vực giúp sắp xếp công việc, danh sách và nhóm theo từng dự án.
                 </p>
                 <button
                   type="button"
@@ -434,7 +434,7 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  Create Space
+                  Tạo khu vực
                 </button>
               </div>
             ) : (
@@ -448,14 +448,14 @@ export default function BaseHub({
                       type="button"
                       whileHover={{ y: -2 }}
                       onClick={() => { setActiveSpaceId(space.id); setActiveListId(null); }}
-                      className="text-left bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all cursor-pointer group"
+                      className="text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer group"
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <span className="text-2xl w-8 h-8 flex items-center justify-center text-indigo-500 shrink-0">
                           {renderSpaceIcon(space.emoji || '📦', "w-6 h-6")}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{space.name}</h3>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{space.name}</h3>
                           <p className="text-[11px] text-slate-400 truncate mt-0.5">{space.workspaceId}</p>
                         </div>
                       </div>
@@ -473,10 +473,10 @@ export default function BaseHub({
                 <button
                   type="button"
                   onClick={() => setShowAddSpaceModal(true)}
-                  className="rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
+                  className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
                 >
                   <Plus className="w-6 h-6" />
-                  <span className="text-xs font-bold">New Space</span>
+                  <span className="text-xs font-bold">Khu vực mới</span>
                 </button>
               </div>
             )
@@ -497,8 +497,8 @@ export default function BaseHub({
               >
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                   <div>
-                    <h2 className="text-base font-black text-slate-800 dark:text-slate-100">Choose a template</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Start with a pre-built structure or blank canvas</p>
+                    <h2 className="text-base font-black text-slate-800 dark:text-slate-100">Chọn mẫu</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Bắt đầu bằng cấu trúc có sẵn hoặc trang trống</p>
                   </div>
                   <button type="button" onClick={() => setShowTemplateModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
                     <X className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -535,42 +535,42 @@ export default function BaseHub({
     return (
       <div className="h-full flex flex-col overflow-hidden">
         {/* Top bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => { setActiveSpaceId(null); setActiveListId(null); }}
-            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer transition-colors"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <span className="text-lg flex items-center justify-center text-indigo-500 shrink-0">
             {renderSpaceIcon(activeSpace.emoji || '📦', "w-5 h-5")}
           </span>
-          <h1 className="text-sm font-black text-slate-800 truncate">{activeSpace.name}</h1>
+          <h1 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate">{activeSpace.name}</h1>
           {isOffline && <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Offline</span>}
 
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowAddListModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" /> New List
+              <Plus className="w-3.5 h-3.5" /> Danh sách mới
             </button>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowSpaceMenu(!showSpaceMenu)}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer"
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {showSpaceMenu && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setShowSpaceMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-slate-200 shadow-lg py-1 min-w-[160px]">
-                    <button type="button" onClick={() => { handleDeleteSpace(activeSpace.id); setShowSpaceMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete Space
+                  <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1 min-w-[160px]">
+                    <button type="button" onClick={() => { handleDeleteSpace(activeSpace.id); setShowSpaceMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer">
+                      <Trash2 className="w-3.5 h-3.5" /> Xóa khu vực
                     </button>
                   </div>
                 </>
@@ -581,7 +581,7 @@ export default function BaseHub({
 
         <div className="flex flex-1 overflow-hidden">
           {/* Lists sidebar */}
-          <div className="hidden md:flex flex-col w-48 shrink-0 border-r border-slate-200/60 bg-slate-50/50 py-3 px-2">
+          <div className="hidden md:flex flex-col w-48 shrink-0 border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-3 px-2">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 mb-2">Lists</span>
             {spaceLists.map(list => {
               const listTaskCount = spaceTasks.filter(t => t.listId === list.id).length;
@@ -592,8 +592,8 @@ export default function BaseHub({
                   onClick={() => setActiveListId(list.id)}
                   className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer mb-0.5 ${
                     activeListId === list.id
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-slate-600 hover:bg-slate-100'
+                      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <LayoutList className="w-3.5 h-3.5 shrink-0" />
@@ -607,18 +607,18 @@ export default function BaseHub({
               onClick={() => setShowAddListModal(true)}
               className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors cursor-pointer mt-1"
             >
-              <Plus className="w-3.5 h-3.5" /> Add list
+              <Plus className="w-3.5 h-3.5" /> Thêm danh sách
             </button>
           </div>
 
           {/* Main content - Task list */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Mobile list selector */}
-            <div className="md:hidden shrink-0 px-4 py-2 border-b border-slate-100">
+            <div className="md:hidden shrink-0 px-4 py-2 border-b border-slate-100 dark:border-slate-800">
               <select
                 value={activeListId || ''}
                 onChange={e => setActiveListId(e.target.value)}
-                className="w-full text-xs font-bold border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
               >
                 {spaceLists.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
@@ -629,23 +629,23 @@ export default function BaseHub({
             <div className="flex-1 overflow-y-auto p-4">
               {!activeListId && spaceLists.length > 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  Select a list to view tasks
+                  Chọn một danh sách để xem công việc
                 </div>
               )}
               {spaceLists.length === 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  No lists yet. Create one to get started.
+                  Chưa có danh sách. Hãy tạo danh sách đầu tiên.
                 </div>
               )}
               {activeListId && listTasks.length === 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  No tasks in this list yet.
+                  Danh sách này chưa có công việc.
                 </div>
               )}
               {activeListId && listTasks.length > 0 && (
                 <div className="space-y-2">
                   {listTasks.map(task => (
-                    <div key={task.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200/80 hover:border-indigo-200 transition-colors">
+                    <div key={task.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors">
                       <div className={`w-2 h-2 rounded-full shrink-0 ${
                         task.status === 'completed' ? 'bg-emerald-500' :
                         task.status === 'inprogress' ? 'bg-indigo-500' :
@@ -653,7 +653,7 @@ export default function BaseHub({
                         'bg-slate-300'
                       }`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-800 truncate">{task.title}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{task.title}</p>
                         <p className="text-[10px] text-slate-400 truncate">{task.description}</p>
                       </div>
                       {task.dueDate && (
@@ -675,19 +675,19 @@ export default function BaseHub({
                 className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setShowAddListModal(false)} />
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+                className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6"
               >
-                <h3 className="text-sm font-black text-slate-800 mb-4">Add New List</h3>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 mb-4">Thêm danh sách mới</h3>
                 <input
                   type="text"
                   value={newListName}
                   onChange={e => setNewListName(e.target.value)}
-                  placeholder="List name..."
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 mb-4"
+                  placeholder="Tên danh sách..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 mb-4"
                   autoFocus
                 />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowAddListModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">Cancel</button>
+                  <button type="button" onClick={() => setShowAddListModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">Cancel</button>
                   <button type="button" onClick={() => handleAddListToSpace(activeSpace.id)} className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 cursor-pointer">Create</button>
                 </div>
               </motion.div>
@@ -705,16 +705,16 @@ export default function BaseHub({
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Top bar */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 bg-white/80 backdrop-blur-sm">
+      <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm">
         <button
           type="button"
           onClick={() => { setActiveBaseId(null); setActiveViewId(null); setSearchQuery(''); }}
-          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer transition-colors"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <span className="text-lg">{activeBase.emoji || '📋'}</span>
-        <h1 className="text-sm font-black text-slate-800 truncate">{activeBase.name}</h1>
+        <h1 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate">{activeBase.name}</h1>
         {isOffline && <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Offline</span>}
 
         <div className="ml-auto flex items-center gap-2">
@@ -723,8 +723,8 @@ export default function BaseHub({
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search records..."
-              className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44"
+              placeholder="Tìm bản ghi..."
+              className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44"
             />
           </div>
 
@@ -732,15 +732,15 @@ export default function BaseHub({
             <button
               type="button"
               onClick={() => setShowBaseMenu(!showBaseMenu)}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 cursor-pointer"
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
             {showBaseMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowBaseMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-40 bg-white rounded-xl border border-slate-200 shadow-lg py-1 min-w-[160px]">
-                  <button type="button" onClick={handleDuplicateBase} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
+                <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1 min-w-[160px]">
+                  <button type="button" onClick={handleDuplicateBase} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                     <Copy className="w-3.5 h-3.5" /> Duplicate
                   </button>
                   <button
@@ -754,7 +754,7 @@ export default function BaseHub({
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete Base
+                    <Trash2 className="w-3.5 h-3.5" /> Xóa cơ sở dữ liệu
                   </button>
                 </div>
               </>
@@ -765,7 +765,7 @@ export default function BaseHub({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Table sidebar */}
-        <div className="hidden md:flex flex-col w-44 shrink-0 border-r border-slate-200/60 bg-slate-50/50 py-3 px-2">
+        <div className="hidden md:flex flex-col w-44 shrink-0 border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-3 px-2">
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 mb-2">Tables</span>
           {activeBase.tables.map(table => (
             <button
@@ -777,8 +777,8 @@ export default function BaseHub({
               }}
               className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer mb-0.5 ${
                 activeTable?.id === table.id
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <Table2 className="w-3.5 h-3.5 shrink-0" />
@@ -790,14 +790,14 @@ export default function BaseHub({
             onClick={handleAddTable}
             className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors cursor-pointer mt-1"
           >
-            <Plus className="w-3.5 h-3.5" /> Add table
+            <Plus className="w-3.5 h-3.5" /> Thêm bảng
           </button>
         </div>
 
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* View tabs */}
-          <div className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-slate-100 overflow-x-auto">
+          <div className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-slate-100 dark:border-slate-800 overflow-x-auto">
             {activeTable?.views.map(view => {
               const Icon = VIEW_ICONS[view.type];
               const isActive = (activeViewId || activeTable.views[0]?.id) === view.id;
@@ -808,8 +808,8 @@ export default function BaseHub({
                   onClick={() => setActiveViewId(view.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
                     isActive
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'text-slate-500 hover:bg-slate-100'
+                      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -833,7 +833,7 @@ export default function BaseHub({
               <button
                 type="button"
                 onClick={() => setShowFieldModal(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <Settings2 className="w-3.5 h-3.5" /> Fields
               </button>
@@ -841,11 +841,11 @@ export default function BaseHub({
           </div>
 
           {/* Mobile table selector */}
-          <div className="md:hidden shrink-0 px-4 py-2 border-b border-slate-100">
+          <div className="md:hidden shrink-0 px-4 py-2 border-b border-slate-100 dark:border-slate-800">
             <select
               value={activeTable?.id || ''}
               onChange={e => onUpdateBase({ ...activeBase, activeTableId: e.target.value })}
-              className="w-full text-xs font-bold border border-slate-200 rounded-lg px-3 py-2 bg-white"
+              className="w-full text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
             >
               {activeBase.tables.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -931,24 +931,24 @@ export default function BaseHub({
               className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setShowFieldModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-800">Add Field or View</h3>
-                <button type="button" onClick={() => setShowFieldModal(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Thêm trường hoặc chế độ xem</h3>
+                <button type="button" onClick={() => setShowFieldModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
                   <X className="w-4 h-4 text-slate-400" />
                 </button>
               </div>
               <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Field types</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Loại trường</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(BASE_FIELD_TYPE_LABELS) as BaseField['type'][]).map(type => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => handleAddField(type)}
-                        className="text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-xs font-medium text-slate-700 cursor-pointer transition-colors"
+                        className="text-left px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
                       >
                         {BASE_FIELD_TYPE_LABELS[type]}
                       </button>
@@ -956,7 +956,7 @@ export default function BaseHub({
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Add view</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Thêm chế độ xem</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(VIEW_LABELS) as BaseViewType[]).map(type => {
                       const Icon = VIEW_ICONS[type];
@@ -967,11 +967,11 @@ export default function BaseHub({
                           type="button"
                           disabled={exists}
                           onClick={() => { handleAddView(type); setShowFieldModal(false); }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 text-xs font-medium text-slate-700 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Icon className="w-3.5 h-3.5" />
                           {VIEW_LABELS[type]}
-                          {exists && <span className="text-[9px] text-slate-400">(exists)</span>}
+                          {exists && <span className="text-[9px] text-slate-400">(đã tồn tại)</span>}
                         </button>
                       );
                     })}
@@ -993,7 +993,7 @@ export default function BaseHub({
                 initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                 className="relative bg-white dark:bg-[#0c0e18] rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6"
               >
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Create New Space</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Tạo khu vực mới</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Name</label>
@@ -1001,14 +1001,14 @@ export default function BaseHub({
                       type="text"
                       value={newSpaceName}
                       onChange={e => setNewSpaceName(e.target.value)}
-                      placeholder="e.g. Marketing, Engineering, HR"
+                      placeholder="Ví dụ: Tiếp thị, Kỹ thuật, Nhân sự"
                       className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold outline-none focus:border-indigo-500"
                       autoFocus
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Icon / Emoji</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Biểu tượng / Emoji</label>
                       <EmojiIconPicker
                         value={newSpaceEmoji}
                         onChange={setNewSpaceEmoji}
@@ -1024,7 +1024,7 @@ export default function BaseHub({
                       >
                         <option value="indigo">Purple</option>
                         <option value="rose">Pink</option>
-                        <option value="sky">Sky Blue</option>
+                        <option value="sky">Xanh da trời</option>
                         <option value="emerald">Emerald</option>
                         <option value="amber">Amber</option>
                         <option value="sunset">Sunset</option>
@@ -1034,7 +1034,7 @@ export default function BaseHub({
                 </div>
                 <div className="flex gap-2 mt-5">
                   <button type="button" onClick={() => setShowAddSpaceModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">Cancel</button>
-                  <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer active:scale-95">Create Space</button>
+                  <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer active:scale-95">Tạo khu vực</button>
                 </div>
               </motion.div>
             </div>

@@ -218,7 +218,7 @@ export default function TeamManagement({
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Teams Hub</h3>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Trung tâm nhóm</h3>
               <p className="text-[11px] font-medium text-slate-400">Tạo nhóm chức năng, squad hoặc leadership team từ thành viên trong workspace.</p>
             </div>
           </div>
@@ -335,7 +335,7 @@ export default function TeamManagement({
 
                     {leader && (
                       <p className="mt-3 flex items-center gap-1.5 text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400">
-                        <Crown className="h-3.5 w-3.5 text-amber-500" /> Lead: <span className="text-slate-800 dark:text-slate-200">{leader.name}</span>
+                        <Crown className="h-3.5 w-3.5 text-amber-500" /> Trưởng nhóm: <span className="text-slate-800 dark:text-slate-200">{leader.name}</span>
                       </p>
                     )}
 
@@ -481,7 +481,7 @@ export default function TeamManagement({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Team Lead</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Trưởng nhóm</span>
                   <select value={form.leaderId} onChange={event => setForm(prev => ({...prev, leaderId: event.target.value}))} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white">
                     <option value="">Chưa chọn</option>
                     {members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}

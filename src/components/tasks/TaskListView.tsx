@@ -12,7 +12,7 @@ import {
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
 import SignedImage from '../SignedImage';
-import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
+import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel } from '../../utils/fieldConfig';
 
 const DraggableCast = Draggable as typeof Draggable;
 
@@ -65,7 +65,7 @@ const TaskListView = React.memo(function TaskListView({
   isMultiSelectMode, onAddTask, setViewType, statuses,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks
 }: TaskListViewProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   
   // View density mode: 'comfortable' | 'compact'
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
@@ -99,7 +99,7 @@ const TaskListView = React.memo(function TaskListView({
     baseList.forEach(s => {
       const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
       meta[s.id] = {
-        label: s.label,
+        label: getLocalizedOptionLabel(s.id, s.label, locale),
         dot: s.dot || `bg-${c}-500`,
         bg: s.bg || `bg-${c}-50/80 dark:bg-${c}-955/20`,
         text: `text-${c}-700 dark:text-${c}-400`,
@@ -107,7 +107,7 @@ const TaskListView = React.memo(function TaskListView({
       };
     });
     return meta;
-  }, [statusConfigs]);
+  }, [locale, statusConfigs]);
 
   const dynamicStatusBorders = useMemo(() => {
     const borders: Record<string, string> = {};
@@ -320,7 +320,7 @@ const TaskListView = React.memo(function TaskListView({
       <div className="relative pb-16 space-y-4">
         
         {/* ── Sticky Column Header Row ── */}
-        <div className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#090b10]/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-4 py-2 flex items-center gap-3 shadow-xs text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+        <div className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#090b10]/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 shadow-xs text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
           
           {/* Select all checkbox */}
           <div className="flex items-center gap-2 shrink-0">
@@ -329,7 +329,7 @@ const TaskListView = React.memo(function TaskListView({
               checked={isAllSelected}
               onChange={handleToggleSelectAll}
               className="w-4 h-4 rounded-md border border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 transition-all"
-              title={isAllSelected ? "Deselect all" : "Select all tasks"}
+              title={isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả công việc"}
             />
           </div>
 
@@ -346,7 +346,7 @@ const TaskListView = React.memo(function TaskListView({
             <span>Thẻ Tag</span>
           </div>
 
-          <div className="w-24 shrink-0 text-center text-slate-400">
+          <div className="hidden md:block w-24 shrink-0 text-center text-slate-400">
             <span>Thực hiện</span>
           </div>
 
@@ -354,16 +354,16 @@ const TaskListView = React.memo(function TaskListView({
             <span>Bắt đầu</span>
           </div>
 
-          <div className="w-20 shrink-0 text-right text-slate-400">
+          <div className="hidden sm:block w-20 shrink-0 text-right text-slate-400">
             <span>Hạn chót</span>
           </div>
 
-          <div className="w-24 shrink-0 text-center text-slate-400">
+          <div className="hidden md:block w-24 shrink-0 text-center text-slate-400">
             <span>Ưu tiên</span>
           </div>
 
           {/* Density switcher */}
-          <div className="shrink-0 flex items-center bg-slate-200/60 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-300/40 dark:border-slate-700/40">
+          <div className="hidden sm:flex shrink-0 items-center bg-slate-200/60 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-300/40 dark:border-slate-700/40">
             <button
               onClick={() => setDensity('comfortable')}
               className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-3xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
@@ -385,8 +385,9 @@ const TaskListView = React.memo(function TaskListView({
         <div className="space-y-4">
           {currentStatuses.map(statusItem => {
             const standardMeta = dynamicStatusMeta[statusItem.id];
-            const meta = standardMeta ? { ...standardMeta, label: statusItem.label } : {
-              label: statusItem.label.toUpperCase(),
+            const localizedStatusLabel = getLocalizedOptionLabel(statusItem.id, statusItem.label, locale);
+            const meta = standardMeta ? { ...standardMeta, label: localizedStatusLabel } : {
+              label: localizedStatusLabel.toUpperCase(),
               dot: '',
               bg: 'bg-slate-50/50 dark:bg-slate-800/20',
               text: 'text-slate-700 dark:text-slate-350',
@@ -509,7 +510,7 @@ const TaskListView = React.memo(function TaskListView({
                                         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
                                         {...(dragProvided.dragHandleProps as any)}
                                         whileHover={{ x: 2, boxShadow: '0 4px 16px rgba(15,23,42,0.04)' }}
-                                        className={`flex items-center gap-3 px-3.5 ${isCompact ? 'py-1.5' : 'py-2.5'} border-l-[4px] border border-slate-200/40 dark:border-slate-800/40 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/40 hover:border-slate-300 dark:hover:border-slate-700 ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-955/20 border-indigo-300 dark:border-indigo-800' : 'bg-white dark:bg-[#0b0e14]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
+                                        className={`flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2.5'} border-l-[4px] border border-slate-200/40 dark:border-slate-800/40 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/40 hover:border-slate-300 dark:hover:border-slate-700 ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-955/20 border-indigo-300 dark:border-indigo-800' : 'bg-white dark:bg-[#0b0e14]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
                                       >
 
                                         {/* Subtask Tree indentation */}
@@ -581,7 +582,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </div>
 
                                         {/* Title & Metadata badges */}
-                                        <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                                        <div className="flex-1 min-w-[112px]" onClick={e => e.stopPropagation()}>
                                           {inlineEditTaskId === task.id ? (
                                             <input 
                                               autoFocus 
@@ -638,7 +639,7 @@ const TaskListView = React.memo(function TaskListView({
                                               </div>
 
                                               {/* Hover Action Shortcuts Toolbar */}
-                                              <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-1 transition-all ml-2 shrink-0">
+                                              <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-1 transition-all ml-2 shrink-0">
                                                 {/* Timer toggle */}
                                                 {activeTimerTaskId === task.id ? (
                                                   <button 
@@ -756,7 +757,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </div>
 
                                         {/* Assignees */}
-                                        <div className="w-24 shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
+                                        <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
                                           <AssigneePillSelect 
                                             value={task.assigneeIds || (task.assigneeId ? [task.assigneeId] : [])} 
                                             members={members} 
@@ -792,7 +793,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </div>
 
                                         {/* Due Date */}
-                                        <div className="w-20 shrink-0 text-right" onClick={e => e.stopPropagation()}>
+                                        <div className="hidden sm:block w-20 shrink-0 text-right" onClick={e => e.stopPropagation()}>
                                           <PremiumDatePicker 
                                             startDateValue={task.startDate || ''} 
                                             onStartDateChange={newD => {
@@ -819,7 +820,7 @@ const TaskListView = React.memo(function TaskListView({
                                         )}
 
                                         {/* Priority */}
-                                        <div className="w-24 shrink-0 flex justify-center" onClick={e => e.stopPropagation()}>
+                                        <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
                                           <PriorityPillSelect value={task.priority} onChange={newP => {
                                             onUpdateTask({ ...task, priority: newP || 'medium' });
                                             onAddSyncLog(`Priority "${task.title}" → ${newP || 'medium'}`);
@@ -830,7 +831,7 @@ const TaskListView = React.memo(function TaskListView({
                                         <div className="shrink-0 relative w-6 flex items-center justify-center" onClick={e => e.stopPropagation()}>
                                           <button 
                                             onClick={() => setSelectedTask(task)}
-                                            className="opacity-0 group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                                            className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
                                             title="Tùy chọn công việc"
                                           >
                                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -935,10 +936,10 @@ const TaskListView = React.memo(function TaskListView({
                   defaultValue=""
                 >
                   <option value="" disabled>-- Chọn --</option>
-                  <option value="todo">TO DO</option>
-                  <option value="inprogress">IN PROGRESS</option>
-                  <option value="review">UNDER REVIEW</option>
-                  <option value="completed">COMPLETED</option>
+                  <option value="todo">CẦN LÀM</option>
+                  <option value="inprogress">ĐANG THỰC HIỆN</option>
+                  <option value="review">CHỜ DUYỆT</option>
+                  <option value="completed">HOÀN THÀNH</option>
                 </select>
               </div>
 
@@ -951,10 +952,10 @@ const TaskListView = React.memo(function TaskListView({
                   defaultValue=""
                 >
                   <option value="" disabled>-- Chọn --</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="high">High</option>
-                  <option value="medium">Normal</option>
-                  <option value="low">Low</option>
+                  <option value="urgent">Khẩn cấp</option>
+                  <option value="high">Cao</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="low">Thấp</option>
                 </select>
               </div>
 

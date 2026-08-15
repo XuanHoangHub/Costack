@@ -213,10 +213,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  Export & Data Backup Center
+                  Trung tâm xuất và sao lưu dữ liệu
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Export tasks, documents, and workspace data in 1-click
+                  Xuất công việc, tài liệu và dữ liệu không gian chỉ với một lần nhấp
                 </p>
               </div>
             </div>
@@ -234,7 +234,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             {/* Format Selection Cards */}
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase font-mono tracking-wider text-slate-400 dark:text-slate-500">
-                Choose Export Format
+                Chọn định dạng xuất
               </label>
 
               <div className="grid grid-cols-3 gap-2.5">
@@ -249,8 +249,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileJson className="w-5 h-5 text-indigo-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">JSON Backup</div>
-                    <div className="text-[10px] text-slate-400">Full raw data</div>
+                    <div className="text-xs font-bold">Bản sao lưu JSON</div>
+                    <div className="text-[10px] text-slate-400">Toàn bộ dữ liệu gốc</div>
                   </div>
                 </button>
 
@@ -265,8 +265,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileSpreadsheet className="w-5 h-5 text-emerald-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">CSV Spreadsheet</div>
-                    <div className="text-[10px] text-slate-400">Excel / Google Sheets</div>
+                    <div className="text-xs font-bold">Bảng tính CSV</div>
+                    <div className="text-[10px] text-slate-400">Excel / Google Trang tính</div>
                   </div>
                 </button>
 
@@ -281,8 +281,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileText className="w-5 h-5 text-purple-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">Print HTML</div>
-                    <div className="text-[10px] text-slate-400">Printable Executive Report</div>
+                    <div className="text-xs font-bold">Bản in HTML</div>
+                    <div className="text-[10px] text-slate-400">Báo cáo tổng hợp có thể in</div>
                   </div>
                 </button>
               </div>
@@ -291,7 +291,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             {/* Scope Selection */}
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase font-mono tracking-wider text-slate-400 dark:text-slate-500">
-                Scope Filter
+                Phạm vi dữ liệu
               </label>
               <div className="flex items-center gap-2">
                 <button
@@ -303,7 +303,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  All Items ({tasks.length + docs.length})
+                  Tất cả mục ({tasks.length + docs.length})
                 </button>
                 <button
                   type="button"
@@ -314,7 +314,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  Tasks Only ({tasks.length})
+                  Chỉ công việc ({tasks.length})
                 </button>
                 <button
                   type="button"
@@ -325,7 +325,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  Docs Only ({docs.length})
+                  Chỉ tài liệu ({docs.length})
                 </button>
               </div>
             </div>
@@ -334,10 +334,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs space-y-1.5 text-slate-600 dark:text-slate-300">
               <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
                 <HardDrive className="w-4 h-4 text-emerald-500" />
-                <span>Export Summary</span>
+                <span>Tóm tắt bản xuất</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Exporting {exportScope === 'all' ? `${tasks.length} tasks and ${docs.length} documents` : exportScope === 'tasks' ? `${tasks.length} tasks` : `${docs.length} documents`}. The download will start automatically.
+                Exporting {exportScope === 'all' ? `${tasks.length} tasks and ${docs.length} documents` : exportScope === 'tasks' ? `${tasks.length} tasks` : `${docs.length} documents`}. Tệp sẽ tự động được tải xuống.
               </p>
             </div>
           </div>
@@ -346,7 +346,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           <div className="px-6 py-4 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between">
             <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>100% Offline Client-side Export</span>
+              <span>Xuất dữ liệu hoàn toàn ngoại tuyến trên thiết bị</span>
             </span>
 
             <div className="flex items-center gap-2">

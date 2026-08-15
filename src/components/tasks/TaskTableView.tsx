@@ -69,7 +69,7 @@ const CustomizableHeader = ({
             e.stopPropagation();
             onOpenMenu(e);
           }}
-          aria-label={`Open ${label} column menu`}
+          aria-label={`Mở menu cột ${label}`}
           className="opacity-40 group-hover/h:opacity-100 p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all cursor-pointer flex items-center justify-center focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         >
           <ChevronDown className="w-3.5 h-3.5" />
@@ -132,7 +132,7 @@ function CustomFieldCellEditor({
         <PremiumDatePicker
           dateValue={String(val)}
           onChange={newD => onChange(newD || '')}
-          label="Date"
+          label="Ngày"
           align="left"
           className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 cursor-pointer text-slate-700 dark:text-slate-300"
         />
@@ -263,6 +263,10 @@ export default function TaskTableView({
 
   // Dynamic field settings states
   const [columnNames, setColumnNames] = useState<Record<string, string>>({});
+  const getColumnLabel = (key: string, fallback: string, vietnamese: string) => {
+    const label = columnNames[key] || fallback;
+    return locale === 'vi' && label === fallback ? vietnamese : label;
+  };
   const [statusConfigs, setStatusConfigs] = useState<OptionConfig[]>([]);
   const [priorityConfigs, setPriorityConfigs] = useState<OptionConfig[]>([]);
   const [customConfigs, setCustomConfigs] = useState<Record<string, any>>({});
@@ -555,14 +559,14 @@ export default function TaskTableView({
           <tr className="bg-slate-50/95 dark:bg-slate-900/95">
             <th className="sticky left-0 top-0 z-20 w-12 h-11 px-4 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 text-center">
               <input type="checkbox" checked={allSelected}
-                aria-label="Select all tasks"
+                aria-label="Chọn tất cả công việc"
                 onChange={e => { if (e.target.checked) setSelectedTaskIds(sortedTasks.map(t => t.id)); else setSelectedTaskIds([]); }}
                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600" />
             </th>
             {/* Task Name is always visible and first */}
             <CustomizableHeader 
               col="title" 
-              label={columnNames.title || 'Task'} 
+              label={getColumnLabel('title', 'Task', 'Công việc')}
               className="min-w-[250px]" 
               sortCol={sortCol} 
               sortDir={sortDir} 
@@ -573,7 +577,7 @@ export default function TaskTableView({
             {activeFields.includes('status') && (
               <CustomizableHeader 
                 col="status" 
-                label={columnNames.status || 'Status'} 
+                label={getColumnLabel('status', 'Status', 'Trạng thái')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort} 
@@ -584,7 +588,7 @@ export default function TaskTableView({
             {activeFields.includes('priority') && (
               <CustomizableHeader 
                 col="priority" 
-                label={columnNames.priority || 'Priority'} 
+                label={getColumnLabel('priority', 'Priority', 'Ưu tiên')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort}
@@ -594,7 +598,7 @@ export default function TaskTableView({
             {activeFields.includes('assignee') && (
               <CustomizableHeader 
                 col="assignee" 
-                label={columnNames.assignee || 'Assignee'} 
+                label={getColumnLabel('assignee', 'Assignee', 'Người phụ trách')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort} 
@@ -605,7 +609,7 @@ export default function TaskTableView({
             {activeFields.includes('space') && (
               <CustomizableHeader 
                 col="space" 
-                label={columnNames.space || 'Space'} 
+                label={getColumnLabel('space', 'Space', 'Không gian')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort} 
@@ -616,7 +620,7 @@ export default function TaskTableView({
             {activeFields.includes('startDate') && (
               <CustomizableHeader 
                 col="startDate" 
-                label={columnNames.startDate || 'Start Date'} 
+                label={getColumnLabel('startDate', 'Start Date', 'Ngày bắt đầu')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort}
@@ -626,7 +630,7 @@ export default function TaskTableView({
             {activeFields.includes('dueDate') && (
               <CustomizableHeader 
                 col="dueDate" 
-                label={columnNames.dueDate || 'Due Date'} 
+                label={getColumnLabel('dueDate', 'Due Date', 'Hạn chót')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort}
@@ -636,7 +640,7 @@ export default function TaskTableView({
             {activeFields.includes('progress') && (
               <CustomizableHeader 
                 col="progress" 
-                label={columnNames.progress || 'Progress'} 
+                label={getColumnLabel('progress', 'Progress', 'Tiến độ')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort}
@@ -646,7 +650,7 @@ export default function TaskTableView({
             {activeFields.includes('tags') && (
               <CustomizableHeader 
                 col="tags" 
-                label={columnNames.tags || 'Tags'} 
+                label={getColumnLabel('tags', 'Tags', 'Nhãn')}
                 sortCol={sortCol} 
                 sortDir={sortDir} 
                 onToggleSort={toggleSort} 
@@ -676,9 +680,9 @@ export default function TaskTableView({
                   e.stopPropagation();
                   onOpenFieldsPanel?.();
                 }}
-                aria-label="Add table field"
+                aria-label="Thêm trường bảng"
                 className="bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 shadow-3xs flex items-center justify-center w-7 h-7 mx-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                title="Add Field"
+                title="Thêm trường"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -725,7 +729,7 @@ export default function TaskTableView({
                           toggleTaskExpand(task.id);
                         }}
                         className="p-0.5 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 transition-all shrink-0 cursor-pointer"
-                        title={expandedTaskIds.includes(task.id) ? "Collapse subtasks" : "Expand subtasks"}
+                        title={expandedTaskIds.includes(task.id) ? "Thu gọn công việc con" : "Mở rộng công việc con"}
                       >
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
                       </button>
@@ -744,7 +748,7 @@ export default function TaskTableView({
                           if (onStopGlobalTimer) onStopGlobalTimer();
                         }}
                         className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/30"
-                        title="Stop Timer"
+                        title="Dừng bấm giờ"
                       >
                         <Clock className="w-3 h-3 text-rose-500 animate-spin" />
                       </button>
@@ -756,7 +760,7 @@ export default function TaskTableView({
                           if (onStartGlobalTimer) onStartGlobalTimer(task.id);
                         }}
                         className="p-1 rounded-md opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-slate-400 hover:text-emerald-600 cursor-pointer transition-all border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                        title="Start Timer"
+                        title="Bắt đầu bấm giờ"
                       >
                         <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
                       </button>
@@ -775,7 +779,7 @@ export default function TaskTableView({
                           (window as any).playSystemSound?.('toggle');
                         }
                       }}
-                      aria-label={task.status === 'completed' ? `Mark ${task.title} incomplete` : `Mark ${task.title} complete`}
+                      aria-label={task.status === 'completed' ? `Đánh dấu ${task.title} chưa hoàn thành` : `Đánh dấu ${task.title} hoàn thành`}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
                         task.status === 'completed'
                           ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_8px_rgba(16,185,129,0.35)]'
@@ -806,7 +810,7 @@ export default function TaskTableView({
                           setInlineEditTitle(task.title);
                         }}
                         className={`text-[13px] font-semibold truncate max-w-[320px] cursor-pointer hover:text-indigo-650 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
-                        title="Double click to rename task"
+                        title="Nhấp đúp để đổi tên công việc"
                       >
                         {task.title}
                       </span>
@@ -814,13 +818,13 @@ export default function TaskTableView({
 
                     {/* Dependency Badges */}
                     {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                      <span className="bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Waiting on another task to complete">
+                      <span className="bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chờ công việc khác hoàn thành">
                         <Hourglass className="w-2.5 h-2.5 animate-pulse" />
-                        <span>Waiting On</span>
+                        <span>Đang chờ</span>
                       </span>
                     )}
                     {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
-                      <span className="bg-rose-50/80 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/30 text-rose-650 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Blocking another task from starting">
+                      <span className="bg-rose-50/80 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/30 text-rose-650 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chặn công việc khác bắt đầu">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         <span>Blocking</span>
                       </span>
@@ -898,7 +902,7 @@ export default function TaskTableView({
                         onUpdateTask({ ...task, dueDate: newD || '' });
                         onAddSyncLog?.(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
                       }}
-                      label="Start"
+                      label="Bắt đầu"
                       align="left"
                       className="text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"
                     />
@@ -918,7 +922,7 @@ export default function TaskTableView({
                         onUpdateTask({ ...task, dueDate: newD || '' });
                         onAddSyncLog?.(`Due Date "${task.title}" → ${newD || 'Cleared'}`);
                       }}
-                      label="Due"
+                      label="Hạn"
                       align="left"
                       className={daysInfo ? `text-[11px] font-bold px-2 py-1 rounded-lg border-0 cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[11px] text-slate-400 cursor-pointer border-0 bg-transparent"}
                     />
@@ -1035,7 +1039,7 @@ export default function TaskTableView({
                     onStartDateChange={newD => setDraftStartDate(newD || '')}
                     dateValue={draftDueDate}
                     onChange={newD => setDraftDueDate(newD || '')}
-                    label="Start"
+                    label="Bắt đầu"
                     align="left"
                     className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
                   />
@@ -1049,7 +1053,7 @@ export default function TaskTableView({
                     onStartDateChange={newD => setDraftStartDate(newD || '')}
                     dateValue={draftDueDate}
                     onChange={newD => setDraftDueDate(newD || '')}
-                    label="Due"
+                    label="Hạn"
                     align="left"
                     className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
                   />
@@ -1215,7 +1219,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Rename column</span>
+                  <span>Đổi tên cột</span>
                 </button>
 
                 {(activeMenu.fieldId === 'status' || activeMenu.fieldId === 'priority') && (
@@ -1238,7 +1242,7 @@ export default function TaskTableView({
                     className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Configure Options</span>
+                    <span>Cấu hình tùy chọn</span>
                   </button>
                 )}
 
@@ -1253,7 +1257,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Hide column</span>
+                  <span>Ẩn cột</span>
                 </button>
               </>
             ) : (
@@ -1282,7 +1286,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <Pencil className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Field Settings</span>
+                  <span>Cài đặt trường</span>
                 </button>
 
                 <button
@@ -1294,7 +1298,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Privacy and permissions</span>
+                  <span>Quyền riêng tư và phân quyền</span>
                 </button>
 
                 <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
@@ -1312,7 +1316,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Move to start</span>
+                  <span>Chuyển lên đầu</span>
                 </button>
 
                 <button
@@ -1328,7 +1332,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Move to end</span>
+                  <span>Chuyển xuống cuối</span>
                 </button>
 
                 <button
@@ -1355,7 +1359,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Hide column</span>
+                  <span>Ẩn cột</span>
                 </button>
 
                 <button
@@ -1429,7 +1433,7 @@ export default function TaskTableView({
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-xl cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete field</span>
+                  <span>Xóa trường</span>
                 </button>
               </>
             )}
@@ -1467,47 +1471,6 @@ export default function TaskTableView({
               </>
             )}
 
-            <div className="p-1 mt-1 border-t border-slate-100 dark:border-slate-800/80">
-              <button
-                onClick={() => {
-                  const fieldName = activeMenu.fieldName;
-                  if (triggerToast) triggerToast?.('info', 'AI Filling', `AI is auto-populating mock data for "${fieldName}"...`);
-                  
-                  const nameLower = fieldName.toLowerCase();
-                  const mockAIPool = 
-                    nameLower.includes('objective') || nameLower.includes('tiêu')
-                      ? ["Optimize database", "Develop frontend components", "Write unit tests", "Draft documentation", "Market launch preparation"]
-                    : nameLower.includes('cost') || nameLower.includes('phí')
-                      ? ["$150", "$2,000", "$0", "$950", "$1,450"]
-                    : nameLower.includes('owner') || nameLower.includes('người')
-                      ? members.map(m => m.name)
-                    : nameLower.includes('rating') || nameLower.includes('giá')
-                      ? ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐⭐"]
-                    : nameLower.includes('checkbox') || nameLower.includes('check')
-                      ? ["true", "false", "true", "true"]
-                    : ["Auto draft completed", "Pending PM review", "Ready for deployment", "Needs refinement"];
-                  
-                  if (mockAIPool.length > 0) {
-                    filteredTasks.forEach((t, i) => {
-                      const mockVal = mockAIPool[i % mockAIPool.length];
-                      onUpdateTask({
-                        ...t,
-                        custom_fields: {
-                          ...(t.custom_fields || {}),
-                          [fieldName]: mockVal
-                        }
-                      });
-                    });
-                    if (triggerToast) triggerToast?.('success', 'AI Fill Success', `Auto-populated "${fieldName}" using AI analysis.`);
-                  }
-                  setActiveMenu(null);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-indigo-200 dark:border-indigo-900 rounded-xl text-[11px] font-black text-indigo-650 bg-indigo-50/50 hover:bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-955/20 hover:border-indigo-300 transition-all cursor-pointer shadow-3xs"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                <span>Fill with AI</span>
-              </button>
-            </div>
           </div>
         </Portal>
       )}

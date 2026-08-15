@@ -327,7 +327,7 @@ export default function AnalyticsHub({
         <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="space-y-2 relative z-10">
           <span className="text-[10px] font-black uppercase tracking-wider text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-full border border-indigo-100/40">
-            Advanced Analytics Hub
+            Trung tâm phân tích nâng cao
           </span>
           <div className="flex items-center gap-2 pt-1 flex-wrap">
             <h1 className="text-2xl md:text-3xl font-black font-display text-slate-850 dark:text-slate-50 tracking-tight">
@@ -605,7 +605,7 @@ export default function AnalyticsHub({
                 </div>
                 <div className="space-y-1">
                   <span className="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200/30">
-                    Top Contributor of Active Scope
+                    Người đóng góp nổi bật trong phạm vi hiện tại
                   </span>
                   <h4 className="text-base font-black text-slate-850 dark:text-slate-50 tracking-tight">
                     {topPerformer.member.name}
@@ -613,7 +613,7 @@ export default function AnalyticsHub({
                   <p className="text-xs text-slate-505 dark:text-slate-400 leading-normal">
                     {locale === 'vi'
                       ? <>Hoàn thành xuất sắc <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} công việc</span> và đóng góp <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} giờ làm việc thực tế</span> trong khoảng thời gian này.</>
-                      : <>Successfully completed <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} tasks</span> and contributed <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} hours</span> during this timeframe.</>
+                      : <>Đã hoàn thành <span className="font-extrabold text-indigo-650 dark:text-indigo-400">{topPerformer.completed} tasks</span> và đóng góp <span className="font-extrabold text-emerald-650 dark:text-emerald-400">{topPerformer.hours} hours</span> trong khoảng thời gian này.</>
                     }
                   </p>
                 </div>
@@ -635,7 +635,7 @@ export default function AnalyticsHub({
               </div>
               <div className="space-y-1">
                 <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200/30">
-                  Workspace Health Score
+                  Điểm sức khỏe không gian
                 </span>
                 <h4 className="text-base font-black text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-1.5">
                   <span>{locale === 'vi' ? 'Chỉ số hoạt động:' : 'Activity index:'}</span>

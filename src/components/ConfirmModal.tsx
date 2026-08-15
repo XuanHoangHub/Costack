@@ -71,7 +71,7 @@ export default function ConfirmModal({
                 type="button"
                 onClick={onCancel}
                 className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Close"
+                title="Đóng"
               >
                 <X className="w-4 h-4" />
               </button>

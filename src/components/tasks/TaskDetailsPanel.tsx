@@ -93,10 +93,10 @@ const getTagColor = (tag: string) => {
 };
 
 const STATUS_META: Record<TaskStatus, { label: string; dot: string; bg: string }> = {
-  todo: { label: 'To Do', dot: 'bg-slate-400', bg: 'bg-slate-100 dark:bg-slate-800' },
-  inprogress: { label: 'In Progress', dot: 'bg-amber-505', bg: 'bg-amber-50 dark:bg-amber-955/30' },
-  review: { label: 'Review', dot: 'bg-cyan-505', bg: 'bg-cyan-50 dark:bg-cyan-955/30' },
-  completed: { label: 'Done', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-955/30' },
+  todo: { label: 'Cần làm', dot: 'bg-slate-400', bg: 'bg-slate-100 dark:bg-slate-800' },
+  inprogress: { label: 'Đang thực hiện', dot: 'bg-amber-505', bg: 'bg-amber-50 dark:bg-amber-955/30' },
+  review: { label: 'Chờ duyệt', dot: 'bg-cyan-505', bg: 'bg-cyan-50 dark:bg-cyan-955/30' },
+  completed: { label: 'Hoàn thành', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-955/30' },
 };
 
 interface TaskDetailsPanelProps {
@@ -192,14 +192,14 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 modal-backdrop-blur transition-all duration-300' :
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/35 backdrop-blur-sm transition-all duration-300' :
     modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-md transition-all duration-300' :
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 backdrop-blur-xs pointer-events-none transition-all duration-300';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] modal-glass-card border-none sm:border border-white/80 dark:border-slate-800/80 rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] modal-glass-card bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-none sm:border border-white/80 dark:border-slate-800/80 rounded-none sm:rounded-[28px] flex flex-col overflow-hidden shadow-[0_28px_90px_rgba(15,23,42,0.30)] pointer-events-auto' :
     modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full modal-glass-card border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full modal-glass-card bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -800,7 +800,7 @@ export default function TaskDetailsPanel({
         {isShown('status') && (
           <div className="flex items-center min-h-[34px] group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <CircleDot className="w-3.5 h-3.5" /> Status
+              <CircleDot className="w-3.5 h-3.5" /> Trạng thái
             </span>
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <StatusPillSelect value={task.status} onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} />
@@ -811,7 +811,7 @@ export default function TaskDetailsPanel({
                   onAddSyncLog(`Status → ${next}`);
                 }}
                 className={`p-1 rounded-md border cursor-pointer transition-all ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-955/20 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
-                title={task.status === 'completed' ? 'Mark Incomplete' : 'Mark Complete'}>
+                title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}>
                 <Check className="w-3 h-3" />
               </button>
             </div>
@@ -820,7 +820,7 @@ export default function TaskDetailsPanel({
                 type="button" 
                 onClick={() => onToggleFieldVisibility('status')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -832,7 +832,7 @@ export default function TaskDetailsPanel({
         {isShown('assignee') && (
           <div className="flex items-center min-h-[34px] group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <UserIcon className="w-3.5 h-3.5" /> Assignees
+              <UserIcon className="w-3.5 h-3.5" /> Người phụ trách
             </span>
             <div className="relative flex-1 min-w-0">
               <button 
@@ -847,7 +847,7 @@ export default function TaskDetailsPanel({
                   })}
                 </div>
                 <span className="truncate max-w-[120px]">
-                  {assigneeIds.length === 0 ? 'No Assignee' : `${assigneeIds.length} Assignee${assigneeIds.length > 1 ? 's' : ''}`}
+                  {assigneeIds.length === 0 ? 'Chưa phân công' : `${assigneeIds.length} người phụ trách`}
                 </span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -855,7 +855,7 @@ export default function TaskDetailsPanel({
                 {showAssigneesDropdown && (
                   <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
                     className="absolute left-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-0.5 animate-in fade-in slide-in-from-top-1">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">Select Assignees</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">Chọn người phụ trách</div>
                     {members.map(m => {
                       const checked = assigneeIds.includes(m.id);
                       return (
@@ -881,7 +881,7 @@ export default function TaskDetailsPanel({
                 type="button" 
                 onClick={() => onToggleFieldVisibility('assignee')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -893,7 +893,7 @@ export default function TaskDetailsPanel({
         {isShown('priority') && (
           <div className="flex items-center min-h-[34px] group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Flag className="w-3.5 h-3.5" /> Priority
+              <Flag className="w-3.5 h-3.5" /> Mức ưu tiên
             </span>
             <div className="flex-1 min-w-0">
               <PriorityPillSelect value={task.priority} onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p || 'medium'}`); }} />
@@ -903,7 +903,7 @@ export default function TaskDetailsPanel({
                 type="button" 
                 onClick={() => onToggleFieldVisibility('priority')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -915,7 +915,7 @@ export default function TaskDetailsPanel({
         {isShown('dueDate') && (
           <div className="flex items-center min-h-[34px] group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Calendar className="w-3.5 h-3.5" /> Dates
+              <Calendar className="w-3.5 h-3.5" /> Ngày tháng
             </span>
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <PremiumDatePicker 
@@ -923,7 +923,7 @@ export default function TaskDetailsPanel({
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label="Start" 
+                label="Bắt đầu" 
                 align="left"
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium cursor-pointer border border-slate-200/60 dark:border-slate-800 hover:border-slate-300 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
               />
@@ -933,7 +933,7 @@ export default function TaskDetailsPanel({
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label="Due" 
+                label="Hạn" 
                 align="left"
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium cursor-pointer border border-slate-200/60 dark:border-slate-800 hover:border-slate-300 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
               />
@@ -943,7 +943,7 @@ export default function TaskDetailsPanel({
                 type="button" 
                 onClick={() => onToggleFieldVisibility('dueDate')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -955,7 +955,7 @@ export default function TaskDetailsPanel({
         <div className="flex flex-col justify-center min-h-[34px] space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Clock className="w-3.5 h-3.5" /> Track time
+              <Clock className="w-3.5 h-3.5" /> Theo dõi thời gian
             </span>
             <div className="flex items-center gap-2">
               {currentTimerActive ? (
@@ -974,13 +974,13 @@ export default function TaskDetailsPanel({
                   )}
                   <button type="button" onClick={handleStopTimer}
                     className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-455 rounded-md text-[10px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
-                    <Square className="w-2.5 h-2.5 fill-current" /> Stop
+                    <Square className="w-2.5 h-2.5 fill-current" /> Dừng
                   </button>
                 </>
               ) : (
                 <button type="button" onClick={handleStartTimer}
                   className="flex items-center gap-1.5 text-xs font-medium text-slate-505 dark:text-slate-400 hover:text-slate-700 p-1 px-2 rounded-lg transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50">
-                  <Play className="w-3 h-3 fill-slate-400 text-slate-400 shrink-0" /> Start
+                  <Play className="w-3 h-3 fill-slate-400 text-slate-400 shrink-0" /> Bắt đầu
                 </button>
               )}
               
@@ -992,7 +992,7 @@ export default function TaskDetailsPanel({
                       type="number" 
                       min={0.1} 
                       step={0.1}
-                      placeholder="hrs" 
+                      placeholder="giờ" 
                       value={logTimeValue}
                       onChange={e => setLogTimeValue(e.target.value)}
                       className="w-12 text-xs text-center border border-slate-200 dark:border-slate-700 rounded bg-transparent outline-none py-0.5 font-medium text-slate-750 dark:text-slate-205"
@@ -1012,7 +1012,7 @@ export default function TaskDetailsPanel({
                       }}
                       className="px-2 py-0.5 rounded bg-indigo-650 text-white text-[10px] font-bold cursor-pointer"
                     >
-                      Log
+                      Ghi nhận
                     </button>
                     <button type="button" onClick={() => setShowLogTimeModal(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
                   </div>
@@ -1022,7 +1022,7 @@ export default function TaskDetailsPanel({
                     onClick={() => setShowLogTimeModal(true)}
                     className="text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer ml-1"
                   >
-                    + Log
+                    + Ghi nhận
                   </button>
                 )}
               </div>
@@ -1030,8 +1030,8 @@ export default function TaskDetailsPanel({
           </div>
           
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-            <span>{(task.hoursLogged || 0)}h logged</span>
-            {task.hoursEstimate ? <span>{task.hoursEstimate}h estimate</span> : null}
+            <span>{(task.hoursLogged || 0)}giờ đã ghi</span>
+            {task.hoursEstimate ? <span>{task.hoursEstimate}giờ dự kiến</span> : null}
           </div>
           {task.hoursEstimate && (task.hoursLogged || 0) > 0 ? (
             <div className="flex items-center gap-1.5 w-full mt-1">
@@ -1052,21 +1052,21 @@ export default function TaskDetailsPanel({
         {isShown('progress') && (
           <div className="flex items-center min-h-[34px] group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Timer className="w-3.5 h-3.5" /> Estimate
+              <Timer className="w-3.5 h-3.5" /> Ước tính
             </span>
             <div className="flex items-center gap-1 flex-1 min-w-0">
               <input type="number" min={0} step={0.5} placeholder="—"
                 value={task.hoursEstimate || ''}
                 onChange={e => onUpdateTask({ ...task, hoursEstimate: parseFloat(e.target.value) || undefined })}
                 className="text-xs font-medium text-slate-700 dark:text-slate-305 bg-transparent border border-slate-200/60 dark:border-slate-800 rounded-lg outline-none px-2 py-1 w-16 placeholder-slate-350 focus:border-indigo-400 transition-colors" />
-              {task.hoursEstimate ? <span className="text-[10px] text-slate-400 font-medium">hrs</span> : null}
+              {task.hoursEstimate ? <span className="text-[10px] text-slate-400 font-medium">giờ</span> : null}
             </div>
             {onToggleFieldVisibility && (
               <button 
                 type="button" 
                 onClick={() => onToggleFieldVisibility('progress')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-450 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -1078,7 +1078,7 @@ export default function TaskDetailsPanel({
         {isShown('tags') && (
           <div className="flex items-start min-h-[34px] pt-1 group/row relative pr-6">
             <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none mt-0.5">
-              <Tag className="w-3.5 h-3.5" /> Tags
+              <Tag className="w-3.5 h-3.5" /> Nhãn
             </span>
             <div className="flex items-center gap-1.5 flex-wrap relative flex-1 min-w-0">
               {(task.tags || []).map(tag => {
@@ -1120,7 +1120,7 @@ export default function TaskDetailsPanel({
               </div>
               {(!task.tags || task.tags.length === 0) && (
                 <button onClick={() => setShowTagsDropdown(true)}
-                  className="text-xs font-medium text-slate-405 hover:text-slate-600 transition-colors cursor-pointer">Empty</button>
+                  className="text-xs font-medium text-slate-405 hover:text-slate-600 transition-colors cursor-pointer">Trống</button>
               )}
             </div>
             {onToggleFieldVisibility && (
@@ -1128,7 +1128,7 @@ export default function TaskDetailsPanel({
                 type="button" 
                 onClick={() => onToggleFieldVisibility('tags')}
                 className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Hide field"
+                title="Ẩn trường"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -1148,9 +1148,9 @@ export default function TaskDetailsPanel({
           className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 text-xs font-bold text-slate-700 dark:text-slate-202 border-b border-slate-100 dark:border-slate-800/80 cursor-pointer select-none">
           <div className="flex items-center gap-2">
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${fieldsExpanded ? '' : '-rotate-90'}`} />
-            <span>Custom Fields</span>
+            <span>Trường tùy chỉnh</span>
           </div>
-          <span className="text-[10px] text-slate-405 font-medium">{Object.keys(task.custom_fields || {}).length + 4} fields</span>
+          <span className="text-[10px] text-slate-405 font-medium">{Object.keys(task.custom_fields || {}).length + 4} trường</span>
         </button>
 
         {fieldsExpanded && (
@@ -1160,15 +1160,15 @@ export default function TaskDetailsPanel({
               {isShown('Objective') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Objective</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Mục tiêu</label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Objective')}
                         className="text-[9px] text-slate-405 dark:text-slate-505 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1182,15 +1182,15 @@ export default function TaskDetailsPanel({
               {isShown('Owner') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Owner</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Chủ sở hữu</label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Owner')}
                         className="text-[9px] text-slate-405 dark:text-slate-505 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1204,15 +1204,15 @@ export default function TaskDetailsPanel({
               {isShown('Cost') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Cost</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Chi phí</label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Cost')}
                         className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1227,16 +1227,16 @@ export default function TaskDetailsPanel({
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3 text-pink-500 animate-spin-slow" /> Recurrence
+                      <RefreshCw className="w-3 h-3 text-pink-500 animate-spin-slow" /> Lặp lại
                     </label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Recurrence')}
                         className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1247,10 +1247,10 @@ export default function TaskDetailsPanel({
                         onUpdateTask({ ...task, recurrence: { frequency: freq, interval: task.recurrence?.interval || 1 } });
                       }}
                       className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 outline-none text-slate-700 dark:text-slate-305 font-medium cursor-pointer">
-                      <option value="none">None</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
+                      <option value="none">Không có</option>
+                      <option value="daily">Hằng ngày</option>
+                      <option value="weekly">Hằng tuần</option>
+                      <option value="monthly">Hằng tháng</option>
                     </select>
                     {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
                       <input type="number" min={1} value={task.recurrence.interval}
@@ -1265,15 +1265,15 @@ export default function TaskDetailsPanel({
               {isShown('space') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Folder className="w-3 h-3 text-slate-400" /> Space</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Folder className="w-3 h-3 text-slate-400" /> Không gian</label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('space')}
                         className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1286,15 +1286,15 @@ export default function TaskDetailsPanel({
               {(isShown('startDate') || isShown('dueDate')) && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-400" /> Start Date</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-400" /> Ngày bắt đầu</label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility(isShown('startDate') ? 'startDate' : 'dueDate')}
                         className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Hide field"
+                        title="Ẩn trường"
                       >
-                        Hide
+                        Ẩn
                       </button>
                     )}
                   </div>
@@ -1303,7 +1303,7 @@ export default function TaskDetailsPanel({
                     onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                     dateValue={task.dueDate || ''}
                     onChange={v => onUpdateTask({ ...task, dueDate: v || '' })}
-                    label="Start"
+                    label="Bắt đầu"
                   />
                 </div>
               )}
@@ -1312,7 +1312,7 @@ export default function TaskDetailsPanel({
             {/* Dynamic custom fields */}
             {Object.keys(task.custom_fields || {}).filter(k => !['Objective', 'Owner', 'Cost'].includes(k)).filter(k => isShown(k)).length > 0 && (
               <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Other Custom Fields</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trường tùy chỉnh khác</label>
                 <div className="grid grid-cols-2 gap-4">
                   {Object.entries(task.custom_fields || {})
                     .filter(([k]) => !['Objective', 'Owner', 'Cost'].includes(k))
@@ -1327,13 +1327,13 @@ export default function TaskDetailsPanel({
                                 type="button"
                                 onClick={() => onToggleFieldVisibility(key)}
                                 className="text-[9px] text-slate-405 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
-                                title="Hide field"
+                                title="Ẩn trường"
                               >
-                                Hide
+                                Ẩn
                               </button>
                             )}
                             <button onClick={() => { const { [key]: _, ...rest } = task.custom_fields || {}; onUpdateTask({ ...task, custom_fields: rest }); }}
-                              className="text-[9px] text-rose-500 hover:underline cursor-pointer">Delete</button>
+                              className="text-[9px] text-rose-500 hover:underline cursor-pointer">Xóa</button>
                           </div>
                         </div>
                         <input type="text" value={String(val || '')} 
@@ -1348,18 +1348,18 @@ export default function TaskDetailsPanel({
             {/* Inline Add Custom Field Creator */}
             {showAddCustomField ? (
               <div className="p-3 bg-slate-50 dark:bg-slate-955/40 rounded-xl border border-slate-200/60 dark:border-slate-800/80 space-y-2 mt-2 shadow-2xs">
-                <div className="text-[9px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-550">New Custom Field</div>
+                <div className="text-[9px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-550">Trường tùy chỉnh mới</div>
                 <div className="grid grid-cols-2 gap-2">
                   <input 
                     type="text" 
-                    placeholder="Field Name" 
+                    placeholder="Tên trường" 
                     value={newFieldName}
                     onChange={e => setNewFieldName(e.target.value)}
                     className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-200 outline-none"
                   />
                   <input 
                     type="text" 
-                    placeholder="Field Value" 
+                    placeholder="Giá trị trường" 
                     value={newFieldValue}
                     onChange={e => setNewFieldValue(e.target.value)}
                     className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-855 rounded bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-200 outline-none"
@@ -1375,7 +1375,7 @@ export default function TaskDetailsPanel({
                     }} 
                     className="px-2 py-1 rounded text-[10px] text-slate-455 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
-                    Cancel
+                    Hủy
                   </button>
                   <button 
                     type="button" 
@@ -1391,7 +1391,7 @@ export default function TaskDetailsPanel({
                     }} 
                     className="px-2.5 py-1 rounded bg-indigo-650 text-white text-[10px] font-black cursor-pointer"
                   >
-                    Save
+                    Lưu
                   </button>
                 </div>
               </div>
@@ -1399,7 +1399,7 @@ export default function TaskDetailsPanel({
               <div className="pt-1">
                 <button type="button" onClick={() => setShowAddCustomField(true)}
                   className="text-[10px] font-bold text-indigo-550 hover:underline cursor-pointer flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Add new custom field
+                  <Plus className="w-3 h-3" /> Thêm trường tùy chỉnh mới
                 </button>
               </div>
             )}
@@ -1415,7 +1415,7 @@ export default function TaskDetailsPanel({
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
           <span className="text-[11px] font-bold text-slate-850 dark:text-slate-105 flex items-center gap-1.5 uppercase tracking-wider">
             <Activity className="w-4 h-4 text-indigo-500" />
-            Activity Log & Comments
+            Nhật ký hoạt động và bình luận
           </span>
           {/* Filters */}
           <div className="flex items-center gap-1 bg-slate-100/60 dark:bg-slate-900/60 p-0.5 rounded-lg text-[10px] font-bold text-slate-500 border border-slate-200/50 dark:border-slate-800/60">
@@ -1430,7 +1430,7 @@ export default function TaskDetailsPanel({
                     : 'hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
-                {f === 'system' ? 'logs' : f}
+                {{ all: 'Tất cả', comments: 'Bình luận', system: 'Hệ thống' }[f]}
               </button>
             ))}
           </div>
@@ -1440,7 +1440,7 @@ export default function TaskDetailsPanel({
         <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1 py-1">
           {filteredTimelineItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center select-none italic text-slate-400 text-xs">
-              No activity or comments matching filter
+              Không có hoạt động hoặc bình luận phù hợp bộ lọc
             </div>
           ) : (
             <div className="relative">
@@ -1510,7 +1510,7 @@ export default function TaskDetailsPanel({
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-955/40 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
           <input value={commentText} onChange={e => setCommentText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addComment(); }}
-            placeholder="Write a comment..."
+            placeholder="Viết bình luận..."
             className="flex-1 text-[12.5px] font-medium outline-none bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400" />
           <button onClick={addComment} disabled={!commentText.trim()}
             className="p-1.5 rounded-lg bg-indigo-650 text-white cursor-pointer hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm">
@@ -1529,12 +1529,12 @@ export default function TaskDetailsPanel({
             <Paperclip className="w-3.5 h-3.5 text-amber-500" />
           </div>
           <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-            Attachments <span className="text-slate-400">{task.attachments?.length || 0}</span>
+            Tệp đính kèm <span className="text-slate-400">{task.attachments?.length || 0}</span>
           </label>
         </div>
         <button type="button" onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer shadow-3xs">
-          <Upload className="w-3 h-3" /> Upload file
+          <Upload className="w-3 h-3" /> Tải tệp lên
         </button>
       </div>
 
@@ -1565,11 +1565,11 @@ export default function TaskDetailsPanel({
               </div>
               <div className="flex items-center gap-0.5">
                 <button type="button" onClick={() => downloadAttachment(att)} disabled={attachmentBusyId === att.id}
-                  title="Download attachment"
+                  title="Tải tệp đính kèm"
                   className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-indigo-500 cursor-pointer transition-colors disabled:opacity-50">
                   <Download className={`w-3.5 h-3.5 ${attachmentBusyId === att.id ? 'animate-bounce' : ''}`} />
                 </button>
-                <button type="button" onClick={() => onAttachmentDelete(task, att)} title="Delete attachment"
+                <button type="button" onClick={() => onAttachmentDelete(task, att)} title="Xóa tệp đính kèm"
                   className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-rose-500 cursor-pointer transition-colors">
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1579,7 +1579,7 @@ export default function TaskDetailsPanel({
         })}
         {(task.attachments || []).length === 0 && (
           <div className="sm:col-span-2 text-center py-5 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-            <span className="text-[11px] text-slate-400 font-medium italic">Drop a file here or choose Upload file · max 25 MB</span>
+            <span className="text-[11px] text-slate-400 font-medium italic">Thả tệp vào đây hoặc chọn Tải tệp lên · tối đa 25 MB</span>
           </div>
         )}
       </div>
@@ -1603,7 +1603,7 @@ export default function TaskDetailsPanel({
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-black text-slate-800 dark:text-slate-100">Apexa Brain</span>
-              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">Summarize, improve, or ask about this task</span>
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">Tóm tắt, cải thiện hoặc đặt câu hỏi về công việc này</span>
             </span>
           </span>
           <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform ${isAiPanelOpen ? 'rotate-180' : ''}`} />
@@ -1621,16 +1621,16 @@ export default function TaskDetailsPanel({
                 <div className="flex flex-wrap gap-2 pt-2">
                   <button type="button" onClick={() => onAiSummary(task)} disabled={isSummarizing}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200/70 dark:border-indigo-900/60 text-[10px] font-bold text-indigo-650 dark:text-indigo-300 disabled:opacity-50 cursor-pointer">
-                    <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} /> {isSummarizing ? 'Summarizing…' : 'Summarize'}
+                    <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} /> {isSummarizing ? 'Đang tóm tắt…' : 'Tóm tắt'}
                   </button>
                   <button type="button" onClick={() => handleAiQuery('Cải thiện mô tả công việc này. Chỉ trả về phần mô tả đã cải thiện, rõ ràng và có thể hành động.')}
                     disabled={aiGeneratingResponse}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-violet-200/70 dark:border-violet-900/60 text-[10px] font-bold text-violet-650 dark:text-violet-300 disabled:opacity-50 cursor-pointer">
-                    <Edit2 className="w-3 h-3" /> Improve description
+                    <Edit2 className="w-3 h-3" /> Cải thiện mô tả
                   </button>
                   <button type="button" onClick={() => onAiSubtasks(task)} disabled={aiGenerating}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900/60 text-[10px] font-bold text-emerald-650 dark:text-emerald-300 disabled:opacity-50 cursor-pointer">
-                    <CheckSquare className="w-3 h-3" /> {aiGenerating ? 'Generating…' : 'Generate subtasks'}
+                    <CheckSquare className="w-3 h-3" /> {aiGenerating ? 'Đang tạo…' : 'Tạo công việc con'}
                   </button>
                 </div>
 
@@ -1645,11 +1645,11 @@ export default function TaskDetailsPanel({
                       }
                     }}
                     rows={2}
-                    placeholder="Ask Apexa Brain about this task…"
+                    placeholder="Hỏi Apexa Brain về công việc này…"
                     className="flex-1 resize-none bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
                   />
                   <button type="button" onClick={() => handleAiQuery()} disabled={!aiPrompt.trim() || aiGeneratingResponse}
-                    aria-label="Send question to Apexa Brain"
+                    aria-label="Gửi câu hỏi đến Apexa Brain"
                     className="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shrink-0">
                     {aiGeneratingResponse ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   </button>
@@ -1660,14 +1660,14 @@ export default function TaskDetailsPanel({
                     <p className="text-[11.5px] leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300">{response}</p>
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => navigator.clipboard.writeText(response)}
-                        className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 cursor-pointer">Copy</button>
+                        className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 cursor-pointer">Sao chép</button>
                       <button type="button" onClick={() => {
                         setDescValue(response);
                         onUpdateTask({ ...task, description: response });
                         onAddSyncLog(`Applied an AI-generated description to "${task.title}"`);
                         triggerToast?.('success', 'Description updated', 'The AI response was applied to this task.');
                       }}
-                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 cursor-pointer">Use as description</button>
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 cursor-pointer">Dùng làm mô tả</button>
                     </div>
                   </div>
                 )}
@@ -1713,34 +1713,34 @@ export default function TaskDetailsPanel({
           <div className="flex-1 flex flex-col min-w-0 h-full relative z-10">
             
             {/* ── Header Bar ── */}
-            <div className="shrink-0 px-5 py-3 border-b border-slate-100 dark:border-slate-805/80 flex items-center justify-between bg-slate-55 dark:bg-slate-900/30 select-none">
+            <div className="shrink-0 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-805/80 flex items-center justify-between gap-2 bg-slate-55 dark:bg-slate-900/30 select-none">
               
               {/* Left: Path Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-455">
+              <div className="flex flex-1 min-w-0 items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-455">
                 <div className="flex items-center gap-1">
                   <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="truncate max-w-[80px] md:max-w-[120px]">{spaceName}</span>
                 </div>
-                <span className="text-slate-300 dark:text-slate-700">/</span>
-                <div className="flex items-center gap-1 text-slate-755 dark:text-slate-305">
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">/</span>
+                <div className="hidden sm:flex items-center gap-1 text-slate-755 dark:text-slate-305 min-w-0">
                   <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="font-extrabold truncate max-w-[120px] md:max-w-[200px]">{listName}</span>
                 </div>
               </div>
 
               {/* Right: Actions Row */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 <span className="text-[10px] text-slate-400 dark:text-slate-505 hidden sm:inline-block font-semibold pr-1 select-none">
-                  Created {new Date(task.createdAt || Date.now()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                  Đã tạo {new Date(task.createdAt || Date.now()).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' })}
                 </span>
 
                 {/* Share Button */}
                 <button 
                   onClick={copyTaskLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-3xs mr-1"
+                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-3xs sm:mr-1"
                 >
                   <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-400" />
-                  <span>Share</span>
+                  <span className="hidden sm:inline">Chia sẻ</span>
                 </button>
 
                 {/* More Options Menu */}
@@ -1748,7 +1748,7 @@ export default function TaskDetailsPanel({
                   <button 
                     onClick={() => { setShowMoreMenu(!showMoreMenu); setConfirmDelete(false); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer transition-colors"
-                    title="More options"
+                    title="Tùy chọn khác"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
@@ -1758,11 +1758,11 @@ export default function TaskDetailsPanel({
                       <div className="absolute right-0 top-full mt-1.5 z-50 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1 text-left">
                         <button type="button" onClick={copyTaskLink}
                           className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
-                          <Copy className="w-3.5 h-3.5" /> Copy task link
+                          <Copy className="w-3.5 h-3.5" /> Sao chép liên kết công việc
                         </button>
                         <button type="button" onClick={duplicateTask}
                           className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
-                          <RefreshCw className="w-3.5 h-3.5" /> Duplicate task
+                          <RefreshCw className="w-3.5 h-3.5" /> Nhân bản công việc
                         </button>
                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
                         <button
@@ -1776,14 +1776,14 @@ export default function TaskDetailsPanel({
                           className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>{confirmDelete ? 'Click again to delete' : 'Delete task'}</span>
+                          <span>{confirmDelete ? 'Nhấp lại để xác nhận xóa' : 'Xóa công việc'}</span>
                         </button>
                       </div>
                     </>
                   )}
                 </div>
 
-                <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
+                <div className="hidden sm:block h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1" />
 
                 {/* Star Pin Button */}
                 <button 
@@ -1794,7 +1794,7 @@ export default function TaskDetailsPanel({
                   className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
                     task.isPinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-955/25 hover:bg-amber-100 dark:hover:bg-amber-950/40' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-850'
                   }`}
-                  title={task.isPinned ? "Unpin task" : "Pin task"}
+                  title={task.isPinned ? "Bỏ ghim công việc" : "Ghim công việc"}
                 >
                   <Star className={`w-3.5 h-3.5 ${task.isPinned ? 'fill-amber-400' : ''}`} />
                 </button>
@@ -1804,7 +1804,7 @@ export default function TaskDetailsPanel({
                   <button 
                     onClick={() => setLayoutMenuOpen(!layoutMenuOpen)}
                     className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all cursor-pointer text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 ${layoutMenuOpen ? 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-550' : ''}`}
-                    title="Switch layout"
+                    title="Đổi bố cục"
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5" />
                   </button>
@@ -1819,7 +1819,7 @@ export default function TaskDetailsPanel({
                           exit={{ opacity: 0, y: 4, scale: 0.95 }}
                           className="absolute right-0 top-full mt-2 z-[200] w-[310px] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-4 text-left font-sans select-none"
                         >
-                          <h4 className="text-[11px] font-black text-slate-405 uppercase tracking-wider mb-2.5">Switch layout</h4>
+                          <h4 className="text-[11px] font-black text-slate-405 uppercase tracking-wider mb-2.5">Đổi bố cục</h4>
                           <div className="grid grid-cols-3 gap-2">
                             {/* Option 1: Modal */}
                             <button
@@ -1835,7 +1835,7 @@ export default function TaskDetailsPanel({
                               <div className="w-12 h-8 rounded border border-current flex items-center justify-center mb-1.5 bg-white dark:bg-slate-955/40">
                                 <div className="w-8 h-5 rounded-xs border border-current bg-current/10" />
                               </div>
-                              <span className="text-[10px] font-bold">Modal</span>
+                              <span className="text-[10px] font-bold">Hộp thoại</span>
                             </button>
 
                             {/* Option 2: Full screen */}
@@ -1852,7 +1852,7 @@ export default function TaskDetailsPanel({
                               <div className="w-12 h-8 rounded border border-current flex items-stretch justify-stretch p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
                                 <div className="flex-1 rounded-xs border border-current bg-current/10" />
                               </div>
-                              <span className="text-[10px] font-bold">Full screen</span>
+                              <span className="text-[10px] font-bold">Toàn màn hình</span>
                             </button>
 
                             {/* Option 3: Sidebar */}
@@ -1869,7 +1869,7 @@ export default function TaskDetailsPanel({
                               <div className="w-12 h-8 rounded border border-current flex items-stretch justify-end p-0.5 mb-1.5 bg-white dark:bg-slate-955/40">
                                 <div className="w-4 rounded-xs border border-current bg-current/10" />
                               </div>
-                              <span className="text-[10px] font-bold">Sidebar</span>
+                              <span className="text-[10px] font-bold">Thanh bên</span>
                             </button>
                           </div>
                         </motion.div>
@@ -1882,7 +1882,7 @@ export default function TaskDetailsPanel({
                   <button 
                     onClick={toggleSidebarExpand}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center"
-                    title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                    title={isSidebarExpanded ? "Thu gọn thanh bên" : "Mở rộng thanh bên"}
                   >
                     {isSidebarExpanded ? (
                       <ChevronsRight className="w-4 h-4" />
@@ -1892,7 +1892,7 @@ export default function TaskDetailsPanel({
                   </button>
                 )}
 
-                <button type="button" onClick={onClose} aria-label="Close task details" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer">
+                <button type="button" onClick={onClose} aria-label="Đóng chi tiết công việc" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1914,16 +1914,16 @@ export default function TaskDetailsPanel({
               <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden">
                 
                 {/* Left: Main details (Scrollable) */}
-                <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-5 md:p-6 lg:px-7 space-y-6">
+                <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-4 sm:p-5 md:p-6 lg:px-7 space-y-5 sm:space-y-6">
                   
                   {/* Blocked Warning Banner */}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
                     <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/50 dark:bg-amber-955/20 border border-amber-250/55 dark:border-amber-900/30 rounded-2xl text-left select-none shadow-3xs relative z-10">
                       <Hourglass className="w-4.5 h-4.5 text-amber-550 shrink-0 mt-0.5 animate-pulse" />
                       <div className="space-y-1">
-                        <div className="text-xs font-black text-amber-800 dark:text-amber-305">This task is waiting on other tasks</div>
+                        <div className="text-xs font-black text-amber-800 dark:text-amber-305">Công việc này đang chờ các công việc khác</div>
                         <div className="text-[11.5px] font-semibold text-amber-705 dark:text-amber-400/80 leading-relaxed">
-                          Before starting, you must complete: {' '}
+                          Trước khi bắt đầu, bạn phải hoàn thành: {' '}
                           {task.relationships.blockedBy.map((id, index) => {
                             const t = allTasks.find(item => item.id === id);
                             return (
@@ -1969,10 +1969,10 @@ export default function TaskDetailsPanel({
                         <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
                           onBlur={saveTitle}
-                          className="w-full text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
+                          className="w-full text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
                       ) : (
                         <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
-                          className="text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
+                          className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
                           <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-500' : ''}`}>{task.title}</span>
                           <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-405 transition-opacity mt-2 shrink-0" />
                         </h2>
@@ -1981,32 +1981,32 @@ export default function TaskDetailsPanel({
                   </div>
 
                   {/* Quick Actions Row */}
-                  <div className="flex flex-wrap gap-2 py-1.5 border-y border-slate-150 dark:border-slate-800/60">
+                  <div className="flex flex-nowrap gap-2 py-1.5 border-y border-slate-150 dark:border-slate-800/60 overflow-x-auto scrollbar-none">
                     <button onClick={onOpenFieldsPanel} 
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-505" /> Add fields
+                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-505" /> Thêm trường
                     </button>
                     <button onClick={focusSubtaskComposer}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
-                      <Plus className="w-3.5 h-3.5 text-emerald-500" /> Add subtask
+                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
+                      <Plus className="w-3.5 h-3.5 text-emerald-500" /> Thêm công việc con
                     </button>
                     <button onClick={scrollToRelationships}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
-                      <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
+                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
+                      <Tag className="w-3.5 h-3.5 text-sky-505" /> Liên kết mục
                     </button>
                     <button onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none">
-                      <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Attach file
+                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
+                      <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Đính kèm tệp
                     </button>
                   </div>
 
                   {/* Description */}
                   <div className="space-y-2 text-left">
                     <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 select-none">
-                      <FileText className="w-3.5 h-3.5" /> Description
+                      <FileText className="w-3.5 h-3.5" /> Mô tả
                     </label>
                     <textarea value={descValue} onChange={e => setDescValue(e.target.value)} onBlur={saveDesc}
-                      placeholder="Add description, or write with AI..."
+                      placeholder="Thêm mô tả hoặc viết bằng AI..."
                       className="w-full min-h-[120px] p-4 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-[12.5px] text-slate-700 dark:text-slate-200 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all leading-relaxed placeholder-slate-350 font-medium" />
                   </div>
 
@@ -2017,13 +2017,13 @@ export default function TaskDetailsPanel({
                         <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-955/25 flex items-center justify-center">
                           <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
                         </div>
-                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Subtasks</label>
+                        <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Công việc con</label>
                         <span className="text-[10px] font-bold text-slate-400">{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}</span>
                       </div>
                       <button onClick={() => onAiSubtasks(task)} disabled={aiGenerating}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer disabled:opacity-50 border border-indigo-100/60 dark:border-indigo-900/30 transition-colors">
                         <Bot className={`w-3.5 h-3.5 ${aiGenerating ? 'animate-spin' : ''}`} />
-                        <span>{aiGenerating ? 'Generating...' : 'AI Suggest'}</span>
+                        <span>{aiGenerating ? 'Đang tạo…' : 'AI gợi ý'}</span>
                       </button>
                     </div>
 
@@ -2076,21 +2076,21 @@ export default function TaskDetailsPanel({
                                       </span>
                                     )}
 
-                                    <div className="w-4.5 h-4.5 rounded-full bg-slate-105 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[8px] font-black select-none shrink-0 border border-slate-200/50 dark:border-slate-700/50" title="Assignee">
+                                    <div className="w-4.5 h-4.5 rounded-full bg-slate-105 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[8px] font-black select-none shrink-0 border border-slate-200/50 dark:border-slate-700/50" title="Người phụ trách">
                                       {members.find(m => m.id === task.assigneeId)?.name.substring(0, 1) || 'A'}
                                     </div>
 
                                     <span className="text-[8px] bg-slate-105 dark:bg-slate-805 text-slate-455 px-1 py-0.5 rounded flex items-center gap-0.5 select-none shrink-0 font-bold">
                                       <Calendar className="w-2.5 h-2.5" />
-                                      <span>Today</span>
+                                      <span>Hôm nay</span>
                                     </span>
 
                                     <button 
                                       onClick={() => convertChecklistItemToSubtask(sub.id, sub.title)}
                                       className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-55 dark:bg-indigo-955/40 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
-                                      title="Convert checklist item to a subtask"
+                                      title="Chuyển mục kiểm tra thành công việc con"
                                     >
-                                      Convert
+                                      Chuyển đổi
                                     </button>
 
                                     <button onClick={() => deleteSubtask(sub.id)}
@@ -2113,7 +2113,7 @@ export default function TaskDetailsPanel({
                       </div>
                       <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
-                        placeholder="Add new subtask..."
+                        placeholder="Thêm công việc con mới..."
                         className="flex-1 text-[12.5px] font-medium text-slate-700 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none py-1.5 placeholder-slate-400 transition-colors" />
                     </div>
                   </div>
@@ -2126,21 +2126,21 @@ export default function TaskDetailsPanel({
                       <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center">
                         <Tag className="w-3.5 h-3.5 text-sky-505" />
                       </div>
-                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Relationships & References</label>
+                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Mối quan hệ và tham chiếu</label>
                     </div>
 
                     {/* Linked Tasks */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Linked Tasks</span>
+                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Công việc liên kết</span>
                         <div className="relative">
                           <button onClick={() => { setShowLinkTaskDropdown(!showLinkTaskDropdown); setShowLinkDocDropdown(false); }}
                             className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-500 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                            + Add link
+                            + Thêm liên kết
                           </button>
                           {showLinkTaskDropdown && (
                             <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                                 onChange={e => setRelationshipSearchQuery(e.target.value)}
                                 className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
                               {allTasks
@@ -2171,7 +2171,7 @@ export default function TaskDetailsPanel({
                           return (
                             <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-3xs">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                   {tStatusMeta?.label || t.status}
                                 </span>
                                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2184,7 +2184,7 @@ export default function TaskDetailsPanel({
                           );
                         })}
                         {(task.relationships?.tasks || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No linked tasks</p>
+                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có công việc liên kết</p>
                         )}
                       </div>
                     </div>
@@ -2192,15 +2192,15 @@ export default function TaskDetailsPanel({
                     {/* Linked Docs */}
                     <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Linked Documents</span>
+                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Tài liệu liên kết</span>
                         <div className="relative">
                           <button onClick={() => { setShowLinkDocDropdown(!showLinkDocDropdown); setShowLinkTaskDropdown(false); }}
                             className="px-2 py-0.5 rounded border border-dashed border-slate-350 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-505 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                            + Add link
+                            + Thêm liên kết
                           </button>
                           {showLinkDocDropdown && (
                             <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Search docs..." value={relationshipSearchQuery}
+                              <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
                                 onChange={e => setRelationshipSearchQuery(e.target.value)}
                                 className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-800" />
                               {allDocs
@@ -2242,7 +2242,7 @@ export default function TaskDetailsPanel({
                           );
                         })}
                         {(task.relationships?.docs || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No linked documents</p>
+                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có tài liệu liên kết</p>
                         )}
                       </div>
                     </div>
@@ -2251,17 +2251,17 @@ export default function TaskDetailsPanel({
                     <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Blocked By (Waiting On)</span>
-                          <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Dependency</span>
+                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Bị chặn bởi (đang chờ)</span>
+                          <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Phụ thuộc</span>
                         </div>
                         <div className="relative">
                           <button onClick={() => { setShowBlockedByDropdown(!showBlockedByDropdown); setShowBlocksDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
                             className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-550 hover:border-amber-500 hover:text-amber-505 cursor-pointer font-bold transition-colors">
-                            + Add task
+                            + Thêm công việc
                           </button>
                           {showBlockedByDropdown && (
                             <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                                 onChange={e => setRelationshipSearchQuery(e.target.value)}
                                 className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
                               {allTasks
@@ -2290,7 +2290,7 @@ export default function TaskDetailsPanel({
                           return (
                             <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-amber-200/50 dark:border-amber-900/30 px-3 py-2 rounded-xl hover:border-amber-305 dark:hover:border-amber-800/80 transition-colors shadow-3xs">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                   {tStatusMeta?.label || t.status}
                                 </span>
                                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2300,7 +2300,7 @@ export default function TaskDetailsPanel({
                           );
                         })}
                         {(task.relationships?.blockedBy || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No waiting-on dependencies</p>
+                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ phụ thuộc đang chờ</p>
                         )}
                       </div>
                     </div>
@@ -2309,17 +2309,17 @@ export default function TaskDetailsPanel({
                     <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Blocks (Blocking)</span>
-                          <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Blocking</span>
+                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Đang chặn</span>
+                          <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Chặn</span>
                         </div>
                         <div className="relative">
                           <button onClick={() => { setShowBlocksDropdown(!showBlocksDropdown); setShowBlockedByDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
                             className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-550 hover:border-rose-500 hover:text-rose-505 cursor-pointer font-bold transition-colors">
-                            + Add task
+                            + Thêm công việc
                           </button>
                           {showBlocksDropdown && (
                             <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                                 onChange={e => setRelationshipSearchQuery(e.target.value)}
                                 className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
                               {allTasks
@@ -2348,7 +2348,7 @@ export default function TaskDetailsPanel({
                           return (
                             <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-rose-200/50 dark:border-rose-900/30 px-3 py-2 rounded-xl hover:border-rose-305 dark:hover:border-rose-800/80 transition-colors shadow-3xs">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                   {tStatusMeta?.label || t.status}
                                 </span>
                                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2358,7 +2358,7 @@ export default function TaskDetailsPanel({
                           );
                         })}
                         {(task.relationships?.blocks || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No blocking dependencies</p>
+                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ chặn</p>
                         )}
                       </div>
                     </div>
@@ -2370,7 +2370,7 @@ export default function TaskDetailsPanel({
 
                 {/* Right: Sidebar properties panel (Scrollable) */}
                 <div className="w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 lg:overflow-y-auto p-5 space-y-5 text-left relative z-10">
-                  <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-455 dark:text-slate-505 mb-1 select-none">Task Properties</h3>
+                  <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-455 dark:text-slate-505 mb-1 select-none">Thuộc tính công việc</h3>
                   {renderPropertiesTable()}
                   <div className="pt-2">
                     {renderCustomFieldsAccordion()}
@@ -2387,9 +2387,9 @@ export default function TaskDetailsPanel({
                   <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/50 dark:bg-amber-955/20 border border-amber-250/55 dark:border-amber-900/30 rounded-2xl text-left select-none shadow-3xs relative z-10">
                     <Hourglass className="w-4.5 h-4.5 text-amber-550 shrink-0 mt-0.5 animate-pulse" />
                     <div className="space-y-1">
-                      <div className="text-xs font-black text-amber-800 dark:text-amber-305">This task is waiting on other tasks</div>
+                      <div className="text-xs font-black text-amber-800 dark:text-amber-305">Công việc này đang chờ các công việc khác</div>
                       <div className="text-[11.5px] font-semibold text-amber-705 dark:text-amber-400/80 leading-relaxed">
-                        Before starting, you must complete: {' '}
+                        Trước khi bắt đầu, bạn phải hoàn thành: {' '}
                         {task.relationships.blockedBy.map((id, index) => {
                           const t = allTasks.find(item => item.id === id);
                           return (
@@ -2434,10 +2434,10 @@ export default function TaskDetailsPanel({
                 {/* Description */}
                 <div className="space-y-2">
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-405 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" /> Description
+                    <FileText className="w-3.5 h-3.5" /> Mô tả
                   </label>
                   <textarea value={descValue} onChange={e => setDescValue(e.target.value)} onBlur={saveDesc}
-                    placeholder="Add description, or write with AI..."
+                    placeholder="Thêm mô tả hoặc viết bằng AI..."
                     className="w-full min-h-[95px] p-4 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-805 text-[12.5px] text-slate-700 dark:text-slate-200 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all leading-relaxed placeholder-slate-350 font-medium" />
                 </div>
 
@@ -2445,19 +2445,19 @@ export default function TaskDetailsPanel({
                 <div className="flex flex-wrap gap-2 py-2 border-t border-slate-100 dark:border-slate-800/60">
                   <button onClick={onOpenFieldsPanel} 
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Add fields
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Thêm trường
                   </button>
                   <button onClick={focusSubtaskComposer}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
-                    <Plus className="w-3.5 h-3.5 text-emerald-505" /> Add subtask
+                    <Plus className="w-3.5 h-3.5 text-emerald-505" /> Thêm công việc con
                   </button>
                   <button onClick={scrollToRelationships}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
-                    <Tag className="w-3.5 h-3.5 text-sky-505" /> Relate items
+                    <Tag className="w-3.5 h-3.5 text-sky-505" /> Liên kết mục
                   </button>
                   <button onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
-                    <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Attach file
+                    <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Đính kèm tệp
                   </button>
                 </div>
 
@@ -2468,7 +2468,7 @@ export default function TaskDetailsPanel({
                       <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-955/25 flex items-center justify-center">
                         <CheckSquare className="w-3.5 h-3.5 text-indigo-505" />
                       </div>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-205">Subtasks</label>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-205">Công việc con</label>
                       <span className="text-[10px] font-medium text-slate-405">{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length}</span>
                     </div>
                   </div>
@@ -2528,7 +2528,7 @@ export default function TaskDetailsPanel({
                   <div className="flex items-center gap-2.5 px-3">
                     <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
-                      placeholder="Add subtask..."
+                      placeholder="Thêm công việc con..."
                       className="flex-1 text-[12px] font-medium text-slate-755 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-405 outline-none py-1 placeholder-slate-450" />
                   </div>
                 </div>
@@ -2541,21 +2541,21 @@ export default function TaskDetailsPanel({
                     <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center">
                       <Tag className="w-3.5 h-3.5 text-sky-505" />
                     </div>
-                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Relationships & References</label>
+                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Mối quan hệ và tham chiếu</label>
                   </div>
 
                   {/* Linked Tasks */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Linked Tasks</span>
+                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Công việc liên kết</span>
                       <div className="relative">
                         <button onClick={() => { setShowLinkTaskDropdown(!showLinkTaskDropdown); setShowLinkDocDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
                           className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-500 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                          + Add link
+                          + Thêm liên kết
                         </button>
                         {showLinkTaskDropdown && (
                           <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                               onChange={e => setRelationshipSearchQuery(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
                             {allTasks
@@ -2586,7 +2586,7 @@ export default function TaskDetailsPanel({
                         return (
                           <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-305 dark:hover:border-slate-700 transition-colors shadow-3xs">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                 {tStatusMeta?.label || t.status}
                               </span>
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2599,7 +2599,7 @@ export default function TaskDetailsPanel({
                         );
                       })}
                       {(task.relationships?.tasks || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No linked tasks</p>
+                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có công việc liên kết</p>
                       )}
                     </div>
                   </div>
@@ -2607,15 +2607,15 @@ export default function TaskDetailsPanel({
                   {/* Linked Docs */}
                   <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Linked Documents</span>
+                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Tài liệu liên kết</span>
                       <div className="relative">
                         <button onClick={() => { setShowLinkDocDropdown(!showLinkDocDropdown); setShowLinkTaskDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
                           className="px-2 py-0.5 rounded border border-dashed border-slate-350 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-505 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                          + Add link
+                          + Thêm liên kết
                         </button>
                         {showLinkDocDropdown && (
                           <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Search docs..." value={relationshipSearchQuery}
+                            <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
                               onChange={e => setRelationshipSearchQuery(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-805" />
                             {allDocs
@@ -2657,7 +2657,7 @@ export default function TaskDetailsPanel({
                         );
                       })}
                       {(task.relationships?.docs || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No linked documents</p>
+                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có tài liệu liên kết</p>
                       )}
                     </div>
                   </div>
@@ -2666,17 +2666,17 @@ export default function TaskDetailsPanel({
                   <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Blocked By (Waiting On)</span>
-                        <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Dependency</span>
+                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Bị chặn bởi (đang chờ)</span>
+                        <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Phụ thuộc</span>
                       </div>
                       <div className="relative">
                         <button onClick={() => { setShowBlockedByDropdown(!showBlockedByDropdown); setShowBlocksDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
                           className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-555 hover:border-amber-550 hover:text-amber-505 cursor-pointer font-bold transition-colors">
-                          + Add task
+                          + Thêm công việc
                         </button>
                         {showBlockedByDropdown && (
                           <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                               onChange={e => setRelationshipSearchQuery(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
                             {allTasks
@@ -2705,7 +2705,7 @@ export default function TaskDetailsPanel({
                         return (
                           <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-amber-200/50 dark:border-amber-900/30 px-3 py-2 rounded-xl hover:border-amber-305 dark:hover:border-amber-800/80 transition-colors shadow-3xs">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                 {tStatusMeta?.label || t.status}
                               </span>
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2715,7 +2715,7 @@ export default function TaskDetailsPanel({
                         );
                       })}
                       {(task.relationships?.blockedBy || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No waiting-on dependencies</p>
+                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ phụ thuộc đang chờ</p>
                       )}
                     </div>
                   </div>
@@ -2724,17 +2724,17 @@ export default function TaskDetailsPanel({
                   <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Blocks (Blocking)</span>
-                        <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Blocking</span>
+                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Đang chặn</span>
+                        <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Chặn</span>
                       </div>
                       <div className="relative">
                         <button onClick={() => { setShowBlocksDropdown(!showBlocksDropdown); setShowBlockedByDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
                           className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-555 hover:border-rose-550 hover:text-rose-505 cursor-pointer font-bold transition-colors">
-                          + Add task
+                          + Thêm công việc
                         </button>
                         {showBlocksDropdown && (
                           <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Search tasks..." value={relationshipSearchQuery}
+                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
                               onChange={e => setRelationshipSearchQuery(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
                             {allTasks
@@ -2763,7 +2763,7 @@ export default function TaskDetailsPanel({
                         return (
                           <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-rose-200/50 dark:border-rose-900/30 px-3 py-2 rounded-xl hover:border-rose-305 dark:hover:border-rose-800/80 transition-colors shadow-3xs">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                 {tStatusMeta?.label || t.status}
                               </span>
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
@@ -2773,7 +2773,7 @@ export default function TaskDetailsPanel({
                         );
                       })}
                       {(task.relationships?.blocks || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">No blocking dependencies</p>
+                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ chặn</p>
                       )}
                     </div>
                   </div>

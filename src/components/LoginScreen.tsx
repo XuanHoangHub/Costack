@@ -10,10 +10,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
   User, ShieldAlert, Lock, Mail,
-  Eye, EyeOff, Check, CheckCircle2, Fingerprint, X,
-  Sparkles, ArrowLeft, KeyRound, ShieldCheck, Zap
+  Eye, EyeOff, Check, CheckCircle2, X,
+  ArrowLeft, KeyRound, ShieldCheck, Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { resolveAppRole } from '../lib/authRole';
 import { useTranslation } from '../contexts/TranslationContext';
 import LandingPage from './landing/LandingPage';
 
@@ -22,25 +23,30 @@ interface LoginScreenProps {
 }
 
 type AuthMode = 'signin' | 'signup' | 'forgot';
+type FieldName = 'name' | 'email' | 'password' | 'confirmPassword' | 'terms';
+type FieldErrors = Partial<Record<FieldName, string>>;
 
 function GlowInputField({
-  id, icon: Icon, type, placeholder, value, onChange, required, rightElement, autoFocus, label
+  id, icon: Icon, type, placeholder, value, onChange, required, rightElement, autoFocus,
+  label, autoComplete, error, helperText, minLength, disabled
 }: {
   id: string; icon: React.ElementType; type: string; placeholder: string;
   value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   required?: boolean; rightElement?: React.ReactNode; autoFocus?: boolean; label?: string;
+  autoComplete?: string; error?: string; helperText?: string; minLength?: number; disabled?: boolean;
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const descriptionId = error || helperText ? `${id}_description` : undefined;
 
   return (
     <div className="space-y-1.5 text-left w-full">
       {label && (
-        <label htmlFor={id} className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+        <label htmlFor={id} className="flex items-center justify-between text-[11px] font-extrabold tracking-tight text-slate-700 dark:text-slate-300">
           <span>{label}</span>
         </label>
       )}
       <div className="relative group/input w-full">
-        <div className={`absolute -inset-[1.5px] rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 opacity-0 blur-[3px] transition-opacity duration-300 pointer-events-none ${isFocused ? 'opacity-60' : 'group-hover/input:opacity-20'}`} />
+        <div className={`pointer-events-none absolute -inset-[1px] rounded-[17px] bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 opacity-0 blur-[2px] transition-opacity duration-300 ${isFocused ? 'opacity-70' : 'group-hover/input:opacity-20'}`} />
         <div className="relative flex items-center">
           <div className={`absolute left-3.5 z-10 transition-colors duration-200 ${isFocused ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
             <Icon className="w-4 h-4" />
@@ -55,37 +61,88 @@ function GlowInputField({
             onChange={onChange}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            autoComplete={type === 'email' ? 'email' : type === 'password' ? 'current-password' : 'name'}
-            className={`relative w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} py-3 text-xs sm:text-sm rounded-2xl bg-slate-50/80 dark:bg-slate-950/70 border transition-all duration-200 font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none shadow-2xs ${
-              isFocused
+            autoComplete={autoComplete || (type === 'email' ? 'email' : type === 'password' ? 'current-password' : 'name')}
+            aria-invalid={Boolean(error)}
+            aria-describedby={descriptionId}
+            minLength={minLength}
+            disabled={disabled}
+            spellCheck={type === 'email' ? false : undefined}
+            className={`relative h-[50px] w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} text-xs sm:text-sm rounded-2xl bg-slate-50/80 dark:bg-slate-950/70 border transition-all duration-200 font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none shadow-2xs ${
+              error
+                ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/10 dark:border-rose-700 dark:bg-rose-950/20'
+                : isFocused
                 ? 'border-indigo-500 bg-white dark:bg-slate-900 ring-4 ring-indigo-500/10'
                 : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-60`}
           />
           {rightElement && <div className="absolute right-3 z-10">{rightElement}</div>}
         </div>
       </div>
+      {(error || helperText) && (
+        <p id={descriptionId} className={`px-1 text-[10.5px] font-semibold leading-relaxed ${error ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+          {error || helperText}
+        </p>
+      )}
     </div>
   );
 }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const { t, locale } = useTranslation();
+  const { locale } = useTranslation();
   const [isAuthActive, setIsAuthActive] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const onLoginSuccessRef = useRef(onLoginSuccess);
   const oauthCompletionRef = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const isSignUp = authMode === 'signup';
   const isForgot = authMode === 'forgot';
+  const isVietnamese = locale === 'vi';
+
+  const copy = isVietnamese ? {
+    signin: 'Đăng nhập', signup: 'Đăng ký', free: 'Miễn phí', email: 'Địa chỉ email',
+    password: 'Mật khẩu', confirmPassword: 'Xác nhận mật khẩu', fullName: 'Họ và tên',
+    emailPlaceholder: 'ten@congty.com', namePlaceholder: 'Ví dụ: Nguyễn Minh Anh',
+    passwordPlaceholder: 'Nhập mật khẩu', createPasswordPlaceholder: 'Tạo mật khẩu mạnh',
+    confirmPasswordPlaceholder: 'Nhập lại mật khẩu', showPassword: 'Hiển thị mật khẩu',
+    hidePassword: 'Ẩn mật khẩu', forgotPassword: 'Quên mật khẩu?', remember: 'Duy trì đăng nhập trong 30 ngày',
+    submitSignin: 'Đăng nhập', submitSignup: 'Tạo tài khoản', processing: 'Đang xử lý…',
+    terms: 'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Apexa.',
+    continueWith: 'Hoặc tiếp tục với', resetSubmit: 'Gửi liên kết đặt lại mật khẩu',
+    backToSignin: 'Quay lại đăng nhập', securePortal: 'Cổng truy cập bảo mật',
+    forgotTitle: 'Khôi phục mật khẩu', signupTitle: 'Tạo tài khoản Apexa', signinTitle: 'Chào mừng trở lại!',
+    forgotDescription: 'Nhập địa chỉ email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
+    signupDescription: 'Tạo tài khoản miễn phí để bắt đầu tổ chức công việc cùng đội ngũ.',
+    signinDescription: 'Đăng nhập để tiếp tục làm việc trong không gian của bạn.',
+  } : {
+    signin: 'Sign in', signup: 'Sign up', free: 'Free', email: 'Email address',
+    password: 'Password', confirmPassword: 'Confirm password', fullName: 'Full name',
+    emailPlaceholder: 'name@company.com', namePlaceholder: 'e.g. Alex Johnson',
+    passwordPlaceholder: 'Enter your password', createPasswordPlaceholder: 'Create a strong password',
+    confirmPasswordPlaceholder: 'Re-enter your password', showPassword: 'Show password',
+    hidePassword: 'Hide password', forgotPassword: 'Forgot password?', remember: 'Keep me signed in for 30 days',
+    submitSignin: 'Sign in', submitSignup: 'Create account', processing: 'Processing…',
+    terms: 'I agree to Apexa’s Terms of Use and Privacy Policy.',
+    continueWith: 'Or continue with', resetSubmit: 'Send reset link',
+    backToSignin: 'Back to sign in', securePortal: 'Secure access portal',
+    forgotTitle: 'Reset your password', signupTitle: 'Create your Apexa account', signinTitle: 'Welcome back!',
+    forgotDescription: 'Enter your registered email address to receive a password reset link.',
+    signupDescription: 'Create a free account and start organizing work with your team.',
+    signinDescription: 'Sign in to continue working in your workspace.',
+  };
 
   useEffect(() => {
     if (isAuthActive) {
@@ -94,6 +151,39 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
+  }, [isAuthActive]);
+
+  useEffect(() => {
+    if (!isAuthActive) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAuthActive(false);
+        setError('');
+        setSuccess('');
+        setFieldErrors({});
+        window.requestAnimationFrame(() => previousFocusRef.current?.focus());
+        return;
+      }
+
+      if (event.key === 'Tab' && dialogRef.current) {
+        const focusableElements = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        ));
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        if (!firstElement || !lastElement) return;
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        } else if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
   }, [isAuthActive]);
 
   useEffect(() => {
@@ -122,15 +212,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         setIsAuthActive(true);
         setLoading(false);
         setError(locale === 'vi'
-          ? 'Facebook chưa cấp quyền email. Hãy bật quyền email trong Facebook App rồi thử lại.'
-          : 'Facebook did not provide an email address. Enable the email permission in your Facebook App and try again.');
+          ? 'Tài khoản mạng xã hội chưa cung cấp địa chỉ email. Vui lòng cấp quyền truy cập email rồi thử lại.'
+          : 'Your social account did not provide an email address. Allow email access and try again.');
         cleanOAuthParams();
         return;
       }
 
       oauthCompletionRef.current = true;
       const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Apexa Champion';
-      const appRole = sessionUser.app_metadata?.role;
       const shouldRemember = sessionStorage.getItem('apexa_oauth_remember_me') !== 'false';
       sessionStorage.removeItem('apexa_oauth_remember_me');
       cleanOAuthParams();
@@ -139,7 +228,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         name: displayName,
         email: userEmail,
         avatar: metadata.avatar_url || metadata.picture || metadata.avatar || '',
-        role: appRole === 'admin' || userEmail === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member',
+        role: resolveAppRole(sessionUser),
         status: 'online',
       }, shouldRemember);
     };
@@ -154,7 +243,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         if (!isActive) return;
         setIsAuthActive(true);
         setLoading(false);
-        setError(locale === 'vi' ? `Đăng nhập mạng xã hội thất bại: ${oauthError}` : `Social sign-in failed: ${oauthError}`);
+        setError(locale === 'vi'
+          ? 'Không thể đăng nhập bằng tài khoản mạng xã hội. Vui lòng thử lại.'
+          : 'Could not sign in with your social account. Please try again.');
         cleanOAuthParams();
       });
       return;
@@ -180,9 +271,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   }, [locale]);
 
   const hasMinLength = password.length >= 8;
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /\p{N}/u.test(password);
+  const hasSpecial = /[^\p{L}\p{N}\s]/u.test(password);
+  const hasLetter = /\p{L}/u.test(password);
   const strengthScore = [hasMinLength, hasNumber, hasSpecial, hasLetter].filter(Boolean).length;
 
   const getStrengthMeta = () => {
@@ -191,31 +282,141 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       case 1: return { text: locale === 'vi' ? 'Yếu' : 'Weak', color: 'bg-rose-400', textClass: 'text-rose-500', width: '30%' };
       case 2: return { text: locale === 'vi' ? 'Trung bình' : 'Medium', color: 'bg-amber-400', textClass: 'text-amber-500', width: '55%' };
       case 3: return { text: locale === 'vi' ? 'Khá mạnh' : 'Strong', color: 'bg-indigo-500', textClass: 'text-indigo-500', width: '80%' };
-      case 4: return { text: locale === 'vi' ? 'Tuyệt vời ✨' : 'Excellent ✨', color: 'bg-emerald-500', textClass: 'text-emerald-500', width: '100%' };
+      case 4: return { text: locale === 'vi' ? 'Mạnh' : 'Strong', color: 'bg-emerald-500', textClass: 'text-emerald-500', width: '100%' };
       default: return { text: locale === 'vi' ? 'Yếu' : 'Weak', color: 'bg-slate-300', textClass: 'text-slate-400', width: '0%' };
     }
   };
 
-  const openAuth = (signUp: boolean) => {
-    setIsAuthActive(true);
-    setAuthMode(signUp ? 'signup' : 'signin');
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+
+  const clearFieldError = (field: FieldName) => {
+    setError('');
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const clearFeedback = () => {
     setError('');
     setSuccess('');
+    setFieldErrors({});
+  };
+
+  const switchAuthMode = (mode: Exclude<AuthMode, 'forgot'>) => {
+    setAuthMode(mode);
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setAcceptTerms(false);
+    clearFeedback();
+  };
+
+  const validateAuthForm = () => {
+    const nextErrors: FieldErrors = {};
+
+    if (isSignUp && name.trim().length < 2) {
+      nextErrors.name = isVietnamese
+        ? 'Vui lòng nhập họ và tên (ít nhất 2 ký tự).'
+        : 'Enter your full name (at least 2 characters).';
+    }
+    if (!email.trim()) {
+      nextErrors.email = isVietnamese ? 'Vui lòng nhập địa chỉ email.' : 'Enter your email address.';
+    } else if (!isValidEmail(email)) {
+      nextErrors.email = isVietnamese ? 'Địa chỉ email chưa đúng định dạng.' : 'Enter a valid email address.';
+    }
+    if (!password) {
+      nextErrors.password = isVietnamese ? 'Vui lòng nhập mật khẩu.' : 'Enter your password.';
+    } else if (isSignUp && strengthScore < 4) {
+      nextErrors.password = isVietnamese
+        ? 'Mật khẩu cần đủ 8 ký tự, có chữ cái, chữ số và ký tự đặc biệt.'
+        : 'Use 8+ characters with a letter, number, and special character.';
+    }
+    if (isSignUp && !confirmPassword) {
+      nextErrors.confirmPassword = isVietnamese ? 'Vui lòng nhập lại mật khẩu.' : 'Re-enter your password.';
+    } else if (isSignUp && confirmPassword !== password) {
+      nextErrors.confirmPassword = isVietnamese ? 'Mật khẩu xác nhận không khớp.' : 'Passwords do not match.';
+    }
+    if (isSignUp && !acceptTerms) {
+      nextErrors.terms = isVietnamese
+        ? 'Bạn cần đồng ý với điều khoản để tạo tài khoản.'
+        : 'You must agree to the terms to create an account.';
+    }
+
+    setFieldErrors(nextErrors);
+    const firstInvalidField = (Object.keys(nextErrors) as FieldName[])[0];
+    if (firstInvalidField) {
+      const fieldIds: Record<FieldName, string> = {
+        name: 'input_signup_name',
+        email: 'input_auth_email',
+        password: 'input_auth_password',
+        confirmPassword: 'input_signup_confirm_password',
+        terms: 'input_signup_terms',
+      };
+      window.requestAnimationFrame(() => document.getElementById(fieldIds[firstInvalidField])?.focus());
+    }
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const getAuthErrorMessage = (caughtError: unknown) => {
+    const message = caughtError instanceof Error ? caughtError.message : '';
+    const normalizedMessage = message.toLowerCase();
+
+    if (normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_grant')) {
+      return isVietnamese
+        ? 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra và thử lại.'
+        : 'Incorrect email or password. Check your details and try again.';
+    }
+    if (normalizedMessage.includes('email not confirmed')) {
+      return isVietnamese
+        ? 'Email chưa được xác minh. Vui lòng kiểm tra hộp thư và mở liên kết xác minh.'
+        : 'Your email is not verified. Check your inbox for the verification link.';
+    }
+    if (normalizedMessage.includes('user already registered')) {
+      return isVietnamese
+        ? 'Email này đã được đăng ký. Vui lòng chuyển sang đăng nhập.'
+        : 'This email is already registered. Please sign in instead.';
+    }
+    if (normalizedMessage.includes('rate limit') || normalizedMessage.includes('too many requests')) {
+      return isVietnamese
+        ? 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại.'
+        : 'Too many requests. Wait a moment and try again.';
+    }
+    if (normalizedMessage.includes('password')) {
+      return isVietnamese
+        ? 'Mật khẩu chưa đáp ứng yêu cầu bảo mật. Vui lòng chọn mật khẩu khác.'
+        : 'The password does not meet the security requirements.';
+    }
+
+    return message || (isVietnamese
+      ? 'Không thể kết nối với dịch vụ xác thực. Vui lòng thử lại.'
+      : 'Could not connect to the authentication service. Try again.');
+  };
+
+  const openAuth = (signUp: boolean) => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setIsAuthActive(true);
+    switchAuthMode(signUp ? 'signup' : 'signin');
   };
 
   const closeAuth = () => {
     setIsAuthActive(false);
-    setError('');
-    setSuccess('');
+    clearFeedback();
+    window.requestAnimationFrame(() => previousFocusRef.current?.focus());
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    clearFeedback();
 
-    if (!email) {
-      setError(locale === 'vi' ? 'Vui lòng nhập địa chỉ email của bạn.' : 'Please enter your email address.');
+    if (!email.trim() || !isValidEmail(email)) {
+      setFieldErrors({
+        email: isVietnamese ? 'Vui lòng nhập địa chỉ email hợp lệ.' : 'Enter a valid email address.'
+      });
       return;
     }
 
@@ -223,19 +424,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     try {
       const redirectUrl = new URL(window.location.href);
       redirectUrl.hash = '';
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
         redirectTo: redirectUrl.toString()
       });
       if (resetError) throw resetError;
 
       setSuccess(
         locale === 'vi'
-          ? 'Liên kết đặt lại mật khẩu đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!'
-          : 'Password reset link sent to your email. Please check your inbox!'
+          ? 'Nếu email tồn tại, bạn sẽ nhận được liên kết đặt lại mật khẩu. Vui lòng kiểm tra cả thư rác.'
+          : 'If the email exists, you will receive a reset link. Check your spam folder too.'
       );
-    } catch (err: any) {
-      console.error('Password reset error:', err);
-      setError(err.message || (locale === 'vi' ? 'Không thể gửi yêu cầu đặt lại mật khẩu.' : 'Unable to send password reset link.'));
+    } catch (caughtError: unknown) {
+      console.error('Password reset error:', caughtError);
+      setError(getAuthErrorMessage(caughtError));
     } finally {
       setLoading(false);
     }
@@ -243,108 +444,78 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!email || !password) {
-      setError(t('enterCredentials') || (locale === 'vi' ? 'Vui lòng điền đầy đủ email và mật khẩu.' : 'Please enter both email and password.'));
-      return;
-    }
-    if (isSignUp && !name.trim()) {
-      setError(t('enterFullName') || (locale === 'vi' ? 'Vui lòng điền họ tên của bạn.' : 'Please enter your full name.'));
-      return;
-    }
-    if (isSignUp && strengthScore < 3) {
-      setError(t('passwordStrength') || (locale === 'vi' ? 'Mật khẩu phải đạt mức an toàn (tối thiểu 3/4 tiêu chí).' : 'Password must meet recommended safety standards.'));
-      return;
-    }
+    clearFeedback();
+    if (!validateAuthForm()) return;
 
     setLoading(true);
+    const normalizedEmail = normalizeEmail(email);
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email, password,
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: normalizedEmail, password,
           options: { data: { name: name.trim() } }
         });
         if (signUpError) throw signUpError;
 
-        setSuccess(t('signupSuccess') || (locale === 'vi' ? 'Đăng ký thành công! Đang thiết lập tài khoản...' : 'Sign up successful! Preparing workspace...'));
-        await new Promise((resolve) => setTimeout(resolve, 900));
-
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-        if (signInError) {
-          setSuccess(t('verificationCheck') || (locale === 'vi' ? 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.' : 'Account created! Please check your email to verify.'));
-          setLoading(false);
+        if (!signUpData.session || !signUpData.user) {
+          setSuccess(isVietnamese
+            ? 'Tài khoản đã được tạo. Vui lòng kiểm tra email và mở liên kết xác minh trước khi đăng nhập.'
+            : 'Account created. Check your email and open the verification link before signing in.');
           setAuthMode('signin');
+          setPassword('');
+          setConfirmPassword('');
+          setAcceptTerms(false);
           return;
         }
 
-        const sessionUser = signInData.user;
+        const sessionUser = signUpData.user;
         const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
         onLoginSuccess({
           name: displayName,
-          email: sessionUser?.email || email,
+          email: sessionUser?.email || normalizedEmail,
           avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
           role: 'member',
           status: 'online'
         }, rememberMe);
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (signInError) throw signInError;
 
         const sessionUser = data.user;
         const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
 
-        setSuccess(t('signinSuccess') || (locale === 'vi' ? 'Đăng nhập thành công! Đang mở Apexa OS...' : 'Signed in! Entering Apexa OS...'));
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        const userRole = sessionUser?.email?.includes('admin') || sessionUser?.email === 'hoang.benjamin.creative@gmail.com' ? 'admin' : 'member';
         onLoginSuccess({
           name: displayName,
-          email: sessionUser?.email || email,
+          email: sessionUser?.email || normalizedEmail,
           avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
-          role: userRole,
+          role: resolveAppRole(sessionUser),
           status: 'online'
         }, rememberMe);
       }
-    } catch (err: any) {
-      console.warn('Auth notification:', err?.message || err);
-      let errorMessage = err.message || (locale === 'vi' ? 'Lỗi kết nối máy chủ xác thực.' : 'Authentication server connection error.');
-      if (err.message?.toLowerCase().includes('invalid login credentials') || err.message?.toLowerCase().includes('invalid_grant')) {
-        errorMessage = locale === 'vi'
-          ? 'Email hoặc mật khẩu không chính xác. Nếu chưa có tài khoản, bạn hãy chọn tab "Đăng ký mới".'
-          : 'Invalid email or password. If you do not have an account, please switch to the "Sign Up" tab.';
-      } else if (err.message?.toLowerCase().includes('user already registered')) {
-        errorMessage = t('emailAlreadyRegistered') || (locale === 'vi' ? 'Địa chỉ email này đã được đăng ký. Vui lòng đăng nhập.' : 'Email is already registered. Please sign in instead.');
-      }
-      setError(errorMessage);
+    } catch (caughtError: unknown) {
+      console.warn('Auth notification:', caughtError instanceof Error ? caughtError.message : caughtError);
+      setError(getAuthErrorMessage(caughtError));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickDemoLogin = (role: 'admin' | 'member' = 'admin') => {
-    setLoading(true);
-    setError('');
-    setSuccess(locale === 'vi' ? 'Đang mở không gian trải nghiệm...' : 'Connecting to workspace...');
-    setTimeout(() => {
-      onLoginSuccess({
-        name: role === 'admin' ? 'Xuân Hoàn' : 'Mai Phương',
-        email: role === 'admin' ? 'xuanhoan@apexa.io' : 'maiphuong@apexa.io',
-        avatar: '',
-        role,
-        status: 'online'
-      }, rememberMe);
-      setLoading(false);
-    }, 450);
-  };
-
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
+    if (isSignUp && !acceptTerms) {
+      setFieldErrors({
+        terms: isVietnamese
+          ? 'Bạn cần đồng ý với điều khoản để tạo tài khoản.'
+          : 'You must agree to the terms to create an account.'
+      });
+      return;
+    }
+
     setLoading(true);
-    setError('');
-    setSuccess(locale === 'vi' ? `Đang kết nối với ${provider === 'facebook' ? 'Facebook' : 'Google'}...` : `Connecting to ${provider === 'facebook' ? 'Facebook' : 'Google'}...`);
+    clearFeedback();
+    setSuccess(isVietnamese
+      ? `Đang chuyển đến ${provider === 'facebook' ? 'Facebook' : 'Google'}…`
+      : `Redirecting to ${provider === 'facebook' ? 'Facebook' : 'Google'}…`);
 
     try {
       const redirectTo = new URL('/', window.location.origin).toString();
@@ -358,18 +529,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         }
       });
       if (oauthError) throw oauthError;
-      if (!data.url) throw new Error(locale === 'vi' ? 'Không nhận được URL đăng nhập từ Supabase.' : 'Supabase did not return an OAuth URL.');
-    } catch (err: any) {
-      console.warn(`${provider} OAuth error:`, err?.message || err);
+      if (!data.url) throw new Error(isVietnamese ? 'Không nhận được đường dẫn đăng nhập.' : 'No sign-in URL was returned.');
+    } catch (caughtError: unknown) {
+      console.warn(`${provider} OAuth error:`, caughtError instanceof Error ? caughtError.message : caughtError);
       sessionStorage.removeItem('apexa_oauth_remember_me');
       setSuccess('');
-      setError(err?.message || (locale === 'vi' ? 'Không thể kết nối với dịch vụ đăng nhập.' : 'Could not connect to sign-in service.'));
+      setError(getAuthErrorMessage(caughtError));
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#f8fafc] text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-800">
+    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#f8fafc] dark:bg-[#07090e] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
@@ -380,7 +551,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       {/* Auth Modal Overlay */}
       <AnimatePresence>
         {isAuthActive && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-0 sm:p-5">
             {/* Backdrop with Frosted Blur & Ambient Lights */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -388,8 +559,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={closeAuth}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-md"
+              className="fixed inset-0 bg-[#080b16]/80 backdrop-blur-xl"
             />
+
+            <div className="pointer-events-none fixed inset-0 overflow-hidden">
+              <div className="absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-indigo-600/25 blur-[100px]" />
+              <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-fuchsia-600/20 blur-[120px]" />
+            </div>
 
             {/* Modal Card */}
             <motion.div
@@ -397,95 +573,164 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 24 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-w-[440px] my-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/90 rounded-[28px] shadow-2xl shadow-indigo-950/20 p-6 sm:p-8 space-y-5.5 z-10 overflow-hidden text-left"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="auth-dialog-title"
+              ref={dialogRef}
+              className="relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[960px] overflow-hidden rounded-2xl sm:rounded-[32px] border border-white/10 bg-[#0b1020] shadow-[0_40px_120px_-28px_rgba(8,15,45,0.75)] dark:border-slate-800/80 dark:bg-slate-900 lg:grid-cols-[0.88fr_1.12fr]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Ambient Top Glow Spot */}
-              <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-36 bg-gradient-to-r from-indigo-500/25 via-purple-500/20 to-cyan-500/25 blur-3xl pointer-events-none rounded-full" />
+              {/* Product story panel */}
+              <aside className="relative hidden min-h-[660px] overflow-hidden bg-[#0b1020] p-9 text-white lg:flex lg:flex-col lg:justify-between">
+                <div className="pointer-events-none absolute inset-0 opacity-80" style={{ backgroundImage: 'radial-gradient(circle at 20% 15%, rgba(99,102,241,.45), transparent 30%), radial-gradient(circle at 90% 75%, rgba(168,85,247,.28), transparent 34%)' }} />
+                <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
+
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-indigo-700 shadow-xl shadow-indigo-950/30">
+                    <Zap className="h-5 w-5 fill-current" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black tracking-tight">Apexa</div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-indigo-200/70">Hệ điều hành năng suất</div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 space-y-7">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-100 backdrop-blur-md">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.9)]" />
+                      {isVietnamese ? 'Không gian làm việc đang trực tuyến' : 'Workspace is online'}
+                    </span>
+                    <h3 className="max-w-xs text-[32px] font-black leading-[1.08] tracking-[-0.04em]">
+                      {isVietnamese ? (
+                        <>Một nơi để đội ngũ <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-cyan-300 bg-clip-text text-transparent">làm việc tốt nhất.</span></>
+                      ) : (
+                        <>One place for your team to <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-cyan-300 bg-clip-text text-transparent">do its best work.</span></>
+                      )}
+                    </h3>
+                    <p className="max-w-sm text-xs font-medium leading-6 text-slate-300/80">
+                      {isVietnamese
+                        ? 'Công việc, tài liệu và nhịp cộng tác được kết nối trong một không gian thông minh duy nhất.'
+                        : 'Tasks, documents, and team collaboration—all connected in one intelligent workspace.'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/10 bg-white/[0.07] p-4 shadow-2xl backdrop-blur-xl">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{isVietnamese ? 'Nhịp làm việc hôm nay' : 'Today’s workflow'}</div>
+                        <div className="mt-1 text-sm font-extrabold">{isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}</div>
+                      </div>
+                      <div className="flex -space-x-2">
+                        {['HX', 'MA', 'QB'].map((member, index) => (
+                          <div key={member} className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#171c31] text-[8px] font-black ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>{member}</div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        ['12', isVietnamese ? 'Đang thực hiện' : 'In progress'],
+                        ['86%', isVietnamese ? 'Tiến độ' : 'Progress'],
+                        [isVietnamese ? '4,8 giờ' : '4.8h', isVietnamese ? 'Tập trung' : 'Focus time']
+                      ].map(([value, label]) => (
+                        <div key={label} className="rounded-2xl border border-white/8 bg-black/15 px-3 py-3">
+                          <div className="text-base font-black tracking-tight">{value}</div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 rounded-2xl bg-emerald-400/10 px-3 py-2.5 text-[10px] font-bold text-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      {isVietnamese ? 'Mọi thay đổi đã được đồng bộ' : 'Every change is synced'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 flex items-center justify-between text-[9px] font-bold text-slate-500">
+                  <span>© 2026 Apexa OS</span>
+                  <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-emerald-400" /> {isVietnamese ? 'Bảo mật cấp doanh nghiệp' : 'Enterprise-grade security'}</span>
+                </div>
+              </aside>
+
+              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-white px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-slate-900">
+                <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
 
               {/* Close Button */}
               <button
+                type="button"
                 onClick={closeAuth}
-                className="absolute top-4.5 right-4.5 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer z-10 active:scale-90"
-                aria-label={locale === 'vi' ? 'Đóng' : 'Close'}
+                className="absolute right-4 top-4 z-20 rounded-full border border-slate-200/70 bg-white/80 p-2 text-slate-400 shadow-sm backdrop-blur-md transition-all hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-850/80 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                aria-label={isVietnamese ? 'Đóng cửa sổ' : 'Close dialog'}
               >
                 <X className="w-4.5 h-4.5" />
               </button>
 
               {/* Card Header with Brand Identity */}
-              <div className="space-y-3 pt-1">
-                <div className="flex items-center gap-2.5">
+              <div className="relative space-y-3 pr-8 pt-1">
+                <div className="flex items-center gap-2.5 lg:hidden">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 ring-2 ring-indigo-500/20 shrink-0">
                     <Zap className="w-5 h-5 fill-white" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black tracking-widest text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/50">
-                        Apexa OS
-                      </span>
-                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
-                    {isForgot
-                      ? (locale === 'vi' ? 'Khôi phục mật khẩu 🔑' : 'Reset your password 🔑')
-                      : isSignUp
-                      ? (locale === 'vi' ? 'Bắt đầu dùng Apexa 🚀' : 'Create your account 🚀')
-                      : (locale === 'vi' ? 'Chào mừng trở lại! ✨' : 'Welcome back! ✨')}
+                  <div className="mb-2 hidden items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 lg:flex dark:text-indigo-400">
+                    <span className="h-px w-6 bg-indigo-500" /> {copy.securePortal}
+                  </div>
+                  <h2 id="auth-dialog-title" className="text-2xl font-black text-slate-900 sm:text-[28px] dark:text-white tracking-[-0.035em] leading-tight">
+                    {isForgot ? copy.forgotTitle : isSignUp ? copy.signupTitle : copy.signinTitle}
                   </h2>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {isForgot
-                      ? (locale === 'vi' ? 'Nhập email liên kết với tài khoản để nhận liên kết khôi phục.' : 'Enter your email to receive a password reset link.')
-                      : isSignUp
-                      ? (locale === 'vi' ? 'Tạo tài khoản miễn phí và hợp nhất không gian làm việc.' : 'Sign up for free and streamline your team workflow.')
-                      : (locale === 'vi' ? 'Đăng nhập vào không gian làm việc hiệu suất cao của bạn.' : 'Connect to your workspace and continue your journey.')}
+                    {isForgot ? copy.forgotDescription : isSignUp ? copy.signupDescription : copy.signinDescription}
                   </p>
                 </div>
               </div>
 
               {/* Segmented Tab Switcher (Sign In vs Sign Up) */}
               {!isForgot && (
-                <div className="relative p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex select-none">
+                <div role="tablist" aria-label={isVietnamese ? 'Chọn phương thức truy cập' : 'Choose access method'} className="relative p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex select-none">
                   <button
                     type="button"
-                    onClick={() => { setAuthMode('signin'); setError(''); setSuccess(''); }}
+                    role="tab"
+                    aria-selected={!isSignUp}
+                    onClick={() => switchAuthMode('signin')}
                     className={`relative flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       !isSignUp
-                        ? 'text-slate-900 dark:text-white shadow-xs'
+                        ? 'text-indigo-700 dark:text-indigo-100 shadow-xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
                     {!isSignUp && (
                       <motion.div
                         layoutId="activeAuthPill"
-                        className="absolute inset-0 bg-white dark:bg-slate-850 rounded-xl border border-slate-200/70 dark:border-slate-700/80 shadow-xs"
+                        className="absolute inset-0 rounded-xl border border-indigo-100 bg-white shadow-xs dark:border-indigo-500/25 dark:bg-indigo-500/15"
                         transition={{ type: "spring", stiffness: 450, damping: 35 }}
                       />
                     )}
-                    <span className="relative z-10">{locale === 'vi' ? 'Đăng nhập' : 'Sign In'}</span>
+                    <span className="relative z-10">{copy.signin}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => { setAuthMode('signup'); setError(''); setSuccess(''); }}
+                    role="tab"
+                    aria-selected={isSignUp}
+                    onClick={() => switchAuthMode('signup')}
                     className={`relative flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       isSignUp
-                        ? 'text-slate-900 dark:text-white shadow-xs'
+                        ? 'text-indigo-700 dark:text-indigo-100 shadow-xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
                     {isSignUp && (
                       <motion.div
                         layoutId="activeAuthPill"
-                        className="absolute inset-0 bg-white dark:bg-slate-850 rounded-xl border border-slate-200/70 dark:border-slate-700/80 shadow-xs"
+                        className="absolute inset-0 rounded-xl border border-indigo-100 bg-white shadow-xs dark:border-indigo-500/25 dark:bg-indigo-500/15"
                         transition={{ type: "spring", stiffness: 450, damping: 35 }}
                       />
                     )}
                     <span className="relative z-10 flex items-center gap-1">
-                      <span>{locale === 'vi' ? 'Đăng ký mới' : 'Sign Up'}</span>
-                      <span className="text-[9px] bg-indigo-500/10 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded-md font-extrabold uppercase">Free</span>
+                      <span>{copy.signup}</span>
+                      <span className="text-[9px] bg-indigo-500/10 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded-md font-extrabold uppercase">{copy.free}</span>
                     </span>
                   </button>
                 </div>
@@ -493,23 +738,27 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
               {/* Forgot Password Flow */}
               {isForgot ? (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
+                <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
                   <GlowInputField
                     id="input_forgot_email"
                     icon={Mail}
                     type="email"
-                    label={locale === 'vi' ? 'Địa chỉ Email' : 'Email Address'}
-                    placeholder="name@company.com"
+                    label={copy.email}
+                    placeholder={copy.emailPlaceholder}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); }}
                     required
                     autoFocus
+                    autoComplete="email"
+                    error={fieldErrors.email}
+                    disabled={loading}
                   />
 
                   {error && (
                     <motion.div
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
+                      role="alert"
                       className="flex items-start gap-2.5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 text-xs font-semibold"
                     >
                       <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
@@ -521,6 +770,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <motion.div
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
+                      role="status"
+                      aria-live="polite"
                       className="flex items-start gap-2.5 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-semibold"
                     >
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -534,11 +785,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-extrabold rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-[0.99]"
                   >
                     {loading ? (
-                      <div className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="flex items-center gap-2">
+                        <div aria-hidden="true" className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{copy.processing}</span>
+                      </div>
                     ) : (
                       <>
                         <KeyRound className="w-4 h-4" />
-                        <span>{locale === 'vi' ? 'Gửi liên kết khôi phục' : 'Send Reset Link'}</span>
+                        <span>{copy.resetSubmit}</span>
                       </>
                     )}
                   </button>
@@ -546,17 +800,17 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <div className="text-center pt-2">
                     <button
                       type="button"
-                      onClick={() => { setAuthMode('signin'); setError(''); setSuccess(''); }}
+                      onClick={() => switchAuthMode('signin')}
                       className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>{locale === 'vi' ? 'Quay lại Đăng nhập' : 'Back to Sign In'}</span>
+                      <span>{copy.backToSignin}</span>
                     </button>
                   </div>
                 </form>
               ) : (
                 /* Sign In / Sign Up Form */
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                   <AnimatePresence mode="wait">
                     {isSignUp && (
                       <motion.div
@@ -571,11 +825,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                           id="input_signup_name"
                           icon={User}
                           type="text"
-                          label={locale === 'vi' ? 'Họ và tên' : 'Full Name'}
-                          placeholder={locale === 'vi' ? 'Ví dụ: Nguyễn Văn A' : 'e.g. Alex Johnson'}
+                          label={copy.fullName}
+                          placeholder={copy.namePlaceholder}
                           value={name}
-                          onChange={(e) => setName(e.target.value)}
+                          onChange={(e) => { setName(e.target.value); clearFieldError('name'); }}
                           required={isSignUp}
+                          autoFocus={isSignUp}
+                          autoComplete="name"
+                          error={fieldErrors.name}
+                          disabled={loading}
                         />
                       </motion.div>
                     )}
@@ -585,11 +843,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     id="input_auth_email"
                     icon={Mail}
                     type="email"
-                    label={locale === 'vi' ? 'Địa chỉ Email' : 'Email Address'}
-                    placeholder={locale === 'vi' ? 'name@company.com' : 'name@company.com'}
+                    label={copy.email}
+                    placeholder={copy.emailPlaceholder}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); }}
                     required
+                    autoFocus={!isSignUp}
+                    autoComplete="email"
+                    error={fieldErrors.email}
+                    disabled={loading}
                   />
 
                   <div className="space-y-1.5">
@@ -597,17 +859,22 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       id="input_auth_password"
                       icon={Lock}
                       type={showPassword ? "text" : "password"}
-                      label={locale === 'vi' ? 'Mật khẩu' : 'Password'}
-                      placeholder={locale === 'vi' ? 'Tối thiểu 8 ký tự' : 'At least 8 characters'}
+                      label={copy.password}
+                      placeholder={isSignUp ? copy.createPasswordPlaceholder : copy.passwordPlaceholder}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); clearFieldError('confirmPassword'); }}
                       required
+                      minLength={isSignUp ? 8 : undefined}
+                      autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                      error={fieldErrors.password}
+                      disabled={loading}
                       rightElement={
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
+                          disabled={loading}
                           className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -618,14 +885,53 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       <div className="flex justify-end pt-0.5">
                         <button
                           type="button"
-                          onClick={() => { setAuthMode('forgot'); setError(''); setSuccess(''); }}
+                          onClick={() => { setAuthMode('forgot'); setPassword(''); clearFeedback(); }}
                           className="text-[11px] text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer"
                         >
-                          {locale === 'vi' ? 'Quên mật khẩu?' : 'Forgot password?'}
+                          {copy.forgotPassword}
                         </button>
                       </div>
                     )}
                   </div>
+
+                  <AnimatePresence mode="wait">
+                    {isSignUp && (
+                      <motion.div
+                        key="confirm-password-field"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <GlowInputField
+                          id="input_signup_confirm_password"
+                          icon={Lock}
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          label={copy.confirmPassword}
+                          placeholder={copy.confirmPasswordPlaceholder}
+                          value={confirmPassword}
+                          onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError('confirmPassword'); }}
+                          required={isSignUp}
+                          minLength={8}
+                          autoComplete="new-password"
+                          error={fieldErrors.confirmPassword}
+                          disabled={loading}
+                          rightElement={
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              disabled={loading}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+                              aria-label={showConfirmPassword ? copy.hidePassword : copy.showPassword}
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          }
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Dynamic Password Strength Meter for Sign Up */}
                   <AnimatePresence>
@@ -637,7 +943,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         className="p-3.5 rounded-2xl bg-slate-50/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5 overflow-hidden text-left"
                       >
                         <div className="flex items-center justify-between text-[10.5px]">
-                          <span className="font-bold text-slate-500 dark:text-slate-400">{locale === 'vi' ? 'Độ an toàn mật khẩu:' : 'Password strength:'}</span>
+                          <span className="font-bold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Độ mạnh mật khẩu' : 'Password strength'}</span>
                           <span className={`font-black uppercase tracking-wider ${getStrengthMeta().textClass}`}>{getStrengthMeta().text}</span>
                         </div>
 
@@ -651,37 +957,61 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         <div className="grid grid-cols-2 gap-1.5 text-[9.5px] font-bold">
                           <span className={`flex items-center gap-1 ${hasMinLength ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                             <Check className={`w-3 h-3 ${hasMinLength ? 'stroke-[3px]' : 'opacity-40'}`} />
-                            {locale === 'vi' ? 'Từ 8 ký tự' : '8+ characters'}
+                            {isVietnamese ? 'Ít nhất 8 ký tự' : '8+ characters'}
                           </span>
                           <span className={`flex items-center gap-1 ${hasLetter ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                             <Check className={`w-3 h-3 ${hasLetter ? 'stroke-[3px]' : 'opacity-40'}`} />
-                            {locale === 'vi' ? 'Chứa chữ cái' : 'Letters (a-z)'}
+                            {isVietnamese ? 'Có chữ cái' : 'Contains a letter'}
                           </span>
                           <span className={`flex items-center gap-1 ${hasNumber ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                             <Check className={`w-3 h-3 ${hasNumber ? 'stroke-[3px]' : 'opacity-40'}`} />
-                            {locale === 'vi' ? 'Chứa chữ số' : 'Numbers (0-9)'}
+                            {isVietnamese ? 'Có chữ số' : 'Contains a number'}
                           </span>
                           <span className={`flex items-center gap-1 ${hasSpecial ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                             <Check className={`w-3 h-3 ${hasSpecial ? 'stroke-[3px]' : 'opacity-40'}`} />
-                            {locale === 'vi' ? 'Ký tự đặc biệt' : 'Symbols (!@#$)'}
+                            {isVietnamese ? 'Có ký tự đặc biệt' : 'Contains a symbol'}
                           </span>
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
+                  {isSignUp && (
+                    <div className="space-y-1.5">
+                      <label className="flex cursor-pointer items-start gap-2.5 text-[11px] font-semibold leading-relaxed text-slate-600 dark:text-slate-400">
+                        <input
+                          id="input_signup_terms"
+                          type="checkbox"
+                          checked={acceptTerms}
+                          onChange={(event) => { setAcceptTerms(event.target.checked); clearFieldError('terms'); }}
+                          disabled={loading}
+                          required
+                          aria-invalid={Boolean(fieldErrors.terms)}
+                          aria-describedby={fieldErrors.terms ? 'signup_terms_error' : undefined}
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{copy.terms}</span>
+                      </label>
+                      {fieldErrors.terms && (
+                        <p id="signup_terms_error" className="pl-6 text-[10.5px] font-semibold text-rose-600 dark:text-rose-400">
+                          {fieldErrors.terms}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Remember Me Toggle for Sign In */}
                   {!isSignUp && (
-                    <button
-                      type="button"
-                      onClick={() => setRememberMe(!rememberMe)}
-                      className="flex items-center gap-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer select-none group py-0.5"
-                    >
-                      <div className={`w-4.5 h-4.5 rounded-lg border transition-all flex items-center justify-center ${rememberMe ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs' : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-850 group-hover:border-indigo-400'}`}>
-                        {rememberMe && <Check className="w-3 h-3 stroke-[3px]" />}
-                      </div>
-                      <span>{locale === 'vi' ? 'Ghi nhớ đăng nhập 30 ngày' : 'Remember me for 30 days'}</span>
-                    </button>
+                    <label className="group flex cursor-pointer select-none items-center gap-2.5 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(event) => setRememberMe(event.target.checked)}
+                        disabled={loading}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>{copy.remember}</span>
+                    </label>
                   )}
 
                   {/* Error and Success Notifications */}
@@ -689,6 +1019,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <motion.div
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
+                      role="alert"
                       className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 text-xs font-semibold shadow-2xs space-y-2"
                     >
                       <div className="flex items-start gap-2.5">
@@ -699,18 +1030,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         <div className="flex items-center gap-2 pt-1 border-t border-rose-200/50 dark:border-rose-900/50 pl-7 flex-wrap">
                           <button
                             type="button"
-                            onClick={() => { setAuthMode('signup'); setError(''); }}
+                            onClick={() => switchAuthMode('signup')}
                             className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                           >
-                            {locale === 'vi' ? '➔ Đăng ký tài khoản' : '➔ Create an account'}
-                          </button>
-                          <span className="text-rose-300 dark:text-rose-800">•</span>
-                          <button
-                            type="button"
-                            onClick={() => handleQuickDemoLogin('admin')}
-                            className="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 cursor-pointer"
-                          >
-                            {locale === 'vi' ? '⚡ Vào bằng tài khoản Demo' : '⚡ 1-Click Demo Access'}
+                            {isVietnamese ? 'Chuyển sang đăng ký' : 'Switch to sign up'}
                           </button>
                         </div>
                       )}
@@ -721,6 +1044,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <motion.div
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
+                      role="status"
+                      aria-live="polite"
                       className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-xs font-semibold shadow-2xs"
                     >
                       <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0 mt-0.5" />
@@ -732,22 +1057,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-black rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    aria-busy={loading}
+                    className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-black rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs font-extrabold">{locale === 'vi' ? 'Đang xử lý...' : 'Processing...'}</span>
+                        <div aria-hidden="true" className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-extrabold">{copy.processing}</span>
                       </div>
                     ) : (
-                      <>
-                        {isSignUp ? <Sparkles className="w-4.5 h-4.5" /> : <Fingerprint className="w-4.5 h-4.5" />}
-                        <span>
-                          {isSignUp
-                            ? (locale === 'vi' ? 'Tạo tài khoản Apexa' : 'Create Apexa Account')
-                            : (locale === 'vi' ? 'Đăng nhập hệ thống' : 'Login System')}
-                        </span>
-                      </>
+                      <span>
+                        {isSignUp ? copy.submitSignup : copy.submitSignin}
+                      </span>
                     )}
                   </button>
                 </form>
@@ -758,7 +1079,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <div className="space-y-3 pt-2 border-t border-slate-200/70 dark:border-slate-800/80">
                   <div className="relative flex items-center justify-center">
                     <span className="bg-white dark:bg-slate-900 px-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                      {locale === 'vi' ? 'Hoặc tiếp tục bằng' : 'Or continue with'}
+                      {copy.continueWith}
                     </span>
                   </div>
 
@@ -768,6 +1089,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       onClick={() => handleOAuthLogin('google')}
                       disabled={loading}
                       aria-busy={loading}
+                      aria-label={isVietnamese ? 'Tiếp tục với Google' : 'Continue with Google'}
                       className="flex items-center justify-center gap-2.5 py-2.5 px-4 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -784,6 +1106,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       onClick={() => handleOAuthLogin('facebook')}
                       disabled={loading}
                       aria-busy={loading}
+                      aria-label={isVietnamese ? 'Tiếp tục với Facebook' : 'Continue with Facebook'}
                       className="flex items-center justify-center gap-2.5 py-2.5 px-4 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -792,26 +1115,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       <span>Facebook</span>
                     </button>
                   </div>
-
-                  {/* 1-Click Quick Demo Login */}
-                  <div className="text-center pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoLogin('admin')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-extrabold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>{locale === 'vi' ? 'Trải nghiệm ngay với tài khoản Demo (1-Click)' : 'Try demo account immediately (1-Click)'}</span>
-                    </button>
-                  </div>
                 </div>
               )}
-
-              {/* Bottom Security Badge Notice */}
-              <div className="flex items-center justify-center gap-1.5 pt-1 text-[10.5px] font-semibold text-slate-400 dark:text-slate-500">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{locale === 'vi' ? 'Bảo mật tiêu chuẩn AES-256 mã hóa đầu cuối' : 'Secured by end-to-end 256-bit encryption'}</span>
-              </div>
+              </section>
             </motion.div>
           </div>
         )}

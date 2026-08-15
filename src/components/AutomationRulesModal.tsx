@@ -205,7 +205,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  Automation Rules Engine
+                  Công cụ quy tắc tự động
                   <span className="text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full uppercase">
                     No-Code
                   </span>
@@ -222,7 +222,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>New Rule</span>
+                <span>Quy tắc mới</span>
               </button>
               <button
                 onClick={onClose}
@@ -240,7 +240,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 mx-auto flex items-center justify-center">
                   <Zap className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">No Automation Rules Configured</h4>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Chưa cấu hình quy tắc tự động</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
                   Tạo quy tắc để tự động ghi nhận các mốc quan trọng của công việc vào Activity.
                 </p>
@@ -275,10 +275,10 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                         </p>
 
                         <div className="pt-2 flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                          <span>Fired: {rule.triggerCount} times</span>
+                          <span>Đã chạy: {rule.triggerCount} times</span>
                           {rule.lastTriggeredAt && (
                             <span>
-                              Last: {new Date(rule.lastTriggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              Lần cuối: {new Date(rule.lastTriggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}
                         </div>
@@ -301,7 +301,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                         <button
                           onClick={() => deleteRule(rule.id)}
                           className="p-1 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer"
-                          title="Delete Rule"
+                          title="Xóa quy tắc"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -317,7 +317,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
           <div className="px-6 py-3 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Apexa Engine: {rules.filter(rule => rule.enabled).length} rules active</span>
+              <span>Công cụ Apexa: {rules.filter(rule => rule.enabled).length} quy tắc đang hoạt động</span>
             </span>
           </div>
         </motion.div>
@@ -335,7 +335,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  <span>Create Custom Automation Rule</span>
+                  <span>Tạo quy tắc tự động tùy chỉnh</span>
                 </h4>
                 <button
                   type="button"
@@ -348,11 +348,11 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Rule Name</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tên quy tắc</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Notify Team on High Priority Tasks"
+                    placeholder="Ví dụ: Thông báo cho nhóm khi có công việc ưu tiên cao"
                     value={newRuleName}
                     onChange={(e) => setNewRuleName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -360,25 +360,25 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">IF (Trigger)</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">NẾU (Điều kiện kích hoạt)</label>
                   <select
                     value={newRuleTrigger}
                     onChange={(e) => setNewRuleTrigger(e.target.value as any)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="task_completed">When a task is marked Completed</option>
-                    <option value="task_urgent">When a task priority becomes Urgent</option>
+                    <option value="task_completed">Khi công việc được đánh dấu Hoàn thành</option>
+                    <option value="task_urgent">Khi mức ưu tiên chuyển thành Khẩn cấp</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">THEN (Action)</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">THÌ (Hành động)</label>
                   <select
                     value={newRuleAction}
                     disabled
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="log_activity">Log to Space Activity</option>
+                    <option value="log_activity">Ghi vào hoạt động khu vực</option>
                   </select>
                 </div>
               </div>
@@ -395,7 +395,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                   type="submit"
                   className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs"
                 >
-                  Create Rule
+                  Tạo quy tắc
                 </button>
               </div>
             </motion.form>

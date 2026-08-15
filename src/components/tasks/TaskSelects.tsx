@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
-import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption } from '../../utils/fieldConfig';
+import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption, getLocalizedOptionLabel } from '../../utils/fieldConfig';
 import { renderSpaceIcon } from '../EmojiIconPicker';
+import { useTranslation } from '../../contexts/TranslationContext';
 
 // ── Custom Hook for Portal Positioning ──
 export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
@@ -48,6 +49,7 @@ export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObje
 
 // ── Priority Pill Select ──
 export function PriorityPillSelect({ value, onChange }: { value: Priority | undefined | null; onChange: (v: Priority | undefined) => void }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -94,14 +96,14 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${!value ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
         {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
-        <span>None (Empty)</span>
+        <span>Không có (Trống)</span>
         {!value && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
       </button>
       {metaList.map(p => (
         <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
           {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
-          <span>{p.label}</span>
+          <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
           {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
         </button>
       ))}
@@ -118,10 +120,10 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
         {cur ? (
           <>
             {renderSpaceIcon(cur.icon || 'Circle', 'w-3 h-3')}
-            <span>{cur.label}</span>
+            <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
           </>
         ) : (
-          <span>Empty</span>
+          <span>{locale === 'vi' ? 'Trống' : 'Empty'}</span>
         )}
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -135,6 +137,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   );
 }
 export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onChange: (v: TaskStatus) => void }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -182,7 +185,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
         <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
           <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
-          <span>{s.label}</span>
+          <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
           {value === s.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
         </button>
       ))}
@@ -194,7 +197,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
       <button type="button" onClick={() => setOpen(!open)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${cur.bg}`}>
         <span className={`w-2 h-2 rounded-full ${cur.dot || `bg-${cur.color}`}`} style={!cur.dot && cur.color ? { backgroundColor: cur.color } : undefined} />
-        <span>{cur.label}</span>
+        <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
@@ -209,6 +212,7 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 
 // ── Assignee Pill Select ──
 export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | string[] | null; members: User[]; onChange: (v: string[] | null) => void; compact?: boolean }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -252,12 +256,12 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
       <button type="button" onClick={() => { onChange(null); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-550 cursor-pointer">
         <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
-        <span>Unassign</span>
+        <span>{locale === 'vi' ? 'Bỏ phân công' : 'Unassign'}</span>
       </button>
       {members.map(m => (
         <button key={m.id} type="button" onClick={() => toggleAssignee(m.id)}
           className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${valueIds.includes(m.id) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} />
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" alt={m.name} />
           <span className="truncate">{m.name}</span>
           {valueIds.includes(m.id) && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
         </button>
@@ -266,15 +270,15 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
   );
 
   const displayLabel = valueIds.length > 1
-    ? `${valueIds.length} Assignees`
-    : primaryAssignee?.name || 'Unassigned';
+    ? (locale === 'vi' ? `${valueIds.length} người phụ trách` : `${valueIds.length} assignees`)
+    : primaryAssignee?.name || (locale === 'vi' ? 'Chưa phân công' : 'Unassigned');
 
   return (
     <div ref={ref} className="relative inline-block">
       {compact ? (
         <button type="button" onClick={() => setOpen(!open)}
           className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer select-none hover:scale-105 transition-all flex items-center justify-center shrink-0"
-          title={displayLabel || 'Unassigned'}
+          title={displayLabel || (locale === 'vi' ? 'Chưa phân công' : 'Unassigned')}
         >
           {valueIds.length > 1 ? (
             <div className="relative w-full h-full">
@@ -304,11 +308,11 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
               </div>
             ) : primaryAssignee ? (
               <>
-                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={primaryAssignee.name} />
+                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" alt={primaryAssignee.name} />
                 <span className="truncate">{primaryAssignee.name}</span>
               </>
             ) : (
-              <span className="text-slate-400 truncate">Unassigned</span>
+              <span className="text-slate-400 truncate">{locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}</span>
             )}
           </div>
           <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -624,7 +628,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       exit={{ opacity: 0, y: openUpward ? 8 : -8, scale: 0.96 }}
       transition={{ type: 'spring', damping: 28, stiffness: 380 }}
       role="dialog"
-      aria-label="Choose task dates"
+      aria-label="Chọn ngày công việc"
       className="select-none rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col font-sans overflow-hidden"
       style={{
         position: 'fixed',
@@ -701,7 +705,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                 type="button"
                 onClick={() => setPickerView('monthyear')}
                 className="rounded-lg px-1.5 py-1 text-[13px] font-bold text-slate-900 dark:text-slate-100 tracking-tight hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                aria-label="Choose month and year"
+                aria-label="Chọn tháng và năm"
               >
                 {monthNamesFull[currentMonth]} {currentYear}
               </button>
@@ -714,10 +718,10 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                   Today
                 </button>
                 <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
-                  <button type="button" aria-label="Previous month" onClick={prevMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+                  <button type="button" aria-label="Tháng trước" onClick={prevMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" aria-label="Next month" onClick={nextMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+                  <button type="button" aria-label="Tháng sau" onClick={nextMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -869,7 +873,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                Week of {startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                Tuần bắt đầu {startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
               <button 
                 type="button" 
@@ -1023,7 +1027,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
             type="button"
             onClick={() => setShowTimePicker(!showTimePicker)}
             aria-expanded={showTimePicker}
-            aria-label="Set time"
+            aria-label="Đặt thời gian"
             className={`p-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               showTimePicker
                 ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
@@ -1110,7 +1114,7 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
         <span className="w-4 h-4 rounded bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">
           —
         </span>
-        <span className="truncate">No Space</span>
+        <span className="truncate">Không có khu vực</span>
         {!value && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
       </button>
       {workspaces.map(w => (
@@ -1139,7 +1143,7 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
               <span className="truncate">{curWorkspace.name}</span>
             </>
           ) : (
-            <span className="text-slate-400 truncate">Select Space</span>
+            <span className="text-slate-400 truncate">Chọn khu vực</span>
           )}
         </div>
         <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -1188,7 +1192,7 @@ export function DropdownFieldSelect({ value, options = [], onChange }: { value: 
     >
       <button type="button" onClick={() => { onChange(''); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
-        <span>— Clear —</span>
+        <span>— Xóa lựa chọn —</span>
       </button>
       {safeOptions.map(opt => (
         <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }}
@@ -1304,6 +1308,7 @@ export function LabelsFieldSelect({ value, options = [], onChange }: { value: st
 
 // ── Bulk Status Select ──
 export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => void }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -1346,13 +1351,13 @@ export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => vo
       }}
     >
       <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
-        Change Status To
+        Đổi trạng thái thành
       </div>
       {metaList.map(s => (
         <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-bold rounded-lg cursor-pointer transition-colors uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
           <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
-          <span>{s.label}</span>
+          <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
         </button>
       ))}
     </motion.div>
@@ -1363,7 +1368,7 @@ export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => vo
       <button type="button" onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
         <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-        <span>Status</span>
+        <span>{locale === 'vi' ? 'Trạng thái' : 'Status'}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
@@ -1378,6 +1383,7 @@ export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => vo
 
 // ── Bulk Priority Select ──
 export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | undefined) => void }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -1420,18 +1426,18 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
       }}
     >
       <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
-        Change Priority To
+        Đổi mức ưu tiên thành
       </div>
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
         {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
-        <span>None (Empty)</span>
+        <span>Không có (Trống)</span>
       </button>
       {metaList.map(p => (
         <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-705 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
           {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
-          <span>{p.label}</span>
+          <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
         </button>
       ))}
     </motion.div>
@@ -1442,7 +1448,7 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
       <button type="button" onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-805 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
         <Flag className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-        <span>Priority</span>
+        <span>{locale === 'vi' ? 'Ưu tiên' : 'Priority'}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
@@ -1457,6 +1463,7 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
 
 // ── Bulk Assignee Select ──
 export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onChange: (v: string | null) => void }) {
+  const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -1487,17 +1494,17 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
       }}
     >
       <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
-        Assign Tasks To
+        Giao công việc cho
       </div>
       <button type="button" onClick={() => { onChange(null); setOpen(false); }}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
         <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
-        <span>Unassign All</span>
+        <span>Bỏ giao tất cả</span>
       </button>
       {members.map(m => (
         <button key={m.id} type="button" onClick={() => { onChange(m.id); setOpen(false); }}
           className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 object-cover shrink-0" alt={m.name} />
+          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" alt={m.name} />
           <span className="truncate">{m.name}</span>
         </button>
       ))}
@@ -1509,7 +1516,7 @@ export function BulkAssigneeSelect({ members, onChange }: { members: User[]; onC
       <button type="button" onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
         {renderSpaceIcon('User', 'w-3.5 h-3.5 text-slate-400')}
-        <span>Assignee</span>
+        <span>{locale === 'vi' ? 'Người phụ trách' : 'Assignee'}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(

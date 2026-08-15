@@ -252,7 +252,7 @@ export default function SpaceOverview({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-sm"
+        className="relative overflow-hidden rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm"
       >
         {/* Gradient accent top bar */}
         <div className={`h-1.5 w-full bg-gradient-to-r ${theme.gradient}`} />
@@ -266,7 +266,7 @@ export default function SpaceOverview({
               {renderSpaceIcon(space.emoji || 'Package', "w-7 h-7 text-indigo-600 dark:text-indigo-400")}
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
                 {space.name}
                 <span 
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${theme.badge} ${theme.badgeText}`}
@@ -275,7 +275,7 @@ export default function SpaceOverview({
                 </span>
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {totalTasks} tasks · {completedTasks} completed · {overdueTasks > 0 ? `${overdueTasks} overdue` : 'No overdue'}
+                {totalTasks} công việc · {completedTasks} đã hoàn thành · {overdueTasks > 0 ? `${overdueTasks} overdue` : 'No overdue'}
               </p>
             </div>
           </div>
@@ -283,10 +283,10 @@ export default function SpaceOverview({
           <div className="flex items-center gap-2">
             <button
               onClick={onNavigateToTasks}
-              className="px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1.5"
             >
               <LayoutList className="w-3.5 h-3.5" />
-              View Tasks
+              Xem công việc
             </button>
             <button
               onClick={() => onOpenSettings(space)}
@@ -317,7 +317,7 @@ export default function SpaceOverview({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 + i * 0.06 }}
-                className="bg-white rounded-2xl border border-slate-200/60 p-4 flex flex-col gap-2 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-4 flex flex-col gap-2 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-md transition-shadow"
               >
                 <div 
                   className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -325,7 +325,7 @@ export default function SpaceOverview({
                 >
                   <Icon className="w-4 h-4" style={{ color: stat.color }} />
                 </div>
-                <div className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{stat.value}</div>
                 <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{stat.label}</div>
               </motion.div>
             );
@@ -337,18 +337,18 @@ export default function SpaceOverview({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-5 flex items-center gap-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] min-w-[280px]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-5 flex items-center gap-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] min-w-[280px]"
         >
           <div className="relative">
             <ProgressRing percent={completionPercent} color={theme.ring} size={90} strokeWidth={7} />
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-lg font-black text-slate-900">{completionPercent}%</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white">{completionPercent}%</span>
               <span className="text-[8px] font-semibold text-slate-400 uppercase">Completed</span>
             </div>
           </div>
 
           <div className="flex-1 space-y-2">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">Priority Distribution</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">Phân bố mức ưu tiên</div>
             {[
               { key: 'urgent', label: 'Urgent', color: '#ef4444', count: priorityDist.urgent },
               { key: 'high', label: 'High', color: '#f59e0b', count: priorityDist.high },
@@ -357,7 +357,7 @@ export default function SpaceOverview({
             ].map(p => (
               <div key={p.key} className="flex items-center gap-2">
                 <span className="text-[9px] font-bold text-slate-500 w-7 text-right">{p.label}</span>
-                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: p.color }}
@@ -379,18 +379,18 @@ export default function SpaceOverview({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.15 }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <BarChart3 className="w-3.5 h-3.5" />
-              Overall progress
+              Tiến độ tổng thể
             </span>
             <span className="text-[10px] font-semibold text-slate-400">
               {completedTasks}/{totalTasks} tasks
             </span>
           </div>
-          <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-100 gap-px">
+          <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 gap-px">
             {todoTasks > 0 && (
               <motion.div
                 className="h-full bg-slate-300 rounded-l-full"
@@ -451,10 +451,10 @@ export default function SpaceOverview({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <ListChecks className="w-4 h-4" style={{ color: theme.accent }} />
               Lists
             </h3>
@@ -464,7 +464,7 @@ export default function SpaceOverview({
               style={{ color: theme.accent, background: theme.accentLight }}
             >
               <Plus className="w-3 h-3" />
-              Add List
+              Thêm danh sách
             </button>
           </div>
 
@@ -476,7 +476,7 @@ export default function SpaceOverview({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.25 + i * 0.05 }}
                 onClick={() => onOpenList(space.id, list.id)}
-                className="group text-left p-4 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/30 hover:bg-white transition-all cursor-pointer hover:shadow-sm"
+                className="group text-left p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50/30 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer hover:shadow-sm"
               >
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2">
@@ -484,14 +484,14 @@ export default function SpaceOverview({
                       className="w-2 h-2 rounded-full" 
                       style={{ background: theme.accent }} 
                     />
-                    <span className="text-xs font-bold text-slate-800 truncate">{list.name}</span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{list.name}</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors" />
                 </div>
 
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] text-slate-400 font-medium">
-                    {list.totalTasks} tasks · {list.completedTasks} done
+                    {list.totalTasks} công việc · {list.completedTasks} done
                   </span>
                   <span className="text-[10px] font-bold" style={{ color: theme.accent }}>
                     {list.progress}%
@@ -499,7 +499,7 @@ export default function SpaceOverview({
                 </div>
 
                 {/* Mini progress bar */}
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: theme.accent }}
@@ -513,7 +513,7 @@ export default function SpaceOverview({
 
             {listStats.length === 0 && (
               <div className="col-span-2 text-center py-8 text-slate-400 text-xs italic">
-                No lists yet. Click &quot;Add List&quot; to start.
+                Chưa có danh sách. Nhấn &quot;Thêm danh sách&quot; để bắt đầu.
               </div>
             )}
           </div>
@@ -524,11 +524,11 @@ export default function SpaceOverview({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.25 }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
         >
-          <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+          <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
             <Users className="w-4 h-4" style={{ color: theme.accent }} />
-            Active Members
+            Thành viên đang hoạt động
             <span className="ml-auto text-[10px] font-bold text-slate-400">{activeMembers.length}</span>
           </h3>
 
@@ -563,14 +563,14 @@ export default function SpaceOverview({
               ))
             ) : (
               <div className="text-center py-6 text-slate-400 text-xs italic">
-                No members have been assigned tasks in this Space yet.
+                Chưa có thành viên nào được giao công việc trong khu vực này.
               </div>
             )}
           </div>
 
           {/* Avatar stack preview */}
           {activeMembers.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-100">
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center">
                 <div className="flex -space-x-2">
                   {activeMembers.slice(0, 5).map(m => (
@@ -584,7 +584,7 @@ export default function SpaceOverview({
                     />
                   ))}
                   {activeMembers.length > 5 && (
-                    <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-500">
+                    <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-bold text-slate-500 dark:text-slate-400">
                       +{activeMembers.length - 5}
                     </div>
                   )}
@@ -605,11 +605,11 @@ export default function SpaceOverview({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
         >
-          <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+          <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
             <Target className="w-4 h-4" style={{ color: theme.accent }} />
-            Enabled ClickApps
+            Ứng dụng đã bật
           </h3>
 
           <div className="grid grid-cols-2 gap-2">
@@ -628,7 +628,7 @@ export default function SpaceOverview({
                   className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold transition-colors ${
                     isEnabled 
                       ? 'bg-emerald-50/60 text-emerald-700 border border-emerald-100' 
-                      : 'bg-slate-50 text-slate-400 border border-slate-100'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700'
                   }`}
                 >
                   {renderSpaceIcon(app.icon, "w-4 h-4 text-indigo-500 shrink-0")}
@@ -645,11 +645,11 @@ export default function SpaceOverview({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.35 }}
-          className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]"
         >
-          <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+          <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-4">
             <Activity className="w-4 h-4" style={{ color: theme.accent }} />
-            Recent Activity
+            Hoạt động gần đây
           </h3>
 
           <div className="space-y-3">
@@ -665,7 +665,7 @@ export default function SpaceOverview({
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                     act.icon === 'complete' ? 'bg-emerald-50 text-emerald-500' :
                     act.icon === 'create' ? 'bg-blue-50 text-blue-500' :
-                    'bg-slate-100 text-slate-400'
+                    'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                   }`}>
                     {act.icon === 'complete' ? (
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -676,14 +676,14 @@ export default function SpaceOverview({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-700 font-medium leading-snug truncate">{act.text}</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug truncate">{act.text}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">{act.time}</p>
                   </div>
                 </motion.div>
               ))
             ) : (
               <div className="text-center py-6 text-slate-400 text-xs italic">
-                No activity yet.
+                Chưa có hoạt động.
               </div>
             )}
           </div>

@@ -22,6 +22,8 @@ import { useSyncStore } from '@/store/syncStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useAuthStore } from '@/store/authStore';
 import { useBillingEntitlement } from '@/hooks/useBillingEntitlement';
+import { useThemeSync } from '@/hooks/useThemeSync';
+import { resolveAppRole } from '@/lib/authRole';
 
 import { NavItem } from '@/components/ui';
 import LoginScreen from '../components/LoginScreen';
@@ -151,9 +153,10 @@ const DEFAULT_SIDEBAR_ORDER = [
 ];
 
 export default function App() {
+  useThemeSync();
   // Mount exactly one account Presence channel for Chat, profiles and directories.
   useUserPresence();
-  const { t, locale, setLocale } = useTranslation();
+  const { t, locale } = useTranslation();
   const { applyEntitlement } = useBillingEntitlement();
   const isLoaded = useRef(false);
 
@@ -188,6 +191,8 @@ export default function App() {
   const setNotificationSettings = useUiStore((s) => s.setNotificationSettings);
   const isDarkMode = useUiStore((s) => s.isDarkMode);
   const setIsDarkMode = useUiStore((s) => s.setIsDarkMode);
+  const themePreference = useUiStore((s) => s.themePreference);
+  const setThemePreference = useUiStore((s) => s.setThemePreference);
   const dateFormat = useUiStore((s) => s.dateFormat);
   const setDateFormat = useUiStore((s) => s.setDateFormat);
   const uiDensity = useUiStore((s) => s.uiDensity);
@@ -342,7 +347,7 @@ export default function App() {
 
         const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Avaxa Champion';
         const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
-        const userRole = (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' || cachedUser?.role === 'admin' ? 'admin' : 'member') as 'admin' | 'member';
+        const userRole = resolveAppRole(u);
         const userIsPremium = cachedUser?.isPremium || false;
 
         const userObj = {
@@ -376,7 +381,7 @@ export default function App() {
 
         const displayName = u.user_metadata?.full_name || u.user_metadata?.name || cachedUser?.name || u.email?.split('@')[0] || 'Avaxa Champion';
         const displayAvatar = u.user_metadata?.avatar_url || u.user_metadata?.avatar || cachedUser?.avatar || '';
-        const userRole = (u.email?.includes('admin') || u.email === 'hoang.benjamin.creative@gmail.com' || cachedUser?.role === 'admin' ? 'admin' : 'member') as 'admin' | 'member';
+        const userRole = resolveAppRole(u);
         const userIsPremium = cachedUser?.isPremium || false;
 
         const userObj = {
@@ -1572,7 +1577,7 @@ export default function App() {
             avatar: currentUser.avatar,
             role: currentUser.role,
             status: 'online',
-            workspaceIds: ['w1', 'w2', 'w3'],
+            workspaceIds: [],
             phone: '',
             department: '',
             bio: '',
@@ -1587,18 +1592,22 @@ export default function App() {
   // Memoized workspace item collections for high rendering performance
   const currentWorkspaceTasks = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
-    const mapped = mapTasksToSpaces(tasks);
-    return mapped.filter(t => {
-      const matchesWorkspace = t.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !t.workspaceId);
-      if (!matchesWorkspace) return false;
-      return t.spaceId && workspaceSpaceIds.has(t.spaceId);
+    return tasks.filter(t => {
+      if (t.workspaceId) return t.workspaceId === activeWorkspaceId;
+      if (t.spaceId) return workspaceSpaceIds.has(t.spaceId);
+      return workspaces.length === 1 && workspaces[0]?.id === activeWorkspaceId;
     });
-  }, [tasks, spaces, activeWorkspaceId]);
+  }, [tasks, spaces, workspaces, activeWorkspaceId]);
 
   const currentWorkspaceDocs = useMemo(() => {
     const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
-    return docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || ((d as any).spaceId && workspaceSpaceIds.has((d as any).spaceId)) || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
-  }, [docs, spaces, activeWorkspaceId]);
+    return docs.filter(d => {
+      if (d.category === 'System') return false;
+      if (d.workspaceId) return d.workspaceId === activeWorkspaceId;
+      if (d.spaceId) return workspaceSpaceIds.has(d.spaceId);
+      return workspaces.length === 1 && workspaces[0]?.id === activeWorkspaceId;
+    });
+  }, [docs, spaces, workspaces, activeWorkspaceId]);
 
   const currentWorkspaceBases = useMemo(() => {
     return bases.filter(b => b.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !b.workspaceId));
@@ -1681,6 +1690,7 @@ export default function App() {
                         subtasks: t.subtasks,
                         progress: t.progress,
                         created_at: t.createdAt,
+                        completedAt: t.completedAt || null,
                         hoursEstimate: t.hoursEstimate || null,
                         hoursLogged: t.hoursLogged || null,
                         commentsCount: t.commentsCount,
@@ -1959,7 +1969,7 @@ export default function App() {
         const myName = currentUser?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
         const myAvatar = currentUser?.avatar || session.user.user_metadata?.avatar_url || session.user.user_metadata?.avatar || '';
-        const myRole = currentUser?.role || ((session.user.email?.includes('admin') || session.user.email === 'hoang.benjamin.creative@gmail.com') ? 'admin' : 'member');
+        const myRole = resolveAppRole(session.user);
         
         let dbMembers: any[] = [];
         let membersFetchError = false;
@@ -2314,6 +2324,7 @@ export default function App() {
             subtasks: t.subtasks || [],
             progress: t.progress || 0,
             createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+            completedAt: t.completedAt || undefined,
             hoursEstimate: t.hoursEstimate || undefined,
             hoursLogged: t.hoursLogged || undefined,
             commentsCount: t.commentsCount || 0,
@@ -2365,6 +2376,10 @@ export default function App() {
         } else {
           setDocs([]);
         }
+
+        // Home only depends on the core workspace, member, task and document datasets.
+        // Mark these as ready before slower optional modules continue loading in the background.
+        setDataLoaded(true);
 
         // C2. Load Base apps from Supabase
         const fetchBaseApps = async () => {
@@ -2577,6 +2592,7 @@ export default function App() {
                     subtasks: t.subtasks || [],
                     progress: t.progress || 0,
                     createdAt: t.created_at || t.createdAt || new Date().toISOString(),
+                    completedAt: t.completedAt || undefined,
                     hoursEstimate: t.hoursEstimate || undefined,
                     hoursLogged: t.hoursLogged || undefined,
                     commentsCount: t.commentsCount || 0,
@@ -2829,7 +2845,7 @@ export default function App() {
       if (invitationsChannel) supabase.removeChannel(invitationsChannel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isOffline]);
+  }, [currentUser?.id, isOffline]);
 
   // --- Supabase CRUD Wrapper Functions ---
 
@@ -3213,6 +3229,7 @@ export default function App() {
             progress: updated.progress,
             hoursEstimate: updated.hoursEstimate || null,
             hoursLogged: updated.hoursLogged || null,
+            completedAt: updated.completedAt || null,
             commentsCount: updated.commentsCount,
             tags: updated.tags || [],
             isPinned: updated.isPinned || false,
@@ -3645,7 +3662,7 @@ export default function App() {
 
   // Navigation menu items definition
   const sidebarItems = [
-    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, category: 'workspace' },
+    { id: 'dashboard', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard, category: 'workspace' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
     { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
@@ -3704,20 +3721,20 @@ export default function App() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-500" />
-              <span>Welcome to Avaxa OS!</span>
+              <span>Chào mừng bạn đến với Apexa OS!</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Let's set up your personal workspace to get started.
+              Hãy thiết lập không gian làm việc cá nhân để bắt đầu.
             </p>
           </div>
 
           <form onSubmit={handleOnboardingSubmit} className="space-y-4 text-xs font-sans">
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Your Full Name</label>
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Họ và tên</label>
               <input 
                 type="text" 
                 required
-                placeholder="e.g. John Doe" 
+                placeholder="Ví dụ: Nguyễn Văn A" 
                 value={onboardingName}
                 onChange={(e) => setOnboardingName(e.target.value)}
                 className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
@@ -3725,11 +3742,11 @@ export default function App() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Workspace Name</label>
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Tên không gian làm việc</label>
               <input 
                 type="text" 
                 required
-                placeholder="e.g. My Workspace" 
+                placeholder="Ví dụ: Không gian của tôi" 
                 value={onboardingWSName}
                 onChange={(e) => setOnboardingWSName(e.target.value)}
                 className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-50/50 hover:bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 font-bold transition-all"
@@ -3737,7 +3754,7 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Choose Theme Color</label>
+              <label className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest block">Chọn màu chủ đề</label>
               <div className="grid grid-cols-4 gap-2">
                 {(['indigo', 'ocean', 'forest', 'sunset'] as const).map((t) => {
                   const themeColors = {
@@ -3758,7 +3775,7 @@ export default function App() {
                       }`}
                     >
                       <span className={`w-3 h-3 rounded-full ${themeColors[t]}`} />
-                      <span className="text-[8px] uppercase tracking-wider">{t}</span>
+                      <span className="text-[8px] uppercase tracking-wider">{{ indigo: 'Tím', ocean: 'Đại dương', forest: 'Rừng xanh', sunset: 'Hoàng hôn' }[t]}</span>
                     </button>
                   );
                 })}
@@ -3772,10 +3789,10 @@ export default function App() {
                 className="w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 {onboardingSubmitting ? (
-                  <span>Creating your space...</span>
+                  <span>Đang tạo không gian...</span>
                 ) : (
                   <>
-                    <span>Launch Workspace</span>
+                    <span>Mở không gian làm việc</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -3801,7 +3818,7 @@ export default function App() {
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
             className="p-1.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
-            title="Open Navigation Menu"
+            title="Mở trình đơn điều hướng"
           >
             <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </button>
@@ -3864,7 +3881,7 @@ export default function App() {
                 <button 
                   onClick={() => setIsMainSidebarCollapsed(true)} 
                   className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40"
-                  title="Collapse Sidebar"
+                  title="Thu gọn thanh bên"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -3901,7 +3918,7 @@ export default function App() {
                 <button 
                   onClick={() => setActiveTab('calendar')} 
                   className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40" 
-                  title="Calendar"
+                  title="Lịch"
                 >
                   <Calendar className="w-4 h-4" />
                 </button>
@@ -3946,7 +3963,7 @@ export default function App() {
                             <span className="font-black text-slate-900 dark:text-slate-50 text-[14.5px] truncate tracking-tight">
                               {currentWorkspace?.name || 'Avaxa'}
                             </span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0" title="Active Workspace">
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </span>
                           </div>
@@ -3973,7 +3990,7 @@ export default function App() {
                         className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
                       >
                         <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
-                        <span>Settings</span>
+                        <span>Cài đặt</span>
                       </button>
                       <button
                         type="button"
@@ -3985,7 +4002,7 @@ export default function App() {
                         className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
                       >
                         <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
-                        <span>People</span>
+                        <span>Thành viên</span>
                       </button>
                     </div>
 
@@ -3995,7 +4012,7 @@ export default function App() {
                         <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
                         <div className="space-y-1.5">
                           <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                            <span>Other Workspaces</span>
+                            <span>Không gian khác</span>
                             <span className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold text-slate-500">
                               {workspaces.filter(w => w.id !== activeWorkspaceId).length}
                             </span>
@@ -4049,7 +4066,7 @@ export default function App() {
                       <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center group-hover/create:scale-110 transition-transform duration-200">
                         <Plus className="w-3.5 h-3.5 font-bold text-indigo-600 dark:text-indigo-300" />
                       </div>
-                      <span>Create Workspace</span>
+                      <span>Tạo không gian</span>
                     </button>
                   </motion.div>
                 </>
@@ -4066,7 +4083,7 @@ export default function App() {
               <button 
                 onClick={() => setIsMainSidebarCollapsed(false)} 
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40 mr-1"
-                title="Expand Sidebar"
+                title="Mở rộng thanh bên"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -4103,7 +4120,7 @@ export default function App() {
 
               if (activeTab === 'tasks' || activeTab === 'my-tasks') {
                 return (
-                  <nav aria-label="Workspace hierarchy" className="flex min-w-0 items-center gap-1 text-[11px] font-bold">
+                  <nav aria-label="Cấu trúc không gian làm việc" className="flex min-w-0 items-center gap-1 text-[11px] font-bold">
                     <button
                       type="button"
                       onClick={() => setActiveTab('dashboard')}
@@ -4150,7 +4167,7 @@ export default function App() {
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
               className="sm:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 rounded-xl transition-colors cursor-pointer ml-1"
-              title="Global Search"
+              title="Tìm kiếm toàn cục"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -4174,7 +4191,7 @@ export default function App() {
                 >
                   <div className="flex items-center gap-2 truncate">
                     <Search className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
-                    <span className="truncate font-semibold tracking-tight">Search tasks, docs, spaces...</span>
+                    <span className="truncate font-semibold tracking-tight">Tìm công việc, tài liệu, không gian...</span>
                   </div>
                   <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 shadow-3xs shrink-0 select-none">
                     <span>⌘</span>
@@ -4376,25 +4393,19 @@ export default function App() {
                 style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
               >
                 <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>Upgrade Premium</span>
+                <span>Nâng cấp Premium</span>
                 <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
               </motion.button>
             )}
 
-            {/* Quick 1-Click Language Switcher Toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                const nextLocale = locale === 'vi' ? 'en' : 'vi';
-                setLocale(nextLocale);
-                (window as any).playSystemSound?.('toggle');
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-slate-200/60 dark:border-slate-800/60 text-xs font-black cursor-pointer shadow-3xs"
-              title={locale === 'vi' ? 'Chuyển sang Tiếng Anh (English)' : 'Switch to Vietnamese (Tiếng Việt)'}
+            {/* Ngôn ngữ hiển thị được thống nhất là tiếng Việt */}
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-slate-800/60 text-xs font-black shadow-3xs"
+              title="Ngôn ngữ hiển thị: Tiếng Việt"
             >
               <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="uppercase text-[11px] font-mono tracking-tight font-extrabold">{locale === 'vi' ? 'VI 🇻🇳' : 'EN 🇺🇸'}</span>
-            </button>
+              <span className="uppercase text-[11px] font-mono tracking-tight font-extrabold">VI 🇻🇳</span>
+            </div>
 
             {/* Quick 1-Click Dark Mode Toggle */}
             <button
@@ -4404,7 +4415,7 @@ export default function App() {
                 (window as any).playSystemSound?.('click');
               }}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50 cursor-pointer"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              title={isDarkMode ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
             >
               {isDarkMode ? (
                 <Sun className="w-4.5 h-4.5 text-amber-400 animate-spin-slow" />
@@ -4418,7 +4429,7 @@ export default function App() {
               <button 
                 onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50 relative cursor-pointer"
-                title="Notification Settings"
+                title="Cài đặt thông báo"
               >
                 <Bell className="w-4.5 h-4.5" />
                 {notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
@@ -4446,7 +4457,7 @@ export default function App() {
                       <div className="p-3.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
                         <div className="flex items-center gap-1.5">
                           <Bell className="w-4 h-4 text-indigo-500" />
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-200">Notifications ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length})</span>
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200">Thông báo ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length})</span>
                         </div>
                         {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
                           <div className="flex gap-2.5">
@@ -4458,7 +4469,7 @@ export default function App() {
                               }}
                               className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-755 dark:text-indigo-400 cursor-pointer hover:underline"
                             >
-                              Read all
+                              Đánh dấu đã đọc
                             </button>
                             <button
                               onClick={() => {
@@ -4468,7 +4479,7 @@ export default function App() {
                               }}
                               className="text-[10px] font-extrabold text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-0.5 hover:underline"
                             >
-                              Clear all
+                              Xóa tất cả
                             </button>
                           </div>
                         )}
@@ -4479,8 +4490,8 @@ export default function App() {
                         {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length === 0 ? (
                           <div className="py-10 px-4 text-center space-y-2">
                             <span className="text-xl inline-block">🎉</span>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Inbox empty!</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">You have no new notifications.</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Hộp thư trống!</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Bạn không có thông báo mới.</p>
                           </div>
                         ) : (
                           notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).map(notif => {
@@ -4533,7 +4544,7 @@ export default function App() {
                                       (window as any).playSystemSound?.('delete');
                                     }}
                                     className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/35 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                    title="Delete notification"
+                                    title="Xóa thông báo"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -4553,7 +4564,7 @@ export default function App() {
                           }}
                           className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer inline-flex items-center gap-1"
                         >
-                          ⚙️ Settings & Notification Settings
+                          ⚙️ Cài đặt và tùy chọn thông báo
                         </button>
                       </div>
                     </motion.div>
@@ -4617,13 +4628,13 @@ export default function App() {
                         <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate">{currentUser.name}</span>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{currentUser.email}</span>
                         <span className="text-[9px] text-indigo-650 dark:text-indigo-400 font-extrabold uppercase mt-2 bg-indigo-50 dark:bg-indigo-950/50 w-max px-2 py-0.5 rounded-md">
-                          {currentUser.role === 'admin' ? 'Administrator' : 'Design Engineer'}
+                          {currentUser.role === 'admin' ? 'Quản trị viên' : 'Kỹ sư thiết kế'}
                         </span>
                       </div>
 
                       {/* Trạng thái section header */}
                       <div className="px-2.5 pt-1.5 pb-1 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                        Work Status
+                        Trạng thái làm việc
                       </div>
 
                       {/* Status options */}
@@ -4644,7 +4655,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
-                          <span>Online</span>
+                          <span>Trực tuyến</span>
                         </div>
                         {userStatus === 'online' && <Check className="w-3.5 h-3.5 text-emerald-500 font-bold" />}
                       </button>
@@ -4660,7 +4671,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2.5">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm" />
-                          <span>Focusing</span>
+                          <span>Đang tập trung</span>
                         </div>
                         {userStatus === 'focused' && <Check className="w-3.5 h-3.5 text-indigo-500 font-bold" />}
                       </button>
@@ -4682,7 +4693,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2.5">
                           <span className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
-                          <span>Away</span>
+                          <span>Vắng mặt</span>
                         </div>
                         {userStatus === 'away' && <Check className="w-3.5 h-3.5 text-amber-500 font-bold" />}
                       </button>
@@ -4692,7 +4703,7 @@ export default function App() {
 
                       {/* Quick access system controls inside profile */}
                       <div className="px-2.5 pt-1.5 pb-1 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                        My Applications
+                        Ứng dụng của tôi
                       </div>
 
                       <button
@@ -4704,7 +4715,7 @@ export default function App() {
                         className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                       >
                         <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span>User Profile</span>
+                        <span>Hồ sơ cá nhân</span>
                       </button>
 
                       <button
@@ -4716,7 +4727,7 @@ export default function App() {
                         className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                       >
                         <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <span>System Settings</span>
+                        <span>Cài đặt hệ thống</span>
                       </button>
 
                       <button
@@ -4728,7 +4739,7 @@ export default function App() {
                         className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-450 hover:bg-amber-50 dark:hover:bg-amber-955/20 transition-colors cursor-pointer border border-dashed border-amber-200 dark:border-amber-800/40 my-1 bg-amber-500/5"
                       >
                         <Sparkles className="w-4 h-4 text-amber-500 animate-pulse animate-duration-1000" />
-                        <span>{currentUser.isPremium ? 'Pro Activated' : 'Upgrade Premium Pro'}</span>
+                        <span>{currentUser.isPremium ? 'Đã kích hoạt Pro' : 'Nâng cấp Premium Pro'}</span>
                       </button>
 
                       <button
@@ -4746,7 +4757,7 @@ export default function App() {
                         className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
                       >
                         <LogOut className="w-4 h-4 text-rose-500" />
-                        <span>Sign Out</span>
+                        <span>Đăng xuất</span>
                       </button>
                     </motion.div>
                   </>
@@ -4852,6 +4863,9 @@ export default function App() {
                       tasks={currentWorkspaceTasks}
                       members={currentWorkspaceMembers}
                       docs={currentWorkspaceDocs}
+                      isLoading={!dataLoaded && workspaces.length === 0}
+                      isSynced={dataLoaded}
+                      workspaceName={currentWorkspace?.name}
                       syncLogs={syncLogs}
                       isOffline={isOffline}
                       onNavigate={setActiveTab}
@@ -5128,7 +5142,8 @@ export default function App() {
                   {activeTab === 'settings' && (
                     <SettingsPanel 
                       isDarkMode={isDarkMode}
-                      setIsDarkMode={setIsDarkMode}
+                      themePreference={themePreference}
+                      setThemePreference={setThemePreference}
                       accentPreset={accentPreset}
                       setAccentPreset={setAccentPreset}
                       soundEnabled={soundEnabled}
@@ -5554,17 +5569,17 @@ export default function App() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddListSpaceId(null)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden z-10 text-left">
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Create New Task List</h3>
-                <button onClick={() => setShowAddListSpaceId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50"><X className="w-4 h-4" /></button>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Tạo danh sách công việc mới</h3>
+                <button onClick={() => setShowAddListSpaceId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
               </div>
               <form onSubmit={handleAddList} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400">List Name</label>
-                  <input type="text" required value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="List Name..." className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 outline-none bg-slate-50 focus:bg-white focus:border-indigo-500 text-slate-800 font-semibold" />
+                  <label className="text-[10px] font-black uppercase text-slate-400">Tên danh sách</label>
+                  <input type="text" required value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="Nhập tên danh sách..." className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-semibold" />
                 </div>
                 <div className="flex gap-3.5 pt-2">
-                  <button type="button" onClick={() => setShowAddListSpaceId(null)} className="flex-1 py-2 rounded-xl border border-slate-250 hover:bg-slate-50 text-xs font-bold text-slate-500 cursor-pointer">Cancel</button>
-                  <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer">Create List</button>
+                  <button type="button" onClick={() => setShowAddListSpaceId(null)} className="flex-1 py-2 rounded-xl border border-slate-250 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer">Hủy</button>
+                  <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer">Tạo danh sách</button>
                 </div>
               </form>
             </motion.div>
@@ -5594,17 +5609,17 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('iconEmoji') || 'Icon (Emoji)'}</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('iconEmoji') || 'Biểu tượng (Emoji)'}</label>
                     <input type="text" value={editSpaceEmoji} onChange={e => setEditSpaceEmoji(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold text-center transition-all focus:ring-2 focus:ring-indigo-500/20" />
                   </div>
                   <div className="space-y-1 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('themeColor') || 'Theme Color'}</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('themeColor') || 'Màu chủ đề'}</label>
                     <select value={editSpaceColor} onChange={e => setEditSpaceColor(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold cursor-pointer">
-                      <option value="indigo">Purple / Indigo</option>
-                      <option value="rose">Pink / Rose</option>
-                      <option value="sky">Sky Blue</option>
-                      <option value="emerald">Emerald</option>
-                      <option value="sunset">Sunset</option>
+                      <option value="indigo">Tím chàm</option>
+                      <option value="rose">Hồng phấn</option>
+                      <option value="sky">Xanh da trời</option>
+                      <option value="emerald">Xanh ngọc</option>
+                      <option value="sunset">Hoàng hôn</option>
                     </select>
                   </div>
                 </div>
@@ -5700,7 +5715,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ${isTimerPaused ? '' : 'animate-ping'}`} />
                 <div className="flex flex-col text-left max-w-[140px] truncate">
-                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Tracking Time</span>
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Đang theo dõi thời gian</span>
                   <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={timedTask.title}>{timedTask.title}</span>
                 </div>
               </div>
@@ -5727,7 +5742,7 @@ export default function App() {
                   type="button"
                   onClick={handleStopGlobalTimer}
                   className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-600 dark:text-rose-450 rounded-lg cursor-pointer transition-colors"
-                  title="Stop and Log Time"
+                  title="Dừng và ghi nhận thời gian"
                 >
                   <Clock className="w-3.5 h-3.5 text-rose-500" />
                 </button>

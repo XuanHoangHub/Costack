@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import SecurityGuard from "@/components/SecurityGuard";
+import InlineHeadScript from "@/components/InlineHeadScript";
+
+const INITIAL_THEME_SCRIPT = `(function(){try{var mode=localStorage.getItem('apexa_theme_mode');if(mode!=='light'&&mode!=='dark'&&mode!=='system'){var legacy=localStorage.getItem('apexa_dark_mode');mode=legacy===null?'system':legacy==='true'?'dark':'light'}var dark=mode==='dark'||(mode==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.dataset.themeMode=mode;root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`;
+
+const IGNORE_EXTENSION_ERRORS_SCRIPT = `(function(){const ignoreError=(event)=>{try{const filename=event.filename;const error=event.error;const message=event.message;const isExtensionError=(typeof filename==='string'&&filename.includes('chrome-extension://'))||(error&&error.stack&&typeof error.stack==='string'&&error.stack.includes('chrome-extension://'))||(typeof message==='string'&&(message.includes('chrome-extension://')||message.includes('Cannot redefine property: ethereum')));if(isExtensionError){event.stopImmediatePropagation();event.preventDefault();}}catch(e){}};const ignoreRejection=(event)=>{try{const reason=event.reason;const isExtensionError=(reason&&reason.stack&&typeof reason.stack==='string'&&reason.stack.includes('chrome-extension://'))||(reason&&reason.message&&typeof reason.message==='string'&&(reason.message.includes('chrome-extension://')||reason.message.includes('Cannot redefine property: ethereum')));if(isExtensionError){event.stopImmediatePropagation();event.preventDefault();}}catch(e){}};window.addEventListener('error',ignoreError,true);window.addEventListener('unhandledrejection',ignoreRejection,true);})();`;
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -19,8 +23,18 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apexa Productivity",
-  description: "All-in-one productivity workspace for engineering, design, and business.",
+  title: "Apexa",
+  description: "Không gian làm việc năng suất tất cả trong một dành cho kỹ thuật, thiết kế và kinh doanh.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -35,58 +49,8 @@ export default function RootLayout({
       className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
-        <Script
-          id="initial-theme"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var saved=localStorage.getItem('apexa_dark_mode');var dark=saved===null?window.matchMedia('(prefers-color-scheme: dark)').matches:saved==='true';var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`,
-          }}
-        />
-        <Script
-          id="ignore-extension-errors"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                const ignoreError = (event) => {
-                  try {
-                    const filename = event.filename;
-                    const error = event.error;
-                    const message = event.message;
-                    
-                    const isExtensionError = 
-                      (typeof filename === 'string' && filename.includes('chrome-extension://')) ||
-                      (error && error.stack && typeof error.stack === 'string' && error.stack.includes('chrome-extension://')) ||
-                      (typeof message === 'string' && (message.includes('chrome-extension://') || message.includes('Cannot redefine property: ethereum')));
-                    
-                    if (isExtensionError) {
-                      event.stopImmediatePropagation();
-                      event.preventDefault();
-                    }
-                  } catch (e) {}
-                };
-
-                const ignoreRejection = (event) => {
-                  try {
-                    const reason = event.reason;
-                    
-                    const isExtensionError = 
-                      (reason && reason.stack && typeof reason.stack === 'string' && reason.stack.includes('chrome-extension://')) ||
-                      (reason && reason.message && typeof reason.message === 'string' && (reason.message.includes('chrome-extension://') || reason.message.includes('Cannot redefine property: ethereum')));
-
-                    if (isExtensionError) {
-                      event.stopImmediatePropagation();
-                      event.preventDefault();
-                    }
-                  } catch (e) {}
-                };
-
-                window.addEventListener('error', ignoreError, true);
-                window.addEventListener('unhandledrejection', ignoreRejection, true);
-              })();
-            `
-          }}
-        />
+        <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />
+        <InlineHeadScript id="ignore-extension-errors" html={IGNORE_EXTENSION_ERRORS_SCRIPT} />
       </head>
       <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
         <SecurityGuard />

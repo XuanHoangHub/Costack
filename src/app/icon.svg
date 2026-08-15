@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient: Electric Blue to Deep Royal Apexa -->
+    <linearGradient id="apexaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="40%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+
+    <!-- Top Gloss Lighting -->
+    <linearGradient id="topGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30" />
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Crisp White-to-Ice Glyph Gradient -->
+    <linearGradient id="glyphGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F1F5F9" />
+    </linearGradient>
+
+    <!-- Electric Cyan Apex Core -->
+    <linearGradient id="cyanAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+
+    <!-- Depth Shadow for Tab Visibility -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0B132B" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base Canvas -->
+  <rect x="0" y="0" width="512" height="512" rx="124" fill="url(#apexaBg)" />
+  
+  <!-- Subtle Top Specular Overlay -->
+  <rect x="0" y="0" width="512" height="260" rx="124" fill="url(#topGlow)" />
+  
+  <!-- Inner Rim Border -->
+  <rect x="3" y="3" width="506" height="506" rx="121" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-opacity="0.22" />
+
+  <!-- Iconic Apexa Glyph (A + Apex Triangle) -->
+  <g filter="url(#shadow)">
+    <!-- Main Bold Monolithic 'A' Structure -->
+    <path
+      d="M256 84 
+         C264 84 271 89 275 97 
+         L405 375 
+         C409 383 403 394 394 394 
+         L325 394 
+         C317 394 309 389 306 381 
+         L278 322 
+         L234 322 
+         L206 381 
+         C203 389 195 394 187 394 
+         L118 394 
+         C109 394 103 383 107 375 
+         L237 97 
+         C241 89 248 84 256 84 Z
+         
+         M256 182 
+         L226 270 
+         L286 270 Z"
+      fill="url(#glyphGrad)"
+    />
+
+    <!-- Cyan Apex Chevron Bar in Center Bridge -->
+    <polygon 
+      points="218,296 294,296 284,316 228,316" 
+      fill="url(#cyanAccent)" 
+    />
+
+    <!-- Apex Pinnacle Diamond Star -->
+    <polygon
+      points="256,128 266,144 256,160 246,144"
+      fill="#38BDF8"
+    />
+  </g>
+</svg>

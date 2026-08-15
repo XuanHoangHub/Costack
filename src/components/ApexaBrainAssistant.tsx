@@ -563,7 +563,7 @@ Based on current information, here is a quick summary:
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-650 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_4px_24px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_30px_rgba(236,72,153,0.55)] cursor-pointer relative z-10"
-          title="Apexa AI Assistant"
+          title="Trợ lý AI Apexa"
         >
           {isOpen ? (
             <X className="w-5 h-5 shrink-0" />
@@ -615,13 +615,13 @@ Based on current information, here is a quick summary:
                   </div>
                   <div>
                     <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-white font-display">
-                      Apexa AI
+                      AI Apexa
                       <span className="flex items-center gap-1.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-extrabold px-2 py-0.5 rounded-full border border-indigo-500/30 shadow-sm">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Gemini 3.5
                       </span>
                     </h2>
-                    <p className="text-[10px] text-slate-400">Smart project coordination AI assistant</p>
+                    <p className="text-[10px] text-slate-400">Trợ lý AI điều phối dự án thông minh</p>
                   </div>
                 </div>
                 <button 
@@ -636,7 +636,7 @@ Based on current information, here is a quick summary:
               {isOffline && (
                 <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 flex items-center gap-2 text-[10px] font-bold text-amber-650 shrink-0">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>Network is offline. Some AI features have been switched to local fallback mode.</span>
+                  <span>Mạng đang ngoại tuyến. Một số tính năng AI đã chuyển sang chế độ dự phòng cục bộ.</span>
                 </div>
               )}
 
@@ -678,7 +678,7 @@ Based on current information, here is a quick summary:
                   <div className="p-3.5 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>⚠️ Offline / AI Simulation Mode:</strong> Apexa AI is operating in simulation mode because the server is offline or the access key (GEMINI_API_KEY) is not set.
+                      <strong>⚠️ Chế độ ngoại tuyến / mô phỏng AI:</strong> AI Apexa đang chạy ở chế độ mô phỏng vì máy chủ ngoại tuyến hoặc chưa cấu hình khóa truy cập (GEMINI_API_KEY).
                     </div>
                   </div>
                 )}
@@ -687,11 +687,11 @@ Based on current information, here is a quick summary:
                 {activeTab === 'query' && (
                   <div className="flex-1 flex flex-col overflow-hidden space-y-4">
                     <div className="space-y-1.5 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quick analysis requests</label>
+                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Yêu cầu phân tích nhanh</label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
                           { text: "Bản tin công việc hôm nay", q: "Kiểm tra công việc hôm nay: việc nào quá hạn, đến hạn hôm nay hoặc ngày mai? Hãy chọn tối đa 3 việc tôi cần tập trung trước và giải thích ngắn gọn." },
-                          { text: "Task progress summary", q: "Analyze and summarize the progress status of current tasks. How many tasks are running, overdue, and completed?" },
+                          { text: "Tóm tắt tiến độ công việc", q: "Phân tích và tóm tắt tiến độ hiện tại. Có bao nhiêu công việc đang thực hiện, quá hạn và đã hoàn thành?" },
                           { text: "What are the urgent tasks?", q: "Which tasks have urgent or high priority? What issues require attention?" },
                           { text: "Resource allocation summary", q: "Summarize task allocation for each team member. Who has the most tasks assigned?" }
                         ].map((btn, index) => (
@@ -706,7 +706,7 @@ Based on current information, here is a quick summary:
                             <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500/0 group-hover:bg-indigo-500 transition-all duration-300" />
                             <span className="font-bold text-slate-800 dark:text-slate-300 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors duration-250">{btn.text}</span>
                             <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
-                              Ask question <ArrowRight className="w-2.5 h-2.5 transition-transform duration-300 group-hover:translate-x-1 text-slate-350 group-hover:text-indigo-500" />
+                              Đặt câu hỏi <ArrowRight className="w-2.5 h-2.5 transition-transform duration-300 group-hover:translate-x-1 text-slate-350 group-hover:text-indigo-500" />
                             </span>
                           </button>
                         ))}
@@ -720,7 +720,7 @@ Based on current information, here is a quick summary:
                           <div className="w-full space-y-4 py-4 px-2 m-auto">
                             <div className="flex items-center gap-2 text-indigo-500 font-extrabold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <Bot className="w-4 h-4 animate-bounce" />
-                              <span>Apexa AI is analyzing workload...</span>
+                              <span>AI Apexa đang phân tích khối lượng công việc...</span>
                             </div>
                             <div className="space-y-3 max-w-sm mx-auto">
                               <div className="h-3.5 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -739,7 +739,7 @@ Based on current information, here is a quick summary:
                                   <button
                                     onClick={() => handleCopyText(responseText)}
                                     className="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
-                                    title={copied ? "Copied!" : "Copy response"}
+                                    title={copied ? "Đã sao chép!" : "Sao chép phản hồi"}
                                   >
                                     {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                                   </button>
@@ -758,8 +758,8 @@ Based on current information, here is a quick summary:
                         ) : (
                           <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-2">
                             <HelpCircle className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
-                            <p className="text-[10px] font-extrabold text-slate-700 dark:text-slate-350">Search & Analyze Project Info</p>
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Select a quick suggest option above or type any question about the task list in the input bar below.</p>
+                            <p className="text-[10px] font-extrabold text-slate-700 dark:text-slate-350">Tìm kiếm và phân tích thông tin dự án</p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Chọn một gợi ý nhanh ở trên hoặc nhập câu hỏi về danh sách công việc vào ô bên dưới.</p>
                           </div>
                         )}
                         <div ref={responseEndRef} />
@@ -773,7 +773,7 @@ Based on current information, here is a quick summary:
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
                         </span>
-                        <span className="text-[10px] font-extrabold text-rose-700 dark:text-rose-400">Listening to voice (vi-VN)... Speak now!</span>
+                        <span className="text-[10px] font-extrabold text-rose-700 dark:text-rose-400">Đang nghe giọng nói (vi-VN)... Hãy nói ngay!</span>
                       </div>
                     )}
 
@@ -794,14 +794,14 @@ Based on current information, here is a quick summary:
                             ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-200' 
                             : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-550 dark:text-slate-400'
                         }`}
-                        title={isListening ? "Listening... Click to stop" : "Voice Input (Mic)"}
+                        title={isListening ? "Đang nghe... Nhấp để dừng" : "Nhập bằng giọng nói (Micrô)"}
                       >
                         {isListening ? <MicOff className="w-3.5 h-3.5 text-white" /> : <Mic className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />}
                       </button>
 
                       <input
                         type="text"
-                        placeholder={isListening ? "Listening to your voice..." : "Ask about progress, performance, allocation..."}
+                        placeholder={isListening ? "Đang nghe giọng nói của bạn..." : "Hỏi về tiến độ, hiệu suất, phân bổ..."}
                         value={queryInput}
                         onChange={(e) => setQueryInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -841,7 +841,7 @@ Based on current information, here is a quick summary:
                 {activeTab === 'summarize' && (
                   <div className="flex-1 flex flex-col overflow-hidden space-y-4">
                     <div className="space-y-2 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Select system document</label>
+                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Chọn tài liệu hệ thống</label>
                       <select
                         value={selectedDocId}
                         onChange={(e) => {
@@ -851,7 +851,7 @@ Based on current information, here is a quick summary:
                         className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-805 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-semibold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 shadow-sm"
                       >
                         {documents.length === 0 ? (
-                          <option value="">No documents available</option>
+                          <option value="">Không có tài liệu</option>
                         ) : (
                           documents.map(d => (
                             <option key={d.id} value={d.id}>{d.category} - {d.title}</option>
@@ -861,12 +861,12 @@ Based on current information, here is a quick summary:
                     </div>
 
                     <div className="space-y-1.5 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">AI Action Options</label>
+                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tùy chọn thao tác AI</label>
                       <div className="flex gap-2">
                         {[
                           { label: "Concise Summary", action: 'summarize' as const },
                           { label: "Professional Edit", action: 'points' as const },
-                          { label: "Expand Article", action: 'actions' as const }
+                          { label: "Mở rộng bài viết", action: 'actions' as const }
                         ].map((act, index) => (
                           <button
                             key={index}
@@ -886,7 +886,7 @@ Based on current information, here is a quick summary:
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <Bot className="w-4 h-4 animate-bounce" />
-                              <span>Apexa AI is processing using Gemini...</span>
+                              <span>AI Apexa đang xử lý bằng Gemini...</span>
                             </div>
                             <div className="space-y-3">
                               <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -900,7 +900,7 @@ Based on current information, here is a quick summary:
                               <button
                                 onClick={() => handleCopyText(docSummary)}
                                 className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-650 transition-colors cursor-pointer"
-                                title={copied ? "Copied!" : "Copy document"}
+                                title={copied ? "Đã sao chép!" : "Sao chép tài liệu"}
                               >
                                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
@@ -917,8 +917,8 @@ Based on current information, here is a quick summary:
                         ) : (
                           <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-1.5">
                             <FileText className="w-6 h-6 text-slate-350 mx-auto" />
-                            <p className="text-[10px] font-bold">Compose & Review Wiki Docs</p>
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Select a Wiki document from the options above, then click an AI action to automatically draft immediately.</p>
+                            <p className="text-[10px] font-bold">Soạn và rà soát tài liệu Wiki</p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Chọn tài liệu Wiki ở trên, sau đó chọn thao tác AI để tự động tạo bản nháp.</p>
                           </div>
                         )}
                         <div ref={responseEndRef} />
@@ -932,7 +932,7 @@ Based on current information, here is a quick summary:
                 {activeTab === 'subtasks' && (
                   <div className="flex-1 flex flex-col overflow-hidden space-y-4">
                     <div className="space-y-2 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Select Main Task</label>
+                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Chọn công việc chính</label>
                       <select
                         value={selectedTaskId}
                         onChange={(e) => {
@@ -943,7 +943,7 @@ Based on current information, here is a quick summary:
                         className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-805 p-2.5 rounded-xl text-slate-700 dark:text-slate-200 font-semibold outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 shadow-sm"
                       >
                         {tasks.length === 0 ? (
-                          <option value="">No tasks available</option>
+                          <option value="">Không có công việc</option>
                         ) : (
                           tasks.map(t => (
                             <option key={t.id} value={t.id}>[{t.priority.toUpperCase()}] {t.title}</option>
@@ -960,12 +960,12 @@ Based on current information, here is a quick summary:
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-white" />
-                          <span>Apexa AI is extracting subtasks...</span>
+                          <span>AI Apexa đang tách công việc con...</span>
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4 text-indigo-200 animate-pulse" />
-                          <span>Suggest Subtasks with AI</span>
+                          <span>Đề xuất công việc con bằng AI</span>
                         </>
                       )}
                     </button>
@@ -976,7 +976,7 @@ Based on current information, here is a quick summary:
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <Bot className="w-4 h-4 animate-bounce" />
-                              <span>Analyzing Task structure...</span>
+                              <span>Đang phân tích cấu trúc công việc...</span>
                             </div>
                             <div className="space-y-3">
                               <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -985,7 +985,7 @@ Based on current information, here is a quick summary:
                           </div>
                         ) : suggestedSubtasks.length > 0 ? (
                           <div className="space-y-3">
-                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Suggested subtasks list:</span>
+                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Danh sách công việc con được đề xuất:</span>
                             <div className="space-y-2">
                               {suggestedSubtasks.map((st, i) => (
                                 <div key={i} className="flex gap-2.5 items-center p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
@@ -1000,22 +1000,22 @@ Based on current information, here is a quick summary:
                             {subtasksApplied ? (
                               <div className="p-3 bg-emerald-50 dark:bg-emerald-955/10 border border-emerald-205 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-450 rounded-xl text-center text-xs font-bold flex items-center justify-center gap-1.5 animate-fade-in shadow-xs">
                                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-450" />
-                                <span>Successfully applied to task!</span>
+                                <span>Đã áp dụng vào công việc!</span>
                               </div>
                             ) : (
                               <button
                                 onClick={applySubtasksToTask}
                                 className="w-full py-2 px-3 mt-2 bg-emerald-50 dark:bg-emerald-955/10 hover:bg-emerald-100 dark:hover:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 font-extrabold text-[10px] rounded-lg transition-colors border border-emerald-200/50 dark:border-emerald-900/30 cursor-pointer text-center shadow-xs"
                               >
-                                + Apply this list to my Task
+                                + Áp dụng danh sách này vào công việc
                               </button>
                             )}
                           </div>
                         ) : (
                           <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-1.5">
                             <CheckSquare className="w-6 h-6 text-slate-350 mx-auto" />
-                            <p className="text-[10px] font-bold">Smart Subtasks Breakdown</p>
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Select a complex task above, then click the AI Suggest button to automatically break it down into actionable subtasks.</p>
+                            <p className="text-[10px] font-bold">Phân rã công việc con thông minh</p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal">Chọn một công việc phức tạp ở trên, sau đó bấm nút AI đề xuất để tự động chia thành các công việc con có thể thực hiện.</p>
                           </div>
                         )}
                       </div>
@@ -1028,13 +1028,13 @@ Based on current information, here is a quick summary:
                 {activeTab === 'generate-tasks' && (
                   <div className="flex-1 flex flex-col overflow-hidden space-y-4 font-sans">
                     <div className="space-y-1.5 shrink-0">
-                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quick Suggested Ideas</label>
+                      <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ý tưởng gợi ý nhanh</label>
                       <div className="grid grid-cols-2 gap-2">
                         {[
                           { text: "Landing Page", q: "Plan tasks for design and development of a product Landing Page" },
                           { text: "Marketing Campaign", q: "Plan a digital marketing campaign for a new tech product launch" },
                           { text: "Digital Recruitment", q: "Build a hiring and onboarding workflow for Software Developers" },
-                          { text: "Security Audit", q: "List vulnerability audit tasks and system penetration tests" }
+                          { text: "Kiểm tra bảo mật", q: "Liệt kê các công việc kiểm tra lỗ hổng và kiểm thử xâm nhập hệ thống" }
                         ].map((btn, index) => (
                           <button
                             key={index}
@@ -1046,7 +1046,7 @@ Based on current information, here is a quick summary:
                           >
                             <span className="font-bold text-slate-850 dark:text-slate-350 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 transition-colors duration-200">{btn.text}</span>
                             <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
-                              Select proposal 
+                              Chọn đề xuất 
                               <ArrowRight className="w-2.5 h-2.5 transition-transform duration-300 group-hover:translate-x-1 text-slate-350 group-hover:text-indigo-500" />
                             </span>
                           </button>
@@ -1057,7 +1057,7 @@ Based on current information, here is a quick summary:
                     <div className="shrink-0 bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-md focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all flex gap-2 items-center">
                       <input
                         type="text"
-                        placeholder="Describe goal to generate tasks via AI..."
+                        placeholder="Mô tả mục tiêu để AI tạo công việc..."
                         value={taskPrompt}
                         onChange={(e) => setTaskPrompt(e.target.value)}
                         onKeyDown={(e) => {
@@ -1082,7 +1082,7 @@ Based on current information, here is a quick summary:
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
                               <Bot className="w-4 h-4 animate-bounce" />
-                              <span>Apexa AI is planning detailed tasks...</span>
+                              <span>AI Apexa đang lập kế hoạch chi tiết...</span>
                             </div>
                             <div className="space-y-3">
                               <div className="h-4 animate-shimmer-fast rounded-lg w-3/4 mx-auto" />
@@ -1093,18 +1093,18 @@ Based on current information, here is a quick summary:
                         ) : generatedTasks.length > 0 ? (
                           <div className="space-y-4">
                             <div className="flex justify-between items-center bg-slate-55 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/30 dark:border-slate-800/50">
-                              <span className="text-[10px] font-bold text-slate-555 dark:text-slate-400 font-sans">Suggested {generatedTasks.length} tasks:</span>
+                              <span className="text-[10px] font-bold text-slate-555 dark:text-slate-400 font-sans">Suggested {generatedTasks.length} công việc:</span>
                               {tasksCreated ? (
                                 <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-450 flex items-center gap-1 font-sans">
                                   <Check className="w-3.5 h-3.5" />
-                                  <span>Successfully added!</span>
+                                  <span>Đã thêm thành công!</span>
                                 </div>
                               ) : (
                                 <button
                                   onClick={applyGeneratedTasks}
                                   className="py-1.5 px-3 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-[9px] rounded-lg transition-colors cursor-pointer font-sans shadow-xs"
                                 >
-                                  + Add all to project
+                                  + Thêm tất cả vào dự án
                                 </button>
                               )}
                             </div>
@@ -1136,7 +1136,7 @@ Based on current information, here is a quick summary:
 
                                   {t.subtasks && t.subtasks.length > 0 && (
                                     <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
-                                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 block font-sans">Subtasks list:</span>
+                                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 block font-sans">Danh sách công việc con:</span>
                                       <div className="space-y-1">
                                         {t.subtasks.map((st: string, stIdx: number) => (
                                           <div key={stIdx} className="flex gap-1.5 items-center text-[9px] text-slate-600 dark:text-slate-350 font-sans">
@@ -1154,8 +1154,8 @@ Based on current information, here is a quick summary:
                         ) : (
                           <div className="m-auto text-center p-6 text-slate-400 dark:text-slate-500 max-w-xs space-y-2">
                             <Sparkles className="w-6 h-6 text-indigo-450 mx-auto animate-pulse" />
-                            <p className="text-[10px] font-bold font-sans">Automated Task Planner</p>
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal font-sans">Enter your project goal (e.g. "Design a finance app") and AI will automatically break it down into detailed tasks, complete with subtasks and estimations.</p>
+                            <p className="text-[10px] font-bold font-sans">Trình lập kế hoạch công việc tự động</p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal font-sans">Nhập mục tiêu dự án (ví dụ: "Thiết kế ứng dụng tài chính") và AI sẽ tự động chia thành các công việc chi tiết, kèm công việc con và ước tính.</p>
                           </div>
                         )}
                       </div>
@@ -1169,9 +1169,9 @@ Based on current information, here is a quick summary:
               <div className="p-4 border-t border-slate-150 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                  Apexa AI Engine Active
+                  Công cụ AI Apexa đang hoạt động
                 </span>
-                <span>Powered by Gemini API</span>
+                <span>Vận hành bởi Gemini API</span>
               </div>
 
             </motion.div>

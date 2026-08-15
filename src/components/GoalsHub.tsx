@@ -349,11 +349,11 @@ export default function GoalsHub({
             <Target className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Active Goals</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Mục tiêu đang hoạt động</span>
             <span className="text-2xl font-black tabular-nums">{totalGoals}</span>
           </div>
           <div className="absolute right-4 top-4 text-[10px] font-black bg-indigo-50 dark:bg-indigo-955/40 text-indigo-600 px-2 py-0.5 rounded-lg">
-            Apexa OKRs
+            OKR Apexa
           </div>
         </div>
 
@@ -374,7 +374,7 @@ export default function GoalsHub({
             <TrendingUp className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Average Progress</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Tiến độ trung bình</span>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-2xl font-black tabular-nums">{averageProgress}%</span>
               <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -392,8 +392,8 @@ export default function GoalsHub({
       {/* Main Row: Goal Grid and Actions */}
       <div className="flex justify-between items-center">
         <div className="text-left">
-          <h2 className="text-lg font-black tracking-tight">Objectives & Key Results</h2>
-          <p className="text-[10px] font-bold text-slate-405">Track and coordinate team goals with task targets.</p>
+          <h2 className="text-lg font-black tracking-tight">Mục tiêu và kết quả then chốt</h2>
+          <p className="text-[10px] font-bold text-slate-405">Theo dõi và phối hợp mục tiêu nhóm thông qua các chỉ tiêu công việc.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -408,7 +408,7 @@ export default function GoalsHub({
             className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-indigo-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
             style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
           >
-            <Plus className="w-4 h-4" /> Create Goal
+            <Plus className="w-4 h-4" /> Tạo mục tiêu
           </button>
         </div>
       </div>
@@ -418,8 +418,8 @@ export default function GoalsHub({
         <div className="border border-dashed border-slate-200 dark:border-slate-805 rounded-3xl p-10 text-center space-y-3 bg-white/30 dark:bg-slate-900/10">
           <Target className="w-8 h-8 mx-auto text-slate-350 animate-bounce" />
           <div className="space-y-1">
-            <h4 className="text-xs font-black text-slate-700 dark:text-slate-300">No Goals Tracked Yet</h4>
-            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">Create a goal, define key targets, and link them to tasks to see aggregate progress!</p>
+            <h4 className="text-xs font-black text-slate-700 dark:text-slate-300">Chưa theo dõi mục tiêu nào</h4>
+            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">Tạo mục tiêu, xác định kết quả then chốt và liên kết với công việc để theo dõi tiến độ tổng thể!</p>
           </div>
         </div>
       ) : (
@@ -455,7 +455,7 @@ export default function GoalsHub({
                   {/* Targets count list summary */}
                   <div className="flex items-center gap-1.5 text-[9px] font-black text-indigo-650 dark:text-indigo-400">
                     <CheckSquare className="w-3 h-3" />
-                    <span>{goal.targets.length} targets ({goal.targets.filter(t => getTargetProgress(t) === 100).length} done)</span>
+                    <span>{goal.targets.length} chỉ tiêu ({goal.targets.filter(t => getTargetProgress(t) === 100).length} hoàn thành)</span>
                   </div>
                 </div>
 
@@ -535,7 +535,7 @@ export default function GoalsHub({
                     {goal.dueDate && (
                       <div className="flex items-center gap-1 text-slate-450 text-[9px] font-semibold">
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>Due: {new Date(goal.dueDate).toLocaleDateString('vi-VN')}</span>
+                        <span>Hạn: {new Date(goal.dueDate).toLocaleDateString('vi-VN')}</span>
                       </div>
                     )}
                   </div>
@@ -562,7 +562,7 @@ export default function GoalsHub({
                   <Target className="w-5 h-5 text-indigo-500" />
                   <div>
                     <h3 className="text-xs font-black text-slate-855 dark:text-white line-clamp-1">{selectedGoal.title}</h3>
-                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Goal Target Dashboard</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Bảng điều khiển mục tiêu</span>
                   </div>
                 </div>
                 <button 
@@ -582,7 +582,7 @@ export default function GoalsHub({
               {/* Targets List */}
               <div className="space-y-2.5">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450">Key Results & Targets</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450">Kết quả then chốt và chỉ tiêu</h4>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleAiSuggestKeyResults}
@@ -598,7 +598,7 @@ export default function GoalsHub({
                         onClick={() => setShowAddTargetForm(true)}
                         className="text-[9px] font-black text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer"
                       >
-                        <PlusCircle className="w-3.5 h-3.5" /> Add Target
+                        <PlusCircle className="w-3.5 h-3.5" /> Thêm chỉ tiêu
                       </button>
                     )}
                   </div>
@@ -608,39 +608,39 @@ export default function GoalsHub({
                 {showAddTargetForm && (
                   <form onSubmit={handleAddTarget} className="p-3 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3 animate-fadeIn">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-indigo-650">New Key Result Target</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-indigo-650">Kết quả then chốt mới</span>
                       <button type="button" onClick={() => setShowAddTargetForm(false)} className="text-[9px] text-slate-400 hover:text-slate-600 cursor-pointer">Hủy</button>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black uppercase text-slate-400">Target Title</label>
+                      <label className="text-[8px] font-black uppercase text-slate-400">Tên chỉ tiêu</label>
                       <input 
                         type="text" 
                         value={newTargetTitle} 
                         onChange={e => setNewTargetTitle(e.target.value)}
                         className="w-full text-xs font-semibold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 outline-none focus:border-indigo-500"
-                        placeholder="e.g. Complete audit document"
+                        placeholder="Ví dụ: Hoàn thành tài liệu kiểm toán"
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[8px] font-black uppercase text-slate-400">Target Type</label>
+                        <label className="text-[8px] font-black uppercase text-slate-400">Loại chỉ tiêu</label>
                         <select
                           value={newTargetType}
                           onChange={e => setNewTargetType(e.target.value as any)}
                           className="w-full text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 outline-none cursor-pointer"
                         >
-                          <option value="boolean">Yes / No Completion</option>
-                          <option value="number">Numeric Tracker</option>
-                          <option value="task">Linked Task Completed</option>
+                          <option value="boolean">Hoàn thành Có / Không</option>
+                          <option value="number">Theo dõi bằng số</option>
+                          <option value="task">Công việc liên kết đã hoàn thành</option>
                         </select>
                       </div>
 
                       {newTargetType === 'number' && (
                         <div className="space-y-1">
-                          <label className="text-[8px] font-black uppercase text-slate-400">Goal Target Value</label>
+                          <label className="text-[8px] font-black uppercase text-slate-400">Giá trị mục tiêu</label>
                           <input 
                             type="number" 
                             min={1}
@@ -653,14 +653,14 @@ export default function GoalsHub({
 
                       {newTargetType === 'task' && (
                         <div className="space-y-1">
-                          <label className="text-[8px] font-black uppercase text-slate-400">Choose Task</label>
+                          <label className="text-[8px] font-black uppercase text-slate-400">Chọn công việc</label>
                           <select
                             value={newTargetTaskId}
                             onChange={e => setNewTargetTaskId(e.target.value)}
                             className="w-full text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 outline-none truncate cursor-pointer"
                             required
                           >
-                            <option value="">— Select Task —</option>
+                            <option value="">— Chọn công việc —</option>
                             {linkableTasks.map(t => (
                               <option key={t.id} value={t.id}>{t.title}</option>
                             ))}
@@ -674,7 +674,7 @@ export default function GoalsHub({
                       className="w-full py-1.5 rounded-xl text-xs font-black text-white shadow-sm hover:brightness-105 transition-all cursor-pointer text-center"
                       style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                     >
-                      Add Target
+                      Thêm chỉ tiêu
                     </button>
                   </form>
                 )}
@@ -682,7 +682,7 @@ export default function GoalsHub({
                 {/* List targets */}
                 <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                   {selectedGoal.targets.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 italic py-4 text-center">No targets defined for this goal yet.</p>
+                    <p className="text-[10px] text-slate-400 italic py-4 text-center">Mục tiêu này chưa có chỉ tiêu nào.</p>
                   ) : (
                     selectedGoal.targets.map(target => {
                       const pct = getTargetProgress(target);
@@ -700,7 +700,7 @@ export default function GoalsHub({
                             <div className="flex items-center gap-1.5 text-[8.5px] font-black uppercase text-indigo-500/80">
                               <span>{target.type}</span>
                               <span className="text-slate-300 dark:text-slate-700">•</span>
-                              <span className={isComplete ? 'text-emerald-500' : 'text-slate-400'}>{pct}% completed</span>
+                              <span className={isComplete ? 'text-emerald-500' : 'text-slate-400'}>{pct}% hoàn thành</span>
                             </div>
                           </div>
 
@@ -739,7 +739,7 @@ export default function GoalsHub({
                             <button
                               onClick={() => handleRemoveTarget(target.id, target.title)}
                               className="p-1 hover:bg-rose-50 text-slate-405 hover:text-rose-605 rounded-lg transition-colors cursor-pointer"
-                              title="Delete target"
+                              title="Xóa chỉ tiêu"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -754,7 +754,7 @@ export default function GoalsHub({
               {/* Progress Summary */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-black">
-                  <span className="text-slate-450">OVERALL OBJECTIVE PROGRESS</span>
+                  <span className="text-slate-450">TIẾN ĐỘ MỤC TIÊU TỔNG THỂ</span>
                   <span className="text-indigo-600 dark:text-indigo-400">{getGoalProgress(selectedGoal)}%</span>
                 </div>
                 <div className="w-full bg-slate-100 dark:bg-slate-805 h-2.5 rounded-full overflow-hidden">
@@ -782,7 +782,7 @@ export default function GoalsHub({
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-black text-slate-855 dark:text-white flex items-center gap-1.5">
                   <Target className="w-4.5 h-4.5 text-indigo-500 animate-pulse" />
-                  Create Goal (Objective)
+                  Tạo mục tiêu
                 </h3>
                 <button 
                   type="button" 
@@ -795,13 +795,13 @@ export default function GoalsHub({
 
               <form onSubmit={handleCreateGoal} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Goal Title</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tên mục tiêu</label>
                   <input 
                     type="text" 
                     value={newGoalTitle} 
                     onChange={e => setNewGoalTitle(e.target.value)}
                     className="w-full text-xs font-semibold text-slate-805 dark:text-slate-100 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition-colors" 
-                    placeholder="e.g. Q3 Marketing Launch"
+                    placeholder="Ví dụ: Ra mắt chiến dịch tiếp thị quý 3"
                     required
                   />
                 </div>
@@ -812,7 +812,7 @@ export default function GoalsHub({
                     value={newGoalDesc} 
                     onChange={e => setNewGoalDesc(e.target.value)}
                     className="w-full text-xs font-semibold text-slate-805 dark:text-slate-100 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition-colors resize-none h-16" 
-                    placeholder="Describe target details..."
+                    placeholder="Mô tả chi tiết chỉ tiêu..."
                   />
                 </div>
 
@@ -830,7 +830,7 @@ export default function GoalsHub({
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Due Date</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Ngày hết hạn</label>
                     <input 
                       type="date" 
                       value={newGoalDueDate}

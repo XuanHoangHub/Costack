@@ -27,7 +27,7 @@ import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
-import { getStoredStatuses, getStoredPriorities, OptionConfig } from '../../utils/fieldConfig';
+import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel } from '../../utils/fieldConfig';
 import { motion } from 'motion/react';
 import { useUiStore } from '../../store/uiStore';
 
@@ -161,7 +161,7 @@ function KanbanCard({
                         if (onStopGlobalTimer) onStopGlobalTimer();
                       }}
                       className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-105 border border-rose-200/30"
-                      title="Stop Timer"
+                      title="Dừng bấm giờ"
                     >
                       <Clock className="w-3 h-3 text-rose-500 animate-spin" />
                     </button>
@@ -173,7 +173,7 @@ function KanbanCard({
                         if (onStartGlobalTimer) onStartGlobalTimer(task.id);
                       }}
                       className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-650 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
-                      title="Start Timer"
+                      title="Bắt đầu bấm giờ"
                     >
                       <Play className="w-3 h-3 text-emerald-505 fill-emerald-555" />
                     </button>
@@ -246,7 +246,7 @@ function KanbanCard({
                         setInlineEditTitle(task.title);
                       }}
                       className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
-                      title="Double click to rename task"
+                      title="Nhấp đúp để đổi tên công việc"
                     >
                       {task.title}
                     </h4>
@@ -334,7 +334,7 @@ function KanbanCard({
                     <span title={`Repeats ${task.recurrence.frequency}`} className="flex items-center gap-0.5 text-indigo-500"><Repeat2 className="h-3 w-3" /></span>
                   )}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                    <span title="Waiting on another task" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>
+                    <span title="Đang chờ công việc khác" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>
                   )}
                 </div>
 
@@ -522,7 +522,7 @@ export default function TaskBoardView({
     baseList.forEach(s => {
       const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
       meta[s.id] = {
-        label: s.label,
+        label: getLocalizedOptionLabel(s.id, s.label, locale),
         dot: s.dot || `bg-${c}-500`,
         headerBg: 'bg-transparent',
         headerText: `text-${c}-600`,
@@ -532,7 +532,7 @@ export default function TaskBoardView({
       };
     });
     return meta;
-  }, [statusConfigs]);
+  }, [locale, statusConfigs]);
 
   const dynamicPriorityMeta = useMemo(() => {
     const meta: Record<string, any> = {};
@@ -545,7 +545,7 @@ export default function TaskBoardView({
     baseList.forEach(p => {
       const c = (p.color || 'slate-500').replace('text-', '').replace('-500', '').replace('-600', '');
       meta[p.id] = {
-        label: p.label.toUpperCase(),
+        label: getLocalizedOptionLabel(p.id, p.label, locale).toUpperCase(),
         dot: `bg-${c}-500`,
         bg: `bg-${c}-50/50 dark:bg-${c}-955/20`,
         text: `text-${c}-600`,
@@ -554,7 +554,7 @@ export default function TaskBoardView({
       };
     });
     return meta;
-  }, [priorityConfigs]);
+  }, [locale, priorityConfigs]);
 
   const dynamicPriorityColors = useMemo(() => {
     const colors: Record<string, string> = {};
@@ -1244,12 +1244,12 @@ export default function TaskBoardView({
       <div className="flex flex-col h-full w-full">
         
         {/* Kanban Board Controls Panel */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
+          <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
             
             {/* Group By selector */}
             <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Group:</span>
+              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
               <select
                 value={boardGroupBy}
                 onChange={(e) => {
@@ -1261,30 +1261,30 @@ export default function TaskBoardView({
                 }}
                 className="bg-transparent font-bold outline-none cursor-pointer pr-1 text-slate-700 dark:text-slate-300 border-none"
               >
-                <option value="status">Status</option>
-                <option value="priority">Priority</option>
-                <option value="assignee">Assignee</option>
+                <option value="status">Trạng thái</option>
+                <option value="priority">Ưu tiên</option>
+                <option value="assignee">Người phụ trách</option>
               </select>
             </div>
 
             {/* Swimlane selector */}
             <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Swimlane:</span>
+              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
               <select
                 value={boardSwimlaneBy}
                 onChange={(e) => setBoardSwimlaneBy(e.target.value as any)}
                 className="bg-transparent font-bold outline-none cursor-pointer pr-1 text-slate-700 dark:text-slate-300 border-none"
               >
-                <option value="none">None</option>
-                {boardGroupBy !== 'status' && <option value="status">Status</option>}
-                {boardGroupBy !== 'priority' && <option value="priority">Priority</option>}
-                {boardGroupBy !== 'assignee' && <option value="assignee">Assignee</option>}
+                <option value="none">Không</option>
+                {boardGroupBy !== 'status' && <option value="status">Trạng thái</option>}
+                {boardGroupBy !== 'priority' && <option value="priority">Ưu tiên</option>}
+                {boardGroupBy !== 'assignee' && <option value="assignee">Người phụ trách</option>}
               </select>
             </div>
           </div>
 
           {/* Card size & covers selectors */}
-          <div className="flex items-center gap-3">
+          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2 sm:gap-3">
             <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl p-0.5 shadow-3xs">
               {(['small', 'medium', 'large'] as const).map(size => (
                 <button
@@ -1296,7 +1296,7 @@ export default function TaskBoardView({
                       : 'hover:bg-slate-50 dark:hover:bg-slate-850'
                   }`}
                 >
-                  {size}
+                  {{ small: 'Nhỏ', medium: 'Vừa', large: 'Lớn' }[size]}
                 </button>
               ))}
             </div>
@@ -1348,7 +1348,7 @@ export default function TaskBoardView({
                         {/* WIP Limit warning badge if tasks > 6 */}
                         {colTasks.length > 6 && (
                           <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-955/40 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 animate-pulse">
-                            WIP Limit
+                            Giới hạn việc đang làm
                           </span>
                         )}
                       </div>
@@ -1356,7 +1356,7 @@ export default function TaskBoardView({
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
                         className="w-6 h-6 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-slate-400 hover:text-indigo-650 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-                        title="Add Task"
+                        title="Thêm công việc"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -1424,22 +1424,6 @@ export default function TaskBoardView({
               );
             })}
             
-            {/* Add group placeholder */}
-            <div className="min-w-[200px] w-[200px] flex-shrink-0 flex items-start pt-2 px-1">
-              <button 
-                onClick={() => {
-                  if (triggerToast) {
-                    triggerToast('info', 'Add Group', locale === 'vi' ? 'Tạo trạng thái mới chưa được hỗ trợ. Nhóm được cố định theo các trường của hệ thống.' : 'Creating new states is not supported. Grouping is fixed to system fields.');
-                  } else {
-                    alert(locale === 'vi' ? 'Tạo trạng thái mới chưa được hỗ trợ. Nhóm được cố định theo các trường của hệ thống.' : 'Creating new states is not supported. Grouping is fixed to system fields.');
-                  }
-                }}
-                className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-455 hover:text-slate-700 dark:hover:text-slate-250 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{locale === 'vi' ? 'Thêm nhóm' : 'Add group'}</span>
-              </button>
-            </div>
           </div>
         ) : (
           <div className="overflow-x-auto pb-4 custom-scrollbar select-none">

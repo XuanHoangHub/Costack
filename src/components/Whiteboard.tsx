@@ -146,7 +146,7 @@ export default function Whiteboard({
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-    onAddSyncLog("Exported whiteboard JSON data");
+    onAddSyncLog("Đã xuất dữ liệu JSON của bảng trắng");
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,7 +158,7 @@ export default function Whiteboard({
         const parsed = JSON.parse(ev.target?.result as string);
         if (Array.isArray(parsed)) {
           setElements(parsed);
-          onAddSyncLog("Imported whiteboard JSON data");
+          onAddSyncLog("Đã nhập dữ liệu JSON vào bảng trắng");
         }
       } catch (err) {}
     };
@@ -1883,7 +1883,7 @@ export default function Whiteboard({
   const handleClearBoard = () => {
     setElements([]);
     setSelectedElementId(null);
-    onAddSyncLog("Cleared main whiteboard workspace");
+    onAddSyncLog("Đã xóa toàn bộ nội dung bảng trắng chính");
   };
 
   // Determine standard cursor based on active tools and dragging state
@@ -1905,7 +1905,7 @@ export default function Whiteboard({
           <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
             <Sliders className="w-4 h-4 text-indigo-600" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
-              Element Properties
+              Thuộc tính phần tử
             </h3>
           </div>
 
@@ -1913,7 +1913,7 @@ export default function Whiteboard({
             <div className="space-y-3.5 select-none" id="whiteboard_element_editor">
               {/* Type tag */}
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Widget Type</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Loại tiện ích</span>
                 <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 uppercase">
                   {activeSelectedElement.type}
                 </span>
@@ -1924,7 +1924,7 @@ export default function Whiteboard({
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase flex items-center gap-1">
                     <Type className="w-3 h-3 text-slate-500 dark:text-slate-400" />
-                    <span>Note Content</span>
+                    <span>Nội dung ghi chú</span>
                   </label>
                   <input
                     id="edit_element_text"
@@ -1932,7 +1932,7 @@ export default function Whiteboard({
                     value={activeSelectedElement.text || ''}
                     onChange={(e) => updateSelectedElementProps({ text: e.target.value })}
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500/20 outline-none font-medium text-slate-800 dark:text-slate-50"
-                    placeholder="Change note..."
+                    placeholder="Thay đổi ghi chú..."
                   />
                 </div>
               )}
@@ -1974,7 +1974,7 @@ export default function Whiteboard({
 
               {/* Switch Background or Outline coloring */}
               <div className="space-y-1.5">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Element Color Palette</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Bảng màu phần tử</span>
                 <div className="flex gap-1.5 flex-wrap">
                   {[
                     '#6366f1', // Indigo
@@ -2004,7 +2004,7 @@ export default function Whiteboard({
                 <button
                   onClick={() => handleCloneElement(activeSelectedElement)}
                   className="flex-1 py-1.8 px-2.5 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                  title="Duplicate"
+                  title="Nhân bản"
                 >
                   <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>Duplicate</span>
@@ -2012,7 +2012,7 @@ export default function Whiteboard({
                 <button
                   onClick={() => handleDeleteElement(activeSelectedElement.id)}
                   className="py-1.8 px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                  title="Delete"
+                  title="Xóa"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete</span>
@@ -2023,7 +2023,7 @@ export default function Whiteboard({
             <div className="text-center py-5">
               <Info className="w-6 h-6 text-slate-300 mx-auto mb-2" />
               <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
-                Select an element to customize its font, color palette, and position. Double-click the shape to edit text directly.
+                Chọn một phần tử để tùy chỉnh phông chữ, màu sắc và vị trí. Nhấp đúp vào hình để sửa văn bản trực tiếp.
               </p>
             </div>
           )}
@@ -2034,12 +2034,12 @@ export default function Whiteboard({
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
             <StickyNote className="w-4 h-4 text-amber-500" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
-              Sticky Notes
+              Ghi chú dán
             </h3>
           </div>
           
           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            Drag and drop sticky notes onto the board, or click directly to insert at the center:
+            Kéo thả ghi chú lên bảng hoặc nhấp để chèn vào giữa:
           </p>
 
           <div className="grid grid-cols-2 gap-2.5">
@@ -2060,7 +2060,7 @@ export default function Whiteboard({
                 className="p-3 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 cursor-grab hover:scale-103 active:cursor-grabbing hover:shadow-md transition-all text-center select-none"
               >
                 <span className="text-[11px] font-extrabold text-[#1E293B] block truncate">{st.label}</span>
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold block mt-1 uppercase">Drag or Click</span>
+                <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold block mt-1 uppercase">Kéo hoặc nhấp</span>
               </div>
             ))}
           </div>
@@ -2071,12 +2071,12 @@ export default function Whiteboard({
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
             <Grid className="w-4 h-4 text-cyan-600" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
-              Flowchart Shapes
+              Hình khối lưu đồ
             </h3>
           </div>
 
           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            Use specialized flowchart shapes to build operational workflows:
+            Dùng các hình khối chuyên dụng để xây dựng quy trình vận hành:
           </p>
 
           <div className="space-y-2">
@@ -2122,10 +2122,10 @@ export default function Whiteboard({
           <div>
             <h2 className="text-base md:text-lg font-bold font-display text-slate-800 dark:text-slate-50 flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-500" />
-              Brainstorming & Flowchart Board (Miro-style)
+              Bảng động não và lưu đồ (phong cách Miro)
             </h2>
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              Infinite design space. Scroll to Zoom, Middle-click or Hold Spacebar to Pan canvas.
+              Không gian thiết kế vô hạn. Cuộn để thu phóng, nhấn chuột giữa hoặc giữ phím cách để di chuyển bảng.
             </p>
           </div>
 
@@ -2134,7 +2134,7 @@ export default function Whiteboard({
               id="btn_multiplayer_sim"
               onClick={() => {
                 setEnableSim(!enableSim);
-                onAddSyncLog(enableSim ? "Disabled peer design simulation" : "Enabled multi-peer design simulation");
+                onAddSyncLog(enableSim ? "Đã tắt mô phỏng thiết kế cộng tác" : "Đã bật mô phỏng thiết kế nhiều người");
               }}
               className={`py-2 px-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                 enableSim 
@@ -2159,7 +2159,7 @@ export default function Whiteboard({
               id="btn_ai_analyst"
               onClick={handleOpenAiAnalyst}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-650 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer flex items-center justify-center animate-pulse"
-              title="Analyze whiteboard with AI"
+              title="Phân tích bảng trắng bằng AI"
             >
               <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
             </button>
@@ -2168,7 +2168,7 @@ export default function Whiteboard({
               id="btn_export_png"
               onClick={handleExportPNG}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer"
-              title="Export whiteboard as PNG"
+              title="Xuất bảng trắng thành PNG"
             >
               <Download className="w-4.5 h-4.5" />
             </button>
@@ -2193,7 +2193,7 @@ export default function Whiteboard({
               id="btn_clear_whiteboard"
               onClick={handleClearBoard}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-              title="Clear Whiteboard"
+              title="Xóa toàn bộ bảng trắng"
             >
               <Trash2 className="w-4.5 h-4.5" />
             </button>
@@ -2251,7 +2251,7 @@ export default function Whiteboard({
 
             {activeTool === 'pencil' && (
               <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span>Size:</span>
+                <span>Kích thước:</span>
                 <input 
                   type="range" 
                   min="2" 
@@ -2343,7 +2343,7 @@ export default function Whiteboard({
                 setZoom(newZoom);
               }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Zoom Out"
+              title="Thu nhỏ"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
@@ -2356,7 +2356,7 @@ export default function Whiteboard({
                 setZoom(newZoom);
               }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Zoom In"
+              title="Phóng to"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
@@ -2368,20 +2368,20 @@ export default function Whiteboard({
                 onAddSyncLog("Whiteboard: Reset zoom");
               }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Reset view 100%"
+              title="Đặt lại chế độ xem 100%"
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {elements.length === 0 && (
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center p-8 bg-slate-50/30">
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center p-8 bg-slate-50/30 dark:bg-slate-950/30">
               <Grid className="w-12 h-12 text-slate-300 stroke-[1.1] mb-3 animate-pulse" />
               <h4 className="font-display font-extrabold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">
-                Empty Board - Ready to Create
+                Bảng trống — Sẵn sàng sáng tạo
               </h4>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-sm mt-1 leading-normal font-medium">
-                Select draw brush above, or <span className="font-bold text-indigo-500">drag & drop sticky notes or flowchart shapes</span> from the left sidebar directly to the board!
+                Chọn bút vẽ ở trên hoặc <span className="font-bold text-indigo-500">kéo thả ghi chú hoặc hình khối lưu đồ</span> từ thanh bên trái vào bảng!
               </p>
             </div>
           )}
@@ -2390,10 +2390,10 @@ export default function Whiteboard({
         {/* Status markers */}
         <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-1">
           <span>
-            Vectors: <span className="text-slate-700 dark:text-slate-200 font-bold">{elements.length} elements</span>
+            Đối tượng: <span className="text-slate-700 dark:text-slate-200 font-bold">{elements.length} elements</span>
           </span>
           <span className="hidden sm:inline">
-            💡 Tip: Double-click shapes to edit text. Click small circle handle to drag connection arrow to another shape.
+            💡 Mẹo: Nhấp đúp vào hình để sửa chữ. Kéo nút tròn nhỏ để nối mũi tên sang hình khác.
           </span>
         </div>
 

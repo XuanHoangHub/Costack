@@ -57,7 +57,7 @@ export default function BaseCalendarView({
   if (!dateField) {
     return (
       <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-        Add a Date field to use Calendar view
+        Thêm trường Ngày để sử dụng chế độ xem Lịch
       </div>
     );
   }
@@ -67,7 +67,7 @@ export default function BaseCalendarView({
 
   const cells: React.ReactNode[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) {
-    cells.push(<div key={`empty-${i}`} className="min-h-[90px] bg-slate-50/30 rounded-lg" />);
+    cells.push(<div key={`empty-${i}`} className="min-h-[90px] bg-slate-50/30 dark:bg-slate-950/30 rounded-lg" />);
   }
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -77,7 +77,7 @@ export default function BaseCalendarView({
     cells.push(
       <div
         key={day}
-        className={`min-h-[90px] rounded-lg border p-1.5 flex flex-col group transition-colors ${isToday ? 'border-indigo-400 bg-indigo-50/40' : 'border-slate-100 bg-white hover:border-indigo-200'}`}
+        className={`min-h-[90px] rounded-lg border p-1.5 flex flex-col group transition-colors ${isToday ? 'border-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/40' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800'}`}
       >
         <div className="flex items-center justify-between mb-1">
           <span className={`text-[11px] font-black ${isToday ? 'text-indigo-600' : 'text-slate-500'}`}>{day}</span>
@@ -108,11 +108,11 @@ export default function BaseCalendarView({
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 px-1">
-        <button type="button" onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer">
+        <button type="button" onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <h3 className="text-sm font-black text-slate-800 capitalize">{monthLabel}</h3>
-        <button type="button" onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer">
+        <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 capitalize">{monthLabel}</h3>
+        <button type="button" onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer">
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

@@ -160,7 +160,7 @@ export default function EmojiIconPicker({ value, onChange, className = "" }: Emo
               <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
               Chọn Biểu Tượng SVG
             </span>
-            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Monochromatic</span>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Đơn sắc</span>
           </div>
 
           {/* Search Box */}

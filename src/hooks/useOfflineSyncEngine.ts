@@ -60,6 +60,7 @@ export function useOfflineSyncEngine() {
                       subtasks: t.subtasks,
                       progress: t.progress,
                       created_at: t.createdAt,
+                      completedAt: t.completedAt || null,
                       hoursEstimate: t.hoursEstimate || null,
                       hoursLogged: t.hoursLogged || null,
                       commentsCount: t.commentsCount,

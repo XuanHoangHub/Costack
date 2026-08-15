@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { en, vi, Translations } from '../locales';
 
 type TranslationContextValue = {
@@ -11,7 +11,7 @@ type TranslationContextValue = {
 
 const TranslationContext = createContext<TranslationContextValue>({
  t: (key: string) => key,
- locale: 'en',
+ locale: 'vi',
  setLocale: () => {},
 });
 
@@ -20,31 +20,23 @@ export function useTranslation() {
 }
 
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = React.useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('apexa_locale') || localStorage.getItem('apexa_locale');
-      if (saved) return saved;
-      localStorage.setItem('apexa_locale', 'en');
-      localStorage.setItem('apexa_locale', 'en');
-    }
-    return 'en';
-  });
+  const [locale, setLocaleState] = React.useState<string>('vi');
 
-  const setLocale = useCallback((newLocale: string) => {
-    setLocaleState(newLocale);
+  useEffect(() => {
+    localStorage.setItem('apexa_locale', 'vi');
+    document.documentElement.lang = 'vi';
+  }, []);
+
+  const setLocale = useCallback((_newLocale: string) => {
+    setLocaleState('vi');
     if (typeof window !== 'undefined') {
-      localStorage.setItem('apexa_locale', newLocale);
-      localStorage.setItem('apexa_locale', newLocale);
+      localStorage.setItem('apexa_locale', 'vi');
       window.dispatchEvent(new Event('apexa-locale-changed'));
     }
   }, []);
 
  const t = useCallback((key: string, ...args: unknown[]) => {
- const dict = locale === 'vi' ? vi : en;
- let value = (dict as any)[key];
- if (value === undefined) {
- value = (en as any)[key]; // fallback to en
- }
+ let value = (vi as any)[key];
  if (typeof value === 'function') {
  value = value(...args);
  }
@@ -52,7 +44,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
  return key;
  }
  return String(value);
- }, [locale]);
+ }, []);
 
  return (
  <TranslationContext.Provider value={{ t, locale, setLocale }}>

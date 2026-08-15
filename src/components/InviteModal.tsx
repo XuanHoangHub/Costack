@@ -184,7 +184,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
             {/* Header */}
             <div className="mb-5 text-left">
               <h3 className="text-xl font-bold text-slate-850 dark:text-slate-50 tracking-tight">
-                Invite people to {displayWSName}
+                Mời người vào {displayWSName}
               </h3>
             </div>
 
@@ -193,7 +193,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
               {/* Emails Input with Tag Badges */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-555 dark:text-slate-400">
-                  Invite by email
+                  Mời qua email
                 </label>
                 
                 <div className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all flex flex-wrap gap-1.5 items-center max-h-32 overflow-y-auto custom-scrollbar">
@@ -207,7 +207,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
                   ))}
                   <input
                     type="text"
-                    placeholder={emails.length === 0 ? "Enter email addresses..." : "Add more..."}
+                    placeholder={emails.length === 0 ? "Nhập địa chỉ email..." : "Thêm email..."}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onBlur={() => {
@@ -222,7 +222,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
               {/* Role Dropdown */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-555 dark:text-slate-400">
-                  Invite as
+                  Mời với vai trò
                 </label>
                 
                 <div ref={dropdownRef} className="relative">

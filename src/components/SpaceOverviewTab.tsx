@@ -362,59 +362,6 @@ export default function SpaceOverviewTab({
     );
   };
 
-  const handlePopulateDemoData = () => {
-    const targetListId = visibleLists[0]?.id || space.lists?.[0]?.id || `l-${Date.now()}`;
-    const sampleTasks = [
-      {
-        title: 'Design Tokens & Dark Mode Theme Spec',
-        status: 'completed' as TaskStatus,
-        priority: 'high' as const,
-        listId: targetListId,
-        spaceId: space.id,
-        dueDate: new Date(Date.now() - 86400000).toISOString(),
-        description: 'Establish core color tokens and WCAG contrast specs.',
-        subtasks: []
-      },
-      {
-        title: 'Build Interactive Component Gallery',
-        status: 'inprogress' as TaskStatus,
-        priority: 'high' as const,
-        listId: targetListId,
-        spaceId: space.id,
-        dueDate: new Date(Date.now() + 172800000).toISOString(),
-        description: 'Develop responsive React UI components with micro-animations.',
-        subtasks: []
-      },
-      {
-        title: 'Supabase Auth Middleware & RLS Audit',
-        status: 'review' as TaskStatus,
-        priority: 'urgent' as const,
-        listId: targetListId,
-        spaceId: space.id,
-        dueDate: new Date(Date.now() + 345600000).toISOString(),
-        description: 'Verify row level security policies for user data protection.',
-        subtasks: []
-      },
-      {
-        title: 'Setup Redis Caching for Realtime Feed',
-        status: 'todo' as TaskStatus,
-        priority: 'medium' as const,
-        listId: targetListId,
-        spaceId: space.id,
-        dueDate: new Date(Date.now() + 518400000).toISOString(),
-        description: 'Optimize high-throughput activity feeds with sub-10ms cache latency.',
-        subtasks: []
-      }
-    ];
-
-    sampleTasks.forEach(t => onAddTask(t));
-    triggerToast?.(
-      'success',
-      locale === 'vi' ? 'Đã tải dữ liệu mẫu' : 'Sample Project Loaded',
-      locale === 'vi' ? 'Đã khởi tạo 4 công việc mẫu minh họa các giai đoạn.' : 'Populated space with 4 sample tasks across status stages.'
-    );
-  };
-
   const handleDeleteBookmark = (id: string) => {
     const updated = bookmarks.filter(bookmark => bookmark.id !== id);
     setBookmarks(updated);
@@ -515,7 +462,7 @@ export default function SpaceOverviewTab({
                   )}
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Active Space
+                    Khu vực đang hoạt động
                   </span>
                 </div>
 
@@ -707,7 +654,7 @@ export default function SpaceOverviewTab({
               <div className="rounded-xl border border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 relative">
                 <div className="mb-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>AI Brief Summary</span>
+                  <span>Tóm tắt nhanh bằng AI</span>
                 </div>
                 <p className="text-xs font-medium leading-relaxed text-slate-700 dark:text-slate-200">
                   {aiAnalysis ||
@@ -836,10 +783,7 @@ export default function SpaceOverviewTab({
                           <button
                             key={tmpl.title}
                             type="button"
-                            onClick={() => {
-                              onAddList();
-                              handlePopulateDemoData();
-                            }}
+                            onClick={onAddList}
                             className="group flex flex-col justify-between p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-500/50 hover:shadow-xs transition-all text-left cursor-pointer"
                           >
                             <div className="space-y-2">
@@ -856,7 +800,7 @@ export default function SpaceOverviewTab({
                               </div>
                             </div>
                             <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                              <span>{locale === 'vi' ? 'Dùng mẫu này' : 'Use Template'}</span>
+                              <span>{locale === 'vi' ? 'Tạo danh sách' : 'Create list'}</span>
                               <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                             </div>
                           </button>
@@ -975,17 +919,17 @@ export default function SpaceOverviewTab({
                             </p>
                             <p className="text-[11px] font-medium text-slate-400 max-w-[220px] mx-auto mt-0.5">
                               {locale === 'vi'
-                                ? 'Tạo việc mới bên trên hoặc tải dự án mẫu để trải nghiệm!'
-                                : 'Type a task name above or populate sample project to get started!'}
+                                ? 'Nhập tên công việc bên trên hoặc tạo danh sách đầu tiên.'
+                                : 'Type a task name above or create your first list.'}
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={handlePopulateDemoData}
+                            onClick={onAddList}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 px-3 py-1.5 text-[11px] font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
                           >
-                            <Sparkles className="h-3.5 w-3.5" />
-                            <span>{locale === 'vi' ? 'Tải dữ liệu dự án mẫu' : 'Load Sample Project'}</span>
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>{locale === 'vi' ? 'Tạo danh sách đầu tiên' : 'Create first list'}</span>
                           </button>
                         </div>
                       ) : (
@@ -1098,7 +1042,7 @@ export default function SpaceOverviewTab({
                 type="button"
                 onClick={() => setShowAddBookmarkModal(true)}
                 className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 cursor-pointer"
-                title="Add link"
+                title="Thêm liên kết"
               >
                 <Plus className="h-4 w-4" />
               </button>

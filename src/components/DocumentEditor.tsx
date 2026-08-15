@@ -384,8 +384,11 @@ export default function DocumentEditor({
 
   // Load document details and comments from database
   useEffect(() => {
+    if (initialDocument) setDocDetails(initialDocument);
+  }, [initialDocument]);
+
+  useEffect(() => {
     const loadDocData = async () => {
-      if (initialDocument) setDocDetails(initialDocument);
       if (isOffline) return;
 
       const { data, error } = await supabase
@@ -1043,7 +1046,7 @@ export default function DocumentEditor({
                   className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:to-pink-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Wand2 className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
-                  <span>{isAiProcessing ? 'AI đang viết...' : 'AI Assistant'}</span>
+                  <span>{isAiProcessing ? 'AI đang viết…' : 'Trợ lý AI'}</span>
                 </button>
 
                 {showAiMenu && (
