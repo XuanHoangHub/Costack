@@ -27,18 +27,18 @@ const THEME_COLORS: Record<string, {
   accentLight: string;
 }> = {
   indigo: {
-    gradient: 'from-indigo-500 via-violet-500 to-purple-500',
+    gradient: 'from-blue-600 via-sky-500 to-cyan-500',
     bg: 'bg-indigo-50',
     text: 'text-indigo-600',
     border: 'border-indigo-200/60',
-    ring: '#7B61FF',
+    ring: '#2563EB',
     badge: 'bg-indigo-50 border-indigo-100',
     badgeText: 'text-indigo-600',
-    accent: '#7B61FF',
-    accentLight: 'rgba(123, 97, 255, 0.08)',
+    accent: '#2563EB',
+    accentLight: 'rgba(37, 99, 235, 0.08)',
   },
   rose: {
-    gradient: 'from-rose-500 via-pink-500 to-fuchsia-500',
+    gradient: 'from-rose-500 via-pink-500 to-rose-600',
     bg: 'bg-rose-50',
     text: 'text-rose-600',
     border: 'border-rose-200/60',

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
-import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption, getLocalizedOptionLabel } from '../../utils/fieldConfig';
+import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption, getLocalizedOptionLabel, getColorOption, COLOR_PALETTE, getStoredCustomFieldsConfig } from '../../utils/fieldConfig';
 import { renderSpaceIcon } from '../EmojiIconPicker';
 import { useTranslation } from '../../contexts/TranslationContext';
 
@@ -56,9 +56,15 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
   const [priorities, setPriorities] = useState<OptionConfig[]>([]);
 
-  React.useEffect(() => {
+  const reloadPriorities = () => {
     setPriorities(getStoredPriorities());
-  }, [open]);
+  };
+
+  React.useEffect(() => {
+    reloadPriorities();
+    window.addEventListener('apexa-field-config-changed', reloadPriorities);
+    return () => window.removeEventListener('apexa-field-config-changed', reloadPriorities);
+  }, []);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -71,13 +77,14 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   }, []);
 
   const metaList = priorities.length > 0 ? priorities : [
-    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'AlertOctagon' },
-    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'AlertTriangle' },
-    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: 'CircleDot' },
-    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
+    { id: 'urgent', label: 'Urgent', color: 'red', icon: 'AlertOctagon' },
+    { id: 'high', label: 'High', color: 'orange', icon: 'AlertTriangle' },
+    { id: 'medium', label: 'Normal', color: 'amber', icon: 'CircleDot' },
+    { id: 'low', label: 'Low', color: 'slate', icon: 'Circle' }
   ];
 
   const cur = value ? metaList.find(p => p.id === value) : null;
+  const curColorMeta = cur ? getColorOption(cur.color) : null;
 
   const dropdownContent = (
     <motion.div 
@@ -96,30 +103,36 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${!value ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
         {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
-        <span>Không có (Trống)</span>
+        <span>{locale === 'vi' ? 'Không có (Trống)' : 'None (Empty)'}</span>
         {!value && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
       </button>
-      {metaList.map(p => (
-        <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
-          <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
-          {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
-        </button>
-      ))}
+      {metaList.map(p => {
+        const colorMeta = getColorOption(p.color);
+        return (
+          <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+            <span style={{ color: colorMeta.hex }}>
+              {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
+            </span>
+            <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
+            {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+          </button>
+        );
+      })}
     </motion.div>
   );
-
-  const curColorClass = cur ? (cur.color.startsWith('text-') ? cur.color : `text-${cur.color}`) : '';
 
   return (
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
-        className={cur ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${cur.bg} ${curColorClass}`
-                       : `inline-flex items-center gap-1.5 px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-all border-0 bg-transparent`}>
-        {cur ? (
+        className={cur && curColorMeta 
+          ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${curColorMeta.priorityPill} ${curColorMeta.text}`
+          : `inline-flex items-center gap-1.5 px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-all border-0 bg-transparent`}>
+        {cur && curColorMeta ? (
           <>
-            {renderSpaceIcon(cur.icon || 'Circle', 'w-3 h-3')}
+            <span style={{ color: curColorMeta.hex }}>
+              {renderSpaceIcon(cur.icon || 'Circle', 'w-3 h-3')}
+            </span>
             <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
           </>
         ) : (
@@ -136,6 +149,7 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
     </div>
   );
 }
+
 export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onChange: (v: TaskStatus) => void }) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -144,9 +158,15 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   const { coords, openUpward } = useDropdownPosition(open, ref, 150, 160);
   const [statuses, setStatuses] = useState<OptionConfig[]>([]);
 
-  React.useEffect(() => {
+  const reloadStatuses = () => {
     setStatuses(getStoredStatuses());
-  }, [open]);
+  };
+
+  React.useEffect(() => {
+    reloadStatuses();
+    window.addEventListener('apexa-field-config-changed', reloadStatuses);
+    return () => window.removeEventListener('apexa-field-config-changed', reloadStatuses);
+  }, []);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -159,13 +179,14 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   }, []);
 
   const metaList: OptionConfig[] = statuses.length > 0 ? statuses : [
-    { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', color: 'slate' },
-    { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900', color: 'amber' },
-    { id: 'review', label: 'REVIEW', dot: 'bg-cyan-555', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900', color: 'cyan' },
-    { id: 'completed', label: 'DONE', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900', color: 'emerald' },
+    { id: 'todo', label: 'TO DO', color: 'slate' },
+    { id: 'inprogress', label: 'IN PROGRESS', color: 'amber' },
+    { id: 'review', label: 'UNDER REVIEW', color: 'cyan' },
+    { id: 'completed', label: 'COMPLETED', color: 'emerald' },
   ];
 
   const cur = metaList.find(s => s.id === value) || metaList[0];
+  const curColorMeta = getColorOption(cur.color);
 
   const dropdownContent = (
     <motion.div 
@@ -181,22 +202,31 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      {metaList.map(s => (
-        <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
-          <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
-          {value === s.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
-        </button>
-      ))}
+      {metaList.map(s => {
+        const colorMeta = getColorOption(s.color);
+        return (
+          <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+            <span 
+              className="w-2 h-2 rounded-full shrink-0 shadow-2xs" 
+              style={{ backgroundColor: colorMeta.hex }} 
+            />
+            <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
+            {value === s.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+          </button>
+        );
+      })}
     </motion.div>
   );
 
   return (
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${cur.bg}`}>
-        <span className={`w-2 h-2 rounded-full ${cur.dot || `bg-${cur.color}`}`} style={!cur.dot && cur.color ? { backgroundColor: cur.color } : undefined} />
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${curColorMeta.statusPill}`}>
+        <span 
+          className="w-2 h-2 rounded-full shrink-0 shadow-2xs" 
+          style={{ backgroundColor: curColorMeta.hex }} 
+        />
         <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
         <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -214,23 +244,32 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | string[] | null; members: User[]; onChange: (v: string[] | null) => void; compact?: boolean }) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 220, 208);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 290, 260);
 
   React.useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node) && (!dropdownRef.current || !dropdownRef.current.contains(e.target as Node))) {
-        setOpen(false);
-      }
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  React.useEffect(() => {
+    if (!open) setQuery('');
+  }, [open]);
+
   const valueIds = Array.isArray(value) ? value : value ? [value] : [];
-  const assignees = members.filter(m => valueIds.includes(m.id));
-  const primaryAssignee = assignees[0];
+  const selectedMembers = members.filter(member => valueIds.includes(member.id));
+  const filteredMembers = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return members;
+    return members.filter(member => `${member.name} ${member.email || ''}`.toLowerCase().includes(normalized));
+  }, [members, query]);
 
   const toggleAssignee = (memberId: string) => {
     const nextIds = valueIds.includes(memberId)
@@ -239,147 +278,114 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
     onChange(nextIds.length > 0 ? nextIds : null);
   };
 
-  const dropdownContent = (
-    <motion.div 
-      ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg w-56 max-h-56 overflow-y-auto custom-scrollbar"
-      style={{
-        position: 'fixed',
-        zIndex: 9999,
-        ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
-      }}
-    >
-      <button type="button" onClick={() => { onChange(null); setOpen(false); }}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-550 cursor-pointer">
-        <span className="w-4 h-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[9px]">—</span>
-        <span>{locale === 'vi' ? 'Bỏ phân công' : 'Unassign'}</span>
-      </button>
-      {members.map(m => (
-        <button key={m.id} type="button" onClick={() => toggleAssignee(m.id)}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${valueIds.includes(m.id) ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" alt={m.name} />
-          <span className="truncate">{m.name}</span>
-          {valueIds.includes(m.id) && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
-        </button>
-      ))}
-    </motion.div>
+  const clearAssignees = () => {
+    onChange(null);
+    setOpen(false);
+  };
+
+  const avatar = (member: User, className: string) => member.avatar ? (
+    <SignedImage filePath={member.avatar} className={`${className} object-cover`} alt={member.name} />
+  ) : (
+    <span className={`${className} flex items-center justify-center bg-violet-500 text-white text-[9px] font-bold`} aria-hidden="true">
+      {(member.name || '?').trim().charAt(0).toUpperCase()}
+    </span>
   );
 
-  const displayLabel = valueIds.length > 1
-    ? (locale === 'vi' ? `${valueIds.length} người phụ trách` : `${valueIds.length} assignees`)
-    : primaryAssignee?.name || (locale === 'vi' ? 'Chưa phân công' : 'Unassigned');
+  const displayLabel = selectedMembers.length === 0
+    ? (locale === 'vi' ? 'Chưa phân công' : 'Unassigned')
+    : selectedMembers.length === 1
+      ? selectedMembers[0].name
+      : locale === 'vi' ? `${selectedMembers.length} người phụ trách` : `${selectedMembers.length} assignees`;
+
+  const dropdownContent = coords ? (
+    <motion.div
+      ref={dropdownRef}
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }}
+      transition={{ duration: 0.14 }}
+      style={{
+        position: 'fixed',
+        top: openUpward ? coords.top - 8 : coords.bottom + 8,
+        left: coords.safeLeft,
+        width: Math.max(240, Math.min(300, coords.width + 80)),
+        transform: openUpward ? 'translateY(-100%)' : undefined,
+        zIndex: 1000,
+      }}
+      className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
+      role="listbox"
+      aria-label={locale === 'vi' ? 'Người phụ trách' : 'Assignee'}
+    >
+      <div className="border-b border-slate-100 p-2 dark:border-slate-800">
+        <input
+          autoFocus
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          placeholder={locale === 'vi' ? 'Tìm thành viên...' : 'Search members...'}
+          className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-violet-900/40"
+        />
+      </div>
+      <div className="max-h-64 overflow-y-auto p-1.5">
+        <button
+          type="button"
+          role="option"
+          aria-selected={selectedMembers.length === 0}
+          onClick={clearAssignees}
+          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/70"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] dark:border-slate-700">−</span>
+          <span className="flex-1">{locale === 'vi' ? 'Bỏ phân công' : 'Unassign'}</span>
+          {selectedMembers.length === 0 && <Check className="h-3.5 w-3.5 text-violet-500" />}
+        </button>
+        {filteredMembers.map(member => {
+          const selected = valueIds.includes(member.id);
+          return (
+            <button
+              key={member.id}
+              type="button"
+              role="option"
+              aria-selected={selected}
+              onClick={() => toggleAssignee(member.id)}
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${selected ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70'}`}
+            >
+              {avatar(member, 'h-5 w-5 shrink-0 rounded-full')}
+              <span className="min-w-0 flex-1 truncate">{member.name}</span>
+              {selected && <Check className="h-3.5 w-3.5 shrink-0 text-violet-500" />}
+            </button>
+          );
+        })}
+        {filteredMembers.length === 0 && (
+          <div className="px-2.5 py-4 text-center text-xs text-slate-400">
+            {locale === 'vi' ? 'Không tìm thấy thành viên' : 'No members found'}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  ) : null;
 
   return (
-    <div ref={ref} className="relative inline-block">
-      {compact ? (
-        <button type="button" onClick={() => setOpen(!open)}
-          className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-pointer select-none hover:scale-105 transition-all flex items-center justify-center shrink-0"
-          title={displayLabel || (locale === 'vi' ? 'Chưa phân công' : 'Unassigned')}
-        >
-          {valueIds.length > 1 ? (
-            <div className="relative w-full h-full">
-              {assignees.slice(0, 2).map((m, idx) => (
-                <SignedImage key={m.id} filePath={m.avatar} className={`absolute w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover ${idx === 0 ? 'left-0' : 'right-0'}`} alt={m.name} />
-              ))}
-              {valueIds.length > 2 && (
-                <span className="absolute right-0 bottom-0 inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-[10px] text-white border border-white dark:border-slate-950">+{valueIds.length - 2}</span>
-              )}
-            </div>
-          ) : primaryAssignee ? (
-            <SignedImage filePath={primaryAssignee.avatar} className="w-full h-full rounded-full object-cover" alt={primaryAssignee.name} />
-          ) : (
-            <div className="w-full h-full rounded-full bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">+</div>
-          )}
-        </button>
-      ) : (
-        <button type="button" onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {valueIds.length > 1 ? (
-              <div className="flex -space-x-1.5 items-center">
-                {assignees.slice(0, 2).map(m => (
-                  <SignedImage key={m.id} filePath={m.avatar} className="w-4 h-4 rounded-full border border-white dark:border-slate-950 object-cover shrink-0" alt={m.name} />
-                ))}
-                <span className="text-[11px] truncate">{displayLabel}</span>
-              </div>
-            ) : primaryAssignee ? (
-              <>
-                <SignedImage filePath={primaryAssignee.avatar} className="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" alt={primaryAssignee.name} />
-                <span className="truncate">{primaryAssignee.name}</span>
-              </>
-            ) : (
-              <span className="text-slate-400 truncate">{locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}</span>
-            )}
-          </div>
-          <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-      )}
-      {typeof document !== 'undefined' && coords && createPortal(
-        <AnimatePresence>
-          {open && dropdownContent}
-        </AnimatePresence>,
-        document.body
-      )}
+    <div ref={ref} className="relative inline-block min-w-0">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        className={`inline-flex max-w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-700 dark:hover:bg-violet-950/30 ${compact ? 'max-w-[180px]' : ''}`}
+      >
+        {selectedMembers.length > 0 ? (
+          <span className="flex shrink-0 -space-x-1.5">
+            {selectedMembers.slice(0, 2).map(member => <span key={member.id} className="rounded-full border-2 border-white dark:border-slate-900">{avatar(member, 'h-5 w-5 rounded-full')}</span>)}
+          </span>
+        ) : (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[11px] text-slate-400 dark:border-slate-700">−</span>
+        )}
+        <span className="truncate">{displayLabel}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {typeof document !== 'undefined' && open && coords && createPortal(dropdownContent, document.body)}
     </div>
   );
 }
-
-
-function getPresetLabels() {
-  const now = new Date();
-  
-  const getWeekday = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short' });
-  const getShortDate = (d: Date) => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-  
-  const todayLabel = getWeekday(now);
-  
-  const laterTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const laterLabel = laterTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowLabel = getWeekday(tomorrow);
-  
-  const thisWeekend = new Date(now);
-  const dayOfWeek = now.getDay();
-  const daysToSaturday = (6 - dayOfWeek + 7) % 7;
-  thisWeekend.setDate(now.getDate() + (daysToSaturday === 0 ? 7 : daysToSaturday));
-  const thisWeekendLabel = getWeekday(thisWeekend);
-  
-  const daysToMonday = (1 - dayOfWeek + 7) % 7;
-  const nextWeek = new Date(now);
-  nextWeek.setDate(now.getDate() + (daysToMonday === 0 ? 7 : daysToMonday));
-  const nextWeekLabel = getWeekday(nextWeek);
-  
-  const nextWeekend = new Date(thisWeekend);
-  nextWeekend.setDate(thisWeekend.getDate() + 7);
-  const nextWeekendLabel = getShortDate(nextWeekend);
-  
-  const twoWeeks = new Date(now);
-  twoWeeks.setDate(now.getDate() + 14);
-  const twoWeeksLabel = getShortDate(twoWeeks);
-  
-  const fourWeeks = new Date(now);
-  fourWeeks.setDate(now.getDate() + 28);
-  const fourWeeksLabel = getShortDate(fourWeeks);
-  
-  return {
-    today: todayLabel,
-    later: laterLabel,
-    tomorrow: tomorrowLabel,
-    thisWeekend: thisWeekendLabel,
-    nextWeek: nextWeekLabel,
-    nextWeekend: nextWeekendLabel,
-    twoWeeks: twoWeeksLabel,
-    fourWeeks: fourWeeksLabel
-  };
-}
-
-// ── Premium Date Picker ──
 export function PremiumDatePicker({ label, dateValue, timeValue, onChange, startDateValue = '', onStartDateChange, clearable = true, align = 'right', className = '', displayLabel }: {
   label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; startDateValue?: string; onStartDateChange?: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center'; className?: string; displayLabel?: string;
 }) {
@@ -784,9 +790,9 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                       aria-pressed={isSelected}
                       className={`relative z-10 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
                         ${isStartDate
-                          ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/30'
+                          ? 'text-white font-black bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-md shadow-blue-500/25 ring-2 ring-indigo-400/30'
                           : isDueDate
-                            ? 'text-white font-black bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 ring-2 ring-violet-400/30'
+                            ? 'text-white font-black bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md shadow-cyan-500/25 ring-2 ring-violet-400/30'
                             : inRange
                               ? 'font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
                               : isToday
@@ -850,7 +856,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                   }}
                   className={`py-2.5 text-[11px] font-bold rounded-lg cursor-pointer transition-all border ${
                     currentMonth === idx 
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' 
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-blue-500/20' 
                       : 'bg-slate-50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300'
                   }`}
                 >
@@ -910,7 +916,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
                     }}
                     className={`py-3 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all border ${
                       isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-blue-500/20'
                         : isToday
                           ? 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
                           : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/50 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1158,11 +1164,32 @@ export function SpacePillSelect({ value, workspaces, onChange }: { value: string
   );
 }
 
-export function DropdownFieldSelect({ value, options = [], onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+export function DropdownFieldSelect({ 
+  value, 
+  options = [], 
+  fieldId,
+  onChange 
+}: { 
+  value: string; 
+  options?: (string | OptionConfig)[]; 
+  fieldId?: string;
+  onChange: (v: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 200, 160);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 200, 180);
+  const [customConfigs, setCustomConfigs] = useState<Record<string, OptionConfig[]>>({});
+
+  const reloadCustomConfigs = () => {
+    setCustomConfigs(getStoredCustomFieldsConfig());
+  };
+
+  React.useEffect(() => {
+    reloadCustomConfigs();
+    window.addEventListener('apexa-field-config-changed', reloadCustomConfigs);
+    return () => window.removeEventListener('apexa-field-config-changed', reloadCustomConfigs);
+  }, []);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1174,7 +1201,36 @@ export function DropdownFieldSelect({ value, options = [], onChange }: { value: 
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const safeOptions = options.length > 0 ? options : ['Option 1', 'Option 2', 'Option 3'];
+  const resolvedOptions: OptionConfig[] = useMemo(() => {
+    if (fieldId && customConfigs[fieldId] && customConfigs[fieldId].length > 0) {
+      return customConfigs[fieldId];
+    }
+    if (options.length > 0) {
+      return options.map((opt, idx) => {
+        if (typeof opt === 'string') {
+          return {
+            id: `opt-${idx}`,
+            label: opt,
+            color: COLOR_PALETTE[idx % COLOR_PALETTE.length].id
+          };
+        }
+        return {
+          id: opt.id || `opt-${idx}`,
+          label: opt.label,
+          color: opt.color || COLOR_PALETTE[idx % COLOR_PALETTE.length].id,
+          icon: opt.icon
+        };
+      });
+    }
+    return [
+      { id: 'opt-1', label: 'Option 1', color: 'indigo' },
+      { id: 'opt-2', label: 'Option 2', color: 'emerald' },
+      { id: 'opt-3', label: 'Option 3', color: 'amber' }
+    ];
+  }, [fieldId, customConfigs, options]);
+
+  const selectedOpt = resolvedOptions.find(o => o.label === value || o.id === value);
+  const selectedColorMeta = selectedOpt ? getColorOption(selectedOpt.color) : null;
 
   const dropdownContent = (
     <motion.div 
@@ -1183,33 +1239,72 @@ export function DropdownFieldSelect({ value, options = [], onChange }: { value: 
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40 max-h-48 overflow-y-auto custom-scrollbar"
+      className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-44 max-h-56 overflow-y-auto custom-scrollbar"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      <button type="button" onClick={() => { onChange(''); setOpen(false); }}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 cursor-pointer">
+      <button 
+        type="button" 
+        onClick={() => { onChange(''); setOpen(false); }}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+      >
         <span>— Xóa lựa chọn —</span>
       </button>
-      {safeOptions.map(opt => (
-        <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${value === opt ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-          <span className="truncate">{opt}</span>
-          {value === opt && <Check className="w-3 h-3 ml-auto text-indigo-500 shrink-0" />}
-        </button>
-      ))}
+      {resolvedOptions.map((opt) => {
+        const colorMeta = getColorOption(opt.color);
+        const isSelected = value === opt.label || value === opt.id;
+        return (
+          <button 
+            key={opt.id || opt.label} 
+            type="button" 
+            onClick={() => { onChange(opt.label); setOpen(false); }}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-bold rounded-lg cursor-pointer transition-colors ${
+              isSelected 
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' 
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <span 
+              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" 
+              style={{ backgroundColor: colorMeta.hex }} 
+            />
+            <span className="truncate flex-1">{opt.label}</span>
+            {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+          </button>
+        );
+      })}
     </motion.div>
   );
 
   return (
     <div ref={ref} className="relative inline-block w-full">
-      <button type="button" onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-        <span className="truncate">{value || <span className="text-slate-400">Select...</span>}</span>
-        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      <button 
+        type="button" 
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/80 dark:border-slate-800 p-1 px-2 rounded-lg bg-slate-50/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer select-none"
+      >
+        {selectedOpt && selectedColorMeta ? (
+          <span 
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold truncate max-w-[130px] shadow-3xs"
+            style={{ 
+              backgroundColor: `${selectedColorMeta.hex}18`, 
+              color: selectedColorMeta.hex,
+              border: `1px solid ${selectedColorMeta.hex}40`
+            }}
+          >
+            <span 
+              className="w-1.5 h-1.5 rounded-full shrink-0" 
+              style={{ backgroundColor: selectedColorMeta.hex }} 
+            />
+            <span className="truncate">{selectedOpt.label}</span>
+          </span>
+        ) : (
+          <span className="text-slate-400 text-xs truncate">Chọn...</span>
+        )}
+        <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
@@ -1221,11 +1316,32 @@ export function DropdownFieldSelect({ value, options = [], onChange }: { value: 
   );
 }
 
-export function LabelsFieldSelect({ value, options = [], onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+export function LabelsFieldSelect({ 
+  value, 
+  options = [], 
+  fieldId,
+  onChange 
+}: { 
+  value: string; 
+  options?: (string | OptionConfig)[]; 
+  fieldId?: string;
+  onChange: (v: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const { coords, openUpward } = useDropdownPosition(open, ref, 200, 180);
+  const [customConfigs, setCustomConfigs] = useState<Record<string, OptionConfig[]>>({});
+
+  const reloadCustomConfigs = () => {
+    setCustomConfigs(getStoredCustomFieldsConfig());
+  };
+
+  React.useEffect(() => {
+    reloadCustomConfigs();
+    window.addEventListener('apexa-field-config-changed', reloadCustomConfigs);
+    return () => window.removeEventListener('apexa-field-config-changed', reloadCustomConfigs);
+  }, []);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1237,13 +1353,40 @@ export function LabelsFieldSelect({ value, options = [], onChange }: { value: st
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const safeOptions = options.length > 0 ? options : ['Tag 1', 'Tag 2', 'Tag 3'];
+  const resolvedOptions: OptionConfig[] = useMemo(() => {
+    if (fieldId && customConfigs[fieldId] && customConfigs[fieldId].length > 0) {
+      return customConfigs[fieldId];
+    }
+    if (options.length > 0) {
+      return options.map((opt, idx) => {
+        if (typeof opt === 'string') {
+          return {
+            id: `opt-${idx}`,
+            label: opt,
+            color: COLOR_PALETTE[idx % COLOR_PALETTE.length].id
+          };
+        }
+        return {
+          id: opt.id || `opt-${idx}`,
+          label: opt.label,
+          color: opt.color || COLOR_PALETTE[idx % COLOR_PALETTE.length].id,
+          icon: opt.icon
+        };
+      });
+    }
+    return [
+      { id: 'opt-1', label: 'Tag 1', color: 'indigo' },
+      { id: 'opt-2', label: 'Tag 2', color: 'emerald' },
+      { id: 'opt-3', label: 'Tag 3', color: 'amber' }
+    ];
+  }, [fieldId, customConfigs, options]);
+
   const selectedList = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-  const toggleOption = (opt: string) => {
-    const nextList = selectedList.includes(opt)
-      ? selectedList.filter(s => s !== opt)
-      : [...selectedList, opt];
+  const toggleOption = (optLabel: string) => {
+    const nextList = selectedList.includes(optLabel)
+      ? selectedList.filter(s => s !== optLabel)
+      : [...selectedList, optLabel];
     onChange(nextList.join(', '));
   };
 
@@ -1254,25 +1397,38 @@ export function LabelsFieldSelect({ value, options = [], onChange }: { value: st
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-44 max-h-48 overflow-y-auto custom-scrollbar"
+      className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-48 max-h-56 overflow-y-auto custom-scrollbar"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      {safeOptions.map(opt => {
-        const isSelected = selectedList.includes(opt);
+      {resolvedOptions.map(opt => {
+        const isSelected = selectedList.includes(opt.label);
+        const colorMeta = getColorOption(opt.color);
         return (
-          <button key={opt} type="button" onClick={() => toggleOption(opt)}
-            className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
+          <button 
+            key={opt.id || opt.label} 
+            type="button" 
+            onClick={() => toggleOption(opt.label)}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-bold rounded-lg cursor-pointer transition-colors ${
+              isSelected 
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' 
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
             <input
               type="checkbox"
               checked={isSelected}
               readOnly
-              className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-550 w-3 h-3 shrink-0"
+              className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 shrink-0"
             />
-            <span className="truncate">{opt}</span>
+            <span 
+              className="w-2 h-2 rounded-full shrink-0" 
+              style={{ backgroundColor: colorMeta.hex }} 
+            />
+            <span className="truncate flex-1">{opt.label}</span>
           </button>
         );
       })}
@@ -1281,20 +1437,35 @@ export function LabelsFieldSelect({ value, options = [], onChange }: { value: st
 
   return (
     <div ref={ref} className="relative inline-block w-full">
-      <button type="button" onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/60 dark:border-slate-700/60 p-1 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-        <div className="flex flex-wrap gap-1 min-w-0 max-w-[120px]">
+      <button 
+        type="button" 
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-1.5 border border-slate-200/80 dark:border-slate-800 p-1 px-2 rounded-lg bg-slate-50/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer select-none"
+      >
+        <div className="flex flex-wrap gap-1 min-w-0 max-w-[130px]">
           {selectedList.length > 0 ? (
-            selectedList.map(s => (
-              <span key={s} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400">
-                {s}
-              </span>
-            ))
+            selectedList.map(s => {
+              const matchedOpt = resolvedOptions.find(o => o.label === s);
+              const colorMeta = matchedOpt ? getColorOption(matchedOpt.color) : getColorOption('indigo');
+              return (
+                <span 
+                  key={s} 
+                  className="px-1.5 py-0.5 rounded text-[9px] font-bold shadow-3xs truncate max-w-[80px]"
+                  style={{
+                    backgroundColor: `${colorMeta.hex}18`,
+                    color: colorMeta.hex,
+                    border: `1px solid ${colorMeta.hex}40`
+                  }}
+                >
+                  {s}
+                </span>
+              );
+            })
           ) : (
-            <span className="text-slate-400">Labels...</span>
+            <span className="text-slate-400 text-xs">Labels...</span>
           )}
         </div>
-        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>

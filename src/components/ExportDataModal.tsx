@@ -206,7 +206,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col z-10 font-sans"
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/5 via-indigo-500/5 to-purple-500/5">
+          <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-cyan-500/5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-2xl text-white shadow-md">
                 <Download className="w-5 h-5 font-bold" />

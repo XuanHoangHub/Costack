@@ -10,9 +10,14 @@ import {
   ChevronRight, ChevronLeft, ChevronDown, Send, Bot, CheckSquare, Plus,
   HelpCircle, ArrowUpRight, Globe, ShieldCheck, Flame, Layers,
   Cpu, Clock, Sliders, Workflow, TrendingUp, CheckCircle2, Lock,
-  Share2, Award, Activity, Sparkle, RefreshCw, Eye, ThumbsUp, Moon, Sun
+  Share2, Award, Activity, Sparkle, RefreshCw, Eye, ThumbsUp, Moon, Sun,
+  Laptop, Smartphone, Square, Palette, MousePointer
 } from 'lucide-react';
-import { useUiStore } from '@/store/uiStore';
+import ThemeSwitch from '../ThemeSwitch';
+import LanguageDropdown from '../LanguageDropdown';
+import { Button, Badge, SegmentedControl, MockupFrame } from '../ui';
+import type { MockupDevice, MockupBackground } from '../ui/MockupFrame';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -25,7 +30,7 @@ interface MockTask {
   id: string;
   title: string;
   column: 'todo' | 'inprogress' | 'done';
-  priority: 'Khẩn cấp' | 'Cao' | 'Trung bình' | 'Thấp';
+  priority: 'Khẩn cấp' | 'Cao' | 'Trung bình' | 'Thấp' | 'Urgent' | 'High' | 'Normal' | 'Low';
   dueDate: string;
   assignee: string;
   tag: string;
@@ -40,263 +45,6 @@ type PublicBillingPrice = {
 };
 
 const ZERO_DECIMAL_CURRENCIES = new Set(['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf']);
-
-const CATEGORIES = [
-  { id: 'all', label: 'Tất cả giải pháp' },
-  { id: 'task', label: 'Quản lý dự án & Sprint' },
-  { id: 'ai', label: 'Trí tuệ nhân tạo Apexa Brain' },
-  { id: 'collaboration', label: 'Cộng tác thời gian thực' },
-  { id: 'analytics', label: 'Phân tích & Tối ưu hiệu suất' }
-];
-
-const FEATURES = [
-  {
-    icon: Kanban,
-    title: 'Kanban & Agile Sprints',
-    desc: 'Kéo thả trực quan, tối ưu sprint với 5 chế độ xem linh hoạt: Kanban Board, List View, Bảng dữ liệu, Lịch biểu và Gantt Timeline.',
-    badge: 'Cốt lõi',
-    color: 'from-blue-600 to-indigo-600',
-    bg: 'bg-blue-500/10 dark:bg-blue-500/15',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    category: 'task'
-  },
-  {
-    icon: Brain,
-    title: 'Apexa Brain AI Copilot',
-    desc: 'Trợ lý AI tích hợp sâu: tự động phân rã mục tiêu thành subtasks, tóm tắt tài liệu, gợi ý phân bổ KPI và viết báo cáo tiến độ bằng Gemini AI.',
-    badge: 'AI Native',
-    color: 'from-indigo-600 to-purple-600',
-    bg: 'bg-indigo-500/10 dark:bg-indigo-500/15',
-    iconColor: 'text-indigo-600 dark:text-indigo-400',
-    category: 'ai'
-  },
-  {
-    icon: FileText,
-    title: 'Smart Docs & Knowledge Base',
-    desc: 'Tài liệu số cộng tác thời gian thực (Multi-cursor real-time). Nhúng trực tiếp task, cơ sở dữ liệu và sơ đồ tư duy ngay trong trang.',
-    badge: 'Real-time',
-    color: 'from-violet-600 to-fuchsia-600',
-    bg: 'bg-violet-500/10 dark:bg-violet-500/15',
-    iconColor: 'text-violet-600 dark:text-violet-400',
-    category: 'collaboration'
-  },
-  {
-    icon: MessageSquare,
-    title: 'ChatRoom & Audio Huddle',
-    desc: 'Trao đổi kênh truyền theo dự án, thảo luận trực tiếp trên từng task cụ thể, loại bỏ 100% tình trạng phân mảnh tin nhắn rời rạc.',
-    badge: 'Tích hợp',
-    color: 'from-cyan-600 to-blue-600',
-    bg: 'bg-cyan-500/10 dark:bg-cyan-500/15',
-    iconColor: 'text-cyan-600 dark:text-cyan-400',
-    category: 'collaboration'
-  },
-  {
-    icon: Calendar,
-    title: 'Lịch & Timeline Gantt Đa Chiều',
-    desc: 'Kiểm soát đường găng dự án (Critical Path), phát hiện xung đột deadline và đồng bộ 2 chiều tức thì với Google Calendar.',
-    badge: 'Sync 2-Way',
-    color: 'from-emerald-600 to-teal-600',
-    bg: 'bg-emerald-500/10 dark:bg-emerald-500/15',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
-    category: 'task'
-  },
-  {
-    icon: BarChart3,
-    title: 'Analytics Command Center',
-    desc: 'Báo cáo năng suất trực quan: Biểu đồ Burn-down, Sprint Velocity, phân tích tải công việc thành viên và cảnh báo nguy cơ trễ hạn.',
-    badge: 'Insight',
-    color: 'from-amber-600 to-orange-600',
-    bg: 'bg-amber-500/10 dark:bg-amber-500/15',
-    iconColor: 'text-amber-600 dark:text-amber-400',
-    category: 'analytics'
-  },
-  {
-    icon: Timer,
-    title: 'Pomodoro & Time Tracking',
-    desc: 'Bộ đếm thời gian tập trung chuẩn khoa học, theo dõi log giờ làm việc theo từng đầu việc cụ thể và thống kê thời gian thực.',
-    badge: 'Focus',
-    color: 'from-rose-600 to-red-600',
-    bg: 'bg-rose-500/10 dark:bg-rose-500/15',
-    iconColor: 'text-rose-600 dark:text-rose-400',
-    category: 'task'
-  },
-  {
-    icon: Database,
-    title: 'Apexa Base (No-Code DB)',
-    desc: 'Cơ sở dữ liệu dạng bảng quan hệ mạnh mẽ, tùy biến schema, quản lý CRM, kho nội dung và tài sản dự án không giới hạn.',
-    badge: 'No-Code',
-    color: 'from-blue-600 to-indigo-600',
-    bg: 'bg-blue-500/10 dark:bg-blue-500/15',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    category: 'analytics'
-  }
-];
-
-const ARCHITECTURE_PILLARS = [
-  {
-    icon: Zap,
-    title: 'Tốc độ phản hồi < 16ms',
-    desc: 'Kiến trúc Local-First tối tân lưu cache cục bộ tức thì và đồng bộ ngầm lên mây, trải nghiệm mượt mà như native desktop app.',
-    gradient: 'from-blue-500 to-indigo-500'
-  },
-  {
-    icon: Brain,
-    title: 'Trí tuệ nhân tạo Gemini 2.5',
-    desc: 'Không chỉ là chatbot thông thường — Apexa AI hiểu sâu ngữ cảnh workspace, tự động hóa quy trình phức tạp chỉ qua 1 câu lệnh.',
-    gradient: 'from-indigo-500 to-purple-500'
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Bảo mật tiêu chuẩn Doanh nghiệp',
-    desc: 'Mã hóa AES-256 đầu cuối, tuân thủ SOC2 Type II, lưu trữ đám mây phân tán với Supabase Enterprise và cam kết 99.99% Uptime.',
-    gradient: 'from-emerald-500 to-teal-500'
-  }
-];
-
-const WORKFLOW_STEPS = [
-  {
-    step: '01',
-    title: 'Tạo Không Gian & Mời Nhóm',
-    desc: 'Khởi tạo workspace chuyên biệt theo phòng ban, phân quyền chi tiết (Admin, Member, Guest) chỉ trong 30 giây.',
-    icon: Layers,
-    badge: 'Khởi động nhanh'
-  },
-  {
-    step: '02',
-    title: 'Lên Kế Hoạch Với Apexa AI',
-    desc: 'Giao mục tiêu lớn cho AI — hệ thống tự động phân tách thành các task nhỏ kèm deadline, độ ưu tiên và mô tả chi tiết.',
-    icon: Sparkles,
-    badge: 'Tự động hóa'
-  },
-  {
-    step: '03',
-    title: 'Cộng Tác Thời Gian Thực',
-    desc: 'Thực hiện công việc trên bảng Kanban, viết Smart Docs và thảo luận ngay trong ChatRoom mà không phải đổi ứng dụng.',
-    icon: MessageSquare,
-    badge: 'Đồng bộ 100%'
-  },
-  {
-    step: '04',
-    title: 'Phân Tích & Bứt Phá Năng Suất',
-    desc: 'Theo dõi chỉ số Sprint Velocity, nhận báo cáo phân tích hiệu suất tuần do AI tổng hợp tự động mỗi sáng thứ Hai.',
-    icon: TrendingUp,
-    badge: 'Đo lường ROI'
-  }
-];
-
-const PRICING_PLANS = [
-  {
-    id: 'free',
-    name: 'Khởi đầu (Free)',
-    desc: 'Hoàn hảo cho cá nhân và nhóm nhỏ muốn bắt đầu chuẩn hóa quy trình làm việc.',
-    badge: 'Miễn phí mãi mãi',
-    highlight: false,
-    cta: 'Bắt đầu miễn phí',
-    features: [
-      'Tối đa 5 thành viên không gian',
-      'Không giới hạn số lượng Task & Dự án',
-      'Chế độ xem Kanban & List View',
-      'Bộ nhớ lưu trữ tài liệu 1 GB',
-      'Đồng bộ dữ liệu thời gian thực',
-      'Hỗ trợ cộng đồng 24/7'
-    ]
-  },
-  {
-    id: 'pro',
-    name: 'Apexa Pro OS',
-    desc: 'Giải pháp toàn diện cho các đội ngũ phát triển sản phẩm, startup & doanh nghiệp tăng tốc.',
-    badge: 'Lựa chọn hàng đầu 🔥',
-    highlight: true,
-    cta: 'Trải nghiệm Pro OS',
-    features: [
-      'Không giới hạn thành viên & Spaces',
-      'Apexa Brain AI Copilot không giới hạn',
-      'Trọn bộ 5 View Modes (Board, Table, Calendar, Gantt, Timeline)',
-      'Báo cáo tự động hóa phân tích hiệu suất tuần bằng AI',
-      'Đồng bộ 2 chiều Google Calendar & Lịch biểu',
-      'Dung lượng lưu trữ đám mây 100 GB',
-      'Hỗ trợ kỹ thuật ưu tiên 24/7'
-    ]
-  },
-  {
-    id: 'enterprise',
-    name: 'Doanh Nghiệp (Enterprise)',
-    desc: 'Dành cho các tổ chức quy mô lớn yêu cầu kiểm soát dữ liệu, bảo mật chuyên sâu và SLA cao cấp.',
-    badge: 'Tùy chỉnh riêng',
-    highlight: false,
-    cta: 'Liên hệ tư vấn',
-    features: [
-      'Tất cả quyền lợi của gói Pro OS',
-      'Triển khai On-Premise hoặc Dedicated Cloud riêng',
-      'Single Sign-On (SSO / SAML 2.0 / Okta / Azure AD)',
-      'Cam kết chất lượng dịch vụ SLA Uptime 99.99%',
-      'Kiểm toán bảo mật & Audit Logs chi tiết',
-      'Quản lý tài khoản (Account Manager) hỗ trợ 1:1'
-    ]
-  }
-];
-
-const TESTIMONIALS = [
-  {
-    quote: "Apexa OS đã thay thế hoàn toàn bộ 4 công cụ cồng kềnh trước đây (Jira, Slack, Notion, Toggl) của chúng tôi. Tốc độ triển khai sprint của 35 kỹ sư đã tăng hơn 40% chỉ sau 3 tuần.",
-    author: "Hoàng Xuân",
-    role: "Giám đốc Công nghệ (CTO)",
-    company: "TechVanguard Innovations",
-    metric: "+42% Sprint Velocity",
-    avatar: "HX",
-    gradient: "from-blue-600 to-indigo-600"
-  },
-  {
-    quote: "Giao diện phẳng, tinh gọn và tốc độ phản hồi tức thì khiến cả đội ngũ thiết kế lẫn marketing đều thích thú khi sử dụng. Apexa AI gợi ý task và tóm tắt cuộc họp cực kỳ chuẩn xác!",
-    author: "Phạm Mai Phương",
-    role: "Trưởng phòng Sản phẩm (Head of Product)",
-    company: "Nexus Creative Studio",
-    metric: "Tiết kiệm 8h họp/tuần",
-    avatar: "MP",
-    gradient: "from-indigo-600 to-purple-600"
-  },
-  {
-    quote: "Tính năng Smart Docs liên kết trực tiếp với Kanban Board là một bước đột phá. Chúng tôi không còn phải đi tìm kiếm tài liệu dự án thất lạc ở bất kỳ đâu nữa.",
-    author: "Nguyễn Quốc Bảo",
-    role: "Giám đốc Vận hành (COO)",
-    company: "Aether Global Commerce",
-    metric: "Giảm 75% thời gian tìm kiếm",
-    avatar: "QB",
-    gradient: "from-cyan-600 to-blue-600"
-  }
-];
-
-const COMPARISON_ITEMS = [
-  { feature: 'Giao diện phẳng Continuous Unified Canvas', apexa: true, others: 'Phân mảnh nhiều app' },
-  { feature: 'Trợ lý AI tích hợp sâu (Gemini 2.5 Engine)', apexa: true, others: 'Plugin thêm phí' },
-  { feature: 'Chế độ ngoại tuyến hoàn toàn (Offline-First)', apexa: true, others: 'Yêu cầu có mạng' },
-  { feature: 'Tích hợp sẵn Kanban, Docs, Chat, Lịch & Gantt', apexa: true, others: 'Cần cài 4-5 công cụ riêng' },
-  { feature: 'Tốc độ phản hồi cục bộ (< 16ms)', apexa: true, others: 'Chậm trễ 300 - 800ms' },
-  { feature: 'Chi phí hàng tháng cho toàn bộ giải pháp', apexa: 'Tiết kiệm ~70%', others: '$40 - $80/người/tháng' }
-];
-
-const FAQS = [
-  {
-    q: 'Apexa OS có thể sử dụng mượt mà khi mất kết nối Internet (Offline) không?',
-    a: 'Hoàn toàn có thể! Apexa OS được xây dựng trên kiến trúc Local-First hiện đại. Bạn có thể tạo việc, ghi chép tài liệu, di chuyển cột Kanban ngay cả khi ở trên máy bay hay mất mạng. Toàn bộ dữ liệu sẽ tự động đồng bộ lên Supabase Cloud ngay khi có kết nối trở lại mà không mất mát dữ liệu.'
-  },
-  {
-    q: 'Dữ liệu dự án và thông tin của công ty tôi được bảo mật như thế nào?',
-    a: 'Apexa áp dụng chuẩn mã hóa SSL/TLS 256-bit trong truyền tải và AES-256 khi lưu trữ. Cơ sở dữ liệu chạy trên hạ tầng Supabase Enterprise đạt chứng nhận tuân thủ bảo mật quốc tế SOC2 Type II và ISO 27001. Dữ liệu của bạn hoàn toàn thuộc quyền sở hữu của bạn và không bao giờ được dùng để huấn luyện mô hình AI công khai.'
-  },
-  {
-    q: 'Tôi có thể chuyển dữ liệu từ Trello, Notion, Jira hoặc ClickUp sang Apexa không?',
-    a: 'Có! Apexa OS cung cấp công cụ chuyển đổi 1-Click Import. Bạn chỉ cần xuất file JSON/CSV từ công cụ cũ, hệ thống sẽ tự động ánh xạ cấu trúc bảng việc, tài liệu và phân công người phụ trách sang Apexa chỉ trong vài phút.'
-  },
-  {
-    q: 'Apexa AI hỗ trợ tiếng Việt và các ngôn ngữ khác tốt không?',
-    a: 'Apexa Brain AI được tối ưu hóa dựa trên mô hình Gemini AI đa ngôn ngữ tiên tiến nhất, hỗ trợ tiếng Việt xuất sắc (hiểu từ ngữ chuyên ngành, cách xưng hô, văn phong công sở) cùng hơn 45 ngôn ngữ quốc tế phổ biến.'
-  },
-  {
-    q: 'Chính sách dùng thử và nâng cấp gói Pro như thế nào?',
-    a: 'Bạn có thể bắt đầu với gói Miễn phí vĩnh viễn không cần thẻ tín dụng. Khi muốn nâng cấp lên gói Pro OS, bạn được trải nghiệm đầy đủ tính năng AI và Gantt Chart cao cấp với chính sách hoàn tiền 100% trong 14 ngày nếu không hài lòng.'
-  }
-];
 
 const TRUSTED_LOGOS = [
   'TechVanguard', 'InnovateX', 'Nexus Global', 'Aether Labs', 'HyperScale', 'Pulse Digital', 'CyberCore', 'AlphaMetrics'
@@ -352,26 +100,65 @@ function FadeInSection({ children, delay = 0, className = "" }: { children: Reac
 }
 
 /* =========================================================================
-   INTERACTIVE LIVE PRODUCT STUDIO (HERO SIMULATOR)
+   SHOTS.SO INSPIRED INTERACTIVE PRODUCT STUDIO
    ========================================================================= */
-function InteractiveProductStudio() {
-  const [activeTab, setActiveTab] = useState<'board' | 'docs' | 'chat' | 'ai' | 'gantt'>('board');
-  
+function ShotsInteractiveStudio() {
+  const { isVietnamese } = useTranslation();
+  const [activeDevice, setActiveDevice] = useState<MockupDevice>('browser');
+  const [activeBg, setActiveBg] = useState<MockupBackground>('tahoe');
+  const [activeTab, setActiveTab] = useState<'board' | 'ai' | 'docs' | 'chat' | 'gantt'>('board');
+
   // Interactive mock tasks
-  const [tasks, setTasks] = useState<MockTask[]>([
+  const [tasks, setTasks] = useState<MockTask[]>(() => isVietnamese ? [
     { id: '1', title: 'Thiết kế giao diện phẳng Continuous Unified Canvas', column: 'done', priority: 'Khẩn cấp', dueDate: 'Hôm nay', assignee: 'Hoàng Xuân', tag: 'UI/UX', checked: true },
     { id: '2', title: 'Tích hợp Apexa Brain AI Gemini 2.5 Copilot', column: 'inprogress', priority: 'Khẩn cấp', dueDate: '15:00', assignee: 'Apexa AI', tag: 'AI Engine', checked: false },
     { id: '3', title: 'Tối ưu hóa Local-First DB đạt độ trễ < 16ms', column: 'inprogress', priority: 'Cao', dueDate: 'Ngày mai', assignee: 'Minh Anh', tag: 'Core', checked: false },
     { id: '4', title: 'Đồng bộ 2 chiều Google Calendar & Lịch biểu', column: 'todo', priority: 'Trung bình', dueDate: '18/08', assignee: 'Quốc Bảo', tag: 'Integration', checked: false },
-    { id: '5', title: 'Kiểm thử bảo mật SOC2 Type II và chuẩn bị Release', column: 'todo', priority: 'Cao', dueDate: '20/08', assignee: 'Security', tag: 'Release', checked: false },
+  ] : [
+    { id: '1', title: 'Design Continuous Unified Canvas interface', column: 'done', priority: 'Urgent', dueDate: 'Today', assignee: 'Alex J.', tag: 'UI/UX', checked: true },
+    { id: '2', title: 'Integrate Apexa Brain AI Gemini 2.5 Copilot', column: 'inprogress', priority: 'Urgent', dueDate: '3:00 PM', assignee: 'Apexa AI', tag: 'AI Engine', checked: false },
+    { id: '3', title: 'Optimize Local-First DB for < 16ms latency', column: 'inprogress', priority: 'High', dueDate: 'Tomorrow', assignee: 'Sarah M.', tag: 'Core', checked: false },
+    { id: '4', title: '2-way synchronization with Google Calendar', column: 'todo', priority: 'Normal', dueDate: 'Aug 18', assignee: 'David K.', tag: 'Integration', checked: false },
   ]);
+
+  useEffect(() => {
+    setTasks(isVietnamese ? [
+      { id: '1', title: 'Thiết kế giao diện phẳng Continuous Unified Canvas', column: 'done', priority: 'Khẩn cấp', dueDate: 'Hôm nay', assignee: 'Hoàng Xuân', tag: 'UI/UX', checked: true },
+      { id: '2', title: 'Tích hợp Apexa Brain AI Gemini 2.5 Copilot', column: 'inprogress', priority: 'Khẩn cấp', dueDate: '15:00', assignee: 'Apexa AI', tag: 'AI Engine', checked: false },
+      { id: '3', title: 'Tối ưu hóa Local-First DB đạt độ trễ < 16ms', column: 'inprogress', priority: 'Cao', dueDate: 'Ngày mai', assignee: 'Minh Anh', tag: 'Core', checked: false },
+      { id: '4', title: 'Đồng bộ 2 chiều Google Calendar & Lịch biểu', column: 'todo', priority: 'Trung bình', dueDate: '18/08', assignee: 'Quốc Bảo', tag: 'Integration', checked: false },
+    ] : [
+      { id: '1', title: 'Design Continuous Unified Canvas interface', column: 'done', priority: 'Urgent', dueDate: 'Today', assignee: 'Alex J.', tag: 'UI/UX', checked: true },
+      { id: '2', title: 'Integrate Apexa Brain AI Gemini 2.5 Copilot', column: 'inprogress', priority: 'Urgent', dueDate: '3:00 PM', assignee: 'Apexa AI', tag: 'AI Engine', checked: false },
+      { id: '3', title: 'Optimize Local-First DB for < 16ms latency', column: 'inprogress', priority: 'High', dueDate: 'Tomorrow', assignee: 'Sarah M.', tag: 'Core', checked: false },
+      { id: '4', title: '2-way synchronization with Google Calendar', column: 'todo', priority: 'Normal', dueDate: 'Aug 18', assignee: 'David K.', tag: 'Integration', checked: false },
+    ]);
+  }, [isVietnamese]);
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [aiInput, setAiInput] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
-  const [aiChatLog, setAiChatLog] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
-    { sender: 'bot', text: '👋 Xin chào! Tôi là Apexa Brain. Tôi đã phân tích toàn bộ bối cảnh Sprint hiện tại: Đội ngũ đang hoàn thành 60% kế hoạch. Bạn muốn tôi làm gì tiếp theo?', time: '09:00' }
+  const [aiChatLog, setAiChatLog] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>(() => [
+    {
+      sender: 'bot',
+      text: isVietnamese 
+        ? '👋 Xin chào! Tôi là Apexa Brain. Tôi đã phân tích toàn bộ bối cảnh Sprint: Đội ngũ đang hoàn thành 60% kế hoạch. Bạn muốn tạo task mới hay xuất báo cáo tiến độ?'
+        : '👋 Hello! I am Apexa Brain. I analyzed your Sprint context: the team is at 60% progress. Would you like to create new tasks or generate a progress report?',
+      time: '09:00'
+    }
   ]);
+
+  useEffect(() => {
+    setAiChatLog([
+      {
+        sender: 'bot',
+        text: isVietnamese 
+          ? '👋 Xin chào! Tôi là Apexa Brain. Tôi đã phân tích toàn bộ bối cảnh Sprint: Đội ngũ đang hoàn thành 60% kế hoạch. Bạn muốn tạo task mới hay xuất báo cáo tiến độ?'
+          : '👋 Hello! I am Apexa Brain. I analyzed your Sprint context: the team is at 60% progress. Would you like to create new tasks or generate a progress report?',
+        time: '09:00'
+      }
+    ]);
+  }, [isVietnamese]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -399,10 +186,10 @@ function InteractiveProductStudio() {
       id: Date.now().toString(),
       title: newTaskTitle.trim(),
       column,
-      priority: 'Cao',
-      dueDate: 'Hôm nay',
-      assignee: 'Bạn',
-      tag: 'Mới'
+      priority: isVietnamese ? 'Cao' : 'High',
+      dueDate: isVietnamese ? 'Hôm nay' : 'Today',
+      assignee: isVietnamese ? 'Bạn' : 'You',
+      tag: isVietnamese ? 'Mới' : 'New'
     };
     setTasks(prev => [newTask, ...prev]);
     setNewTaskTitle('');
@@ -418,522 +205,433 @@ function InteractiveProductStudio() {
     setAiTyping(true);
 
     setTimeout(() => {
-      let botResponse = '✨ Đã phân tích yêu cầu của bạn và cập nhật vào hệ thống thành công!';
-      if (query.includes('Sprint') || query.includes('Kế hoạch') || query.includes('task')) {
-        botResponse = '🎯 Đã tự động tạo 3 đầu việc ưu tiên cho Sprint:\n1. [Khẩn cấp] Kiểm thử hiệu năng Local-First trên 10,000 tasks.\n2. [Cao] Kết nối Supabase Realtime Channel.\n3. [Trung bình] Hoàn tất tài liệu Smart Docs v2.';
-        // Auto add a task to the board to simulate live AI action!
+      let botResponse = isVietnamese 
+        ? '✨ Đã phân tích yêu cầu của bạn và cập nhật vào hệ thống thành công!'
+        : '✨ Analyzed your request and updated the workspace successfully!';
+      
+      const lower = query.toLowerCase();
+      if (lower.includes('sprint') || lower.includes('kế hoạch') || lower.includes('plan') || lower.includes('task')) {
+        botResponse = isVietnamese
+          ? '🎯 Đã tự động tạo 2 đầu việc ưu tiên cho Sprint:\n1. [Khẩn cấp] Tối ưu hóa bộ nhớ đệm Local-First.\n2. [Cao] Kết nối Supabase Realtime Channel.'
+          : '🎯 Automatically generated 2 prioritized Sprint items:\n1. [Urgent] Optimize Local-First caching layer.\n2. [High] Establish Supabase Realtime Channel.';
         setTasks(prev => [
-          { id: Date.now().toString(), title: '⚡ [AI Generated] Kiểm thử hiệu năng Local-First', column: 'inprogress', priority: 'Khẩn cấp', dueDate: 'Hôm nay', assignee: 'Apexa AI', tag: 'AI Action' },
+          {
+            id: Date.now().toString(),
+            title: isVietnamese ? '⚡ [AI Auto] Tối ưu bộ nhớ đệm Local-First' : '⚡ [AI Auto] Optimize Local-First caching',
+            column: 'inprogress',
+            priority: isVietnamese ? 'Khẩn cấp' : 'Urgent',
+            dueDate: isVietnamese ? 'Hôm nay' : 'Today',
+            assignee: 'Apexa AI',
+            tag: 'AI Action'
+          },
           ...prev
         ]);
-      } else if (query.includes('Báo cáo') || query.includes('tiến độ')) {
-        botResponse = '📊 Báo cáo nhanh Sprint #14:\n• Tổng số task: ' + (tasks.length + 1) + '\n• Tỷ lệ hoàn thành: ' + Math.round((tasks.filter(t => t.column === 'done').length / tasks.length) * 100) + '%\n• Không phát hiện rủi ro trễ hạn. Tốc độ velocity đạt mức Xuất sắc (+18%).';
+      } else if (lower.includes('báo cáo') || lower.includes('tiến độ') || lower.includes('report') || lower.includes('status')) {
+        const doneCount = tasks.filter(t => t.column === 'done').length;
+        const total = tasks.length || 1;
+        const rate = Math.round((doneCount / total) * 100);
+        botResponse = isVietnamese
+          ? `📊 Báo cáo nhanh Sprint #14:\n• Tổng số task: ${total}\n• Tỷ lệ hoàn thành: ${rate}%\n• Không phát hiện rủi ro trễ hạn.`
+          : `📊 Sprint #14 Quick Summary:\n• Total tasks: ${total}\n• Completion rate: ${rate}%\n• Zero blockers detected.`;
       }
       setAiChatLog(prev => [...prev, { sender: 'bot', text: botResponse, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
       setAiTyping(false);
-    }, 1000);
+    }, 900);
   };
 
+  const backgrounds: Array<{ id: MockupBackground; name: string; gradient: string }> = [
+    { id: 'tahoe', name: 'Tahoe Sky', gradient: 'from-sky-400 via-blue-500 to-indigo-900' },
+    { id: 'bigsur', name: 'Big Sur Sunset', gradient: 'from-pink-400 via-indigo-500 to-slate-900' },
+    { id: 'aurora', name: 'Aurora Emerald', gradient: 'from-emerald-400 via-cyan-500 to-slate-950' },
+    { id: 'midnight', name: 'Midnight Velvet', gradient: 'from-slate-800 via-slate-900 to-black' },
+    { id: 'cyber', name: 'Cyber Neon', gradient: 'from-pink-500 via-purple-500 to-slate-950' },
+  ];
+
   return (
-    <div className="w-full rounded-3xl bg-slate-900/90 dark:bg-[#0b0d17]/95 backdrop-blur-2xl border border-slate-700/70 dark:border-slate-800/80 shadow-[0_25px_70px_-15px_rgba(37,99,235,0.25)] overflow-hidden text-left font-sans select-none transition-all">
-      
-      {/* Top macOS Style Window Bar */}
-      <div className="px-4 py-3 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-xs" />
-            <span className="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-xs" />
-            <span className="w-3 h-3 rounded-full bg-[#27c93f] inline-block shadow-xs" />
-          </div>
-          <div className="ml-3 hidden sm:flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-            <span className="text-slate-500">không gian /</span>
-            <span className="text-indigo-400 font-bold">apexa-main-sprint</span>
-            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] text-slate-300 font-sans font-bold">v2.0</span>
-          </div>
+    <div className="w-full space-y-3">
+      {/* Shots Control Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-2xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-sm">
+        {/* Device Switcher */}
+        <div className="flex items-center gap-1">
+          <SegmentedControl
+            size="sm"
+            value={activeDevice}
+            onChange={(val) => setActiveDevice(val as MockupDevice)}
+            layoutIdPrefix="shotsStudioDevice"
+            options={[
+              { id: 'browser', label: 'macOS Safari', icon: Laptop },
+              { id: 'iphone', label: 'iPhone 16', icon: Smartphone },
+              { id: 'glass', label: 'Glass Island', icon: Square },
+            ]}
+          />
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Đồng bộ ưu tiên cục bộ</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Interactive Module Tabs Header */}
-      <div className="px-3 sm:px-5 py-2 bg-slate-950/60 border-b border-slate-800/80 flex items-center justify-between overflow-x-auto gap-2">
-        <div className="flex items-center gap-1.5">
-          {[
-            { id: 'board', label: 'Kanban Sprint', icon: Kanban },
-            { id: 'docs', label: 'Smart Docs', icon: FileText },
-            { id: 'chat', label: 'Team Chat', icon: MessageSquare },
-            { id: 'ai', label: 'Apexa AI Brain', icon: Bot, isAi: true },
-            { id: 'gantt', label: 'Gantt Timeline', icon: Calendar }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-                  isActive
-                    ? tab.isAi
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
-                      : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${tab.isAi && !isActive ? 'text-indigo-400 animate-pulse' : ''}`} />
-                <span>{tab.label}</span>
-                {tab.isAi && (
-                  <span className="text-[8px] bg-white/20 text-white px-1.5 py-0.2 rounded-full font-black uppercase">AI</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="hidden md:flex items-center gap-2">
-          <div className="flex -space-x-2">
-            {['HX', 'MP', 'QB', 'AI'].map((u, i) => (
-              <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-[9px] flex items-center justify-center border border-slate-900 shadow-sm">
-                {u}
-              </div>
-            ))}
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold ml-1">4 người trực tuyến</span>
+        {/* Canvas Background Swatches */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-200/60 dark:bg-slate-800/60 border border-slate-300/60 dark:border-white/10">
+          <Palette className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 ml-1" />
+          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mr-1 hidden sm:inline">
+            {isVietnamese ? 'Nền:' : 'Canvas:'}
+          </span>
+          {backgrounds.map((bg) => (
+            <button
+              key={bg.id}
+              onClick={() => setActiveBg(bg.id)}
+              title={bg.name}
+              className={[
+                "w-5 h-5 rounded-full transition-all cursor-pointer bg-gradient-to-tr",
+                bg.gradient,
+                activeBg === bg.id
+                  ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900 scale-110"
+                  : "hover:scale-105 opacity-80 hover:opacity-100",
+              ].join(" ")}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Main Workspace Simulator View Canvas */}
-      <div className="p-4 sm:p-5 h-[410px] overflow-hidden bg-slate-950/40 text-slate-100 relative">
-        <AnimatePresence mode="wait">
+      {/* Main Mockup Frame Viewport */}
+      <MockupFrame
+        device={activeDevice}
+        background={activeBg}
+        title="Apexa Continuous Canvas"
+        url="app.apexa.ai/sprint-14"
+        badge={isVietnamese ? 'Không gian tương tác trực tiếp' : 'Live Interactive Studio'}
+        padding="md"
+      >
+        <div className="w-full text-left font-sans select-none">
           
-          {/* 1. KANBAN SPRINT VIEW */}
-          {activeTab === 'board' && (
-            <motion.div
-              key="tab-board"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-3.5 h-full overflow-hidden"
-            >
+          {/* Module Selector Tabs inside Mockup */}
+          <div className="px-3 sm:px-4 py-2 bg-slate-950/80 border-b border-white/10 flex items-center justify-between overflow-x-auto gap-2">
+            <div className="flex items-center gap-1">
               {[
-                { key: 'todo', label: 'Cần làm (To-do)', color: 'text-slate-400', dot: 'bg-slate-400' },
-                { key: 'inprogress', label: 'Đang thực hiện', color: 'text-blue-400', dot: 'bg-blue-500' },
-                { key: 'done', label: 'Đã hoàn tất', color: 'text-emerald-400', dot: 'bg-emerald-500' }
-              ].map(col => {
-                const colTasks = tasks.filter(t => t.column === col.key);
+                { id: 'board', label: isVietnamese ? 'Bảng Kanban' : 'Kanban Sprint', icon: Kanban },
+                { id: 'ai', label: 'Apexa AI Brain', icon: Bot, isAi: true },
+                { id: 'docs', label: isVietnamese ? 'Tài liệu số' : 'Smart Docs', icon: FileText },
+                { id: 'chat', label: isVietnamese ? 'Chat nhóm' : 'Team Chat', icon: MessageSquare },
+                { id: 'gantt', label: isVietnamese ? 'Biểu đồ Gantt' : 'Gantt Timeline', icon: Calendar }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isSelected = activeTab === tab.id;
                 return (
-                  <div key={col.key} className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-3 flex flex-col h-full shadow-inner">
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/60">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-                        <span className={`text-[11px] font-black uppercase tracking-wider ${col.color}`}>{col.label}</span>
-                      </div>
-                      <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">
-                        {colTasks.length}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 space-y-2.5 overflow-y-auto pr-1 custom-scrollbar">
-                      {colTasks.map(task => (
-                        <motion.div
-                          layoutId={task.id}
-                          key={task.id}
-                          className="p-3 bg-slate-850 hover:bg-slate-800 border border-slate-750 rounded-xl shadow-xs transition-all group cursor-pointer"
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <button
-                              onClick={() => handleToggleTask(task.id)}
-                              className="mt-0.5 w-4 h-4 rounded border border-slate-600 hover:border-indigo-400 flex items-center justify-center bg-slate-800 transition-colors"
-                            >
-                              {task.checked && <Check className="w-3 h-3 text-indigo-400" />}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-[11px] font-bold leading-snug ${task.checked ? 'line-through text-slate-500 font-normal' : 'text-slate-200'}`}>
-                                {task.title}
-                              </p>
-                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800 text-[9px] text-slate-400 font-semibold">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-2.5 h-2.5" />
-                                  {task.dueDate}
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 font-bold border border-indigo-900/50">{task.tag}</span>
-                                  <span className={`px-1.5 py-0.5 rounded font-bold ${
-                                    task.priority === 'Khẩn cấp' ? 'bg-rose-950/60 text-rose-300 border border-rose-900/50' :
-                                    task.priority === 'Cao' ? 'bg-amber-950/60 text-amber-300 border border-amber-900/50' :
-                                    'bg-slate-800 text-slate-300'
-                                  }`}>
-                                    {task.priority}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 mt-1 border-t border-slate-800/80">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          placeholder="+ Thêm nhanh công việc..."
-                          value={newTaskTitle}
-                          onChange={(e) => setNewTaskTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleQuickAdd(col.key as any);
-                          }}
-                          className="w-full px-2.5 py-1.5 text-[10px] rounded-lg bg-slate-950 border border-slate-800 outline-none text-slate-200 focus:border-indigo-500 font-medium"
-                        />
-                        <button
-                          onClick={() => handleQuickAdd(col.key as any)}
-                          className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                      isSelected
+                        ? tab.isAi
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/30'
+                          : 'bg-white text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className={`w-3 h-3 ${tab.isAi && !isSelected ? 'text-indigo-400 animate-pulse' : ''}`} />
+                    <span>{tab.label}</span>
+                    {tab.isAi && (
+                      <span className="text-[8px] bg-white/20 text-white px-1.5 py-0.2 rounded-full font-black uppercase">AI</span>
+                    )}
+                  </button>
                 );
               })}
-            </motion.div>
-          )}
+            </div>
 
-          {/* 2. SMART DOCS VIEW */}
-          {activeTab === 'docs' && (
-            <motion.div
-              key="tab-docs"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25 }}
-              className="h-full bg-slate-900/80 border border-slate-800 rounded-2xl p-5 overflow-y-auto space-y-4 text-left"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-violet-600/20 text-violet-400 flex items-center justify-center">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-white">Đặc tả sản phẩm và kiến trúc Sprint 2026</h3>
-                    <p className="text-[9px] text-slate-400">Chỉnh sửa lần cuối 2 phút trước bởi Hoàng Xuân</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-violet-950 text-violet-300 border border-violet-800/60 text-[9px] font-black">Đồng bộ tài liệu thông minh</span>
-              </div>
+            <div className="hidden md:flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">
+                {isVietnamese ? 'Đồng bộ tức thì' : 'Real-time Sync'}
+              </span>
+            </div>
+          </div>
 
-              <div className="space-y-3 text-[11px] text-slate-300 leading-relaxed font-sans">
-                <h4 className="text-xs font-black text-indigo-400 uppercase tracking-wider">1. Mục Tiêu Chiến Lược</h4>
-                <p>Xây dựng hệ điều hành năng suất tích hợp AI thế hệ mới với trải nghiệm không độ trễ (Zero Context-Switching). Người dùng có thể trực tiếp kéo task từ Kanban vào tài liệu này.</p>
+          {/* Interactive Tab Viewport */}
+          <div className="p-3 sm:p-4 h-[380px] overflow-hidden bg-slate-950/60 text-slate-100 relative">
+            <AnimatePresence mode="wait">
+              
+              {/* 1. KANBAN SPRINT */}
+              {activeTab === 'board' && (
+                <motion.div
+                  key="tab-board"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-2.5 h-full overflow-hidden"
+                >
+                  {[
+                    { key: 'todo', label: isVietnamese ? 'Cần làm' : 'To Do', color: 'text-slate-400', dot: 'bg-slate-400' },
+                    { key: 'inprogress', label: isVietnamese ? 'Đang làm' : 'In Progress', color: 'text-blue-400', dot: 'bg-blue-500' },
+                    { key: 'done', label: isVietnamese ? 'Đã hoàn tất' : 'Done', color: 'text-emerald-400', dot: 'bg-emerald-500' }
+                  ].map(col => {
+                    const colTasks = tasks.filter(t => t.column === col.key);
+                    return (
+                      <div key={col.key} className="bg-slate-900/60 border border-white/10 rounded-2xl p-2.5 flex flex-col h-full">
+                        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-wider ${col.color}`}>{col.label}</span>
+                          </div>
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300">
+                            {colTasks.length}
+                          </span>
+                        </div>
 
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
-                    <CheckSquare className="w-3 h-3 text-indigo-400" />
-                    <span>Nhiệm vụ được nhúng trong tài liệu:</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px]">
-                    <span className="font-bold text-slate-200">🚀 Phát hành bản cập nhật Apexa OS v2.0</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-extrabold text-[8px]">Hoàn thành</span>
-                  </div>
-                </div>
+                        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+                          {colTasks.map(task => (
+                            <motion.div
+                              layoutId={task.id}
+                              key={task.id}
+                              className="p-2.5 bg-slate-800/80 hover:bg-slate-800 border border-white/5 rounded-xl shadow-xs transition-all group cursor-pointer"
+                            >
+                              <div className="flex items-start gap-2">
+                                <button
+                                  onClick={() => handleToggleTask(task.id)}
+                                  className="mt-0.5 w-3.5 h-3.5 rounded border border-slate-500 hover:border-blue-400 flex items-center justify-center bg-slate-900 transition-colors"
+                                >
+                                  {task.checked && <Check className="w-2.5 h-2.5 text-blue-400" />}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-[10.5px] font-bold leading-snug ${task.checked ? 'line-through text-slate-500 font-normal' : 'text-slate-200'}`}>
+                                    {task.title}
+                                  </p>
+                                  <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-white/5 text-[8.5px] text-slate-400 font-medium">
+                                    <span>{task.dueDate}</span>
+                                    <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-bold border border-blue-400/20">{task.tag}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
 
-                <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-900/50 flex items-center gap-2 text-indigo-300 text-[10px] font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span>Apexa Brain AI: Đã tự động tạo 5 tóm tắt và ánh xạ 12 tags liên quan đến Sprint này.</span>
-                </div>
-              </div>
-            </motion.div>
-          )}
+                        <div className="pt-2 mt-1 border-t border-white/5">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              placeholder={isVietnamese ? '+ Thêm việc...' : '+ Add task...'}
+                              value={newTaskTitle}
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleQuickAdd(col.key as any);
+                              }}
+                              className="w-full px-2 py-1 text-[9.5px] rounded-lg bg-slate-950/80 border border-white/10 outline-none text-slate-200 focus:border-blue-500 font-medium"
+                            />
+                            <button
+                              onClick={() => handleQuickAdd(col.key as any)}
+                              className="p-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
 
-          {/* 3. TEAM CHATROOM VIEW */}
-          {activeTab === 'chat' && (
-            <motion.div
-              key="tab-chat"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25 }}
-              className="h-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-black text-white"># sprint-engineering-core</span>
-                </div>
-                <span className="text-[9px] text-slate-400 font-bold">4 Thành viên đang online</span>
-              </div>
-
-              <div className="space-y-3 overflow-y-auto py-2 pr-1 custom-scrollbar text-[11px]">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-black text-[9px] flex items-center justify-center shrink-0">HX</div>
-                  <div className="bg-slate-800 p-2.5 rounded-2xl rounded-tl-none max-w-[80%] border border-slate-700">
-                    <p className="font-bold text-slate-200">Đã cập nhật toàn bộ responsive cho màn hình di động nhé cả team!</p>
-                    <span className="text-[8px] text-slate-400 mt-1 block">09:12</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-[9px] flex items-center justify-center shrink-0">MP</div>
-                  <div className="bg-slate-800 p-2.5 rounded-2xl rounded-tl-none max-w-[80%] border border-slate-700">
-                    <p className="font-bold text-slate-200">Tuyệt vời, Apexa AI vừa báo cáo Sprint tuần này đã đạt KPI 100% sớm 2 ngày! 🔥</p>
-                    <span className="text-[8px] text-slate-400 mt-1 block">09:14</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-black text-[9px] flex items-center justify-center shrink-0">AI</div>
-                  <div className="bg-indigo-950/60 p-2.5 rounded-2xl rounded-tl-none max-w-[80%] border border-indigo-800/60 text-indigo-200 font-bold">
-                    <p>🤖 Apexa Brain: Đã tự động lưu trữ sprint artifacts và gửi báo cáo tóm tắt vào kênh email của quản trị viên.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Gửi tin nhắn vào kênh dự án..."
-                  className="flex-1 px-3 py-2 text-[10px] rounded-xl bg-slate-950 border border-slate-800 outline-none text-slate-200 font-medium"
-                />
-                <button className="p-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500">
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 4. APEXA AI BRAIN COPILOT VIEW */}
-          {activeTab === 'ai' && (
-            <motion.div
-              key="tab-ai"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25 }}
-              className="h-full bg-slate-900/80 border border-indigo-900/50 rounded-2xl p-4 flex flex-col justify-between shadow-2xl"
-            >
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar max-h-[240px]">
-                {aiChatLog.map((msg, i) => (
-                  <div key={i} className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
-                    {msg.sender === 'bot' && (
-                      <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
-                        <Bot className="w-4 h-4" />
+              {/* 2. APEXA AI BRAIN */}
+              {activeTab === 'ai' && (
+                <motion.div
+                  key="tab-ai"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full bg-slate-900/60 border border-indigo-500/30 rounded-2xl p-3 flex flex-col justify-between"
+                >
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[220px]">
+                    {aiChatLog.map((msg, i) => (
+                      <div key={i} className={`flex items-start gap-2 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                        {msg.sender === 'bot' && (
+                          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+                            <Bot className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                        <div className={`p-2.5 rounded-2xl max-w-[85%] text-[10px] font-bold leading-relaxed whitespace-pre-line ${
+                          msg.sender === 'user'
+                            ? 'bg-blue-600 text-white rounded-tr-none'
+                            : 'bg-slate-800/90 border border-white/5 text-slate-200 rounded-tl-none'
+                        }`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))}
+                    {aiTyping && (
+                      <div className="flex items-center gap-1.5 text-blue-400 text-[10px] font-bold p-1">
+                        <Sparkles className="w-3 h-3 animate-spin" />
+                        <span>{isVietnamese ? 'Apexa Brain đang xử lý...' : 'Apexa Brain is analyzing...'}</span>
                       </div>
                     )}
-                    <div className={`p-3 rounded-2xl max-w-[85%] text-[10px] font-bold leading-relaxed whitespace-pre-line ${
-                      msg.sender === 'user'
-                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-md'
-                        : 'bg-slate-850 border border-slate-750 text-slate-200 rounded-tl-none shadow-xs'
-                    }`}>
-                      {msg.text}
-                    </div>
+                    <div ref={messagesEndRef} />
                   </div>
-                ))}
-                {aiTyping && (
-                  <div className="flex items-center gap-2 text-indigo-400 text-[10px] font-bold p-2">
-                    <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                    <span>Apexa Brain đang phân tích dữ liệu workspace...</span>
+
+                  {/* Suggestion Chips */}
+                  <div className="flex flex-wrap gap-1.5 my-2">
+                    {[
+                      { label: isVietnamese ? '⚡ Lập kế hoạch Sprint' : '⚡ Plan Sprint items', text: isVietnamese ? 'Hãy lập kế hoạch phân rã 2 task ưu tiên cho Sprint' : 'Plan 2 prioritized action items for the Sprint' },
+                      { label: isVietnamese ? '📊 Tóm tắt tiến độ' : '📊 Summarize progress', text: isVietnamese ? 'Tóm tắt tiến độ sprint hiện tại' : 'Summarize the current sprint status' },
+                    ].map((chip, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendAi(chip.text)}
+                        className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors cursor-pointer"
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
 
-              {/* Prompt Suggestion Chips */}
-              <div className="flex flex-wrap gap-1.5 my-2">
-                {[
-                  { label: '⚡ Lập kế hoạch Sprint tuần', text: 'Hãy lập kế hoạch phân rã 3 task ưu tiên cao cho Sprint' },
-                  { label: '📊 Tóm tắt tiến độ KPI', text: 'Tóm tắt báo cáo tiến độ Sprint tuần này' },
-                  { label: '📝 Viết release note v2.0', text: 'Soạn thảo release note thông báo ra mắt Apexa OS v2.0' }
-                ].map(chip => (
-                  <button
-                    key={chip.label}
-                    onClick={() => handleSendAi(chip.text)}
-                    disabled={aiTyping}
-                    className="text-[9px] font-black px-2.5 py-1 rounded-full bg-slate-800 hover:bg-indigo-950 border border-slate-700 hover:border-indigo-700 text-indigo-300 transition-colors cursor-pointer"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
+                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
+                    <input
+                      type="text"
+                      placeholder={isVietnamese ? 'Nhập yêu cầu cho Apexa Brain AI...' : 'Ask Apexa Brain AI Copilot...'}
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSendAi();
+                      }}
+                      className="flex-1 px-3 py-1.5 text-[10px] rounded-xl bg-slate-950 border border-white/10 outline-none text-slate-200 font-medium"
+                    />
+                    <button
+                      onClick={() => handleSendAi()}
+                      className="p-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
-              {/* AI Query Input */}
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Giao việc cho Apexa Brain (Ví dụ: 'Tối ưu lại deadline dự án')..."
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSendAi();
-                  }}
-                  disabled={aiTyping}
-                  className="flex-1 px-3 py-2 text-[10px] rounded-xl bg-slate-950 border border-slate-800 outline-none text-slate-200 font-medium focus:border-indigo-500"
-                />
-                <button
-                  onClick={() => handleSendAi()}
-                  disabled={aiTyping || !aiInput.trim()}
-                  className="p-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:brightness-110 disabled:opacity-50 cursor-pointer shadow-md"
+              {/* 3. SMART DOCS */}
+              {activeTab === 'docs' && (
+                <motion.div
+                  key="tab-docs"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full bg-slate-900/60 border border-white/10 rounded-2xl p-4 overflow-y-auto space-y-3 text-left"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 5. GANTT TIMELINE VIEW */}
-          {activeTab === 'gantt' && (
-            <motion.div
-              key="tab-gantt"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.25 }}
-              className="h-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 overflow-hidden flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-[11px] font-black text-white">
-                <span>Timeline Sprint #14 · Tháng 8/2026</span>
-                <span className="text-indigo-400 text-[10px]">Đường găng Critical Path: Chuẩn 100%</span>
-              </div>
-
-              <div className="space-y-3 my-auto text-[10px]">
-                {[
-                  { name: 'Khởi tạo Kiến trúc Local-First', width: '75%', color: 'from-blue-600 to-indigo-600', time: '10/08 - 14/08', progress: '100%' },
-                  { name: 'Tích hợp Gemini 2.5 Flash AI Engine', width: '85%', color: 'from-indigo-600 to-purple-600', time: '12/08 - 16/08', progress: '85%' },
-                  { name: 'Đồng bộ 2 chiều Google Calendar', width: '55%', color: 'from-violet-600 to-pink-600', time: '14/08 - 18/08', progress: '50%' },
-                  { name: 'Phát hành chính thức Apexa OS v2.0', width: '40%', color: 'from-emerald-600 to-teal-600', time: '18/08 - 22/08', progress: '30%' },
-                ].map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-slate-300 font-bold">
-                      <span>{item.name}</span>
-                      <span className="text-slate-400">{item.time} ({item.progress})</span>
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-violet-600/20 text-violet-400 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5" />
+                      </div>
+                      <h3 className="text-xs font-black text-white">{isVietnamese ? 'Kiến trúc sản phẩm Sprint 2026' : 'Product Architecture Sprint 2026'}</h3>
                     </div>
-                    <div className="h-4 w-full bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-500`}
-                        style={{ width: item.width }}
-                      />
+                    <span className="px-2 py-0.5 rounded-full bg-violet-950/80 text-violet-300 border border-violet-800/60 text-[8.5px] font-black">Real-time Docs</span>
+                  </div>
+
+                  <div className="space-y-2 text-[10.5px] text-slate-300 leading-relaxed">
+                    <p>{isVietnamese ? 'Hệ điều hành năng suất tích hợp AI thế hệ mới với trải nghiệm không độ trễ. Nhúng trực tiếp task từ Kanban vào tài liệu.' : 'Next-generation AI productivity OS with zero latency. Seamlessly embed live Kanban tasks into rich docs.'}</p>
+                    <div className="p-2.5 rounded-xl bg-slate-950/80 border border-white/5 space-y-1.5">
+                      <div className="text-[9.5px] font-bold text-slate-400 uppercase flex items-center gap-1.5">
+                        <CheckSquare className="w-3 h-3 text-blue-400" />
+                        <span>{isVietnamese ? 'Task được liên kết:' : 'Linked Task:'}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-1.5 rounded-lg bg-slate-900 border border-white/5 text-[9.5px]">
+                        <span className="font-bold text-slate-200">{isVietnamese ? '🚀 Phát hành bản cập nhật Apexa OS v2.0' : '🚀 Launch Apexa OS v2.0 update'}</span>
+                        <span className="px-2 py-0.2 rounded-full bg-emerald-950 text-emerald-400 font-black text-[8px]">{isVietnamese ? 'Hoàn thành' : 'Completed'}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </motion.div>
+              )}
 
-              <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between font-semibold">
-                <span>⚡ Tự động phát hiện xung đột lịch biểu khi deadline bị dời</span>
-                <span className="text-emerald-400 font-black">Không xung đột</span>
-              </div>
-            </motion.div>
-          )}
+              {/* 4. TEAM CHAT */}
+              {activeTab === 'chat' && (
+                <motion.div
+                  key="tab-chat"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-[10px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="font-black text-white"># sprint-core</span>
+                    </div>
+                    <span className="text-slate-400 font-bold">{isVietnamese ? '4 trực tuyến' : '4 online'}</span>
+                  </div>
 
-        </AnimatePresence>
-      </div>
+                  <div className="space-y-2 overflow-y-auto py-1 text-[10px]">
+                    <div className="flex items-start gap-2">
+                      <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-black text-[8px] flex items-center justify-center shrink-0">HX</div>
+                      <div className="bg-slate-800/80 p-2 rounded-xl text-slate-200 border border-white/5 font-bold">
+                        {isVietnamese ? 'Đã cập nhật toàn bộ responsive cho màn hình di động nhé cả team!' : 'Mobile responsive styles are pushed to production, team!'}
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[8px] flex items-center justify-center shrink-0">AI</div>
+                      <div className="bg-indigo-950/60 p-2 rounded-xl text-indigo-200 border border-indigo-800/50 font-bold">
+                        {isVietnamese ? '🤖 Apexa Brain: Sprint tuần này đã đạt KPI 100% sớm 2 ngày!' : '🤖 Apexa Brain: This week’s sprint KPI achieved 100% two days early!'}
+                      </div>
+                    </div>
+                  </div>
 
-      {/* Interactive Bottom Simulation Footer */}
-      <div className="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span>Bấm các tab phía trên để trải nghiệm không gian làm việc trực tiếp!</span>
+                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
+                    <input
+                      type="text"
+                      placeholder={isVietnamese ? 'Gửi tin nhắn vào kênh...' : 'Message #sprint-core...'}
+                      className="flex-1 px-2.5 py-1 text-[9.5px] rounded-lg bg-slate-950 border border-white/10 outline-none text-slate-200"
+                    />
+                    <button className="p-1.5 rounded-lg bg-blue-600 text-white">
+                      <Send className="w-3 h-3" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* 5. GANTT TIMELINE */}
+              {activeTab === 'gantt' && (
+                <motion.div
+                  key="tab-gantt"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="h-full bg-slate-900/60 border border-white/10 rounded-2xl p-3 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-1.5 border-b border-white/5 text-[10px] font-bold">
+                    <span>{isVietnamese ? 'Timeline Sprint #14 · Tháng 8/2026' : 'Sprint #14 Timeline · August 2026'}</span>
+                    <span className="text-emerald-400">Critical Path: 100%</span>
+                  </div>
+
+                  <div className="space-y-2.5 my-auto text-[9.5px]">
+                    {[
+                      { name: isVietnamese ? 'Khởi tạo Kiến trúc Local-First' : 'Local-First Architecture Core', width: '75%', color: 'from-blue-600 to-indigo-600', time: '10/08 - 14/08' },
+                      { name: isVietnamese ? 'Tích hợp Gemini 2.5 AI Engine' : 'Gemini 2.5 AI Engine Copilot', width: '85%', color: 'from-blue-600 to-cyan-500', time: '12/08 - 16/08' },
+                      { name: isVietnamese ? 'Đồng bộ 2 chiều Google Calendar' : '2-Way Google Calendar Sync', width: '55%', color: 'from-cyan-500 to-sky-400', time: '14/08 - 18/08' },
+                      { name: isVietnamese ? 'Phát hành Apexa OS v2.0' : 'Launch Apexa OS v2.0 Build', width: '90%', color: 'from-emerald-500 to-teal-500', time: '18/08 - 22/08' },
+                    ].map((item, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between text-slate-300 font-bold">
+                          <span>{item.name}</span>
+                          <span className="text-slate-400">{item.time}</span>
+                        </div>
+                        <div className="h-3 w-full bg-slate-950 rounded-full overflow-hidden p-0.5 border border-white/10">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${item.color}`}
+                            style={{ width: item.width }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-1.5 rounded-lg bg-slate-950 border border-white/5 text-[8.5px] text-slate-400 flex items-center justify-between font-semibold">
+                    <span>{isVietnamese ? '⚡ Tự động phát hiện xung đột deadline' : '⚡ Auto deadline conflict detection'}</span>
+                    <span className="text-emerald-400 font-black">{isVietnamese ? 'Hoàn hảo' : 'Optimal'}</span>
+                  </div>
+                </motion.div>
+              )}
+
+            </AnimatePresence>
+          </div>
+
         </div>
-        <span className="hidden sm:inline text-indigo-400 font-bold font-sans">Công cụ tương tác Apexa</span>
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================================
-   INTERACTIVE ROI & VELOCITY CALCULATOR
-   ========================================================================= */
-function InteractiveRoiCalculator() {
-  const [teamSize, setTeamSize] = useState<number>(12);
-  const avgSalary = 25; // Million VND
-
-  const hoursSavedPerMonth = useMemo(() => Math.round(teamSize * 22 * 1.5), [teamSize]);
-  const costSavingsMillion = useMemo(() => Math.round((hoursSavedPerMonth / 160) * avgSalary), [hoursSavedPerMonth, avgSalary]);
-  const velocityBoost = useMemo(() => Math.min(48, Math.round(25 + teamSize * 0.8)), [teamSize]);
-
-  return (
-    <div className="rounded-3xl bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 p-6 md:p-10 shadow-xl text-left">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        
-        {/* Controls */}
-        <div className="space-y-6">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
-              Công cụ tính toán ROI thực tế
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 font-display">
-              Đo lường thời gian & ngân sách Apexa OS tiết kiệm cho đội ngũ
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">
-              Dựa trên dữ liệu thực tế từ hơn 28,000 đội ngũ đang sử dụng hệ điều hành Apexa.
-            </p>
-          </div>
-
-          {/* Slider: Team Size */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-xs font-black">
-              <span className="text-slate-700 dark:text-slate-200">Quy mô đội ngũ / thành viên:</span>
-              <span className="text-indigo-600 dark:text-indigo-400 font-extrabold text-sm">{teamSize} người</span>
-            </div>
-            <input
-              type="range"
-              min="2"
-              max="100"
-              value={teamSize}
-              onChange={(e) => setTeamSize(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-            <div className="flex justify-between text-[9px] text-slate-400 font-bold">
-              <span>2 người (Startup)</span>
-              <span>50 người</span>
-              <span>100+ người (Doanh nghiệp)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Output Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/40 dark:to-blue-950/30 border border-indigo-100 dark:border-indigo-900/40 shadow-xs space-y-1">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center mb-2">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 font-display">
-              ~{hoursSavedPerMonth.toLocaleString('vi-VN')} giờ
-            </div>
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Thời gian tiết kiệm / tháng</p>
-            <p className="text-[10px] text-slate-400">Giảm thời gian tìm file & họp giao việc</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/40 shadow-xs space-y-1">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-2">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 font-display">
-              +{velocityBoost}%
-            </div>
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Tốc độ hoàn thành Sprint</p>
-            <p className="text-[10px] text-slate-400">Tăng tốc độ bàn giao sản phẩm</p>
-          </div>
-
-          <div className="sm:col-span-2 p-5 rounded-2xl bg-slate-900 dark:bg-slate-950 text-white border border-slate-800 shadow-md flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase">Ước tính giá trị mang lại</span>
-              <div className="text-2xl sm:text-3xl font-black text-white font-display">
-                ~{costSavingsMillion.toLocaleString('vi-VN')} Triệu ₫ / tháng
-              </div>
-              <p className="text-[10px] text-slate-400">Quy đổi từ năng suất giờ làm việc được tối ưu hóa</p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shrink-0">
-              <Award className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
-
-      </div>
+      </MockupFrame>
     </div>
   );
 }
@@ -942,8 +640,7 @@ function InteractiveRoiCalculator() {
    MAIN LANDING PAGE EXPORT
    ========================================================================= */
 export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksCompleted }: LandingPageProps) {
-  const isDarkMode = useUiStore((state) => state.isDarkMode);
-  const setIsDarkMode = useUiStore((state) => state.setIsDarkMode);
+  const { isVietnamese } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
@@ -953,6 +650,325 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
   const [billingPrices, setBillingPrices] = useState<Partial<Record<'monthly' | 'yearly', PublicBillingPrice>>>({});
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Dynamic Categories
+  const categories = useMemo(() => [
+    { id: 'all', label: isVietnamese ? 'Tất cả giải pháp' : 'All Solutions' },
+    { id: 'task', label: isVietnamese ? 'Quản lý dự án & Sprint' : 'Projects & Sprints' },
+    { id: 'ai', label: isVietnamese ? 'Trí tuệ nhân tạo Apexa Brain' : 'Apexa Brain AI' },
+    { id: 'collaboration', label: isVietnamese ? 'Cộng tác thời gian thực' : 'Real-time Collaboration' },
+    { id: 'analytics', label: isVietnamese ? 'Phân tích & Tối ưu hiệu suất' : 'Analytics & Performance' }
+  ], [isVietnamese]);
+
+  // Dynamic Features
+  const features = useMemo(() => [
+    {
+      icon: Kanban,
+      title: isVietnamese ? 'Kanban & Agile Sprints' : 'Kanban & Agile Sprints',
+      desc: isVietnamese 
+        ? 'Kéo thả trực quan, tối ưu sprint với 5 chế độ xem linh hoạt: Kanban Board, List View, Bảng dữ liệu, Lịch biểu và Gantt Timeline.'
+        : 'Intuitive drag-and-drop workflow with 5 flexible view modes: Kanban Board, List View, Table, Calendar, and Gantt Timeline.',
+      badge: isVietnamese ? 'Cốt lõi' : 'Core',
+      tagVariant: 'shots' as const,
+      color: 'from-blue-600 to-indigo-600',
+      bg: 'bg-blue-500/10 dark:bg-blue-500/15',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      category: 'task'
+    },
+    {
+      icon: Brain,
+      title: 'Apexa Brain AI Copilot',
+      desc: isVietnamese
+        ? 'Trợ lý AI tích hợp sâu: tự động phân rã mục tiêu thành subtasks, tóm tắt tài liệu, gợi ý phân bổ KPI và viết báo cáo tiến độ bằng Gemini AI.'
+        : 'Deeply integrated AI: auto-deconstruct goals into subtasks, summarize docs, recommend KPI allocations, and generate progress digests.',
+      badge: 'AI Native',
+      tagVariant: 'shots-new' as const,
+      color: 'from-blue-600 to-cyan-600',
+      bg: 'bg-indigo-500/10 dark:bg-indigo-500/15',
+      iconColor: 'text-indigo-600 dark:text-indigo-400',
+      category: 'ai'
+    },
+    {
+      icon: FileText,
+      title: isVietnamese ? 'Smart Docs & Knowledge Base' : 'Smart Docs & Knowledge Base',
+      desc: isVietnamese
+        ? 'Tài liệu số cộng tác thời gian thực (Multi-cursor real-time). Nhúng trực tiếp task, cơ sở dữ liệu và sơ đồ tư duy ngay trong trang.'
+        : 'Multi-cursor real-time collaborative documentation. Embed live tasks, databases, and mind maps directly inside pages.',
+      badge: 'Real-time',
+      tagVariant: 'shots' as const,
+      color: 'from-blue-600 to-cyan-500',
+      bg: 'bg-violet-500/10 dark:bg-violet-500/15',
+      iconColor: 'text-violet-600 dark:text-violet-400',
+      category: 'collaboration'
+    },
+    {
+      icon: MessageSquare,
+      title: isVietnamese ? 'ChatRoom & Kênh Thảo Luận' : 'ChatRoom & Audio Huddles',
+      desc: isVietnamese
+        ? 'Trao đổi kênh truyền theo dự án, thảo luận trực tiếp trên từng task cụ thể, loại bỏ 100% tình trạng phân mảnh tin nhắn rời rạc.'
+        : 'Project-based communication channels, in-task discussions, and voice huddles eliminating message fragmentation entirely.',
+      badge: isVietnamese ? 'Tích hợp' : 'Built-in',
+      tagVariant: 'shots' as const,
+      color: 'from-cyan-600 to-blue-600',
+      bg: 'bg-cyan-500/10 dark:bg-cyan-500/15',
+      iconColor: 'text-cyan-600 dark:text-cyan-400',
+      category: 'collaboration'
+    },
+    {
+      icon: Calendar,
+      title: isVietnamese ? 'Lịch & Timeline Gantt Đa Chiều' : 'Calendar & Gantt Timeline',
+      desc: isVietnamese
+        ? 'Kiểm soát đường găng dự án (Critical Path), phát hiện xung đột deadline và đồng bộ 2 chiều tức thì với Google Calendar.'
+        : 'Track critical path milestones, discover deadline collisions automatically, and enjoy two-way Google Calendar synchronization.',
+      badge: 'Sync 2-Way',
+      tagVariant: 'shots' as const,
+      color: 'from-emerald-600 to-teal-600',
+      bg: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+      category: 'task'
+    },
+    {
+      icon: BarChart3,
+      title: isVietnamese ? 'Trung Tâm Phân Tích Hiệu Suất' : 'Analytics Command Center',
+      desc: isVietnamese
+        ? 'Báo cáo năng suất trực quan: Biểu đồ Burn-down, Sprint Velocity, phân tích tải công việc thành viên và cảnh báo nguy cơ trễ hạn.'
+        : 'Visual productivity analytics: Burn-down charts, Sprint Velocity, workload distribution analysis, and predictive delay warnings.',
+      badge: 'Insight',
+      tagVariant: 'shots' as const,
+      color: 'from-amber-600 to-orange-600',
+      bg: 'bg-amber-500/10 dark:bg-amber-500/15',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+      category: 'analytics'
+    },
+    {
+      icon: Timer,
+      title: isVietnamese ? 'Pomodoro & Quản Lý Thời Gian' : 'Pomodoro & Time Tracking',
+      desc: isVietnamese
+        ? 'Bộ đếm thời gian tập trung chuẩn khoa học, theo dõi log giờ làm việc theo từng đầu việc cụ thể và thống kê thời gian thực.'
+        : 'Scientifically backed focus timer, granular per-task timesheets, and real-time productivity statistics.',
+      badge: 'Focus',
+      tagVariant: 'shots' as const,
+      color: 'from-rose-600 to-red-600',
+      bg: 'bg-rose-500/10 dark:bg-rose-500/15',
+      iconColor: 'text-rose-600 dark:text-rose-400',
+      category: 'task'
+    },
+    {
+      icon: Database,
+      title: 'Apexa Base (No-Code DB)',
+      desc: isVietnamese
+        ? 'Cơ sở dữ liệu dạng bảng quan hệ mạnh mẽ, tùy biến schema, quản lý CRM, kho nội dung và tài sản dự án không giới hạn.'
+        : 'Relational database sheets with custom schemas, CRM pipelines, content inventories, and unlimited digital asset management.',
+      badge: 'No-Code',
+      tagVariant: 'shots' as const,
+      color: 'from-blue-600 to-indigo-600',
+      bg: 'bg-blue-500/10 dark:bg-blue-500/15',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      category: 'analytics'
+    }
+  ], [isVietnamese]);
+
+  // Dynamic Workflow Steps
+  const workflowSteps = useMemo(() => [
+    {
+      step: '01',
+      title: isVietnamese ? 'Tạo Không Gian & Mời Nhóm' : 'Create Space & Invite Team',
+      desc: isVietnamese
+        ? 'Khởi tạo workspace chuyên biệt theo phòng ban, phân quyền chi tiết (Admin, Member, Guest) chỉ trong 30 giây.'
+        : 'Set up departmental workspaces with fine-grained roles (Admin, Member, Guest) in under 30 seconds.',
+      icon: Layers,
+      badge: isVietnamese ? 'Khởi động nhanh' : 'Quick Setup'
+    },
+    {
+      step: '02',
+      title: isVietnamese ? 'Lên Kế Hoạch Với Apexa AI' : 'Plan with Apexa AI',
+      desc: isVietnamese
+        ? 'Giao mục tiêu lớn cho AI — hệ thống tự động phân tách thành các task nhỏ kèm deadline, độ ưu tiên và mô tả chi tiết.'
+        : 'Feed high-level milestones to AI—the system auto-generates decomposed tasks with deadlines and rich context.',
+      icon: Sparkles,
+      badge: isVietnamese ? 'Tự động hóa' : 'Automation'
+    },
+    {
+      step: '03',
+      title: isVietnamese ? 'Cộng Tác Thời Gian Thực' : 'Real-time Collaboration',
+      desc: isVietnamese
+        ? 'Thực hiện công việc trên bảng Kanban, viết Smart Docs và thảo luận ngay trong ChatRoom mà không phải đổi ứng dụng.'
+        : 'Execute tasks on Kanban boards, write collaborative docs, and chat in project rooms without tab switching.',
+      icon: MessageSquare,
+      badge: isVietnamese ? 'Đồng bộ 100%' : '100% Synced'
+    },
+    {
+      step: '04',
+      title: isVietnamese ? 'Phân Tích & Bứt Phá Năng Suất' : 'Analyze & Boost Velocity',
+      desc: isVietnamese
+        ? 'Theo dõi chỉ số Sprint Velocity, nhận báo cáo phân tích hiệu suất tuần do AI tổng hợp tự động mỗi sáng thứ Hai.'
+        : 'Track sprint velocity metrics and receive automated AI performance retrospectives every Monday morning.',
+      icon: TrendingUp,
+      badge: isVietnamese ? 'Đo lường ROI' : 'Measure ROI'
+    }
+  ], [isVietnamese]);
+
+  // Dynamic Pricing Plans
+  const pricingPlans = useMemo(() => [
+    {
+      id: 'free',
+      name: isVietnamese ? 'Khởi đầu (Free)' : 'Starter (Free)',
+      desc: isVietnamese
+        ? 'Hoàn hảo cho cá nhân và nhóm nhỏ muốn bắt đầu chuẩn hóa quy trình làm việc.'
+        : 'Perfect for individuals and small teams standardizing daily workflows.',
+      badge: isVietnamese ? 'Miễn phí mãi mãi' : 'Free Forever',
+      highlight: false,
+      cta: isVietnamese ? 'Bắt đầu miễn phí' : 'Start for Free',
+      features: isVietnamese ? [
+        'Tối đa 5 thành viên không gian',
+        'Không giới hạn số lượng Task & Dự án',
+        'Chế độ xem Kanban & List View',
+        'Bộ nhớ lưu trữ tài liệu 1 GB',
+        'Đồng bộ dữ liệu thời gian thực',
+        'Hỗ trợ cộng đồng 24/7'
+      ] : [
+        'Up to 5 workspace members',
+        'Unlimited tasks & projects',
+        'Kanban Board & List views',
+        '1 GB document cloud storage',
+        'Real-time cloud synchronization',
+        '24/7 community support'
+      ]
+    },
+    {
+      id: 'pro',
+      name: 'Apexa Pro OS',
+      desc: isVietnamese
+        ? 'Giải pháp toàn diện cho các đội ngũ phát triển sản phẩm, startup & doanh nghiệp tăng tốc.'
+        : 'The complete productivity suite for fast-moving engineering teams, startups & agencies.',
+      badge: isVietnamese ? 'Lựa chọn hàng đầu 🔥' : 'Most Popular 🔥',
+      highlight: true,
+      cta: isVietnamese ? 'Trải nghiệm Pro OS' : 'Upgrade to Pro OS',
+      features: isVietnamese ? [
+        'Không giới hạn thành viên & Spaces',
+        'Apexa Brain AI Copilot không giới hạn',
+        'Trọn bộ 5 View Modes (Board, Table, Calendar, Gantt, Timeline)',
+        'Báo cáo tự động hóa phân tích hiệu suất tuần bằng AI',
+        'Đồng bộ 2 chiều Google Calendar & Lịch biểu',
+        'Dung lượng lưu trữ đám mây 100 GB',
+        'Hỗ trợ kỹ thuật ưu tiên 24/7'
+      ] : [
+        'Unlimited members & spaces',
+        'Unlimited Apexa Brain AI Copilot',
+        'All 5 View Modes (Board, Table, Calendar, Gantt, Timeline)',
+        'Automated AI weekly performance digests',
+        'Two-way Google Calendar synchronization',
+        '100 GB high-speed cloud storage',
+        '24/7 priority developer support'
+      ]
+    },
+    {
+      id: 'enterprise',
+      name: isVietnamese ? 'Doanh Nghiệp (Enterprise)' : 'Enterprise',
+      desc: isVietnamese
+        ? 'Dành cho các tổ chức quy mô lớn yêu cầu kiểm soát dữ liệu, bảo mật chuyên sâu và SLA cao cấp.'
+        : 'Tailored for large organizations requiring data sovereignty, custom SSO, and dedicated SLA.',
+      badge: isVietnamese ? 'Tùy chỉnh riêng' : 'Custom Tailored',
+      highlight: false,
+      cta: isVietnamese ? 'Liên hệ tư vấn' : 'Contact Enterprise Team',
+      features: isVietnamese ? [
+        'Tất cả quyền lợi của gói Pro OS',
+        'Triển khai On-Premise hoặc Dedicated Cloud riêng',
+        'Single Sign-On (SSO / SAML 2.0 / Okta / Azure AD)',
+        'Cam kết chất lượng dịch vụ SLA Uptime 99.99%',
+        'Kiểm toán bảo mật & Audit Logs chi tiết',
+        'Quản lý tài khoản (Account Manager) hỗ trợ 1:1'
+      ] : [
+        'All features in Pro OS plan',
+        'On-Premises or Dedicated Cloud deployment',
+        'Single Sign-On (SSO / SAML 2.0 / Okta / Azure AD)',
+        '99.99% Uptime SLA guaranteed',
+        'Comprehensive security audit & activity logs',
+        'Dedicated 1-on-1 account success manager'
+      ]
+    }
+  ], [isVietnamese]);
+
+  // Dynamic Testimonials
+  const testimonials = useMemo(() => [
+    {
+      quote: isVietnamese
+        ? "Apexa OS đã thay thế hoàn toàn bộ 4 công cụ cồng kềnh trước đây (Jira, Slack, Notion, Toggl) của chúng tôi. Tốc độ triển khai sprint của 35 kỹ sư đã tăng hơn 40% chỉ sau 3 tuần."
+        : "Apexa OS completely replaced our previous stack of 4 bloated apps (Jira, Slack, Notion, Toggl). Our 35 engineers boosted their sprint delivery speed by 42% in just 3 weeks.",
+      author: isVietnamese ? "Hoàng Xuân" : "Alex Hoang",
+      role: isVietnamese ? "Giám đốc Công nghệ (CTO)" : "Chief Technology Officer (CTO)",
+      company: "TechVanguard Innovations",
+      metric: "+42% Sprint Velocity",
+      avatar: "HX",
+      gradient: "from-blue-600 to-indigo-600"
+    },
+    {
+      quote: isVietnamese
+        ? "Giao diện phẳng, tinh gọn và tốc độ phản hồi tức thì khiến cả đội ngũ thiết kế lẫn marketing đều thích thú khi sử dụng. Apexa AI gợi ý task và tóm tắt cuộc họp cực kỳ chuẩn xác!"
+        : "The unified continuous canvas and instant response time delighted both our design and marketing teams. Apexa AI generates task breakdowns and meeting summaries with pinpoint precision!",
+      author: isVietnamese ? "Phạm Mai Phương" : "Sarah Jenkins",
+      role: isVietnamese ? "Trưởng phòng Sản phẩm (Head of Product)" : "Head of Product",
+      company: "Nexus Creative Studio",
+      metric: isVietnamese ? "Tiết kiệm 8h họp/tuần" : "Saved 8 hrs/week",
+      avatar: "MP",
+      gradient: "from-blue-600 to-cyan-600"
+    },
+    {
+      quote: isVietnamese
+        ? "Tính năng Smart Docs liên kết trực tiếp với Kanban Board là một bước đột phá. Chúng tôi không còn phải đi tìm kiếm tài liệu dự án thất lạc ở bất kỳ đâu nữa."
+        : "Live embedding between Smart Docs and Kanban boards is a revelation. We never lose track of project specifications or meeting action items anymore.",
+      author: isVietnamese ? "Nguyễn Quốc Bảo" : "David Nguyen",
+      role: isVietnamese ? "Giám đốc Vận hành (COO)" : "Chief Operating Officer (COO)",
+      company: "Aether Global Commerce",
+      metric: isVietnamese ? "Giảm 75% thời gian tìm kiếm" : "-75% Search Overhead",
+      avatar: "QB",
+      gradient: "from-cyan-600 to-blue-600"
+    }
+  ], [isVietnamese]);
+
+  // Dynamic FAQs
+  const faqs = useMemo(() => [
+    {
+      q: isVietnamese
+        ? 'Apexa OS có thể sử dụng mượt mà khi mất kết nối Internet (Offline) không?'
+        : 'Can Apexa OS work seamlessly when offline without internet connectivity?',
+      a: isVietnamese
+        ? 'Hoàn toàn có thể! Apexa OS được xây dựng trên kiến trúc Local-First hiện đại. Bạn có thể tạo việc, ghi chép tài liệu, di chuyển cột Kanban ngay cả khi ở trên máy bay hay mất mạng. Toàn bộ dữ liệu sẽ tự động đồng bộ lên Supabase Cloud ngay khi có kết nối trở lại mà không mất mát dữ liệu.'
+        : 'Absolutely! Apexa OS is engineered on a modern Local-First architecture. You can create tasks, draft docs, and organize Kanban boards on airplanes or in offline mode. All modifications seamlessly sync with Supabase Cloud once you are reconnected.'
+    },
+    {
+      q: isVietnamese
+        ? 'Dữ liệu dự án và thông tin của công ty tôi được bảo mật như thế nào?'
+        : 'How is our company data protected and secured?',
+      a: isVietnamese
+        ? 'Apexa áp dụng chuẩn mã hóa SSL/TLS 256-bit trong truyền tải và AES-256 khi lưu trữ. Cơ sở dữ liệu chạy trên hạ tầng Supabase Enterprise đạt chứng nhận tuân thủ bảo mật quốc tế SOC2 Type II và ISO 27001. Dữ liệu của bạn hoàn toàn thuộc quyền sở hữu của bạn và không bao giờ được dùng để huấn luyện mô hình AI công khai.'
+        : 'Apexa employs 256-bit SSL/TLS encryption in transit and AES-256 at rest. Backed by Supabase Enterprise infrastructure, our databases comply with SOC2 Type II and ISO 27001 security standards. Your proprietary workspace data is never used for training public AI models.'
+    },
+    {
+      q: isVietnamese
+        ? 'Tôi có thể chuyển dữ liệu từ Trello, Notion, Jira hoặc ClickUp sang Apexa không?'
+        : 'Can I import workspace data from Trello, Notion, Jira, or ClickUp?',
+      a: isVietnamese
+        ? 'Có! Apexa OS cung cấp công cụ chuyển đổi 1-Click Import. Bạn chỉ cần xuất file JSON/CSV từ công cụ cũ, hệ thống sẽ tự động ánh xạ cấu trúc bảng việc, tài liệu và phân công người phụ trách sang Apexa chỉ trong vài phút.'
+        : 'Yes! Apexa OS provides 1-Click migration tools. Simply upload your CSV or JSON exports from previous tools, and our ingestion wizard maps your boards, docs, and assignees within minutes.'
+    },
+    {
+      q: isVietnamese
+        ? 'Apexa AI hỗ trợ tiếng Việt và tiếng Anh như thế nào?'
+        : 'How fluent is Apexa AI in both Vietnamese and English?',
+      a: isVietnamese
+        ? 'Apexa Brain AI được tối ưu hóa dựa trên mô hình Gemini AI đa ngôn ngữ tiên tiến nhất, hỗ trợ tiếng Việt xuất sắc (hiểu từ ngữ chuyên ngành, cách xưng hô, văn phong công sở) cùng tiếng Anh chuẩn xác và hơn 45 ngôn ngữ quốc tế khác.'
+        : 'Apexa Brain AI is powered by state-of-the-art multimodal Gemini AI models, delivering fluent, contextual comprehension in both English and Vietnamese with deep knowledge of technical productivity terms.'
+    },
+    {
+      q: isVietnamese
+        ? 'Chính sách dùng thử và nâng cấp gói Pro như thế nào?'
+        : 'What is the trial policy and satisfaction guarantee for Pro OS?',
+      a: isVietnamese
+        ? 'Bạn có thể bắt đầu với gói Miễn phí vĩnh viễn không cần thẻ tín dụng. Khi muốn nâng cấp lên gói Pro OS, bạn được trải nghiệm đầy đủ tính năng AI và Gantt Chart cao cấp với chính sách hoàn tiền 100% trong 14 ngày nếu không hài lòng.'
+        : 'You can get started immediately with our Free Forever tier—no credit card required. Upgrades to Pro OS include full AI Copilot and Gantt features backed by a 14-day 100% money-back guarantee.'
+    }
+  ], [isVietnamese]);
 
   useEffect(() => {
     const handleMouse = (e: MouseEvent) => {
@@ -977,15 +993,22 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
   }, []);
 
   const formatPrice = (planId: string) => {
-    if (planId === 'free') return { value: '0 ₫', suffix: '/ mãi mãi' };
-    if (planId === 'enterprise') return { value: 'Liên hệ', suffix: '/ tùy biến SLA' };
+    if (planId === 'free') return { value: isVietnamese ? '0 ₫' : '$0', suffix: isVietnamese ? '/ mãi mãi' : '/ forever' };
+    if (planId === 'enterprise') return { value: isVietnamese ? 'Liên hệ' : 'Custom', suffix: isVietnamese ? '/ tùy biến SLA' : '/ tailored SLA' };
     const price = billingPrices[billingCycle];
-    if (!price) return { value: billingCycle === 'yearly' ? '99.000 ₫' : '129.000 ₫', suffix: '/ người / tháng' };
+    if (!price) {
+      return {
+        value: isVietnamese 
+          ? (billingCycle === 'yearly' ? '99.000 ₫' : '129.000 ₫')
+          : (billingCycle === 'yearly' ? '$8' : '$12'),
+        suffix: isVietnamese ? '/ người / tháng' : '/ user / month'
+      };
+    }
     const monthlyAmount = price.unit_amount / (price.interval === 'year' ? 12 * price.interval_count : price.interval_count);
     const divisor = ZERO_DECIMAL_CURRENCIES.has(price.currency.toLowerCase()) ? 1 : 100;
     return {
-      value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: price.currency.toUpperCase(), maximumFractionDigits: 0 }).format(monthlyAmount / divisor),
-      suffix: '/ người / tháng'
+      value: new Intl.NumberFormat(isVietnamese ? 'vi-VN' : 'en-US', { style: 'currency', currency: price.currency.toUpperCase(), maximumFractionDigits: 0 }).format(monthlyAmount / divisor),
+      suffix: isVietnamese ? '/ người / tháng' : '/ user / month'
     };
   };
 
@@ -1003,20 +1026,20 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const filteredFeatures = FEATURES.filter(f => activeCategory === 'all' || f.category === activeCategory);
+  const filteredFeatures = features.filter(f => activeCategory === 'all' || f.category === activeCategory);
 
   const handlePrevTestimonial = () => {
-    setActiveTestimonial(prev => (prev === 0 ? TESTIMONIALS.length - 1 : prev - 1));
+    setActiveTestimonial(prev => (prev === 0 ? testimonials.length - 1 : prev - 1));
   };
 
   const handleNextTestimonial = () => {
-    setActiveTestimonial(prev => (prev === TESTIMONIALS.length - 1 ? 0 : prev + 1));
+    setActiveTestimonial(prev => (prev === testimonials.length - 1 ? 0 : prev + 1));
   };
 
   const doubledLogos = [...TRUSTED_LOGOS, ...TRUSTED_LOGOS, ...TRUSTED_LOGOS, ...TRUSTED_LOGOS];
 
   return (
-    <div ref={containerRef} className="relative w-full overflow-hidden bg-[#fafbfc] dark:bg-[#07090e] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-indigo-500 selection:text-white">
+    <div ref={containerRef} className="relative w-full overflow-hidden bg-[#fafbfc] dark:bg-[#07090e] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
       
       {/* Dynamic Ambient Mouse Spotlight */}
       <div
@@ -1047,239 +1070,241 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       />
 
       {/* TOP NOTIFICATION BANNER */}
-      <div className="relative z-50 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 text-white text-[11px] font-extrabold py-2 px-4 text-center select-none flex items-center justify-center gap-2 shadow-sm">
-        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[9px] font-black uppercase">Mới</span>
-        <span>Apexa OS 2.0 đã chính thức phát hành với Trợ lý AI Gemini 2.5 & Kiến trúc Local-First!</span>
-        <button onClick={onSignUp} className="underline hover:text-white/80 cursor-pointer inline-flex items-center gap-0.5">
-          Khám phá ngay <ArrowRight className="w-3 h-3" />
+      <div className="relative z-50 bg-slate-950 text-white text-[11px] font-extrabold py-2 px-4 text-center select-none flex items-center justify-center gap-2 border-b border-white/10">
+        <Badge variant="shots-new" dot size="sm">SHOTS-GRADE OS 2.0</Badge>
+        <span className="text-slate-300">
+          {isVietnamese 
+            ? 'Apexa OS 2.0 đã tích hợp Trợ lý AI Gemini 2.5 & Kiến trúc Local-First siêu tốc!'
+            : 'Apexa OS 2.0 is live with Gemini 2.5 AI Engine & ultra-fast Local-First architecture!'}
+        </span>
+        <button onClick={onSignUp} className="text-sky-400 underline hover:text-sky-300 cursor-pointer inline-flex items-center gap-0.5 ml-1">
+          {isVietnamese ? 'Khám phá ngay' : 'Explore now'} <ArrowRight className="w-3 h-3" />
         </button>
       </div>
 
-      {/* ULTRA GLASSMORPHIC HEADER */}
-      <header className="sticky top-0 z-50 w-full bg-white/85 dark:bg-[#07090e]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-slate-800/80 transition-all">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 py-3.5 flex items-center justify-between">
+      {/* FLOATING ISLAND HEADER NAVBAR (SHOTS STYLE) */}
+      <header className="sticky top-3 z-50 max-w-6xl mx-auto px-4">
+        <div className="shots-dock px-4 py-2.5 flex items-center justify-between transition-all">
           
-          {/* Logo Brand Identity */}
-          <div className="flex items-center gap-8">
-            <div 
-              className="flex items-center gap-3 cursor-pointer select-none group" 
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            >
-              {/* Apexa Official Logo Mark */}
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-800 p-0.5 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
-                <svg className="w-6 h-6" viewBox="0 0 512 512" fill="none">
-                  <path
-                    d="M256 84 C264 84 271 89 275 97 L405 375 C409 383 403 394 394 394 L325 394 C317 394 309 389 306 381 L278 322 L234 322 L206 381 C203 389 195 394 187 394 L118 394 C109 394 103 383 107 375 L237 97 C241 89 248 84 256 84 Z M256 182 L226 270 L286 270 Z"
-                    fill="#FFFFFF"
-                  />
-                  <polygon points="218,296 294,296 284,316 228,316" fill="#38BDF8" />
-                  <polygon points="256,128 266,144 256,160 246,144" fill="#38BDF8" />
-                </svg>
-              </div>
-              <div>
-                <span className="font-display font-black text-xl tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                  Apexa
-                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/60 uppercase shadow-2xs">
-                    OS 2.0
-                  </span>
-                </span>
-              </div>
+          {/* Brand Logo */}
+          <div 
+            className="flex items-center gap-2.5 cursor-pointer select-none group" 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 via-sky-500 to-indigo-700 p-0.5 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5" viewBox="0 0 512 512" fill="none">
+                <path
+                  d="M256 84 C264 84 271 89 275 97 L405 375 C409 383 403 394 394 394 L325 394 C317 394 309 389 306 381 L278 322 L234 322 L206 381 C203 389 195 394 187 394 L118 394 C109 394 103 383 107 375 L237 97 C241 89 248 84 256 84 Z M256 182 L226 270 L286 270 Z"
+                  fill="#FFFFFF"
+                />
+                <polygon points="218,296 294,296 284,316 228,316" fill="#38BDF8" />
+              </svg>
             </div>
-
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1">
-              {[
-                { label: 'Tính năng', id: 'features' },
-                { label: 'Công nghệ', id: 'pillars' },
-                { label: 'Quy trình', id: 'how-it-works' },
-                { label: 'Bảng giá', id: 'pricing' },
-                { label: 'Đánh giá', id: 'testimonials' },
-                { label: 'Hỏi đáp', id: 'faq' }
-              ].map((link) => (
-                <button
-                  key={link.id}
-                  onClick={() => scrollTo(link.id)}
-                  className="px-3.5 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all cursor-pointer"
-                >
-                  {link.label}
-                </button>
-              ))}
-            </nav>
+            <span className="font-display font-black text-lg tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+              Apexa
+              <Badge variant="shots" size="sm">OS</Badge>
+            </span>
           </div>
 
+          {/* Nav Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            {[
+              { label: isVietnamese ? 'Tính năng' : 'Features', id: 'features' },
+              { label: isVietnamese ? 'Quy trình' : 'Workflow', id: 'how-it-works' },
+              { label: isVietnamese ? 'Bảng giá' : 'Pricing', id: 'pricing' },
+              { label: isVietnamese ? 'Đánh giá' : 'Reviews', id: 'testimonials' },
+              { label: isVietnamese ? 'Hỏi đáp' : 'FAQ', id: 'faq' }
+            ].map((link) => (
+              <button
+                key={link.id}
+                onClick={() => scrollTo(link.id)}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer"
+              >
+                {link.label}
+              </button>
+            ))}
+          </nav>
+
           {/* Action CTAs */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              aria-label={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-              title={isDarkMode ? 'Giao diện sáng' : 'Giao diện tối'}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-600 shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-400"
-            >
-              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button
-              onClick={onSignIn}
-              className="text-xs font-black text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-4 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              Đăng nhập
-            </button>
-            <button
-              onClick={onSignUp}
-              className="text-xs font-black bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:brightness-110 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <span>Dùng thử miễn phí</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center gap-2">
+            <LanguageDropdown size="sm" />
+            <ThemeSwitch size="sm" />
+            <Button variant="ghost" size="sm" pill onClick={onSignIn} className="hidden sm:inline-flex">
+              {isVietnamese ? 'Đăng nhập' : 'Sign in'}
+            </Button>
+            <Button variant="shots" size="sm" pill onClick={onSignUp} rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+              {isVietnamese ? 'Bắt đầu miễn phí' : 'Get Started Free'}
+            </Button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-slate-800 dark:text-white"
+              className="md:hidden p-1.5 rounded-full hover:bg-slate-200/60 dark:hover:bg-white/10 text-slate-800 dark:text-white cursor-pointer"
+              aria-label={isVietnamese ? 'Mở menu' : 'Toggle menu'}
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Mobile Dropdown */}
         {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-[#0d0e17]/95 backdrop-blur-2xl px-5 py-4 space-y-2 select-none"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="md:hidden mt-2 p-4 shots-glass-card rounded-3xl space-y-2 select-none text-left"
           >
-            {['features', 'pillars', 'how-it-works', 'pricing', 'testimonials', 'faq'].map((id) => (
+            {[
+              { id: 'features', label: isVietnamese ? 'Tính năng' : 'Features' },
+              { id: 'how-it-works', label: isVietnamese ? 'Quy trình' : 'Workflow' },
+              { id: 'pricing', label: isVietnamese ? 'Bảng giá' : 'Pricing' },
+              { id: 'testimonials', label: isVietnamese ? 'Đánh giá' : 'Reviews' },
+              { id: 'faq', label: isVietnamese ? 'Hỏi đáp' : 'FAQ' },
+            ].map((item) => (
               <button
-                key={id}
-                onClick={() => scrollTo(id)}
-                className="block w-full text-left px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+                key={item.id}
+                onClick={() => scrollTo(item.id)}
+                className="block w-full text-left px-3 py-2 text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
               >
-                {id === 'features' ? 'Tính năng' : id === 'pillars' ? 'Công nghệ' : id === 'how-it-works' ? 'Quy trình' : id === 'pricing' ? 'Bảng giá' : id === 'testimonials' ? 'Đánh giá' : 'Hỏi đáp'}
+                {item.label}
               </button>
             ))}
-            <button onClick={onSignIn} className="block w-full text-left px-4 py-3 text-xs font-black text-indigo-600 dark:text-indigo-400 cursor-pointer border-t border-slate-100 dark:border-slate-800 pt-3">
-              Đăng nhập tài khoản
-            </button>
+            <div className="pt-2 border-t border-slate-200 dark:border-white/10 flex gap-2">
+              <Button variant="outline" size="sm" pill fullWidth onClick={onSignIn}>
+                {isVietnamese ? 'Đăng nhập' : 'Sign in'}
+              </Button>
+              <Button variant="shots" size="sm" pill fullWidth onClick={onSignUp}>
+                {isVietnamese ? 'Dùng thử' : 'Get Started'}
+              </Button>
+            </div>
           </motion.div>
         )}
       </header>
 
       {/* =========================================================================
-          HERO SECTION
+          HERO SECTION (SHOTS.SO AESTHETIC)
           ========================================================================= */}
-      <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 pt-12 lg:pt-20 pb-16 lg:pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
-          
-          {/* Left Hero Pitch */}
-          <div className="lg:col-span-5 space-y-6 text-center lg:text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-[11px] font-black text-blue-700 dark:text-blue-300 select-none"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-              </span>
-              Hệ điều hành năng suất AI thế hệ mới
-              <ChevronRight className="w-3.5 h-3.5 text-blue-500" />
-            </motion.div>
+      <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 pt-10 sm:pt-14 pb-16 lg:pb-24 text-center">
+        
+        {/* Top Tag */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="inline-flex items-center gap-2 mb-6"
+        >
+          <Badge variant="shots-new" dot size="lg">
+            {isVietnamese ? 'Hệ điều hành năng suất Apexa 2026' : 'Apexa Continuous Workspace 2026'}
+          </Badge>
+        </motion.div>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.1 }}
-              className="text-4xl sm:text-5xl lg:text-[3.5rem] font-black tracking-tight text-slate-900 dark:text-white leading-[1.08] font-display"
-            >
+        {/* Hero Main Headline */}
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.1 }}
+          className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-950 dark:text-white leading-[1.05] font-display max-w-5xl mx-auto"
+        >
+          {isVietnamese ? (
+            <>
               Tập trung tối đa.{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-sky-400 to-indigo-500">
                 Bứt phá năng suất
               </span>
               {' '}cùng AI.
-            </motion.h1>
+            </>
+          ) : (
+            <>
+              Maximum focus.{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-sky-400 to-indigo-500">
+                Supercharge velocity
+              </span>
+              {' '}with AI.
+            </>
+          )}
+        </motion.h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.2 }}
-              className="text-slate-600 dark:text-slate-300 text-sm sm:text-base font-medium leading-relaxed max-w-xl mx-auto lg:mx-0"
-            >
-              Hợp nhất Kanban, Smart Docs, ChatRoom, Lịch biểu và Trợ lý AI Apexa Brain trên một bề mặt duy nhất. Xóa bỏ 100% tình trạng phân mảnh công cụ.
-            </motion.p>
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.2 }}
+          className="text-slate-600 dark:text-slate-300 text-sm sm:text-lg font-medium leading-relaxed max-w-2xl mx-auto mt-6"
+        >
+          {isVietnamese
+            ? 'Hợp nhất Kanban, Smart Docs, ChatRoom, Lịch biểu và Trợ lý AI Apexa Brain trên một bề mặt duy nhất. Không độ trễ, không phân mảnh công cụ.'
+            : 'Unify Kanban boards, Smart Docs, ChatRooms, Calendars, and Apexa Brain AI on a single canvas. Zero latency, zero tool sprawl.'}
+        </motion.p>
 
-            {/* CTAs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
-            >
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={onSignUp}
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white text-sm font-black rounded-2xl shadow-xl shadow-blue-500/25 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+        {/* CTA Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.3 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mt-8"
+        >
+          <Button
+            variant="shots"
+            size="huge"
+            pill
+            onClick={onSignUp}
+            rightIcon={<ArrowRight className="w-4 h-4" />}
+          >
+            {isVietnamese ? 'Bắt đầu trải nghiệm miễn phí' : 'Start for Free Today'}
+          </Button>
+
+          <Button
+            variant="glass"
+            size="huge"
+            pill
+            onClick={() => scrollTo('features')}
+            leftIcon={<Play className="w-4 h-4 text-blue-600 dark:text-sky-400" />}
+          >
+            {isVietnamese ? 'Khám phá tính năng' : 'Explore Features'}
+          </Button>
+        </motion.div>
+
+        {/* Social Proof Badges */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.45 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8 text-xs font-bold text-slate-500 dark:text-slate-400"
+        >
+          <div className="flex -space-x-2">
+            {['HX', 'MA', 'QB', 'TV', 'LA'].map((initials, i) => (
+              <div
+                key={i}
+                className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 border-2 border-white dark:border-[#07090e] flex items-center justify-center text-[8.5px] font-black text-white shadow-sm"
               >
-                Bắt đầu miễn phí ngay
-                <ArrowRight className="w-4.5 h-4.5" />
-              </motion.button>
-              
-              <button
-                onClick={() => scrollTo('features')}
-                className="w-full sm:w-auto px-6 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 text-slate-700 dark:text-slate-200 text-sm font-black rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer group"
-              >
-                <Play className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
-                Khám phá tính năng
-              </button>
-            </motion.div>
-
-            {/* Social Proof */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.45 }}
-              className="flex flex-col sm:flex-row items-center gap-4 pt-2 justify-center lg:justify-start"
-            >
-              <div className="flex -space-x-2">
-                {['HX', 'MA', 'QB', 'TV', 'LA'].map((initials, i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 border-2 border-white dark:border-[#07090e] flex items-center justify-center text-[9px] font-black text-white shadow-sm"
-                  >
-                    {initials}
-                  </div>
-                ))}
+                {initials}
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <span className="text-slate-500 dark:text-slate-400">
-                  <strong className="text-slate-900 dark:text-white font-black">4.95/5</strong> từ 28,000+ cá nhân & đội ngũ
-                </span>
-              </div>
-            </motion.div>
+            ))}
           </div>
-
-          {/* Right Hero Live Interactive Workspace Studio */}
-          <div className="lg:col-span-7 relative">
-            <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 rounded-3xl blur-3xl pointer-events-none" />
-            <InteractiveProductStudio />
+          <div className="flex items-center gap-1.5">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <span>
+              <strong className="text-slate-900 dark:text-white font-black">4.95/5</strong> {isVietnamese ? 'từ hơn 28,000+ đội ngũ kỹ thuật & sáng tạo' : 'from 28,000+ tech and creative teams'}
+            </span>
           </div>
+        </motion.div>
 
+        {/* Interactive Shots Mockup Studio in Hero */}
+        <div className="mt-12 sm:mt-16 max-w-5xl mx-auto">
+          <ShotsInteractiveStudio />
         </div>
+
       </section>
 
       {/* =========================================================================
           MARQUEE LOGOS STRIP
           ========================================================================= */}
-      <section className="relative z-10 border-y border-slate-200/80 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/30 backdrop-blur-md py-7 overflow-hidden select-none">
+      <section className="relative z-10 border-y border-slate-200/80 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md py-6 overflow-hidden select-none">
         <div className="max-w-7xl mx-auto px-5 sm:px-6">
-          <p className="text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-5">
-            Được tin dùng bởi các kỹ sư, nhà sáng lập và đội ngũ công nghệ cao cấp
+          <p className="text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
+            {isVietnamese ? 'Được tin dùng bởi các kỹ sư, nhà sáng lập và đội ngũ công nghệ cao cấp' : 'Trusted by high-growth engineering teams, founders, and modern creators'}
           </p>
           <div className="overflow-hidden w-full relative py-1">
             <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#fafbfc] dark:from-[#07090e] to-transparent z-10 pointer-events-none" />
@@ -1290,8 +1315,8 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
               className="flex gap-20 w-max whitespace-nowrap px-4"
             >
               {doubledLogos.map((logo, index) => (
-                <span key={index} className="text-sm font-black text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/60" />
+                <span key={index} className="text-sm font-black text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-sky-400 transition-colors flex items-center gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60" />
                   {logo}
                 </span>
               ))}
@@ -1305,21 +1330,21 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
           ========================================================================= */}
       <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-14 lg:py-20">
         <FadeInSection>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
-              { value: activeUsers, suffix: '+', label: 'Tổ chức & Đội ngũ hoạt động', icon: Users, color: 'text-blue-600 dark:text-blue-400' },
-              { value: tasksCompleted, suffix: '+', label: 'Nhiệm vụ hoàn tất mỗi ngày', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400' },
-              { value: 99.99, suffix: '%', label: 'Cam kết Uptime SLA liên tục', icon: ShieldCheck, color: 'text-indigo-600 dark:text-indigo-400', decimals: 2 },
-              { value: 42, suffix: '%', label: 'Tốc độ bàn giao Sprint tăng tốc', icon: Zap, color: 'text-amber-600 dark:text-amber-400' },
+              { value: activeUsers, suffix: '+', label: isVietnamese ? 'Tổ chức & Đội ngũ hoạt động' : 'Active Teams & Workspaces', icon: Users, color: 'text-blue-600 dark:text-sky-400' },
+              { value: tasksCompleted, suffix: '+', label: isVietnamese ? 'Nhiệm vụ hoàn tất mỗi ngày' : 'Daily Tasks Completed', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400' },
+              { value: 99.99, suffix: '%', label: isVietnamese ? 'Cam kết Uptime SLA liên tục' : 'Guaranteed SLA Uptime', icon: ShieldCheck, color: 'text-indigo-600 dark:text-indigo-400', decimals: 2 },
+              { value: 42, suffix: '%', label: isVietnamese ? 'Tốc độ bàn giao Sprint tăng tốc' : 'Faster Sprint Delivery', icon: Zap, color: 'text-amber-600 dark:text-amber-400' },
             ].map((stat, i) => (
-              <div key={i} className="text-center p-6 sm:p-7 rounded-3xl bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 shadow-xs hover:border-indigo-500/40 transition-all group">
-                <div className={`w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800/80 ${stat.color} flex items-center justify-center mx-auto mb-3.5 group-hover:scale-110 transition-transform`}>
-                  <stat.icon className="w-6 h-6" />
+              <div key={i} className="shots-glass-card rounded-3xl p-6 sm:p-7 text-center space-y-2">
+                <div className={`w-11 h-11 rounded-2xl bg-slate-200/70 dark:bg-white/10 ${stat.color} flex items-center justify-center mx-auto mb-2`}>
+                  <stat.icon className="w-5 h-5" />
                 </div>
                 <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white font-display">
                   <AnimatedCounter value={stat.value} suffix={stat.suffix} decimals={'decimals' in stat ? stat.decimals : 0} />
                 </div>
-                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1.5">{stat.label}</p>
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -1327,68 +1352,31 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       </section>
 
       {/* =========================================================================
-          ARCHITECTURE PILLARS (TECH EXCELLENCE)
+          FEATURE SHOWCASE (SHOTS.SO BENTO GRID)
           ========================================================================= */}
-      <section id="pillars" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
+      <section id="features" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-14">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-800/50">
-              Kiến trúc đột phá
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Xây dựng cho tốc độ. Thiết kế cho tương lai.
+          <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
+            <Badge variant="shots-new" dot>{isVietnamese ? 'TÍNH NĂNG ĐỈNH CAO' : 'ALL-IN-ONE POWER'}</Badge>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+              {isVietnamese ? 'Mọi công cụ đội ngũ cần trên một giao diện' : 'Every team tool unified on one continuous canvas'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              Không còn cảm giác nặng nề, xoay vòng chờ tải. Apexa OS được tinh chỉnh từng mili-giây để đem lại hiệu suất tối thượng.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ARCHITECTURE_PILLARS.map((pillar, idx) => {
-              const Icon = pillar.icon;
-              return (
-                <div
-                  key={idx}
-                  className="rounded-3xl bg-white dark:bg-[#0c0e18] p-8 border border-slate-200/80 dark:border-slate-800/80 shadow-xs hover:border-indigo-500/40 transition-all text-left space-y-4 group"
-                >
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${pillar.gradient} text-white flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
-                    <Icon className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{pillar.title}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{pillar.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </FadeInSection>
-      </section>
-
-      {/* =========================================================================
-          FEATURE SHOWCASE MATRIX
-          ========================================================================= */}
-      <section id="features" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
-        <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
-              Trọn bộ tính năng
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Mọi công cụ đội ngũ cần trên một hệ điều hành
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              Không cần trả phí riêng cho 5 ứng dụng khác nhau. Apexa OS tích hợp hoàn chỉnh và đồng bộ từng byte dữ liệu.
+              {isVietnamese
+                ? 'Không cần trả phí riêng cho 5 ứng dụng khác nhau. Apexa OS tích hợp hoàn chỉnh và đồng bộ từng byte dữ liệu.'
+                : 'Replace subscriptions for 5 disconnected tools. Apexa OS integrates tasks, docs, chat, and AI in perfect harmony.'}
             </p>
 
-            {/* Category Filter Buttons */}
+            {/* Category Filter */}
             <div className="flex flex-wrap justify-center gap-2 pt-4">
-              {CATEGORIES.map(cat => (
+              {categories.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
                     activeCategory === cat.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800/60'
+                      ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-md'
+                      : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/10'
                   }`}
                 >
                   {cat.label}
@@ -1397,7 +1385,8 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Bento Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {filteredFeatures.map((feat, i) => {
               const Icon = feat.icon;
               return (
@@ -1407,23 +1396,23 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
-                  className="rounded-3xl bg-white dark:bg-[#0c0e18] p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-xs hover:border-indigo-500/40 transition-all hover:-translate-y-1 text-left flex flex-col justify-between group"
+                  className="shots-glass-card rounded-3xl p-6 flex flex-col justify-between text-left group"
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <div className={`w-12 h-12 rounded-2xl ${feat.bg} flex items-center justify-center ${feat.iconColor} border border-slate-200/40 dark:border-slate-800/40 group-hover:scale-110 transition-transform`}>
-                        <Icon className="w-6 h-6" />
+                      <div className={`w-11 h-11 rounded-2xl ${feat.bg} flex items-center justify-center ${feat.iconColor} border border-white/10 group-hover:scale-110 transition-transform`}>
+                        <Icon className="w-5 h-5" />
                       </div>
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      <Badge variant={feat.tagVariant} size="sm">
                         {feat.badge}
-                      </span>
+                      </Badge>
                     </div>
                     <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">{feat.title}</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{feat.desc}</p>
                   </div>
                   
-                  <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400">
-                    <span>Khám phá ngay</span>
+                  <div className="pt-4 mt-4 border-t border-slate-200/60 dark:border-white/5 flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-sky-400">
+                    <span>{isVietnamese ? 'Khám phá ngay' : 'Learn more'}</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
@@ -1434,94 +1423,35 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       </section>
 
       {/* =========================================================================
-          ROI & PRODUCTIVITY CALCULATOR
+          WORKFLOW PROCESS (4 STEPS)
           ========================================================================= */}
-      <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
+      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         <FadeInSection>
-          <InteractiveRoiCalculator />
-        </FadeInSection>
-      </section>
-
-      {/* =========================================================================
-          COMPETITOR COMPARISON MATRIX
-          ========================================================================= */}
-      <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
-        <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-14">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 px-3 py-1 rounded-full border border-purple-200/50 dark:border-purple-800/50">
-              So sánh toàn diện
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Tại sao chọn Apexa OS thay vì công cụ rời rạc?
+          <div className="text-center space-y-3 max-w-3xl mx-auto mb-14">
+            <Badge variant="shots">{isVietnamese ? 'QUY TRÌNH CHUẨN HOÁ' : 'HOW IT WORKS'}</Badge>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+              {isVietnamese ? 'Vận hành trơn tru chỉ với 4 bước' : 'Seamless workflow in 4 simple steps'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              So sánh trực quan giữa hệ điều hành tích hợp của Apexa và mô hình phân mảnh truyền thống.
+              {isVietnamese
+                ? 'Dễ dàng thiết lập và đồng bộ toàn bộ thành viên chỉ trong 1 buổi làm việc.'
+                : 'Set up departmental spaces and onboard your entire team in minutes.'}
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="min-w-[620px] rounded-3xl bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-xl">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
-                    <th className="py-4 px-6 font-black text-slate-700 dark:text-slate-300">Tính năng & Tiêu chuẩn</th>
-                    <th className="py-4 px-6 font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30">Apexa OS 2.0</th>
-                    <th className="py-4 px-6 font-black text-slate-500">Bộ công cụ phân mảnh (Jira + Slack + Notion)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                  {COMPARISON_ITEMS.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-4 px-6 font-extrabold text-slate-800 dark:text-slate-200">{row.feature}</td>
-                      <td className="py-4 px-6 font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-950/20">
-                        {typeof row.apexa === 'boolean' ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-black">
-                            <Check className="w-4 h-4 text-emerald-500" /> Tích hợp sẵn
-                          </span>
-                        ) : (
-                          <span className="font-black text-emerald-600 dark:text-emerald-400">{row.apexa}</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-slate-500 font-semibold">{row.others}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </FadeInSection>
-      </section>
-
-      {/* =========================================================================
-          WORKFLOW PROCESS
-          ========================================================================= */}
-      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
-        <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-16">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full border border-emerald-200/50 dark:border-emerald-800/50">
-              Quy trình chuẩn hóa
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Vận hành trơn tru chỉ với 4 bước
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              Dễ dàng thiết lập và đồng bộ toàn bộ thành viên chỉ trong 1 buổi làm việc.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {WORKFLOW_STEPS.map((step) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {workflowSteps.map((step) => {
               const StepIcon = step.icon;
               return (
-                <div key={step.step} className="rounded-3xl bg-white dark:bg-[#0c0e18] p-7 border border-slate-200/80 dark:border-slate-800/80 shadow-xs text-left space-y-4 hover:border-indigo-500/40 transition-all group">
+                <div key={step.step} className="shots-glass-card rounded-3xl p-6 text-left space-y-4 group">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{step.step}</span>
-                    <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-white/10 text-blue-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <StepIcon className="w-5 h-5" />
                     </div>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400">{step.badge}</span>
+                    <span className="text-[9px] font-black uppercase text-blue-600 dark:text-sky-400">{step.badge}</span>
                     <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight mt-1">{step.title}</h3>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{step.desc}</p>
@@ -1535,52 +1465,51 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       {/* =========================================================================
           PRICING PLANS
           ========================================================================= */}
-      <section id="pricing" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
+      <section id="pricing" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full border border-emerald-200/50 dark:border-emerald-800/50">
-              Bảng giá minh bạch
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Đầu tư thông minh, tối ưu ngân sách
+          <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
+            <Badge variant="shots-new" dot>{isVietnamese ? 'BẢNG GIÁ MINH BẠCH' : 'TRANSPARENT PRICING'}</Badge>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+              {isVietnamese ? 'Đầu tư thông minh, tối ưu ngân sách' : 'Invest smart, maximize team velocity'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
-              Không chi phí ẩn. Nâng cấp hoặc hạ cấp gói bất cứ khi nào theo nhu cầu phát triển.
+              {isVietnamese
+                ? 'Không chi phí ẩn. Nâng cấp hoặc hạ cấp gói bất cứ khi nào theo nhu cầu phát triển.'
+                : 'Zero hidden fees. Upgrade, downgrade, or cancel anytime as your team grows.'}
             </p>
 
-            {/* Monthly / Yearly Toggle */}
-            <div className="flex items-center justify-center gap-3 pt-4">
-              <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400'}`}>Thanh toán hàng tháng</span>
-              <button
-                onClick={() => setBillingCycle(prev => prev === 'monthly' ? 'yearly' : 'monthly')}
-                className="w-12 h-6 rounded-full bg-indigo-600 p-1 relative transition-colors cursor-pointer"
-              >
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${billingCycle === 'yearly' ? 'translate-x-6' : ''}`} />
-              </button>
-              <span className={`text-xs font-bold flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400'}`}>
-                Thanh toán hàng năm
-                {yearlySaving > 0 && <span className="text-[9px] font-black uppercase bg-emerald-500 text-white px-2 py-0.5 rounded-full">Tiết kiệm {yearlySaving}%</span>}
-              </span>
+            {/* Billing Switcher */}
+            <div className="pt-4 flex justify-center">
+              <SegmentedControl
+                size="md"
+                value={billingCycle}
+                onChange={(val) => setBillingCycle(val as 'monthly' | 'yearly')}
+                layoutIdPrefix="shotsPricingBilling"
+                options={[
+                  { id: 'monthly', label: isVietnamese ? 'Hàng tháng' : 'Monthly' },
+                  { id: 'yearly', label: isVietnamese ? 'Hàng năm' : 'Yearly', badge: isVietnamese ? `Tiết kiệm ${yearlySaving}%` : `Save ${yearlySaving}%` },
+                ]}
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            {PRICING_PLANS.map(plan => {
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {pricingPlans.map(plan => {
               const price = formatPrice(plan.id);
               return (
                 <div
                   key={plan.id}
                   className={`rounded-3xl p-8 flex flex-col justify-between text-left relative transition-all ${
                     plan.highlight
-                      ? 'bg-gradient-to-b from-blue-900/10 via-indigo-900/5 to-white dark:to-[#0c0e18] border-2 border-indigo-600 dark:border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-105 z-10'
-                      : 'bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 shadow-xs'
+                      ? 'shots-glass-panel border-2 border-blue-500 shadow-2xl shadow-blue-500/20 scale-105 z-10'
+                      : 'shots-glass-card'
                   }`}
                 >
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
+                      <Badge variant={plan.highlight ? 'shots-new' : 'shots'} size="sm">
                         {plan.badge}
-                      </span>
+                      </Badge>
                     </div>
 
                     <div>
@@ -1593,7 +1522,7 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
                       {price.suffix && <span className="text-xs text-slate-400 font-bold">{price.suffix}</span>}
                     </div>
 
-                    <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="space-y-2.5 pt-4 border-t border-slate-200/60 dark:border-white/10">
                       {plan.features.map((feat, idx) => (
                         <div key={idx} className="flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-300">
                           <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -1603,16 +1532,16 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
                     </div>
                   </div>
 
-                  <button
+                  <Button
+                    variant={plan.highlight ? 'shots' : 'secondary'}
+                    size="lg"
+                    pill
+                    fullWidth
                     onClick={() => startPlan(plan.id)}
-                    className={`w-full mt-8 py-3.5 rounded-2xl text-xs font-black transition-all cursor-pointer text-center shadow-md ${
-                      plan.highlight
-                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white hover:brightness-110 shadow-indigo-500/25'
-                        : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100'
-                    }`}
+                    className="mt-8"
                   >
                     {plan.cta}
-                  </button>
+                  </Button>
                 </div>
               );
             })}
@@ -1621,21 +1550,19 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       </section>
 
       {/* =========================================================================
-          TESTIMONIALS SLIDER
+          TESTIMONIALS
           ========================================================================= */}
-      <section id="testimonials" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70">
+      <section id="testimonials" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-full border border-rose-200/50 dark:border-rose-800/50">
-              Đánh giá thực tế
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Được yêu thích bởi các nhà quản lý dự án
+          <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
+            <Badge variant="shots">{isVietnamese ? 'ĐÁNH GIÁ THỰC TẾ' : 'CUSTOMER STORIES'}</Badge>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+              {isVietnamese ? 'Được yêu thích bởi các nhà quản lý dự án' : 'Loved by product leaders and engineering managers'}
             </h2>
           </div>
 
-          <div className="max-w-4xl mx-auto relative rounded-3xl bg-white dark:bg-[#0c0e18] p-8 md:p-12 border border-slate-200/80 dark:border-slate-800/80 shadow-xl text-left">
-            <Quote className="w-12 h-12 text-indigo-500/20 mb-4" />
+          <div className="max-w-4xl mx-auto shots-glass-card rounded-3xl p-8 md:p-12 text-left">
+            <Quote className="w-10 h-10 text-blue-500/25 mb-4" />
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTestimonial}
@@ -1645,34 +1572,36 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
                 transition={{ duration: 0.3 }}
                 className="space-y-6"
               >
-                <p className="text-base md:text-lg text-slate-800 dark:text-slate-200 font-extrabold leading-relaxed">
-                  "{TESTIMONIALS[activeTestimonial].quote}"
+                <p className="text-base md:text-xl text-slate-900 dark:text-slate-100 font-extrabold leading-relaxed">
+                  "{testimonials[activeTestimonial].quote}"
                 </p>
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200/60 dark:border-white/10">
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${TESTIMONIALS[activeTestimonial].gradient} text-white font-black text-xs flex items-center justify-center shadow-md`}>
-                      {TESTIMONIALS[activeTestimonial].avatar}
+                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${testimonials[activeTestimonial].gradient} text-white font-black text-xs flex items-center justify-center shadow-md`}>
+                      {testimonials[activeTestimonial].avatar}
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                        {TESTIMONIALS[activeTestimonial].author}
-                        <span className="px-2 py-0.2 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[9px] font-black">{TESTIMONIALS[activeTestimonial].metric}</span>
+                        {testimonials[activeTestimonial].author}
+                        <Badge variant="success" size="sm">{testimonials[activeTestimonial].metric}</Badge>
                       </h4>
-                      <p className="text-xs text-slate-400 font-semibold">{TESTIMONIALS[activeTestimonial].role} · {TESTIMONIALS[activeTestimonial].company}</p>
+                      <p className="text-xs text-slate-400 font-semibold">{testimonials[activeTestimonial].role} · {testimonials[activeTestimonial].company}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={handlePrevTestimonial}
-                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                      className="p-2 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                      aria-label="Previous testimonial"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                       onClick={handleNextTestimonial}
-                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                      className="p-2 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                      aria-label="Next testimonial"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -1687,29 +1616,27 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       {/* =========================================================================
           FAQ ACCORDION
           ========================================================================= */}
-      <section id="faq" className="relative z-10 max-w-4xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-slate-800/70 text-left">
+      <section id="faq" className="relative z-10 max-w-4xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10 text-left">
         <FadeInSection>
-          <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 px-3 py-1 rounded-full border border-cyan-200/50 dark:border-cyan-800/50">
-              Giải đáp thắc mắc
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white font-display">
-              Các câu hỏi thường gặp
+          <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
+            <Badge variant="shots">{isVietnamese ? 'HỎI ĐÁP' : 'FAQ'}</Badge>
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+              {isVietnamese ? 'Các câu hỏi thường gặp' : 'Frequently asked questions'}
             </h2>
           </div>
 
-          <div className="space-y-3.5">
-            {FAQS.map((faq, i) => (
-              <div key={i} className="rounded-2xl bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 overflow-hidden transition-all">
+          <div className="space-y-3">
+            {faqs.map((faq, i) => (
+              <div key={i} className="shots-glass-card rounded-2xl overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full p-5 text-left text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-4 cursor-pointer"
                 >
                   <span>{faq.q}</span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openFaq === i ? 'rotate-180 text-indigo-500' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openFaq === i ? 'rotate-180 text-blue-500' : ''}`} />
                 </button>
                 {openFaq === i && (
-                  <div className="px-5 pb-5 text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed border-t border-slate-100 dark:border-slate-800/80 pt-3.5">
+                  <div className="px-5 pb-5 text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed border-t border-slate-200/60 dark:border-white/10 pt-3">
                     {faq.a}
                   </div>
                 )}
@@ -1724,31 +1651,38 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
           ========================================================================= */}
       <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 pb-20">
         <FadeInSection>
-          <div className="relative rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-8 md:p-16 text-center text-white overflow-hidden shadow-2xl shadow-indigo-500/25">
+          <div className="relative rounded-3xl shots-gradient-tahoe p-8 md:p-16 text-center text-white overflow-hidden shadow-2xl">
             <div className="space-y-6 relative z-10 max-w-2xl mx-auto">
-              <span className="px-3 py-1 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider">
-                Bắt đầu hành trình mới
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight font-display leading-tight">
-                Sẵn sàng kiến tạo văn hóa năng suất đỉnh cao?
+              <Badge variant="shots" size="md" className="bg-white/20 text-white border-white/30">
+                {isVietnamese ? 'BẮT ĐẦU HÀNH TRÌNH MỚI' : 'START YOUR JOURNEY'}
+              </Badge>
+              <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight font-display leading-tight">
+                {isVietnamese ? 'Sẵn sàng kiến tạo văn hóa năng suất đỉnh cao?' : 'Ready to build a peak productivity culture?'}
               </h2>
               <p className="text-xs sm:text-sm font-medium text-white/90 leading-relaxed">
-                Đăng ký tài khoản Apexa OS ngay hôm nay để giải phóng 100% tiềm năng làm việc nhóm với sự trợ giúp của AI thế hệ mới.
+                {isVietnamese
+                  ? 'Đăng ký tài khoản Apexa OS ngay hôm nay để giải phóng 100% tiềm năng làm việc nhóm với sự trợ giúp của AI thế hệ mới.'
+                  : 'Get started with Apexa OS today and unleash your team’s full potential with next-gen collaborative AI.'}
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-3">
-                <button
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-3">
+                <Button
+                  variant="shots"
+                  size="huge"
+                  pill
                   onClick={onSignUp}
-                  className="w-full sm:w-auto px-8 py-4 bg-white text-indigo-700 hover:bg-slate-100 text-sm font-black rounded-2xl shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                  rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
-                  <span>Dùng thử miễn phí trọn đời</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
+                  {isVietnamese ? 'Dùng thử miễn phí trọn đời' : 'Get Started Free Forever'}
+                </Button>
+                <Button
+                  variant="glass"
+                  size="huge"
+                  pill
                   onClick={onSignIn}
-                  className="w-full sm:w-auto px-6 py-4 bg-black/20 hover:bg-black/30 border border-white/30 text-white text-sm font-black rounded-2xl transition-all cursor-pointer"
+                  className="bg-black/30 border-white/20 text-white"
                 >
-                  Đăng nhập tài khoản
-                </button>
+                  {isVietnamese ? 'Đăng nhập tài khoản' : 'Sign in to Workspace'}
+                </Button>
               </div>
             </div>
           </div>
@@ -1756,9 +1690,9 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
       </section>
 
       {/* =========================================================================
-          MODERN COMPREHENSIVE FOOTER
+          FOOTER
           ========================================================================= */}
-      <footer className="relative z-10 border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#07090e] py-14 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <footer className="relative z-10 border-t border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-[#07090e] py-14 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 grid grid-cols-1 md:grid-cols-5 gap-8">
           
           <div className="md:col-span-2 space-y-4">
@@ -1776,61 +1710,67 @@ export default function LandingPage({ onSignUp, onSignIn, activeUsers, tasksComp
               </span>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed max-w-sm">
-              Hệ điều hành năng suất AI thế hệ mới kết hợp Kanban, Smart Docs, ChatRoom thời gian thực và kiến trúc Local-First.
+              {isVietnamese
+                ? 'Hệ điều hành năng suất AI thế hệ mới kết hợp Kanban, Smart Docs, ChatRoom thời gian thực và kiến trúc Local-First.'
+                : 'Next-generation AI productivity operating system unifying Kanban, Smart Docs, real-time chat, and Local-First sync.'}
             </p>
             <div className="flex items-center gap-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full w-fit border border-emerald-200 dark:border-emerald-800/40">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Toàn bộ hệ thống hoạt động ổn định (99.99% Uptime)</span>
+              <span>{isVietnamese ? 'Toàn bộ hệ thống hoạt động ổn định (99.99% Uptime)' : 'All systems operational (99.99% Uptime)'}</span>
             </div>
           </div>
 
           <div>
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">Sản phẩm</h4>
+            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
+              {isVietnamese ? 'Sản phẩm' : 'Product'}
+            </h4>
             <ul className="space-y-2.5 text-xs">
-              <li><a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Bảng Kanban</a></li>
-              <li><a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Tài liệu thông minh</a></li>
-              <li><a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Phòng chat thời gian thực</a></li>
-              <li><a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">AI Apexa Brain</a></li>
-              <li><a href="#features" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Gantt và dòng thời gian</a></li>
+              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảng Kanban' : 'Kanban Boards'}</a></li>
+              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Tài liệu thông minh' : 'Smart Docs'}</a></li>
+              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Phòng chat thời gian thực' : 'Real-time Chat'}</a></li>
+              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">Apexa Brain AI</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">Giải pháp</h4>
+            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
+              {isVietnamese ? 'Giải pháp' : 'Solutions'}
+            </h4>
             <ul className="space-y-2.5 text-xs">
-              <li><a href="#pricing" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Bảng giá Pro</a></li>
-              <li><a href="#pricing" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">SLA doanh nghiệp</a></li>
-              <li><a href="#testimonials" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Khách hàng tiêu biểu</a></li>
-              <li><a href="#faq" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Bảo mật & Tuân thủ</a></li>
+              <li><a href="#pricing" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảng giá Pro' : 'Pro Pricing'}</a></li>
+              <li><a href="#pricing" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'SLA doanh nghiệp' : 'Enterprise SLA'}</a></li>
+              <li><a href="#testimonials" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Khách hàng tiêu biểu' : 'Customer Stories'}</a></li>
+              <li><a href="#faq" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảo mật & Tuân thủ' : 'Security & Compliance'}</a></li>
             </ul>
           </div>
 
           <div className="space-y-3.5">
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">Bản tin công nghệ</h4>
-            <p className="text-slate-500 dark:text-slate-400 text-xs">Nhận cập nhật tính năng mới và cẩm nang năng suất hàng tuần.</p>
+            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
+              {isVietnamese ? 'Bản tin công nghệ' : 'Newsletter'}
+            </h4>
+            <p className="text-slate-500 dark:text-slate-400 text-xs">
+              {isVietnamese ? 'Nhận cập nhật tính năng mới và cẩm nang năng suất hàng tuần.' : 'Weekly productivity guides and new feature release updates.'}
+            </p>
             <div className="flex gap-2">
               <input
                 type="email"
-                placeholder="Nhập email của bạn..."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs outline-none text-slate-800 dark:text-white focus:border-indigo-500"
+                placeholder={isVietnamese ? 'Nhập email của bạn...' : 'Enter your email...'}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none text-slate-800 dark:text-white focus:border-blue-500"
               />
-              <button 
-                onClick={() => alert('Đã đăng ký nhận bản tin công nghệ Apexa thành công!')} 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 cursor-pointer transition-colors shadow-xs"
-              >
-                Gửi
-              </button>
+              <Button variant="shots" size="sm" pill onClick={() => alert(isVietnamese ? 'Đã đăng ký nhận bản tin thành công!' : 'Subscribed to newsletter successfully!')}>
+                {isVietnamese ? 'Gửi' : 'Join'}
+              </Button>
             </div>
           </div>
 
         </div>
 
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 pt-8 mt-10 border-t border-slate-200/70 dark:border-slate-800/70 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 font-bold">
-          <p>© 2026 Apexa OS Inc. Tất cả quyền được bảo lưu.</p>
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 pt-8 mt-10 border-t border-slate-200/70 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 font-bold">
+          <p>© 2026 Apexa OS Inc. {isVietnamese ? 'Tất cả quyền được bảo lưu.' : 'All rights reserved.'}</p>
           <div className="flex gap-5">
-            <a href="#" className="hover:underline">Điều khoản dịch vụ</a>
-            <a href="#" className="hover:underline">Chính sách quyền riêng tư</a>
-            <a href="#" className="hover:underline">Bảo mật SOC2</a>
+            <a href="#" className="hover:underline">{isVietnamese ? 'Điều khoản dịch vụ' : 'Terms of Service'}</a>
+            <a href="#" className="hover:underline">{isVietnamese ? 'Chính sách quyền riêng tư' : 'Privacy Policy'}</a>
+            <a href="#" className="hover:underline">{isVietnamese ? 'Bảo mật SOC2' : 'SOC2 Security'}</a>
           </div>
         </div>
       </footer>

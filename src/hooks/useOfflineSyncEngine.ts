@@ -35,7 +35,6 @@ export function useOfflineSyncEngine() {
             setTimeout(async () => {
               setSyncing(false);
               setIsOffline(false);
-              addSyncLog('Data successfully synchronized with the cloud server!');
 
               try {
                 const { data: { session } } = await supabase.auth.getSession();
@@ -57,30 +56,29 @@ export function useOfflineSyncEngine() {
                       assigneeId: t.assigneeId || null,
                       startDate: t.startDate || null,
                       dueDate: t.dueDate || null,
-                      subtasks: t.subtasks,
-                      progress: t.progress,
-                      created_at: t.createdAt,
+                      subtasks: t.subtasks || [],
+                      progress: t.progress || 0,
                       completedAt: t.completedAt || null,
                       hoursEstimate: t.hoursEstimate || null,
-                      hoursLogged: t.hoursLogged || null,
-                      commentsCount: t.commentsCount,
+                      hoursLogged: t.hoursLogged || 0,
+                      commentsCount: t.commentsCount || 0,
                       tags: t.tags || [],
                       isPinned: t.isPinned || false,
-                      comments: t.comments,
+                      comments: t.comments || [],
                       user_id: userId,
                       workspace_id: t.workspaceId || null,
                       space_id: t.spaceId || null,
                       list_id: t.listId || null,
                       custom_fields: t.custom_fields || {},
-                      recurrence: t.recurrence || null
+                      recurrence: t.recurrence || null,
+                      relationships: t.relationships || null,
+                      created_at: t.createdAt || new Date().toISOString(),
                     }));
                     
                     syncPromises.push(
-                      supabase.from('tasks')
-                        .upsert(formattedTasks)
-                        .then(({ error }) => {
-                          if (error) console.error('Error syncing batched offline tasks:', error);
-                        })
+                      supabase
+                        .from('tasks')
+                        .upsert(formattedTasks, { onConflict: 'id' })
                     );
                   }
 
@@ -98,44 +96,33 @@ export function useOfflineSyncEngine() {
                     }));
                     
                     syncPromises.push(
-                      supabase.from('docs')
-                        .upsert(formattedDocs)
-                        .then(({ error }) => {
-                          if (error) console.error('Error syncing batched offline docs:', error);
-                        })
+                      supabase
+                        .from('docs')
+                        .upsert(formattedDocs, { onConflict: 'id' })
                     );
                   }
 
                   if (offlineMembersQueue.length > 0) {
                     const formattedMembers = offlineMembersQueue.map(m => ({
-                      id: m.id === 'user' ? `user-${userId}` : m.id,
+                      id: m.id,
                       name: m.name,
                       email: m.email,
                       avatar: m.avatar,
                       role: m.role,
                       status: m.status,
-                      user_id: userId,
-                      phone: m.phone || null,
-                      department: m.department || null,
-                      bio: m.bio || null,
-                      joined_date: m.joinedDate || null,
-                      workspace_ids: m.workspaceIds || null
+                      workspace_ids: m.workspaceIds || [],
+                      updated_at: new Date().toISOString()
                     }));
                     
                     syncPromises.push(
-                      supabase.from('members')
-                        .upsert(formattedMembers)
-                        .then(({ error }) => {
-                          if (error) console.error('Error syncing batched offline members:', error);
-                        })
+                      supabase
+                        .from('members')
+                        .upsert(formattedMembers, { onConflict: 'id' })
                     );
                   }
 
                   if (syncPromises.length > 0) {
                     await Promise.all(syncPromises);
-                    addSyncLog('System merge successful: Optimized sync');
-                  } else {
-                    addSyncLog('No new offline changes detected for synchronization.');
                   }
                 }
               } catch (err) {
@@ -149,9 +136,8 @@ export function useOfflineSyncEngine() {
       }, 150);
     } else {
       setIsOffline(true);
-      addSyncLog('Disconnected from local network. Switched to offline cache storage.');
     }
-  }, [isOffline, setSyncing, setSyncProgress, setIsOffline, addSyncLog]);
+  }, [isOffline, setSyncing, setSyncProgress, setIsOffline]);
 
   return { handleToggleOffline };
 }

@@ -406,7 +406,7 @@ function DashboardOverview({
           style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,.18) 1px, transparent 1px)', backgroundSize: '34px 34px' }}
         />
         <motion.div
-          className="pointer-events-none absolute -right-24 -top-32 h-[360px] w-[360px] rounded-full bg-gradient-to-br from-indigo-400/35 via-violet-400/25 to-fuchsia-400/10 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-32 h-[360px] w-[360px] rounded-full bg-gradient-to-br from-blue-400/35 via-sky-400/25 to-cyan-400/10 blur-3xl"
           animate={prefersReducedMotion ? undefined : { x: [0, -18, 0], y: [0, 16, 0], scale: [1, 1.08, 1] }}
           transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -442,7 +442,7 @@ function DashboardOverview({
           </div>
 
           <h1 className="max-w-3xl text-[clamp(1.75rem,4vw,3.25rem)] font-black leading-[1.04] tracking-[-0.045em] text-slate-950 dark:text-white">
-            {greeting}, <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-400 dark:via-violet-400 dark:to-purple-400 bg-clip-text text-transparent">{currentUser?.name || (locale === 'vi' ? 'thành viên Apexa' : 'Apexa member')}</span>
+            {greeting}, <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-400 bg-clip-text text-transparent">{currentUser?.name || (locale === 'vi' ? 'thành viên Apexa' : 'Apexa member')}</span>
           </h1>
           <p className="max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300 sm:text-[15px]">
             {locale === 'vi'
@@ -456,7 +456,7 @@ function DashboardOverview({
             onClick={() => onNavigate('tasks')}
             whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.015 }}
             whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-5 py-3 text-xs font-black text-white shadow-[0_14px_30px_-14px_rgba(99,102,241,0.9)] transition-[filter,box-shadow] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:ring-offset-slate-950 sm:min-w-[176px]"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 px-5 py-3 text-xs font-black text-white shadow-[0_14px_30px_-14px_rgba(99,102,241,0.9)] transition-[filter,box-shadow] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:ring-offset-slate-950 sm:min-w-[176px]"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{locale === 'vi' ? 'Quản lý nhiệm vụ' : 'Manage Tasks'}</span>
@@ -487,7 +487,7 @@ function DashboardOverview({
             icon: CheckCircle2, 
             color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200/60 dark:border-indigo-800/60',
             glow: 'bg-indigo-500/12 dark:bg-indigo-400/10',
-            bar: 'from-indigo-500 to-violet-500',
+            bar: 'from-blue-500 to-cyan-500',
             progress: completionPercentage
           },
           { 
@@ -570,7 +570,7 @@ function DashboardOverview({
         <motion.div 
           initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1 }}
-          className="space-y-3 rounded-[28px] border border-dashed border-indigo-200/80 bg-gradient-to-br from-indigo-50/60 via-white to-violet-50/50 p-8 text-center shadow-inner dark:border-indigo-900/60 dark:from-indigo-950/20 dark:via-[#0d0f18] dark:to-violet-950/20 md:p-12"
+          className="space-y-3 rounded-[28px] border border-dashed border-indigo-200/80 bg-gradient-to-br from-blue-50/60 via-white to-sky-50/50 p-8 text-center shadow-inner dark:border-indigo-900/60 dark:from-blue-950/20 dark:via-[#0d0f18] dark:to-sky-950/20 md:p-12"
         >
           <ListTodo className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto animate-bounce" />
           <h3 className="font-bold text-slate-800 dark:text-slate-200">{t('noTasksFound') || 'Chưa có dữ liệu phân tích'}</h3>
@@ -833,7 +833,7 @@ function DashboardOverview({
         id="weekly_productivity_insight_report_widget"
       >
         <motion.div
-          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-indigo-400/20 via-violet-400/15 to-fuchsia-400/10 blur-3xl"
+          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-blue-400/20 via-sky-400/15 to-cyan-400/10 blur-3xl"
           animate={prefersReducedMotion ? undefined : { scale: [1, 1.12, 1], rotate: [0, 12, 0] }}
           transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -845,7 +845,7 @@ function DashboardOverview({
             <div>
               <h3 className="flex flex-wrap items-center gap-2 text-base font-black tracking-tight text-slate-950 dark:text-white md:text-lg">
                 <span>{t('dashboardSmartReport') || 'Báo cáo Năng suất thông minh AI'}</span>
-                <span className="text-[9px] bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
+                <span className="text-[9px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
                   Gemini Flash 2.5
                 </span>
               </h3>
@@ -860,7 +860,7 @@ function DashboardOverview({
             className={`relative z-10 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black shadow-md transition-all sm:w-auto ${
               isGenerating
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:brightness-105'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:brightness-105'
             }`}
           >
             {isGenerating ? (
@@ -939,7 +939,7 @@ function DashboardOverview({
                   if (onAddSyncLog) {
                     onAddSyncLog(locale === 'vi' ? "Đã sao chép nội dung báo cáo tuần vào Clipboard!" : "Copied weekly report to Clipboard!");
                   }
-                  alert(locale === 'vi' ? "Đã sao chép báo cáo vào bộ nhớ tạm!" : "Report copied to clipboard!");
+                  triggerToast?.('success', locale === 'vi' ? 'Đã sao chép báo cáo' : 'Report Copied', locale === 'vi' ? 'Đã sao chép nội dung báo cáo vào bộ nhớ tạm.' : 'Report content copied to clipboard.');
                 }}
                 className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
               >

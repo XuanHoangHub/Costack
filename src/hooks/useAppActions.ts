@@ -891,13 +891,17 @@ export function useAppActions() {
   }, [isOffline]);
 
   const handleSaveSpaces = useCallback(async (newSpaces: Space[]) => {
-    useSpaceStore.getState().setSpaces(newSpaces);
+    const currentAllSpaces = useSpaceStore.getState().spaces;
+    const allMergedSpaces = newSpaces;
+
+    useSpaceStore.getState().setSpaces(allMergedSpaces);
 
     if (!currentUser?.id) return;
 
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+        localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(allMergedSpaces));
+        localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(allMergedSpaces));
       } catch (e) {}
     }
 
@@ -906,22 +910,29 @@ export function useAppActions() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const userId = session.user.id;
+          const validWsIds = new Set(workspaces.map(w => w.id));
 
-          const oldSpaceIds = spaces.map(s => s.id);
-          const newSpaceIds = newSpaces.map(s => s.id);
+          const oldSpaceIds = currentAllSpaces.map(s => s.id);
+          const newSpaceIds = allMergedSpaces.map(s => s.id);
           const deletedSpaceIds = oldSpaceIds.filter(id => !newSpaceIds.includes(id));
 
           if (deletedSpaceIds.length > 0) {
              await supabase.from('spaces').delete().in('id', deletedSpaceIds);
           }
 
-          for (const space of newSpaces) {
-            await supabase.from('spaces').upsert({
+          for (const space of allMergedSpaces) {
+            let spaceWsId = space.workspaceId;
+            if (!spaceWsId || (!validWsIds.has(spaceWsId) && validWsIds.size > 0)) {
+              spaceWsId = activeWorkspaceId || workspaces[0]?.id || spaceWsId;
+            }
+
+            const currentLists = space.lists || [];
+            const { error: spaceUpsertErr } = await supabase.from('spaces').upsert({
               id: space.id,
               name: space.name,
               emoji: space.emoji || null,
               theme_color: space.themeColor || null,
-              workspace_id: space.workspaceId,
+              workspace_id: spaceWsId,
               folders: space.folders || [],
               whiteboards: space.whiteboards || [],
               channels: space.channels || [],
@@ -933,7 +944,7 @@ export function useAppActions() {
                   isFavorite: !!space.isFavorite,
                   isHidden: !!space.isHidden,
                   isArchived: !!space.isArchived,
-                  listPreferences: Object.fromEntries((space.lists || []).map(list => [list.id, {
+                  listPreferences: Object.fromEntries(currentLists.map(list => [list.id, {
                     isFavorite: !!list.isFavorite,
                     isArchived: !!list.isArchived
                   }]))
@@ -945,26 +956,38 @@ export function useAppActions() {
               share_settings: space.shareSettings || {}
             });
 
-            const oldSpace = spaces.find(s => s.id === space.id);
-            const oldListIds = oldSpace ? oldSpace.lists.map(l => l.id) : [];
-            const newListIds = space.lists.map(l => l.id);
+            if (spaceUpsertErr) {
+              console.warn('Failed to upsert space in Supabase:', spaceUpsertErr.message || spaceUpsertErr);
+              // Skip list upsert if space upsert failed to avoid FK/RLS violation
+              continue;
+            }
+
+            const oldSpace = currentAllSpaces.find(s => s.id === space.id);
+            const oldListIds = (oldSpace?.lists || []).map(l => l.id);
+            const newListIds = currentLists.map(l => l.id);
 
             const deletedListIds = oldListIds.filter(id => !newListIds.includes(id));
             if (deletedListIds.length > 0) {
                await supabase.from('lists').delete().in('id', deletedListIds);
             }
 
-            if (space.lists.length > 0) {
-              const listsToUpsert = space.lists.map(list => ({
+            if (currentLists.length > 0) {
+              const listsToUpsert = currentLists.map((list, idx) => ({
                 id: list.id,
                 name: list.name,
                 space_id: space.id,
                 folder_id: list.folderId || null,
                 user_id: userId,
                 is_private: list.isPrivate || false,
-                share_settings: list.shareSettings || {}
+                share_settings: list.shareSettings || {},
+                is_favorite: Boolean(list.isFavorite),
+                is_archived: Boolean(list.isArchived),
+                position: typeof list.position === 'number' ? list.position : idx
               }));
-              await supabase.from('lists').upsert(listsToUpsert);
+              const { error: listUpsertErr } = await supabase.from('lists').upsert(listsToUpsert, { onConflict: 'id' });
+              if (listUpsertErr) {
+                console.error('Failed to upsert lists in Supabase:', listUpsertErr.message || listUpsertErr.details || listUpsertErr);
+              }
             }
           }
         }
@@ -972,7 +995,7 @@ export function useAppActions() {
         console.error('Error syncing spaces/lists with Supabase:', err);
       }
     }
-  }, [spaces, currentUser, isOffline]);
+  }, [currentUser, isOffline, workspaces, activeWorkspaceId]);
 
   const handleAddSpace = useCallback((name: string, emoji?: string, themeColor?: string) => {
     if (!name.trim()) return;
@@ -1041,21 +1064,23 @@ export function useAppActions() {
 
   const handleAddList = useCallback((spaceId: string | null, name: string) => {
     if (!name.trim() || !spaceId) return;
-    const updated = spaces.map(s => {
+    const currentSpaces = useSpaceStore.getState().spaces;
+    const updated = currentSpaces.map(s => {
       if (s.id === spaceId) {
         return {
           ...s,
-          lists: [...s.lists, { id: `l-${Date.now()}`, name: name.trim() }]
+          lists: [...(s.lists || []), { id: `l-${Date.now()}`, name: name.trim(), position: (s.lists || []).length }]
         };
       }
       return s;
     });
     handleSaveSpaces(updated);
     triggerToast({ id: generateId(), type: 'success', title: 'New List Created', message: 'List added successfully', duration: 4000 });
-  }, [spaces, handleSaveSpaces, triggerToast]);
+  }, [handleSaveSpaces, triggerToast]);
 
   const handleAddFolderToSpace = useCallback((spaceId: string, name: string) => {
-    const updated = spaces.map(s => {
+    const currentSpaces = useSpaceStore.getState().spaces;
+    const updated = currentSpaces.map(s => {
       if (s.id === spaceId) {
         const folders = s.folders || [];
         return {
@@ -1068,7 +1093,7 @@ export function useAppActions() {
     handleSaveSpaces(updated);
     triggerToast({ id: generateId(), type: 'success', title: 'New Folder Created', message: `Created folder "${name}"`, duration: 4000 });
     addSyncLog(`Created Folder "${name}" in Space`);
-  }, [spaces, handleSaveSpaces, triggerToast, addSyncLog]);
+  }, [handleSaveSpaces, triggerToast, addSyncLog]);
 
   const handleAddDocToSpace = useCallback((spaceId: string, title: string, folderId?: string) => {
     handleAddDoc({
@@ -1083,7 +1108,8 @@ export function useAppActions() {
   }, [handleAddDoc, currentUser, triggerToast]);
 
   const handleAddWhiteboardToSpace = useCallback((spaceId: string, name: string, folderId?: string) => {
-    const updated = spaces.map(s => {
+    const currentSpaces = useSpaceStore.getState().spaces;
+    const updated = currentSpaces.map(s => {
       if (s.id === spaceId) {
         const whiteboards = s.whiteboards || [];
         return {
@@ -1096,14 +1122,15 @@ export function useAppActions() {
     handleSaveSpaces(updated);
     triggerToast({ id: generateId(), type: 'success', title: 'New Whiteboard Created', message: `Created whiteboard "${name}"`, duration: 4000 });
     addSyncLog(`Created Whiteboard "${name}" in Space`);
-  }, [spaces, handleSaveSpaces, triggerToast, addSyncLog]);
+  }, [handleSaveSpaces, triggerToast, addSyncLog]);
 
   const handleAddListToFolder = useCallback((spaceId: string, folderId: string, name: string) => {
-    const updated = spaces.map(s => {
+    const currentSpaces = useSpaceStore.getState().spaces;
+    const updated = currentSpaces.map(s => {
       if (s.id === spaceId) {
         return {
           ...s,
-          lists: [...s.lists, { id: `l-${Date.now()}`, name, folderId }]
+          lists: [...(s.lists || []), { id: `l-${Date.now()}`, name, folderId, position: (s.lists || []).length }]
         };
       }
       return s;
@@ -1111,7 +1138,7 @@ export function useAppActions() {
     handleSaveSpaces(updated);
     triggerToast({ id: generateId(), type: 'success', title: 'New List Created', message: `Created list "${name}" in folder`, duration: 4000 });
     addSyncLog(`Created List "${name}" under Folder`);
-  }, [spaces, handleSaveSpaces, triggerToast, addSyncLog]);
+  }, [handleSaveSpaces, triggerToast, addSyncLog]);
 
   const mapTasksToSpaces = useCallback((tasksList: Task[]): Task[] => {
     return tasksList.map(t => {

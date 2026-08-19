@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Repeat2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '../../contexts/TranslationContext';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
@@ -16,6 +16,7 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 import { Task, User, Workspace, TaskStatus } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import FieldSettingsModal from './FieldSettingsModal';
 import SignedImage from '../SignedImage';
 import {
   getStoredColumnNames,
@@ -100,7 +101,7 @@ function CustomFieldCellEditor({
           onClick={() => onChange(isChecked ? 'false' : 'true')}
           className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
             isChecked
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-blue-500/20'
               : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900'
           }`}
         >
@@ -143,6 +144,7 @@ function CustomFieldCellEditor({
         <DropdownFieldSelect
           value={String(val)}
           options={field.options || []}
+          fieldId={field.id}
           onChange={onChange}
         />
       );
@@ -152,6 +154,7 @@ function CustomFieldCellEditor({
         <LabelsFieldSelect
           value={String(val)}
           options={field.options || []}
+          fieldId={field.id}
           onChange={onChange}
         />
       );
@@ -228,6 +231,7 @@ interface TaskTableViewProps {
   setVisibleFields?: React.Dispatch<React.SetStateAction<string[]>>;
   setCustomFields?: React.Dispatch<React.SetStateAction<any[]>>;
   openDialog?: (config: any) => void;
+  openPromptModal?: (config: any) => void;
   activeTimerTaskId?: string | null;
   onStartGlobalTimer?: (id: string) => void;
   onStopGlobalTimer?: () => void;
@@ -237,7 +241,7 @@ export default function TaskTableView({
   filteredTasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
   onUpdateTask, onAddTask, onAddSyncLog,
   visibleFields, customFields = [], onOpenFieldsPanel, onStartFocus,
-  setVisibleFields, setCustomFields, openDialog, triggerToast,
+  setVisibleFields, setCustomFields, openDialog, openPromptModal, triggerToast,
   activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer
 }: TaskTableViewProps) {
   const { t, locale } = useTranslation();
@@ -838,6 +842,26 @@ export default function TaskTableView({
                     <div className="flex items-center gap-1 shrink-0 text-slate-400">
                       {(task.comments?.length || 0) > 0 && <span className="flex items-center gap-0.5 text-[9px] font-bold"><MessageSquare className="w-2.5 h-2.5" />{task.comments?.length}</span>}
                       {(task.attachments?.length || 0) > 0 && <Paperclip className="w-2.5 h-2.5" />}
+                      {onAddTask && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddTask({
+                              ...task,
+                              title: `${task.title} (Bản sao)`,
+                              subtasks: (task.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                              tags: task.tags ? [...task.tags] : []
+                            });
+                            triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
+                            if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 transition-all cursor-pointer"
+                          title="Nhân bản công việc"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -978,9 +1002,9 @@ export default function TaskTableView({
             );
           })}
           {isCreatingInline ? (
-            <tr className="border-y-2 border-indigo-500/60 dark:border-indigo-500/60 bg-gradient-to-r from-indigo-50/80 via-purple-50/30 to-indigo-50/80 dark:from-indigo-955/50 dark:via-purple-955/20 dark:to-indigo-955/50 shadow-md shadow-indigo-500/10 backdrop-blur-md transition-all">
+            <tr className="border-y-2 border-indigo-500/60 dark:border-indigo-500/60 bg-gradient-to-r from-indigo-50/80 via-purple-50/30 to-indigo-50/80 dark:from-indigo-955/50 dark:via-purple-955/20 dark:to-indigo-955/50 shadow-md shadow-blue-500/10 backdrop-blur-md transition-all">
               <td className="px-3 py-3 text-center border-b border-indigo-100/70 dark:border-indigo-900/50">
-                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black shadow-xs shadow-indigo-500/30 mx-auto animate-pulse">
+                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black shadow-xs shadow-blue-500/30 mx-auto animate-pulse">
                   <Plus className="w-3.5 h-3.5" />
                 </div>
               </td>
@@ -1095,7 +1119,7 @@ export default function TaskTableView({
                     type="button"
                     onClick={handleInlineCreate}
                     disabled={!draftTitle.trim()}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-650 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black text-[11.5px] shadow-sm shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-[11.5px] shadow-sm shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95"
                     title="Lưu công việc (Enter)"
                   >
                     <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -1174,6 +1198,75 @@ export default function TaskTableView({
         </div>
       )}
 
+      {/* ── Floating Bulk Action Bar ── */}
+      <AnimatePresence>
+        {selectedTaskIds.length > 0 && (
+          <motion.div
+            initial={{ y: 50, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 50, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl border border-slate-700/80 text-white rounded-2xl p-3 shadow-2xl flex items-center gap-3 flex-wrap max-w-full"
+          >
+            <div className="flex items-center gap-2 px-2 py-1 bg-indigo-600/40 border border-indigo-500/50 rounded-xl text-[11px] font-black">
+              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Đã chọn {selectedTaskIds.length}</span>
+            </div>
+
+            <div className="h-4 w-[1px] bg-slate-700" />
+
+            {/* Bulk Mark Complete */}
+            <button
+              onClick={() => {
+                selectedTaskIds.forEach(id => {
+                  const task = filteredTasks.find(t => t.id === id);
+                  if (task) onUpdateTask({ ...task, status: 'completed' });
+                });
+                setSelectedTaskIds([]);
+                if (triggerToast) triggerToast('success', 'Thành công', `Đã hoàn thành ${selectedTaskIds.length} công việc.`);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Hoàn thành tất cả</span>
+            </button>
+
+            {/* Bulk Duplicate */}
+            {onAddTask && (
+              <button
+                onClick={() => {
+                  const tasksToDup = filteredTasks.filter(t => selectedTaskIds.includes(t.id));
+                  tasksToDup.forEach(t => {
+                    onAddTask({
+                      ...t,
+                      title: `${t.title} (Bản sao)`,
+                      subtasks: (t.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                      tags: t.tags ? [...t.tags] : []
+                    });
+                  });
+                  setSelectedTaskIds([]);
+                  if (triggerToast) triggerToast('success', 'Đã nhân bản', `Đã nhân bản ${tasksToDup.length} công việc đã chọn.`);
+                  if (onAddSyncLog) onAddSyncLog(`Bulk duplicated ${tasksToDup.length} tasks`);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Nhân bản ({selectedTaskIds.length})</span>
+              </button>
+            )}
+
+            {/* Deselect All */}
+            <button
+              onClick={() => setSelectedTaskIds([])}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer ml-auto"
+              title="Bỏ chọn tất cả"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {activeMenu && (
         <Portal>
           <div className="fixed inset-0 z-[190] cursor-default" onClick={() => setActiveMenu(null)} />
@@ -1204,17 +1297,40 @@ export default function TaskTableView({
                 <button
                   onClick={() => {
                     const oldName = activeMenu.fieldName;
-                    const newName = prompt(`Rename standard column "${activeMenu.fieldId}":`, oldName);
-                    if (newName?.trim() && newName.trim() !== oldName) {
-                      const nextNames = { ...columnNames, [activeMenu.fieldId]: newName.trim() };
-                      setColumnNames(nextNames);
-                      saveColumnNames(nextNames);
-                      if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new Event('apexa-field-config-changed'));
-                      }
-                      if (onAddSyncLog) onAddSyncLog(`Renamed column "${activeMenu.fieldId}" to "${newName.trim()}"`);
-                    }
+                    const fieldId = activeMenu.fieldId;
                     setActiveMenu(null);
+                    if (openPromptModal) {
+                      openPromptModal({
+                        type: 'rename',
+                        title: 'Đổi tên cột',
+                        subtitle: `Cột: ${fieldId}`,
+                        defaultValue: oldName,
+                        placeholder: 'Nhập tên cột mới...',
+                        confirmText: 'Lưu thay đổi',
+                        onConfirm: (newName: string) => {
+                          if (newName?.trim() && newName.trim() !== oldName) {
+                            const nextNames = { ...columnNames, [fieldId]: newName.trim() };
+                            setColumnNames(nextNames);
+                            saveColumnNames(nextNames);
+                            if (typeof window !== 'undefined') {
+                              window.dispatchEvent(new Event('apexa-field-config-changed'));
+                            }
+                            if (onAddSyncLog) onAddSyncLog(`Renamed column "${fieldId}" to "${newName.trim()}"`);
+                          }
+                        }
+                      });
+                    } else {
+                      const newName = prompt(`Rename standard column "${fieldId}":`, oldName);
+                      if (newName?.trim() && newName.trim() !== oldName) {
+                        const nextNames = { ...columnNames, [fieldId]: newName.trim() };
+                        setColumnNames(nextNames);
+                        saveColumnNames(nextNames);
+                        if (typeof window !== 'undefined') {
+                          window.dispatchEvent(new Event('apexa-field-config-changed'));
+                        }
+                        if (onAddSyncLog) onAddSyncLog(`Renamed column "${fieldId}" to "${newName.trim()}"`);
+                      }
+                    }
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
@@ -1487,194 +1603,5 @@ export default function TaskTableView({
         />
       )}
     </div>
-  );
-}
-
-function FieldSettingsModal({
-  config,
-  onClose,
-  onSave
-}: {
-  config: { id: string; name: string; type: string; isStandard: boolean; options?: any[] } | null;
-  onClose: () => void;
-  onSave: (updated: { name: string; type: string; options?: any[] }) => void;
-}) {
-  const { t, locale } = useTranslation();
-  const [name, setName] = useState('');
-  const [type, setType] = useState('');
-  const [options, setOptions] = useState<{ id: string; label: string; color: string; icon?: string }[]>([]);
-
-  React.useEffect(() => {
-    if (config) {
-      setName(config.name);
-      setType(config.type);
-      setOptions(config.options || []);
-    }
-  }, [config]);
-
-  if (!config) return null;
-
-  const handleAddOption = () => {
-    setOptions([...options, { id: `opt-${Date.now()}`, label: 'New Option', color: 'indigo' }]);
-  };
-
-  const handleUpdateOptionLabel = (id: string, label: string) => {
-    setOptions(options.map(o => o.id === id ? { ...o, label } : o));
-  };
-
-  const handleUpdateOptionColor = (id: string, color: string) => {
-    setOptions(options.map(o => o.id === id ? { ...o, color } : o));
-  };
-
-  const handleDeleteOption = (id: string) => {
-    setOptions(options.filter(o => o.id !== id));
-  };
-
-  const COLORS = ['slate', 'red', 'orange', 'yellow', 'emerald', 'cyan', 'indigo', 'violet', 'pink'];
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onSave({
-      name: name.trim(),
-      type,
-      options: options.map(o => ({
-        ...o,
-        ...(config.id === 'status' ? getTailwindColorConfig(o.color, 'status') : {}),
-        ...(config.id === 'priority' ? {
-          ...getTailwindColorConfig(o.color, 'priority'),
-          icon: o.icon || '⚪'
-        } : {})
-      }))
-    });
-    onClose();
-  };
-
-  return (
-    <Portal>
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <div className="absolute inset-0 bg-slate-955/60 backdrop-blur-xs" onClick={onClose} />
-        
-        {/* Modal content */}
-        <form onSubmit={handleSave} className="relative w-full max-w-[480px] bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-[24px] shadow-2xl p-6 flex flex-col gap-5 z-10 font-sans text-xs">
-          <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="text-base font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-              {t('fieldSettingsTitle') || 'Field Settings'}: {config.isStandard ? (t('systemField') || 'System Field') : (t('customField') || 'Custom Field')}
-            </h3>
-            <button type="button" onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 dark:text-slate-200 transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-            {/* Field Name */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('fieldName') || 'Field Name'}</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-700 dark:text-slate-200"
-                required
-              />
-            </div>
-
-            {/* Field Type (only for custom fields) */}
-            {!config.isStandard && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dataType') || 'Data Type'}</label>
-                <select
-                  value={type}
-                  onChange={e => setType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 rounded-xl outline-none focus:border-indigo-500 font-semibold text-slate-700 dark:text-slate-200"
-                >
-                  <option value="text">{locale === 'vi' ? 'Text (Đoạn văn ngắn)' : 'Text (Short text)'}</option>
-                  <option value="number">{locale === 'vi' ? 'Number (Số)' : 'Number (Digit)'}</option>
-                  <option value="date">{locale === 'vi' ? 'Date (Ngày tháng)' : 'Date (Calendar)'}</option>
-                  <option value="checkbox">{locale === 'vi' ? 'Checkbox (Hộp kiểm)' : 'Checkbox (Checkmark)'}</option>
-                  <option value="dropdown">{locale === 'vi' ? 'Dropdown (Lựa chọn đơn)' : 'Dropdown (Single select)'}</option>
-                  <option value="labels">{locale === 'vi' ? 'Labels (Đa lựa chọn)' : 'Labels (Multi select)'}</option>
-                  <option value="money">{locale === 'vi' ? 'Money (Tiền tệ)' : 'Money (Currency)'}</option>
-                  <option value="progress">{locale === 'vi' ? 'Progress (Tiến trình)' : 'Progress (Percentage)'}</option>
-                  <option value="rating">{locale === 'vi' ? 'Rating (Đánh giá sao)' : 'Rating (Stars)'}</option>
-                </select>
-              </div>
-            )}
-
-            {/* Options config list (only for dropdown, labels, status, priority) */}
-            {(type === 'dropdown' || type === 'labels' || config.id === 'status' || config.id === 'priority') && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('optionsList') || 'Options List'}</label>
-                  {(type === 'dropdown' || type === 'labels') && (
-                    <button
-                      type="button"
-                      onClick={handleAddOption}
-                      className="text-[10px] font-black text-indigo-655 dark:text-indigo-400 hover:underline cursor-pointer"
-                    >
-                      + {t('addOption') || 'Add Option'}
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-2 border border-slate-105 dark:border-slate-800/80 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-955/10">
-                  {options.map((opt) => (
-                    <div key={opt.id} className="flex gap-2 items-center">
-                      <span className="text-sm shrink-0">{opt.icon || '📍'}</span>
-                      <input
-                        type="text"
-                        value={opt.label}
-                        onChange={e => handleUpdateOptionLabel(opt.id, e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-lg outline-none focus:border-indigo-500 font-semibold"
-                        required
-                      />
-
-                      <div className="flex gap-1 items-center shrink-0">
-                        {COLORS.map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => handleUpdateOptionColor(opt.id, c)}
-                            className={`w-3.5 h-3.5 rounded-full border bg-${c}-500 hover:scale-125 transition-transform ${opt.color === c ? 'border-slate-900 dark:border-white scale-110 shadow-xs' : 'border-transparent'}`}
-                            title={c}
-                          />
-                        ))}
-                      </div>
-
-                      {(type === 'dropdown' || type === 'labels') && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteOption(opt.id)}
-                          className="p-1 hover:bg-rose-50 dark:hover:bg-rose-955/20 text-rose-500 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 border-t border-slate-105 dark:border-slate-800 pt-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold"
-            >
-              {t('cancel') || 'Cancel'}
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-xl bg-indigo-650 text-white hover:bg-indigo-750 font-bold"
-            >
-              {t('saveChanges') || 'Save Changes'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </Portal>
   );
 }

@@ -16,6 +16,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { resolveAppRole } from '../lib/authRole';
 import { useTranslation } from '../contexts/TranslationContext';
+import LanguageDropdown from './LanguageDropdown';
 import LandingPage from './landing/LandingPage';
 
 interface LoginScreenProps {
@@ -46,7 +47,7 @@ function GlowInputField({
         </label>
       )}
       <div className="relative group/input w-full">
-        <div className={`pointer-events-none absolute -inset-[1px] rounded-[17px] bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 opacity-0 blur-[2px] transition-opacity duration-300 ${isFocused ? 'opacity-70' : 'group-hover/input:opacity-20'}`} />
+        <div className={`pointer-events-none absolute -inset-[1px] rounded-[17px] bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-400 opacity-0 blur-[2px] transition-opacity duration-300 ${isFocused ? 'opacity-70' : 'group-hover/input:opacity-20'}`} />
         <div className="relative flex items-center">
           <div className={`absolute left-3.5 z-10 transition-colors duration-200 ${isFocused ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
             <Icon className="w-4 h-4" />
@@ -603,9 +604,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     </span>
                     <h3 className="max-w-xs text-[32px] font-black leading-[1.08] tracking-[-0.04em]">
                       {isVietnamese ? (
-                        <>Một nơi để đội ngũ <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-cyan-300 bg-clip-text text-transparent">làm việc tốt nhất.</span></>
+                        <>Một nơi để đội ngũ <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">làm việc tốt nhất.</span></>
                       ) : (
-                        <>One place for your team to <span className="bg-gradient-to-r from-indigo-300 via-violet-300 to-cyan-300 bg-clip-text text-transparent">do its best work.</span></>
+                        <>One place for your team to <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">do its best work.</span></>
                       )}
                     </h3>
                     <p className="max-w-sm text-xs font-medium leading-6 text-slate-300/80">
@@ -655,20 +656,23 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-white px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-slate-900">
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
 
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={closeAuth}
-                className="absolute right-4 top-4 z-20 rounded-full border border-slate-200/70 bg-white/80 p-2 text-slate-400 shadow-sm backdrop-blur-md transition-all hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-850/80 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                aria-label={isVietnamese ? 'Đóng cửa sổ' : 'Close dialog'}
-              >
-                <X className="w-4.5 h-4.5" />
-              </button>
+              {/* Header Actions */}
+              <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+                <LanguageDropdown size="sm" />
+                <button
+                  type="button"
+                  onClick={closeAuth}
+                  className="rounded-full border border-slate-200/70 bg-white/80 p-2 text-slate-400 shadow-sm backdrop-blur-md transition-all hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-850/80 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  aria-label={isVietnamese ? 'Đóng cửa sổ' : 'Close dialog'}
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
 
               {/* Card Header with Brand Identity */}
               <div className="relative space-y-3 pr-8 pt-1">
                 <div className="flex items-center gap-2.5 lg:hidden">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 ring-2 ring-indigo-500/20 shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-blue-700 to-cyan-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30 ring-2 ring-indigo-500/20 shrink-0">
                     <Zap className="w-5 h-5 fill-white" />
                   </div>
                 </div>
@@ -782,7 +786,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-extrabold rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-[0.99]"
+                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-white text-xs sm:text-sm font-extrabold rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-[0.99]"
                   >
                     {loading ? (
                       <div className="flex items-center gap-2">
@@ -1058,7 +1062,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     type="submit"
                     disabled={loading}
                     aria-busy={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-black rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-white text-xs sm:text-sm font-black rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? (
                       <div className="flex items-center gap-2">

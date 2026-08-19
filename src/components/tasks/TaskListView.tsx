@@ -7,12 +7,11 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Repeat2
+  CheckCircle2, ListChecks, Repeat2, Copy
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
-import SignedImage from '../SignedImage';
-import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel } from '../../utils/fieldConfig';
+import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
 
 const DraggableCast = Draggable as typeof Draggable;
 
@@ -57,13 +56,16 @@ interface TaskListViewProps {
   onStartGlobalTimer?: (id: string) => void;
   onStopGlobalTimer?: () => void;
   onReorderTasks?: (orderedIds: string[]) => void;
+  openPromptModal?: (config: any) => void;
+  openDialog?: (config: any) => void;
 }
 
 const TaskListView = React.memo(function TaskListView({
   filteredTasks, tasks, members, workspaces = [], selectedTaskIds, setSelectedTaskIds, setSelectedTask,
   onUpdateTask, onDeleteTask, onAddSyncLog, triggerToast, filterTag, setFilterTag, isSmartSort, isUrgentNearDueTask,
   isMultiSelectMode, onAddTask, setViewType, statuses,
-  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks
+  activeTimerTaskId = null, onStartGlobalTimer, onStopGlobalTimer, onReorderTasks,
+  openPromptModal, openDialog
 }: TaskListViewProps) {
   const { t, locale } = useTranslation();
   
@@ -91,19 +93,20 @@ const TaskListView = React.memo(function TaskListView({
   const dynamicStatusMeta = useMemo(() => {
     const meta: Record<string, any> = {};
     const baseList = statusConfigs.length > 0 ? statusConfigs : [
-      { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50/80 dark:bg-slate-800/40', color: 'slate-500' },
-      { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50/80 dark:bg-amber-955/20', color: 'amber-500' },
-      { id: 'review', label: 'UNDER REVIEW', dot: 'bg-cyan-500', bg: 'bg-cyan-50/80 dark:bg-cyan-955/20', color: 'cyan-500' },
-      { id: 'completed', label: 'COMPLETED', dot: 'bg-emerald-500', bg: 'bg-emerald-50/80 dark:bg-emerald-955/20', color: 'emerald-500' }
+      { id: 'todo', label: 'TO DO', color: 'slate' },
+      { id: 'inprogress', label: 'IN PROGRESS', color: 'amber' },
+      { id: 'review', label: 'UNDER REVIEW', color: 'cyan' },
+      { id: 'completed', label: 'COMPLETED', color: 'emerald' }
     ];
     baseList.forEach(s => {
-      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
+      const colorMeta = getColorOption(s.color);
       meta[s.id] = {
         label: getLocalizedOptionLabel(s.id, s.label, locale),
-        dot: s.dot || `bg-${c}-500`,
-        bg: s.bg || `bg-${c}-50/80 dark:bg-${c}-955/20`,
-        text: `text-${c}-700 dark:text-${c}-400`,
-        border: `border-${c}-200 dark:border-${c}-800`
+        dot: colorMeta.dot,
+        bg: colorMeta.bg,
+        text: colorMeta.text,
+        border: colorMeta.border,
+        hex: colorMeta.hex
       };
     });
     return meta;
@@ -112,14 +115,14 @@ const TaskListView = React.memo(function TaskListView({
   const dynamicStatusBorders = useMemo(() => {
     const borders: Record<string, string> = {};
     const baseList = statusConfigs.length > 0 ? statusConfigs : [
-      { id: 'todo', color: 'slate-500' },
-      { id: 'inprogress', color: 'amber-500' },
-      { id: 'review', color: 'cyan-500' },
-      { id: 'completed', color: 'emerald-500' }
+      { id: 'todo', color: 'slate' },
+      { id: 'inprogress', color: 'amber' },
+      { id: 'review', color: 'cyan' },
+      { id: 'completed', color: 'emerald' }
     ];
     baseList.forEach(s => {
-      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
-      borders[s.id] = `border-l-${c}-500`;
+      const colorMeta = getColorOption(s.color);
+      borders[s.id] = colorMeta.border;
     });
     return borders;
   }, [statusConfigs]);
@@ -305,8 +308,20 @@ const TaskListView = React.memo(function TaskListView({
   };
 
   const handleBulkDelete = () => {
-    if (!onDeleteTask) return;
-    if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} selected tasks?`)) {
+    if (!onDeleteTask || selectedTaskIds.length === 0) return;
+    if (openDialog) {
+      openDialog({
+        title: 'Xóa công việc hàng loạt',
+        description: `Bạn có chắc chắn muốn xóa ${selectedTaskIds.length} công việc đã chọn? Tất cả các công việc này sẽ bị xóa vĩnh viễn khỏi hệ thống.`,
+        itemType: 'task',
+        confirmText: `Xóa ${selectedTaskIds.length} việc`,
+        onConfirm: () => {
+          selectedTaskIds.forEach(id => onDeleteTask(id));
+          if (triggerToast) triggerToast('info', 'Xóa hàng loạt', `Đã xóa ${selectedTaskIds.length} công việc`);
+          setSelectedTaskIds([]);
+        }
+      });
+    } else if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} selected tasks?`)) {
       selectedTaskIds.forEach(id => onDeleteTask(id));
       if (triggerToast) triggerToast('info', 'Bulk Delete', `Deleted ${selectedTaskIds.length} tasks`);
       setSelectedTaskIds([]);
@@ -663,11 +678,28 @@ const TaskListView = React.memo(function TaskListView({
                                                 <button 
                                                   onClick={e => {
                                                     e.stopPropagation();
-                                                    const subTitle = prompt("Nhập tên việc phụ:");
-                                                    if (subTitle?.trim()) {
-                                                      const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
-                                                      onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
-                                                      if (triggerToast) triggerToast('success', 'Việc phụ', `Đã thêm subtask vào "${task.title}"`);
+                                                    if (openPromptModal) {
+                                                      openPromptModal({
+                                                        type: 'subtask',
+                                                        title: 'Thêm việc phụ (Subtask)',
+                                                        subtitle: `Công việc: ${task.title}`,
+                                                        placeholder: 'Nhập tên việc phụ...',
+                                                        confirmText: 'Thêm việc phụ',
+                                                        onConfirm: (subTitle: string) => {
+                                                          if (subTitle?.trim()) {
+                                                            const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
+                                                            onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
+                                                            if (triggerToast) triggerToast('success', 'Việc phụ', `Đã thêm subtask vào "${task.title}"`);
+                                                          }
+                                                        }
+                                                      });
+                                                    } else {
+                                                      const subTitle = prompt("Nhập tên việc phụ:");
+                                                      if (subTitle?.trim()) {
+                                                        const newSub = { id: `sub-${Date.now()}`, title: subTitle.trim(), completed: false };
+                                                        onUpdateTask({ ...task, subtasks: [...(task.subtasks || []), newSub] });
+                                                        if (triggerToast) triggerToast('success', 'Việc phụ', `Đã thêm subtask vào "${task.title}"`);
+                                                      }
                                                     }
                                                   }}
                                                   className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
@@ -680,11 +712,29 @@ const TaskListView = React.memo(function TaskListView({
                                                 <button 
                                                   onClick={e => {
                                                     e.stopPropagation();
-                                                    const newTag = prompt("Nhập tên thẻ tag:");
-                                                    if (newTag?.trim()) {
-                                                      const currentTags = task.tags || [];
-                                                      if (!currentTags.includes(newTag.trim())) {
-                                                        onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
+                                                    if (openPromptModal) {
+                                                      openPromptModal({
+                                                        type: 'tag',
+                                                        title: 'Thêm thẻ tag',
+                                                        subtitle: `Gắn nhãn cho: ${task.title}`,
+                                                        placeholder: 'Nhập tên thẻ tag...',
+                                                        confirmText: 'Thêm thẻ',
+                                                        onConfirm: (newTag: string) => {
+                                                          if (newTag?.trim()) {
+                                                            const currentTags = task.tags || [];
+                                                            if (!currentTags.includes(newTag.trim())) {
+                                                              onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
+                                                            }
+                                                          }
+                                                        }
+                                                      });
+                                                    } else {
+                                                      const newTag = prompt("Nhập tên thẻ tag:");
+                                                      if (newTag?.trim()) {
+                                                        const currentTags = task.tags || [];
+                                                        if (!currentTags.includes(newTag.trim())) {
+                                                          onUpdateTask({ ...task, tags: [...currentTags, newTag.trim()] });
+                                                        }
                                                       }
                                                     }
                                                   }}
@@ -707,12 +757,43 @@ const TaskListView = React.memo(function TaskListView({
                                                   <Edit2 className="w-3.5 h-3.5" />
                                                 </button>
 
+                                                {/* Duplicate */}
+                                                <button 
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    onAddTask({
+                                                      ...task,
+                                                      title: `${task.title} (Bản sao)`,
+                                                      subtasks: (task.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                                                      tags: task.tags ? [...task.tags] : []
+                                                    });
+                                                    if (triggerToast) triggerToast('success', 'Đã nhân bản', `Đã nhân bản công việc "${task.title}"`);
+                                                    if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
+                                                  }}
+                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-955/40 transition-all cursor-pointer"
+                                                  title="Nhân bản công việc"
+                                                >
+                                                  <Copy className="w-3.5 h-3.5" />
+                                                </button>
+
                                                 {/* Delete */}
                                                 {onDeleteTask && (
                                                   <button
                                                     onClick={e => {
                                                       e.stopPropagation();
-                                                      if (confirm(`Xóa công việc "${task.title}"?`)) {
+                                                      if (openDialog) {
+                                                        openDialog({
+                                                          title: 'Xóa công việc',
+                                                          description: `Bạn có chắc chắn muốn xóa công việc "${task.title}"?`,
+                                                          itemName: task.title,
+                                                          itemType: 'task',
+                                                          confirmText: 'Xóa công việc',
+                                                          onConfirm: () => {
+                                                            onDeleteTask(task.id);
+                                                            if (triggerToast) triggerToast('info', 'Đã xóa', `Đã xóa công việc "${task.title}"`);
+                                                          }
+                                                        });
+                                                      } else if (confirm(`Xóa công việc "${task.title}"?`)) {
                                                         onDeleteTask(task.id);
                                                       }
                                                     }}
@@ -869,7 +950,7 @@ const TaskListView = React.memo(function TaskListView({
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 onClick={() => handleInlineAdd(statusItem.id)} 
-                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
+                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-cyan-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
                               >
                                 {t('inlineAdd') || 'Tạo mới'}
                               </button>
@@ -925,6 +1006,28 @@ const TaskListView = React.memo(function TaskListView({
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Hoàn thành tất cả</span>
+              </button>
+
+              {/* Bulk Duplicate */}
+              <button
+                onClick={() => {
+                  const tasksToDup = filteredTasks.filter(t => selectedTaskIds.includes(t.id));
+                  tasksToDup.forEach(t => {
+                    onAddTask({
+                      ...t,
+                      title: `${t.title} (Bản sao)`,
+                      subtasks: (t.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                      tags: t.tags ? [...t.tags] : []
+                    });
+                  });
+                  setSelectedTaskIds([]);
+                  if (triggerToast) triggerToast('success', 'Đã nhân bản', `Đã nhân bản ${tasksToDup.length} công việc đã chọn.`);
+                  if (onAddSyncLog) onAddSyncLog(`Bulk duplicated ${tasksToDup.length} tasks`);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Nhân bản ({selectedTaskIds.length})</span>
               </button>
 
               {/* Bulk Status */}

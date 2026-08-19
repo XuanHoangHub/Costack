@@ -3,12 +3,13 @@
 import React from "react";
 import { motion, HTMLMotionProps } from "motion/react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
-type ButtonSize = "xs" | "sm" | "md" | "lg";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline" | "shots" | "glass";
+type ButtonSize = "tiny" | "xs" | "sm" | "md" | "lg" | "huge";
 
 interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children"> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  pill?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   loading?: boolean;
@@ -18,7 +19,7 @@ interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-r from-[#7B61FF] to-[#6045EB] text-white shadow-[0_4px_14px_rgba(123,97,255,0.35)] hover:shadow-[0_6px_20px_rgba(123,97,255,0.5)] border-transparent active:scale-[0.98]",
+    "bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.5)] border-transparent active:scale-[0.98]",
   secondary:
     "bg-[var(--cu-surface-2)] text-[var(--cu-text-primary)] hover:bg-[var(--cu-surface-3)] border-[var(--cu-border)] hover:border-[var(--cu-border-strong)] active:scale-[0.98]",
   ghost:
@@ -27,18 +28,25 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_4px_14px_rgba(225,29,72,0.3)] hover:shadow-[0_6px_20px_rgba(225,29,72,0.45)] border-transparent active:scale-[0.98]",
   outline:
     "bg-transparent text-[var(--cu-text-primary)] border-[var(--cu-border)] hover:bg-[var(--cu-surface-2)] hover:border-[var(--cu-primary)]/50 active:scale-[0.98]",
+  shots:
+    "bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black shadow-[0_8px_25px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[0_8px_25px_rgba(255,255,255,0.2),inset_0_1px_0_rgba(255,255,255,0.9)] hover:scale-[1.02] active:scale-[0.98] border-transparent transition-all",
+  glass:
+    "shots-glass text-slate-800 dark:text-white hover:bg-white/80 dark:hover:bg-slate-800/80 active:scale-[0.98]",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
+  tiny: "px-2 py-0.5 text-[10px] font-bold gap-1 rounded-full",
   xs: "px-2.5 py-1 text-[11px] font-medium gap-1 rounded-[var(--cu-radius-sm)]",
   sm: "px-3.5 py-1.5 text-xs font-semibold gap-1.5 rounded-[var(--cu-radius-md)]",
   md: "px-4 py-2 text-sm font-semibold gap-2 rounded-[var(--cu-radius-lg)]",
   lg: "px-5 py-2.5 text-sm font-bold gap-2.5 rounded-[var(--cu-radius-lg)]",
+  huge: "px-7 py-3.5 text-base font-extrabold gap-3 rounded-full shadow-xl",
 };
 
 export function Button({
   variant = "primary",
   size = "md",
+  pill = false,
   leftIcon,
   rightIcon,
   loading = false,
@@ -61,6 +69,7 @@ export function Button({
         "cursor-pointer select-none",
         variantStyles[variant],
         sizeStyles[size],
+        pill ? "rounded-full" : "",
         fullWidth ? "w-full" : "",
         className,
       ]

@@ -484,7 +484,8 @@ export default function Whiteboard({
       return;
     }
     if (elements.length === 0) {
-      alert("Hãy vẽ nội dung gì đó trên bảng trước khi phân tích!");
+      setShowAiAnalyst(true);
+      setAiError(locale === 'vi' ? "Hãy vẽ hình hoặc thêm ghi chú trên bảng trước khi bắt đầu phân tích!" : "Please draw or add notes on the whiteboard before analyzing!");
       return;
     }
     setShowAiAnalyst(true);
@@ -2461,7 +2462,7 @@ export default function Whiteboard({
               <button
                 onClick={handleRunAiAnalysis}
                 disabled={aiLoading}
-                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-indigo-500/10 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+                className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-500/10 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
               >
                 {aiLoading ? (
                   <>
@@ -2581,7 +2582,7 @@ export default function Whiteboard({
                 {[
                   { id: 'kanban', title: 'Kanban Board', desc: locale === 'vi' ? 'Cần làm, Đang làm, Hoàn thành' : 'To Do, In Progress, Done', color: 'from-amber-500/10 to-emerald-500/10' },
                   { id: 'swot', title: 'SWOT Analysis', desc: 'Strengths, Weaknesses, Opportunities, Threats', color: 'from-blue-500/10 to-indigo-500/10' },
-                  { id: 'mindmap', title: 'Mind Map', desc: locale === 'vi' ? 'Ý tưởng trung tâm kết nối nhánh phụ' : 'Central idea connecting sub-branches', color: 'from-purple-500/10 to-pink-500/10' },
+                  { id: 'mindmap', title: 'Mind Map', desc: locale === 'vi' ? 'Ý tưởng trung tâm kết nối nhánh phụ' : 'Central idea connecting sub-branches', color: 'from-blue-500/10 to-cyan-500/10' },
                   { id: 'userjourney', title: 'User Journey Map', desc: 'Discover, Try, Buy, Love', color: 'from-emerald-500/10 to-teal-500/10' }
                 ].map((tmpl) => (
                   <div 

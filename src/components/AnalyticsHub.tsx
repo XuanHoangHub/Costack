@@ -376,7 +376,7 @@ export default function AnalyticsHub({
             onClick={() => setIsDemoMode(!isDemoMode)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border transition-all cursor-pointer select-none ${
               isDemoMode 
-                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-blue-500/20' 
                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-850'
             }`}
           >

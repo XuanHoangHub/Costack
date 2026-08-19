@@ -43,7 +43,7 @@ export function NavItem({
   return (
     <motion.button
       whileHover={{ scale: collapsed ? 1.03 : 1.01 }}
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
       draggable
       onDragStart={onDragStart as any}
@@ -58,54 +58,51 @@ export function NavItem({
       className={[
         "group w-full relative flex transition-all duration-200 cursor-pointer select-none border",
         collapsed
-          ? "items-center justify-center h-11 px-0 rounded-xl overflow-visible"
-          : "py-2 px-3 rounded-2xl items-center gap-3 overflow-hidden",
+          ? "items-center justify-center h-10 px-0 rounded-xl overflow-visible"
+          : "py-2 px-3 rounded-2xl items-center gap-2.5 overflow-hidden",
         isActive
-          ? collapsed
-            ? "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800/50 shadow-2xs font-extrabold"
-            : "bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100/80 dark:border-indigo-900/40 font-extrabold"
-          : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100 border-transparent font-semibold",
+          ? "bg-blue-500/10 dark:bg-blue-500/15 text-blue-700 dark:text-sky-300 border-blue-200/80 dark:border-blue-500/30 shadow-xs font-bold"
+          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-950 dark:hover:text-white border-transparent font-medium",
       ].join(" ")}
     >
       {dragIndicator}
 
-      {/* Clean Left Active Bar */}
+      {/* Clean Inset Active Pill */}
       {isActive && (
         <motion.div
           layoutId={collapsed ? "sidebarActiveIndicatorCollapsed" : "sidebarActiveIndicator"}
           className={
             collapsed
-              ? "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-indigo-600 dark:bg-indigo-400 z-20"
-              : "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-indigo-600 dark:bg-indigo-400 z-20"
+              ? "absolute left-1 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm z-20"
+              : "absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm z-20"
           }
           transition={{ type: "spring", stiffness: 450, damping: 35 }}
         />
       )}
 
-      {/* Icon */}
-      <div className="relative flex items-center justify-center shrink-0 z-10">
+      {/* Icon with soft squircle box */}
+      <div className={[
+        "relative flex items-center justify-center shrink-0 z-10 rounded-lg transition-colors",
+        collapsed ? "w-7 h-7" : "w-6 h-6",
+        isActive
+          ? "text-blue-600 dark:text-sky-400 bg-blue-500/15 dark:bg-blue-400/20"
+          : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white",
+      ].join(" ")}>
         <Icon
-          size={collapsed ? 20 : 18}
+          size={collapsed ? 18 : 16}
           weight={isActive ? "bold" : "regular"}
-          className={[
-            "shrink-0 transition-all duration-200",
-            isActive
-              ? "text-indigo-600 dark:text-indigo-400"
-              : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200",
-          ].join(" ")}
+          className="shrink-0 transition-transform duration-200 group-hover:scale-105"
         />
       </div>
 
       {/* Label Text */}
       <span
         className={[
-          "transition-colors duration-200 z-10",
-          collapsed
-            ? "sr-only"
-            : "w-full truncate text-[13px] font-bold flex-1 text-left tracking-tight",
+          "transition-colors duration-200 z-10 truncate text-xs text-left tracking-tight",
+          collapsed ? "sr-only" : "flex-1",
           isActive
-            ? "text-indigo-600 dark:text-indigo-400 font-extrabold"
-            : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 font-bold",
+            ? "text-blue-700 dark:text-sky-200 font-bold"
+            : "text-slate-700 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white font-medium",
         ].join(" ")}
       >
         {displayText}
@@ -115,10 +112,13 @@ export function NavItem({
       {count !== undefined && count > 0 && (
         <span
           className={[
-            "font-extrabold text-white bg-rose-500 flex items-center justify-center shadow-2xs shrink-0 z-20",
+            "font-extrabold flex items-center justify-center shrink-0 z-20 tabular-nums transition-colors",
+            isActive
+              ? "bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60"
+              : "bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
             collapsed
-              ? "absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full text-[8.5px]"
-              : "ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px]",
+              ? "absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full text-[8px]"
+              : "ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full text-[9.5px]",
           ].join(" ")}
         >
           {count > 99 ? "99+" : count}
@@ -126,21 +126,20 @@ export function NavItem({
       )}
 
       {badge && !collapsed && (
-        <span className="ml-auto shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+        <span className="ml-auto shrink-0 rounded-full bg-sky-100 dark:bg-sky-950/80 px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wide text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/70 shadow-3xs">
           {badge}
         </span>
       )}
 
-      {/* Floating Hover Tooltip Popover (Collapsed State) */}
+      {/* Tooltip on collapsed */}
       {collapsed && (
-        <div className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[11px] font-extrabold py-1.5 px-3 rounded-xl shadow-lg border border-slate-800 z-50 whitespace-nowrap flex items-center gap-2">
+        <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[11px] font-bold py-1 px-2.5 rounded-xl shadow-lg border border-slate-800 z-50 whitespace-nowrap flex items-center gap-2">
           <span>{label}</span>
           {count !== undefined && count > 0 && (
-            <span className="bg-rose-500 text-white font-extrabold text-[9px] px-1.5 py-0.2 rounded-full">
+            <span className="bg-blue-500 text-white font-bold text-[9px] px-1.5 py-0.2 rounded-full">
               {count}
             </span>
           )}
-          {badge && <span className="text-[8px] font-black uppercase text-violet-300">{badge}</span>}
         </div>
       )}
     </motion.button>

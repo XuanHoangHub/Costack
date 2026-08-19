@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -41,7 +41,7 @@ Chỉ trả về JSON hợp lệ theo đúng cấu trúc trên. Không giải th
     const promptMessage = `Hãy phân tích bối cảnh danh sách công việc thời gian thực này để đề xuất thứ tự ưu tiên tối ưu:\n\n${JSON.stringify(inputTasks, null, 2)}`;
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: promptMessage,
       config: {
         systemInstruction,

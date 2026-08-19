@@ -341,41 +341,54 @@ export function useSupabaseSync() {
               : null;
 
             if (finalSpaces.length > 0) {
-              const formattedSpaces = finalSpaces.map(s => ({
-                id: s.id,
-                name: s.name,
-                emoji: s.emoji || 'Package',
-                themeColor: s.theme_color || 'indigo',
-                workspaceId: s.workspace_id,
-                user_id: s.user_id,
-                isPrivate: s.is_private || false,
-                shareSettings: s.share_settings || {},
-                description: s.click_apps?.spacePreferences?.description || '',
-                isFavorite: !!s.click_apps?.spacePreferences?.isFavorite,
-                isHidden: !!s.click_apps?.spacePreferences?.isHidden,
-                isArchived: !!s.click_apps?.spacePreferences?.isArchived,
-                lists: (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
+              const currentLocalSpaces = useSpaceStore.getState().spaces;
+              const formattedSpaces = finalSpaces.map(s => {
+                const remoteLists = (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
                   id: l.id,
                   name: l.name,
                   folderId: l.folder_id || undefined,
                   user_id: l.user_id,
                   isPrivate: l.is_private || false,
                   shareSettings: l.share_settings || {},
-                  isFavorite: !!s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isFavorite,
-                  isArchived: !!s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isArchived
-                })),
-                folders: s.folders || [],
-                whiteboards: s.whiteboards || [],
-                channels: s.channels || [],
-                statuses: s.statuses || [],
-                clickApps: s.click_apps || {},
-                customFields: s.custom_fields_config || []
-              }));
+                  isFavorite: Boolean(l.is_favorite || s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isFavorite),
+                  isArchived: Boolean(l.is_archived || s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isArchived),
+                  position: typeof l.position === 'number' ? l.position : 0
+                }));
+
+                // Preserve any local list in memory that hasn't propagated to dbLists yet
+                const matchingLocalSpace = currentLocalSpaces.find(loc => loc.id === s.id);
+                const localLists = matchingLocalSpace?.lists || [];
+                const remoteListIdSet = new Set(remoteLists.map(l => l.id));
+                const missingLocalLists = localLists.filter(l => !remoteListIdSet.has(l.id));
+                const mergedLists = [...remoteLists, ...missingLocalLists];
+
+                return {
+                  id: s.id,
+                  name: s.name,
+                  emoji: s.emoji || 'Package',
+                  themeColor: s.theme_color || 'indigo',
+                  workspaceId: s.workspace_id,
+                  user_id: s.user_id,
+                  isPrivate: s.is_private || false,
+                  shareSettings: s.share_settings || {},
+                  description: s.click_apps?.spacePreferences?.description || '',
+                  isFavorite: !!s.is_favorite || !!s.click_apps?.spacePreferences?.isFavorite,
+                  isHidden: !!s.is_hidden || !!s.click_apps?.spacePreferences?.isHidden,
+                  isArchived: !!s.is_archived || !!s.click_apps?.spacePreferences?.isArchived,
+                  lists: mergedLists,
+                  folders: s.folders || [],
+                  whiteboards: s.whiteboards || [],
+                  channels: s.channels || [],
+                  statuses: s.statuses || [],
+                  clickApps: s.click_apps || {},
+                  customFields: s.custom_fields_config || []
+                };
+              });
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
                 try {
                   localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
-                  localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
+                  localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true');
                 } catch (e) {}
               }
               return true;
@@ -416,41 +429,44 @@ export function useSupabaseSync() {
           }
 
           if (localSpaces.length === 0) {
+            const currentWorkspaces = useWorkspaceStore.getState().workspaces;
+            const currentActiveWsId = useWorkspaceStore.getState().activeWorkspaceId;
+            const targetWsId = currentActiveWsId || currentWorkspaces[0]?.id || 'w2';
             localSpaces = [
               {
-                id: 's-w1-personal',
+                id: `s-${targetWsId}-personal`,
                 name: 'Personal Space',
                 emoji: 'Activity',
                 themeColor: 'indigo',
-                workspaceId: 'w1',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w1-inbox', name: 'Inbox' },
-                  { id: 'l-w1-todo', name: 'To Do' }
+                  { id: `l-${targetWsId}-inbox`, name: 'Inbox' },
+                  { id: `l-${targetWsId}-todo`, name: 'To Do' }
                 ],
                 clickApps: { subtasks: true, priorities: true }
               },
               {
-                id: 's-w2-product',
+                id: `s-${targetWsId}-product`,
                 name: 'Product Space',
                 emoji: 'Sparkles',
                 themeColor: 'indigo',
-                workspaceId: 'w2',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w2-roadmap', name: 'Product Roadmap' },
-                  { id: 'l-w2-sprint1', name: 'Sprint 1' }
+                  { id: `l-${targetWsId}-roadmap`, name: 'Product Roadmap' },
+                  { id: `l-${targetWsId}-sprint1`, name: 'Sprint 1' }
                 ],
                 clickApps: { subtasks: true, priorities: true, customFields: true, timeTracking: true }
               },
               {
-                id: 's-w2-marketing',
+                id: `s-${targetWsId}-marketing`,
                 name: 'Marketing Space',
                 emoji: 'Megaphone',
                 themeColor: 'rose',
-                workspaceId: 'w2',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w2-campaign', name: 'Campaign Kickoff' },
-                  { id: 'l-w2-seo', name: 'SEO Plan' },
-                  { id: 'l-w2-email', name: 'Email Launch' }
+                  { id: `l-${targetWsId}-campaign`, name: 'Campaign Kickoff' },
+                  { id: `l-${targetWsId}-seo`, name: 'SEO Plan' },
+                  { id: `l-${targetWsId}-email`, name: 'Email Launch' }
                 ],
                 clickApps: { subtasks: true, priorities: true, customFields: true, relationships: true }
               }
@@ -458,13 +474,22 @@ export function useSupabaseSync() {
           }
 
           try {
+            const currentWorkspaces = useWorkspaceStore.getState().workspaces;
+            const currentActiveWsId = useWorkspaceStore.getState().activeWorkspaceId;
+            const validWorkspaceIds = new Set(currentWorkspaces.map(w => w.id));
+
             for (const space of localSpaces) {
-              await supabase.from('spaces').insert({
+              let spaceWsId = space.workspaceId;
+              if (!spaceWsId || (!validWorkspaceIds.has(spaceWsId) && validWorkspaceIds.size > 0)) {
+                spaceWsId = currentActiveWsId || currentWorkspaces[0]?.id || spaceWsId;
+              }
+
+              const { error: spErr } = await supabase.from('spaces').insert({
                 id: space.id,
                 name: space.name,
                 emoji: space.emoji || null,
                 theme_color: space.themeColor || null,
-                workspace_id: space.workspaceId,
+                workspace_id: spaceWsId,
                 folders: space.folders || [],
                 whiteboards: space.whiteboards || [],
                 channels: space.channels || [],
@@ -473,6 +498,11 @@ export function useSupabaseSync() {
                 custom_fields_config: space.customFields || [],
                 user_id: userId
               });
+
+              if (spErr) {
+                console.warn('Skipping lists insert for seeded space due to error:', spErr.message || spErr);
+                continue;
+              }
               
               if (space.lists.length > 0) {
                 const listsToInsert = space.lists.map(l => ({
@@ -482,7 +512,10 @@ export function useSupabaseSync() {
                   folder_id: l.folderId || null,
                   user_id: userId
                 }));
-                await supabase.from('lists').insert(listsToInsert);
+                const { error: lsErr } = await supabase.from('lists').insert(listsToInsert);
+                if (lsErr) {
+                  console.error('Failed to insert lists during seed in useRealtimeSync:', lsErr.message || lsErr);
+                }
               }
             }
             try { localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
@@ -494,7 +527,6 @@ export function useSupabaseSync() {
         }
 
         setDataLoaded.current = true;
-        addSyncLog('Cloud storage synchronized with Supabase successfully!');
 
         if (active) {
           tasksChannel = supabase.channel('realtime-tasks')
@@ -684,8 +716,6 @@ export function useSupabaseSync() {
               setTimeout(() => { if (active) fetchSpacesAndLists(); }, 400);
             })
             .subscribe();
-
-          addSyncLog('Realtime sync via Supabase channels successful!');
         }
       } catch (err) {
         console.error('Error during realtime data sync:', err);

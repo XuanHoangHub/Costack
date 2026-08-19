@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, ChevronDown, User, Users, ShieldCheck, 
   Check, Plus, AlertCircle, Loader2
 } from 'lucide-react';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface InviteModalProps {
   isOpen: boolean;
@@ -23,28 +24,8 @@ interface RoleOption {
   icon: React.ComponentType<any>;
 }
 
-const DEFAULT_ROLES: RoleOption[] = [
-  {
-    id: 'member',
-    name: 'Member',
-    description: 'Can access all public items in your Workspace.',
-    icon: Users,
-  },
-  {
-    id: 'guest',
-    name: 'Guest',
-    description: "Can't use all features or be added to Spaces. Can only access items shared with them.",
-    icon: User,
-  },
-  {
-    id: 'admin',
-    name: 'Admin',
-    description: 'Can manage Spaces, People, Billing and other Workspace settings.',
-    icon: ShieldCheck,
-  }
-];
-
 export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceName }: InviteModalProps) {
+  const { t, isVietnamese } = useTranslation();
   const [inputValue, setInputValue] = useState('');
   const [emails, setEmails] = useState<string[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState('member');
@@ -57,7 +38,34 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
   const workspaces = useWorkspaceStore(s => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
   const activeWS = workspaces.find(w => w.id === activeWorkspaceId);
-  const displayWSName = workspaceName || activeWS?.name || 'Workspace';
+  const displayWSName = workspaceName || activeWS?.name || (isVietnamese ? 'Không gian làm việc' : 'Workspace');
+
+  const roleOptions: RoleOption[] = useMemo(() => [
+    {
+      id: 'member',
+      name: isVietnamese ? 'Thành viên (Member)' : 'Member',
+      description: isVietnamese 
+        ? 'Có thể truy cập toàn bộ tài liệu và công việc công khai trong Workspace.' 
+        : 'Can access all public items in your Workspace.',
+      icon: Users,
+    },
+    {
+      id: 'guest',
+      name: isVietnamese ? 'Khách (Guest)' : 'Guest',
+      description: isVietnamese 
+        ? 'Quyền hạn hạn chế. Chỉ truy cập những không gian hoặc mục được chia sẻ trực tiếp.' 
+        : "Can't use all features or be added to Spaces. Can only access items shared with them.",
+      icon: User,
+    },
+    {
+      id: 'admin',
+      name: isVietnamese ? 'Quản trị viên (Admin)' : 'Admin',
+      description: isVietnamese 
+        ? 'Toàn quyền quản lý thành viên, không gian, cài đặt và phân quyền hệ thống.' 
+        : 'Can manage Spaces, People, Billing and other Workspace settings.',
+      icon: ShieldCheck,
+    }
+  ], [isVietnamese]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -70,10 +78,8 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getSelectedRoleDisplay = () => {
-    const found = DEFAULT_ROLES.find(r => r.id === selectedRoleId);
-    return found || DEFAULT_ROLES[0];
-  };
+  const activeRole = roleOptions.find(r => r.id === selectedRoleId) || roleOptions[0];
+  const ActiveIcon = activeRole.icon;
 
   const handleSelectRole = (roleId: string) => {
     setSelectedRoleId(roleId);
@@ -87,12 +93,12 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
     if (!cleanEmail) return;
     
     if (!emailRegex.test(cleanEmail)) {
-      setValidationError(`Invalid email format: ${cleanEmail}`);
+      setValidationError(isVietnamese ? `Địa chỉ email không hợp lệ: ${cleanEmail}` : `Invalid email format: ${cleanEmail}`);
       return;
     }
 
     if (emails.includes(cleanEmail)) {
-      setValidationError('Email is already added.');
+      setValidationError(isVietnamese ? 'Email này đã được thêm vào danh sách.' : 'Email is already added.');
       return;
     }
 
@@ -115,13 +121,12 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
     e.preventDefault();
     setValidationError('');
 
-    // If there is text in input when clicking submit, try to add it first
     const finalEmails = [...emails];
     if (inputValue.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const cleanEmail = inputValue.trim().replace(/,$/, '');
       if (!emailRegex.test(cleanEmail)) {
-        setValidationError(`Invalid email format: ${cleanEmail}`);
+        setValidationError(isVietnamese ? `Địa chỉ email không hợp lệ: ${cleanEmail}` : `Invalid email format: ${cleanEmail}`);
         return;
       }
       if (!finalEmails.includes(cleanEmail)) {
@@ -130,7 +135,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
     }
 
     if (finalEmails.length === 0) {
-      setValidationError('Please enter at least one valid email address.');
+      setValidationError(isVietnamese ? 'Vui lòng nhập ít nhất một địa chỉ email hợp lệ.' : 'Please enter at least one valid email address.');
       return;
     }
 
@@ -142,14 +147,11 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
       setSelectedRoleId('member');
       onClose();
     } catch (error) {
-      setValidationError(error instanceof Error ? error.message : 'Could not create the invitation. Please try again.');
+      setValidationError(error instanceof Error ? error.message : (isVietnamese ? 'Không thể tạo lời mời. Vui lòng thử lại.' : 'Could not create the invitation. Please try again.'));
     } finally {
       setIsSending(false);
     }
   };
-
-  const activeRole = getSelectedRoleDisplay();
-  const ActiveIcon = activeRole.icon;
 
   return (
     <AnimatePresence>
@@ -182,18 +184,21 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
             </button>
 
             {/* Header */}
-            <div className="mb-5 text-left">
-              <h3 className="text-xl font-bold text-slate-850 dark:text-slate-50 tracking-tight">
-                Mời người vào {displayWSName}
+            <div className="mb-5 text-left pr-8">
+              <h3 className="text-xl font-black text-slate-850 dark:text-slate-50 tracking-tight">
+                {isVietnamese ? `Mời thành viên vào ${displayWSName}` : `Invite people to ${displayWSName}`}
               </h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                {isVietnamese ? 'Cộng tác, phân công nhiệm vụ và trao đổi tài liệu trong thời gian thực.' : 'Collaborate, assign tasks and share documents in real time.'}
+              </p>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSendInvite} className="space-y-5 text-left">
               {/* Emails Input with Tag Badges */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-555 dark:text-slate-400">
-                  Mời qua email
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {isVietnamese ? 'Mời qua địa chỉ email' : 'Invite by email'}
                 </label>
                 
                 <div className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all flex flex-wrap gap-1.5 items-center max-h-32 overflow-y-auto custom-scrollbar">
@@ -207,22 +212,22 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
                   ))}
                   <input
                     type="text"
-                    placeholder={emails.length === 0 ? "Nhập địa chỉ email..." : "Thêm email..."}
+                    placeholder={emails.length === 0 ? (isVietnamese ? "Nhập địa chỉ email và nhấn Enter..." : "Enter email addresses...") : (isVietnamese ? "Thêm email khác..." : "Add more emails...")}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onBlur={() => {
                       if (inputValue.trim()) addEmail(inputValue);
                     }}
                     onKeyDown={handleKeyDown}
-                    className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-xs text-slate-850 dark:text-slate-550 font-medium placeholder-slate-450 dark:placeholder-slate-500 py-1"
+                    className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-xs text-slate-850 dark:text-slate-100 font-medium placeholder-slate-400 dark:placeholder-slate-500 py-1"
                   />
                 </div>
               </div>
 
               {/* Role Dropdown */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-555 dark:text-slate-400">
-                  Mời với vai trò
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {isVietnamese ? 'Vai trò & Quyền hạn' : 'Role & Permissions'}
                 </label>
                 
                 <div ref={dropdownRef} className="relative">
@@ -230,19 +235,19 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-955 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-left focus:border-indigo-500"
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-left focus:border-indigo-500"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-550 dark:text-slate-400 shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                         <ActiveIcon className="w-4.5 h-4.5" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-850 dark:text-slate-100">
+                          <span className="text-xs font-extrabold text-slate-850 dark:text-slate-100">
                             {activeRole.name}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-550 truncate mt-0.5 font-medium">
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5 font-medium">
                           {activeRole.description}
                         </p>
                       </div>
@@ -261,7 +266,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
                         className="absolute left-0 right-0 mt-1.5 z-[160] bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden py-1.5"
                       >
                         <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
-                          {DEFAULT_ROLES.map((role) => {
+                          {roleOptions.map((role) => {
                             const isSelected = selectedRoleId === role.id;
                             const IconComponent = role.icon;
                             return (
@@ -270,22 +275,22 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
                                 type="button"
                                 onClick={() => handleSelectRole(role.id)}
                                 className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-start gap-3 transition-colors cursor-pointer ${
-                                  isSelected ? 'bg-indigo-50/20 dark:bg-indigo-950/10' : ''
+                                  isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''
                                 }`}
                               >
-                                <div className="w-7 h-7 rounded-lg bg-slate-550 dark:bg-slate-955 border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-550 shrink-0 mt-0.5">
+                                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0 mt-0.5">
                                   <IconComponent className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between">
                                     <span className={`text-xs font-bold ${
-                                      isSelected ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
+                                      isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
                                     }`}>
                                       {role.name}
                                     </span>
                                     {isSelected && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                                   </div>
-                                  <p className="text-[10px] text-slate-400 dark:text-slate-550 mt-0.5 leading-relaxed font-medium">
+                                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 leading-relaxed font-medium">
                                     {role.description}
                                   </p>
                                 </div>
@@ -301,7 +306,7 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
 
               {/* Validation Error Message */}
               {validationError && (
-                <div className="flex items-start gap-2 bg-red-50/50 dark:bg-red-950/10 border border-red-150/40 rounded-xl p-3 text-red-650 dark:text-red-400">
+                <div className="flex items-start gap-2 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50 rounded-xl p-3 text-rose-600 dark:text-rose-400">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span className="text-[10.5px] font-semibold leading-relaxed">
                     {validationError}
@@ -310,14 +315,23 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
               )}
 
               {/* Action Buttons */}
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-end gap-2.5 items-center">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  {isVietnamese ? 'Hủy bỏ' : 'Cancel'}
+                </button>
                 <button
                   type="submit"
                   disabled={isSending}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer hover:shadow-blue-500/10 flex items-center gap-2"
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer hover:shadow-blue-500/25 flex items-center gap-2"
                 >
                   {isSending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {isSending ? 'Creating links…' : 'Send Invitation'}
+                  {isSending 
+                    ? (isVietnamese ? 'Đang tạo liên kết mời…' : 'Creating links…') 
+                    : (isVietnamese ? 'Gửi lời mời' : 'Send Invitation')}
                 </button>
               </div>
             </form>

@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskStatus, User, Space } from '../types';
 import { useTranslation } from '../contexts/TranslationContext';
-import { renderSpaceIcon } from './EmojiIconPicker';
+import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
 
@@ -51,6 +51,7 @@ interface SpaceOverviewTabProps {
   onAddDoc?: () => void;
   onOpenDoc?: (docId: string) => void;
   activeFolderId?: string | null;
+  onUpdateSpaceEmoji?: (emoji: string) => void;
 }
 
 interface BookmarkItem {
@@ -76,7 +77,7 @@ const THEME_COLORS: Record<
     soft: 'rgba(99, 102, 241, 0.12)',
     tint: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
     text: 'text-indigo-600 dark:text-indigo-400',
-    gradient: 'from-indigo-600 via-violet-600 to-purple-600',
+    gradient: 'from-blue-600 via-sky-500 to-cyan-400',
     glow: 'rgba(99, 102, 241, 0.25)',
     border: 'border-indigo-500/20'
   },
@@ -85,7 +86,7 @@ const THEME_COLORS: Record<
     soft: 'rgba(244, 63, 94, 0.12)',
     tint: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
     text: 'text-rose-600 dark:text-rose-400',
-    gradient: 'from-rose-600 via-pink-600 to-fuchsia-600',
+    gradient: 'from-rose-600 via-pink-600 to-rose-700',
     glow: 'rgba(244, 63, 94, 0.25)',
     border: 'border-rose-500/20'
   },
@@ -236,7 +237,8 @@ export default function SpaceOverviewTab({
   onAddFolder,
   onAddDoc,
   onOpenDoc,
-  activeFolderId = null
+  activeFolderId = null,
+  onUpdateSpaceEmoji
 }: SpaceOverviewTabProps) {
   const { locale } = useTranslation();
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
@@ -437,13 +439,30 @@ export default function SpaceOverviewTab({
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             {/* Space Branding & Details */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-                className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-              >
-                {renderSpaceIcon(space.emoji || 'Package', 'w-8 h-8 text-indigo-600 dark:text-indigo-400')}
-              </motion.div>
+              {onUpdateSpaceEmoji ? (
+                <EmojiIconPicker
+                  size="inline"
+                  value={space.emoji || 'Package'}
+                  onChange={onUpdateSpaceEmoji}
+                  title="Nhấn để đổi biểu tượng không gian"
+                >
+                  <motion.div
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 hover:border-indigo-500 bg-white dark:border-slate-800 dark:bg-slate-900 cursor-pointer shadow-sm hover:shadow-md transition-all group"
+                  >
+                    {renderSpaceIcon(space.emoji || 'Package', 'w-8 h-8 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform')}
+                  </motion.div>
+                </EmojiIconPicker>
+              ) : (
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                >
+                  {renderSpaceIcon(space.emoji || 'Package', 'w-8 h-8 text-indigo-600 dark:text-indigo-400')}
+                </motion.div>
+              )}
 
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">

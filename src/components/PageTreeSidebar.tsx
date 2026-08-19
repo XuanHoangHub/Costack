@@ -243,7 +243,7 @@ export default function PageTreeSidebar({
                     Nhân bản
                   </button>
                   
-                  <div className="my-1 border-t border-slate-150 dark:border-slate-800" />
+                  <div className="my-1 border-t border-slate-200/80 dark:border-slate-800" />
 
                   <button
                     onClick={() => {
@@ -278,7 +278,7 @@ export default function PageTreeSidebar({
       <div className="p-3 pb-2 shrink-0 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xs">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center text-white shadow-xs">
               <FileText className="w-4 h-4" />
             </div>
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
@@ -288,7 +288,7 @@ export default function PageTreeSidebar({
 
           <button
             onClick={() => onAddDoc()}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-indigo-500/20 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
             title="Tạo trang mới"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />

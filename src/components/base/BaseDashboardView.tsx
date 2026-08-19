@@ -10,7 +10,7 @@ interface BaseDashboardViewProps {
   members: User[];
 }
 
-const COLORS = ['#7B61FF', '#FF3366', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#2563EB', '#FF3366', '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function BaseDashboardView({ table, records, members }: BaseDashboardViewProps) {
   const numericFields = table.fields.filter(f => f.type === 'number' || f.type === 'currency');
@@ -134,7 +134,7 @@ export default function BaseDashboardView({ table, records, members }: BaseDashb
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]} fill="#7B61FF" />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} fill="#2563EB" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

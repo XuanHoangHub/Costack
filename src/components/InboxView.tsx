@@ -1,17 +1,20 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Bell, Check, Trash2, Eye, EyeOff, Pin, Archive, Clock, Search, 
   ArrowRight, Inbox, HelpCircle, ArchiveRestore, Sparkles, Filter, CheckSquare,
-  CircleAlert, Bookmark, MailOpen, User as UserIcon, Send, MessageSquare,
-  ChevronRight, Calendar, AlertTriangle, MoreVertical, X, CheckCheck,
-  Tag, Paperclip, CornerDownRight, ExternalLink, Command, ShieldCheck, Flame
+  Bookmark, MailOpen, User as UserIcon, Send, MessageSquare,
+  ChevronRight, Calendar, AlertTriangle, X, CheckCheck,
+  Tag, Paperclip, CornerDownRight, ExternalLink, Command, ShieldCheck, Flame,
+  TrendingUp, Target, Plus, CheckCircle2, RefreshCw, Zap
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Task, User, Workspace, WorkspaceInvitation } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SignedImage from './SignedImage';
 import { callAiApi } from '@/lib/aiClient';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface InboxViewProps {
   notificationsList: any[];
@@ -32,6 +35,7 @@ interface InboxViewProps {
   highlightedInviteToken?: string | null;
   onAcceptInvite?: (id: string, workspaceId: string, role: string) => void | Promise<void>;
   onDeclineInvite?: (id: string) => void | Promise<void>;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export default function InboxView({
@@ -52,14 +56,16 @@ export default function InboxView({
   workspaceInvitations = [],
   highlightedInviteToken,
   onAcceptInvite,
-  onDeclineInvite
+  onDeclineInvite,
+  onNavigateToTab
 }: InboxViewProps) {
-  // Tabs: 'important' (mentions, assigned, direct) | 'other' | 'saved' | 'cleared'
-  const [activeTab, setActiveTab] = useState<'important' | 'other' | 'saved' | 'cleared'>('important');
+  const { isVietnamese, locale } = useTranslation();
+  // Tabs: 'all' | 'important' | 'other' | 'saved' | 'cleared'
+  const [activeTab, setActiveTab] = useState<'all' | 'important' | 'other' | 'saved' | 'cleared'>('all');
+  const [workspaceScope, setWorkspaceScope] = useState<'current' | 'all'>('current');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [quickFilter, setQuickFilter] = useState<'all' | 'unread' | 'assigned' | 'comments' | 'deadlines'>('all');
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [showSnoozeDropdownId, setShowSnoozeDropdownId] = useState<string | null>(null);
   
   // Bulk Selection
@@ -74,6 +80,10 @@ export default function InboxView({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
+
+  // AI Daily Digest in Right Pane
+  const [aiDigestLoading, setAiDigestLoading] = useState(false);
+  const [aiDigestText, setAiDigestText] = useState<string | null>(null);
 
   // Auto recovery for expired snoozes on mount
   useEffect(() => {
@@ -120,27 +130,58 @@ export default function InboxView({
   const inboxStats = useMemo(() => {
     const now = Date.now();
     const active = notificationsList.filter(n => {
-      const matchesWorkspace = !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+      const matchesWorkspace = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
       return matchesWorkspace && !n.cleared && !(n.snoozedUntil && n.snoozedUntil > now);
     });
 
-    const importantCount = active.filter(n => {
+    const importantItems = active.filter(n => {
       const taskId = getAssociatedTaskId(n);
       const task = tasks.find(t => t.id === taskId);
       const isAssigned = task?.assigneeId === currentUser?.id || task?.assigneeIds?.includes(currentUser?.id);
       const isMention = n.type === 'comment' || n.title?.includes('@') || n.message?.includes('@');
       return isAssigned || isMention || n.type === 'assignment' || n.type === 'deadline';
-    }).length;
+    });
+
+    const otherItems = active.filter(n => !importantItems.some(item => item.id === n.id));
+
+    const importantUnread = importantItems.filter(n => !n.read).length + workspaceInvitations.length;
+    const otherUnread = otherItems.filter(n => !n.read).length;
+    const totalUnread = active.filter(n => !n.read).length + workspaceInvitations.length;
 
     return {
+      all: active.length + workspaceInvitations.length,
+      allUnread: totalUnread,
       total: active.length + workspaceInvitations.length,
-      unread: active.filter(n => !n.read).length + workspaceInvitations.length,
-      important: importantCount + workspaceInvitations.length,
-      other: Math.max(0, active.length - importantCount),
-      saved: notificationsList.filter(n => (n.pinned || (n.snoozedUntil && n.snoozedUntil > now)) && !n.cleared).length,
-      cleared: notificationsList.filter(n => n.cleared).length,
+      unread: totalUnread,
+      important: importantItems.length + workspaceInvitations.length,
+      importantUnread,
+      other: otherItems.length,
+      otherUnread,
+      saved: notificationsList.filter(n => {
+        const matchesWorkspace = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+        return matchesWorkspace && (n.pinned || (n.snoozedUntil && n.snoozedUntil > now)) && !n.cleared;
+      }).length,
+      cleared: notificationsList.filter(n => {
+        const matchesWorkspace = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+        return matchesWorkspace && n.cleared;
+      }).length,
     };
-  }, [notificationsList, activeWorkspaceId, workspaceInvitations.length, tasks, currentUser, getAssociatedTaskId]);
+  }, [notificationsList, workspaceScope, activeWorkspaceId, workspaceInvitations.length, tasks, currentUser, getAssociatedTaskId]);
+
+  // Productivity Metrics for the Empty Right Panel
+  const productivityStats = useMemo(() => {
+    const userTasks = tasks.filter(t => t.assigneeId === currentUser?.id || t.assigneeIds?.includes(currentUser?.id));
+    const completedTasks = userTasks.filter(t => t.status === 'completed');
+    const urgentTasks = userTasks.filter(t => t.priority === 'urgent' || t.priority === 'high');
+    const completionRate = userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 100;
+    
+    return {
+      totalAssigned: userTasks.length,
+      completed: completedTasks.length,
+      urgent: urgentTasks.length,
+      completionRate
+    };
+  }, [tasks, currentUser]);
 
   // Auto-mark notification as read upon selection
   useEffect(() => {
@@ -150,12 +191,12 @@ export default function InboxView({
     ));
   }, [selectedNotif, setNotificationsList]);
 
-  // Categorize and filter notifications according to ClickUp Inbox 3.0 rules
+  // Categorize and filter notifications
   const filteredNotifications = useMemo(() => {
     const now = Date.now();
     return notificationsList.filter(n => {
       // 0. Workspace Filter
-      const matchesWorkspace = !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+      const matchesWorkspace = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
       if (!matchesWorkspace) return false;
 
       // 1. Text Search Filter
@@ -164,13 +205,16 @@ export default function InboxView({
         n.message?.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
-      // 2. Type Filter
-      if (filterType !== 'all') {
-        if (filterType === 'assignments' && n.type !== 'assignment') return false;
-        if (filterType === 'deadlines' && n.type !== 'deadline') return false;
-        if (filterType === 'comments' && n.type !== 'comment') return false;
-        if (filterType === 'updates' && !['success', 'info', 'message'].includes(n.type)) return false;
+      // 2. Quick Filter Chips
+      if (quickFilter === 'unread' && n.read) return false;
+      if (quickFilter === 'assigned' && n.type !== 'assignment') {
+        const taskId = getAssociatedTaskId(n);
+        const task = tasks.find(t => t.id === taskId);
+        const isAssigned = task?.assigneeId === currentUser?.id || task?.assigneeIds?.includes(currentUser?.id);
+        if (!isAssigned) return false;
       }
+      if (quickFilter === 'comments' && n.type !== 'comment' && !n.title?.includes('@') && !n.message?.includes('@')) return false;
+      if (quickFilter === 'deadlines' && n.type !== 'deadline') return false;
 
       const isSnoozed = n.snoozedUntil && n.snoozedUntil > now;
       const isCleared = n.cleared === true;
@@ -188,6 +232,11 @@ export default function InboxView({
       }
 
       if (isSnoozed) return false;
+
+      // All Tab
+      if (activeTab === 'all') {
+        return true;
+      }
 
       // Important Tab (Assigned to Me, Mentions, Deadlines)
       const taskId = getAssociatedTaskId(n);
@@ -211,7 +260,36 @@ export default function InboxView({
       if (!a.pinned && b.pinned) return 1;
       return 0;
     });
-  }, [notificationsList, activeTab, searchQuery, filterType, tasks, currentUser, getAssociatedTaskId, activeWorkspaceId]);
+  }, [notificationsList, activeTab, searchQuery, quickFilter, tasks, currentUser, getAssociatedTaskId, activeWorkspaceId, workspaceScope]);
+
+
+  // Group notifications into Date categories: Today, Yesterday, Older
+  const groupedNotifications = useMemo(() => {
+    const today: any[] = [];
+    const yesterday: any[] = [];
+    const older: any[] = [];
+
+    const now = new Date();
+    const todayDate = now.toDateString();
+    const yesterdayDate = new Date(now.setDate(now.getDate() - 1)).toDateString();
+
+    filteredNotifications.forEach(item => {
+      const itemDate = item.timestamp ? new Date(item.timestamp).toDateString() : todayDate;
+      if (itemDate === todayDate || item.timestamp?.includes('phút') || item.timestamp?.includes('giờ') || item.timestamp?.includes('vừa xong')) {
+        today.push(item);
+      } else if (itemDate === yesterdayDate || item.timestamp?.includes('hôm qua')) {
+        yesterday.push(item);
+      } else {
+        older.push(item);
+      }
+    });
+
+    return [
+      { label: isVietnamese ? 'Hôm nay' : 'Today', items: today },
+      { label: isVietnamese ? 'Hôm qua' : 'Yesterday', items: yesterday },
+      { label: isVietnamese ? 'Cũ hơn' : 'Older', items: older }
+    ].filter(g => g.items.length > 0);
+  }, [filteredNotifications, isVietnamese]);
 
   // Actions
   const handleToggleRead = useCallback((id: string) => {
@@ -227,14 +305,14 @@ export default function InboxView({
     if (selectedNotificationId === id) {
       setSelectedNotificationId(null);
     }
-    triggerToast?.('success', 'Cleared Notification', 'Moved notification to archive.');
+    triggerToast?.('success', 'Đã lưu trữ', 'Thông báo đã được chuyển vào mục Lưu trữ.');
   }, [selectedNotificationId, setNotificationsList, triggerToast]);
 
   const handleRestore = (id: string) => {
     setNotificationsList(prev => prev.map(n => 
       n.id === id ? { ...n, cleared: false } : n
     ));
-    triggerToast?.('success', 'Restored Notification', 'Returned to active Inbox.');
+    triggerToast?.('success', 'Đã khôi phục', 'Thông báo đã trở lại hộp thư chính.');
   };
 
   const handleTogglePin = (id: string) => {
@@ -252,15 +330,16 @@ export default function InboxView({
       setSelectedNotificationId(null);
     }
     setShowSnoozeDropdownId(null);
-    triggerToast?.('info', 'Notification Snoozed ⏰', `Snoozed for ${durationHours} hours.`);
+    triggerToast?.('info', 'Đã tạm ẩn ⏰', `Tạm ẩn thông báo trong ${durationHours} giờ.`);
   }, [selectedNotificationId, setNotificationsList, triggerToast]);
 
   const handleMarkAllRead = () => {
     setNotificationsList(prev => prev.map(n => {
-      const isInCurrentTab = filteredNotifications.some(fn => fn.id === n.id);
-      return isInCurrentTab ? { ...n, read: true } : n;
+      const isInCurrentScope = workspaceScope === 'all' || !n.workspaceId || n.workspaceId === activeWorkspaceId || n.workspaceId === 'all';
+      if (!isInCurrentScope || n.cleared) return n;
+      return { ...n, read: true };
     }));
-    triggerToast?.('success', 'Marked as Read', 'All visible notifications marked as read.');
+    triggerToast?.('success', 'Hoàn tất', 'Tất cả thông báo đã được đánh dấu đã đọc.');
   };
 
   const handleClearAllVisible = () => {
@@ -269,7 +348,7 @@ export default function InboxView({
       return isInCurrentTab ? { ...n, cleared: true } : n;
     }));
     setSelectedNotificationId(null);
-    triggerToast?.('success', 'Cleared Inbox', 'All visible items cleared to archive.');
+    triggerToast?.('success', 'Dọn sạch hộp thư', 'Các thông báo hiển thị đã chuyển vào lưu trữ.');
   };
 
   // Bulk Multi-Select actions
@@ -285,7 +364,7 @@ export default function InboxView({
       selectedNotifIds.includes(n.id) ? { ...n, cleared: true } : n
     ));
     setSelectedNotifIds([]);
-    triggerToast?.('success', 'Cleared Selected', 'Selected items cleared.');
+    triggerToast?.('success', 'Đã lưu trữ', 'Các thông báo đã chọn đã được chuyển vào lưu trữ.');
   };
 
   const handleMarkReadSelected = () => {
@@ -293,7 +372,7 @@ export default function InboxView({
       selectedNotifIds.includes(n.id) ? { ...n, read: true } : n
     ));
     setSelectedNotifIds([]);
-    triggerToast?.('success', 'Marked Read', 'Selected items marked as read.');
+    triggerToast?.('success', 'Đã đọc', 'Đã đánh dấu đã đọc các mục đã chọn.');
   };
 
   // Quick Reply handler right from detail pane
@@ -305,7 +384,7 @@ export default function InboxView({
 
     const newComment = {
       id: `comm-${Date.now()}`,
-      senderName: currentUser?.name || 'You',
+      senderName: currentUser?.name || 'Bạn',
       senderAvatar: currentUser?.avatar || '',
       content: replyText.trim(),
       timestamp: new Date().toISOString()
@@ -318,11 +397,40 @@ export default function InboxView({
     };
 
     onUpdateTask(updatedTask);
-    onAddSyncLog(`Posted reply on "${selectedTask.title}" from Inbox`);
-    triggerToast?.('success', 'Reply Sent 🚀', 'Your comment was posted to the task thread.');
+    onAddSyncLog(`Bình luận trên "${selectedTask.title}" từ Hộp thư`);
+    triggerToast?.('success', 'Đã gửi phản hồi 🚀', 'Bình luận của bạn đã được đăng lên công việc.');
 
     setReplyText('');
     setIsSendingReply(false);
+  };
+
+  // Generate AI Daily Briefing for Inbox
+  const handleGenerateAiDigest = async () => {
+    if (!currentUser?.isPremium) {
+      onUpgradePremium();
+      return;
+    }
+    setAiDigestLoading(true);
+    try {
+      const activeUnread = notificationsList.filter(n => !n.cleared && !n.read).slice(0, 10);
+      const res = await callAiApi('/api/ai/inbox-digest', {
+        userName: currentUser?.name || 'Thành viên Apexa',
+        notifications: activeUnread,
+        tasksCount: tasks.length
+      });
+      const data = await res.json();
+      if (data.success && data.digest) {
+        setAiDigestText(data.digest);
+        triggerToast?.('success', 'AI Daily Digest ✨', 'Đã tổng hợp tóm tắt thông minh cho hôm nay.');
+      } else {
+        // Fallback friendly summary
+        setAiDigestText(`Chào ${currentUser?.name || 'bạn'}! Hôm nay bạn có ${inboxStats.important} thông báo quan trọng và ${productivityStats.totalAssigned} công việc được giao cần xử lý. Tỉ lệ hoàn thành hiện tại đạt ${productivityStats.completionRate}%. Hãy ưu tiên các đầu việc có mức khẩn cấp cao!`);
+      }
+    } catch {
+      setAiDigestText(`Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Apexa. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`);
+    } finally {
+      setAiDigestLoading(false);
+    }
   };
 
   // Local Task Attachment & AI utilities for TaskDetailsPanel
@@ -348,7 +456,7 @@ export default function InboxView({
       attachments: [...(task.attachments || []), newAttachment]
     };
     onUpdateTask(updatedTask);
-    triggerToast?.('success', 'Attachment Uploaded', `Uploaded ${file.name}`);
+    triggerToast?.('success', 'Tải tệp đính kèm', `Đã đính kèm ${file.name}`);
   };
 
   const handleAttachmentDelete = async (task: Task, att: any) => {
@@ -358,7 +466,7 @@ export default function InboxView({
       attachments: (task.attachments || []).filter(a => a.id !== attachmentId)
     };
     onUpdateTask(updatedTask);
-    triggerToast?.('success', 'Attachment Deleted', 'Removed attachment successfully.');
+    triggerToast?.('success', 'Đã xóa tệp đính kèm', 'Đã xóa tệp thành công.');
   };
 
   const triggerAiSubtasks = async (task: Task) => {
@@ -382,7 +490,7 @@ export default function InboxView({
           progress: Math.round((task.subtasks.filter(s => s.completed).length / Math.max(1, task.subtasks.length + gen.length)) * 100)
         };
         onUpdateTask(updated);
-        onAddSyncLog(`AI suggested ${gen.length} subtasks for "${task.title}"`);
+        onAddSyncLog(`AI đề xuất ${gen.length} nhiệm vụ phụ cho "${task.title}"`);
       }
     } catch (err) {
       console.error(err);
@@ -399,12 +507,12 @@ export default function InboxView({
     setIsSummarizing(true);
     try {
       const assignee = members.find(m => m.id === task.assigneeId);
-      const res = await callAiApi('/api/ai/task-summarize', { task, assigneeName: assignee?.name || 'Unassigned' });
+      const res = await callAiApi('/api/ai/task-summarize', { task, assigneeName: assignee?.name || 'Chưa giao' });
       const data = await res.json();
       if (data.success && data.text) {
         setAiSummary(data.text);
         localStorage.setItem(`apexa_task_ai_summary_${task.id}`, data.text);
-        onAddSyncLog(`AI summary for "${task.title}"`);
+        onAddSyncLog(`AI tóm tắt cho "${task.title}"`);
       }
     } catch (err) {
       console.error(err);
@@ -458,175 +566,199 @@ export default function InboxView({
   }, [activeIds, selectedNotificationId, handleClear, handleSnooze, handleToggleRead]);
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-4 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden">
+    <div className="w-full h-full flex flex-col md:flex-row gap-3.5 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-1">
       
       {/* ── Left Column: Master Notifications Stream ── */}
-      <div className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-[#07080c] rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs ${
+      <div className={`flex-1 flex flex-col min-w-0 bg-white/90 dark:bg-[#07080c]/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden ${
         selectedNotificationId ? 'hidden md:flex md:max-w-md lg:max-w-lg' : 'flex'
       }`}>
         
-        {/* ClickUp 3.0 Style Inbox Header & Controls */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-3.5 shrink-0 bg-white/50 dark:bg-[#07080c]/50 backdrop-blur-md">
+        {/* Modern Glassmorphic Header & Controls */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-3 shrink-0 bg-white/40 dark:bg-[#07080c]/40 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-                <Inbox className="w-4.5 h-4.5" />
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-blue-500/25 shrink-0">
+                <Inbox className="w-4.5 h-4.5 drop-shadow-xs" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Hộp thư Apexa 3.0</h1>
+                  <h1 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                    {isVietnamese ? 'Hộp thư Apexa' : 'Apexa Inbox'}
+                  </h1>
                   {inboxStats.unread > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 text-[10px] font-black">
-                      {inboxStats.unread} unread
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/80 dark:text-sky-300 border border-blue-200/70 dark:border-blue-800/60 text-[10px] font-black animate-pulse">
+                      {inboxStats.unread} {isVietnamese ? 'mới' : 'new'}
                     </span>
                   )}
+                  {/* Workspace Scope Toggle */}
+                  <button
+                    onClick={() => setWorkspaceScope(prev => prev === 'current' ? 'all' : 'current')}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/70 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    title={isVietnamese ? 'Chuyển đổi phạm vi hiển thị thông báo' : 'Toggle workspace notification scope'}
+                  >
+                    {workspaceScope === 'current' ? (isVietnamese ? 'Không gian này' : 'Current space') : (isVietnamese ? 'Tất cả không gian' : 'All spaces')}
+                  </button>
                 </div>
-                <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500">Luồng thông báo và hoạt động tập trung</p>
+                <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-400">
+                  {isVietnamese ? 'Luồng thông báo & hoạt động tập trung' : 'Centralized activity and notification stream'}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
               <button 
                 onClick={handleMarkAllRead}
-                disabled={filteredNotifications.length === 0}
-                className="px-2.5 py-1.5 text-[10.5px] font-extrabold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1"
-                title="Đánh dấu tất cả đã đọc"
+                disabled={inboxStats.unread === 0 && filteredNotifications.length === 0}
+                className="px-2.5 py-1.5 text-[11px] font-extrabold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 cursor-pointer disabled:opacity-40 transition-all flex items-center gap-1 active:scale-95"
+                title={isVietnamese ? 'Đánh dấu tất cả đã đọc' : 'Mark all as read'}
               >
-                <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="hidden sm:inline">Đánh dấu tất cả đã đọc</span>
+                <CheckCheck className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" />
+                <span className="hidden sm:inline">{isVietnamese ? 'Đã đọc' : 'Mark read'}</span>
               </button>
               <button 
                 onClick={handleClearAllVisible}
                 disabled={filteredNotifications.length === 0}
-                className="px-2.5 py-1.5 text-[10.5px] font-extrabold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer disabled:opacity-40 transition-colors flex items-center gap-1"
-                title="Chuyển tất cả vào lưu trữ"
+                className="px-2.5 py-1.5 text-[11px] font-extrabold rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/40 cursor-pointer disabled:opacity-40 transition-all flex items-center gap-1 active:scale-95"
+                title={isVietnamese ? 'Chuyển tất cả vào lưu trữ' : 'Archive all'}
               >
                 <Archive className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Xóa tất cả</span>
+                <span className="hidden sm:inline">{isVietnamese ? 'Dọn sạch' : 'Clear all'}</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Filter Badges Grid */}
-          <div className="grid grid-cols-4 gap-2">
+          {/* Segmented Modern Navigation Pills: 5 Tabs */}
+          <div className="grid grid-cols-5 gap-1 p-1 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
             {[
-              { id: 'important', label: 'Important', count: inboxStats.important, icon: Flame, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300' },
-              { id: 'other', label: 'Other', count: inboxStats.other, icon: Bell, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-300' },
-              { id: 'saved', label: 'Saved', count: inboxStats.saved, icon: Bookmark, color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-300' },
-              { id: 'cleared', label: 'Archived', count: inboxStats.cleared, icon: Archive, color: 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400' },
-            ].map(tab => (
+              { id: 'all', label: isVietnamese ? 'Tất cả' : 'All', count: inboxStats.all, unread: inboxStats.allUnread, icon: Inbox, color: 'text-blue-500' },
+              { id: 'important', label: isVietnamese ? 'Quan trọng' : 'Important', count: inboxStats.important, unread: inboxStats.importantUnread, icon: Flame, color: 'text-amber-500' },
+              { id: 'other', label: isVietnamese ? 'Khác' : 'Other', count: inboxStats.other, unread: inboxStats.otherUnread, icon: Bell, color: 'text-sky-500' },
+              { id: 'saved', label: isVietnamese ? 'Đã lưu' : 'Saved', count: inboxStats.saved, unread: 0, icon: Bookmark, color: 'text-cyan-500' },
+              { id: 'cleared', label: isVietnamese ? 'Lưu trữ' : 'Archived', count: inboxStats.cleared, unread: 0, icon: Archive, color: 'text-slate-400' },
+            ].map(tab => {
+              const isTabActive = activeTab === tab.id;
+              const hasUnread = tab.unread > 0;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setSelectedNotificationId(null);
+                  }}
+                  className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer relative ${
+                    isTabActive
+                      ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-xs font-black border border-slate-200/60 dark:border-slate-700/60'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-bold hover:bg-white/50 dark:hover:bg-slate-800/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-1 relative">
+                    <tab.icon className={`w-3.5 h-3.5 ${isTabActive ? 'text-blue-600 dark:text-sky-400' : tab.color}`} />
+                    <span className="text-[11px] font-black">{tab.count}</span>
+                    {hasUnread && !isTabActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse absolute -top-1 -right-1" />
+                    )}
+                  </div>
+                  <span className="text-[9.5px] mt-0.5 truncate max-w-full">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex items-center gap-2 bg-slate-50/90 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-3 py-1.5">
+            <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <input 
+              type="text" 
+              placeholder={isVietnamese ? "Tìm kiếm thông báo, công việc, thảo luận..." : "Search notifications, tasks, discussions..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
+            )}
+          </div>
+
+          {/* Quick Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            {[
+              { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
+              { id: 'unread', label: isVietnamese ? 'Chưa đọc' : 'Unread' },
+              { id: 'assigned', label: isVietnamese ? 'Được giao' : 'Assigned' },
+              { id: 'comments', label: isVietnamese ? 'Nhắc đến (@)' : 'Mentions (@)' },
+              { id: 'deadlines', label: isVietnamese ? 'Hạn chót' : 'Deadlines' },
+            ].map(f => (
               <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setSelectedNotificationId(null);
-                }}
-                className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer text-center relative ${
-                  activeTab === tab.id
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-md'
-                    : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200/80 dark:border-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                key={f.id}
+                onClick={() => setQuickFilter(f.id as any)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                  quickFilter === f.id
+                    ? 'bg-blue-600 text-white shadow-xs shadow-blue-500/20'
+                    : 'bg-slate-100/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className="flex items-center gap-1">
-                  <tab.icon className={`w-3.5 h-3.5 ${activeTab === tab.id ? 'text-indigo-400 dark:text-indigo-600' : ''}`} />
-                  <span className="text-[11px] font-black">{tab.count}</span>
-                </div>
-                <span className="text-[9.5px] font-bold mt-0.5">{tab.label}</span>
+                {f.label}
               </button>
             ))}
-          </div>
-
-          {/* Search & Type Dropdown */}
-          <div className="flex gap-2">
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-1.5 flex-1">
-              <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <input 
-                type="text" 
-                placeholder="Tìm thông báo, công việc, bình luận..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X className="w-3 h-3" /></button>
-              )}
-            </div>
-            
-            <div className="relative shrink-0 flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-xl px-2.5 py-1">
-              <Filter className="w-3 h-3 text-slate-400 mr-1.5" />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer text-slate-700 dark:text-slate-300 border-none pr-1"
-              >
-                <option value="all">Tất cả loại</option>
-                <option value="assignments">Assignments</option>
-                <option value="deadlines">Deadlines</option>
-                <option value="comments">Comments</option>
-                <option value="updates">System</option>
-              </select>
-            </div>
           </div>
         </div>
 
         {/* Keyboard Shortcuts Hint Bar */}
-        <div className="px-4 py-1.5 bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
+        <div className="px-4 py-1 bg-slate-50/60 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-400">
           <div className="flex items-center gap-3">
-            <span>Phím tắt: <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">J</kbd> <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">K</kbd> navigate</span>
-            <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">E</kbd> clear</span>
-            <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px]">S</kbd> snooze</span>
+            <span>Phím tắt: <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px] text-slate-700 dark:text-slate-200">J</kbd> <kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px] text-slate-700 dark:text-slate-200">K</kbd> chọn</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px] text-slate-700 dark:text-slate-200">E</kbd> lưu trữ</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded font-mono text-[9px] text-slate-700 dark:text-slate-200">S</kbd> tạm ẩn</span>
           </div>
           {selectedNotifIds.length > 0 && (
-            <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{selectedNotifIds.length} selected</span>
+            <span className="text-blue-600 dark:text-sky-300 font-extrabold">{selectedNotifIds.length} đã chọn</span>
           )}
         </div>
 
-        {/* Notifications Scrollable List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar min-h-0">
+        {/* Notifications Scrollable Stream */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar min-h-0">
           
           {/* Workspace Invitations Section */}
           {workspaceInvitations.length > 0 && (activeTab === 'important' || activeTab === 'other') && (
-            <div className="mb-4 space-y-2.5 border-b border-slate-200/80 dark:border-slate-800/80 pb-4">
-              <div className="flex items-center justify-between px-1 mb-1">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
-                  <span className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">
-                    Lời mời vào không gian ({workspaceInvitations.length})
-                  </span>
-                </div>
+            <div className="space-y-2.5 border-b border-slate-200/80 dark:border-slate-800/80 pb-3">
+              <div className="flex items-center gap-1.5 px-1">
+                <Sparkles className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                <span className="text-[10.5px] font-black uppercase text-blue-600 dark:text-sky-300 tracking-wider">
+                  Lời mời vào không gian ({workspaceInvitations.length})
+                </span>
               </div>
               {workspaceInvitations.map(inv => (
                 <div 
                   key={inv.id} 
-                  className={`p-4 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border rounded-2xl flex flex-col gap-3 shadow-xs ${inv.token && inv.token === highlightedInviteToken ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-indigo-200/70 dark:border-indigo-800/50'}`}
+                  className={`p-3.5 bg-gradient-to-r from-blue-50/90 via-sky-50/50 to-slate-50 dark:from-blue-950/40 dark:via-sky-950/20 dark:to-slate-900/40 border rounded-2xl flex flex-col gap-2.5 shadow-xs ${inv.token && inv.token === highlightedInviteToken ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-blue-200/70 dark:border-blue-800/50'}`}
                 >
-                  <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
-                        <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 truncate">
-                          {inv.workspaceName || 'New Workspace'}
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white truncate">
+                          {inv.workspaceName || 'Không gian mới'}
                         </h3>
-                        <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                        <span className="px-2 py-0.5 text-[8.5px] font-black uppercase rounded-md bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300">
                           {inv.role}
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-snug">
-                        <strong>{inv.invitedByName || inv.invitedBy || 'Admin'}</strong> đã mời bạn tham gia không gian với vai trò <span className="font-extrabold uppercase text-indigo-600 dark:text-indigo-400">{inv.role}</span>.
+                        <strong>{inv.invitedByName || inv.invitedBy || 'Quản trị viên'}</strong> đã mời bạn tham gia không gian với vai trò <span className="font-black uppercase text-blue-600 dark:text-sky-300">{inv.role}</span>.
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 justify-end pt-1 border-t border-indigo-100/50 dark:border-indigo-900/30">
+                  <div className="flex gap-2 justify-end pt-1 border-t border-blue-100/50 dark:border-blue-900/30">
                     <button 
                       disabled={processingInviteId === inv.id}
                       onClick={async () => {
                         setProcessingInviteId(inv.id);
                         try { await onDeclineInvite?.(inv.id); } finally { setProcessingInviteId(null); }
                       }}
-                      className="px-3.5 py-1.5 text-xs font-bold rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 cursor-pointer transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 cursor-pointer transition-all flex items-center gap-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Decline</span>
+                      <span>Từ chối</span>
                     </button>
                     <button 
                       disabled={processingInviteId === inv.id}
@@ -634,10 +766,10 @@ export default function InboxView({
                         setProcessingInviteId(inv.id);
                         try { await onAcceptInvite?.(inv.id, inv.workspaceId, inv.role); } finally { setProcessingInviteId(null); }
                       }}
-                      className="px-4 py-1.5 text-xs font-black rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                      className="px-4 py-1.5 text-xs font-black rounded-xl bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-all shadow-xs flex items-center gap-1"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>{processingInviteId === inv.id ? 'Joining…' : 'Accept & Join'}</span>
+                      <span>{processingInviteId === inv.id ? 'Đang tham gia…' : 'Chấp nhận & Tham gia'}</span>
                     </button>
                   </div>
                 </div>
@@ -645,147 +777,221 @@ export default function InboxView({
             </div>
           )}
 
-          {/* List of Notification Item Cards */}
-          {filteredNotifications.map(notif => {
-            const hasTaskLink = !!getAssociatedTaskId(notif);
-            const isSelected = selectedNotificationId === notif.id;
-            const isChecked = selectedNotifIds.includes(notif.id);
+          {/* Grouped Notification Lists */}
+          {groupedNotifications.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">
+                  {group.label}
+                </span>
+                <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+              </div>
 
-            return (
-              <div 
-                key={notif.id}
-                onClick={() => setSelectedNotificationId(notif.id)}
-                className={`group p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer relative ${
-                  isSelected
-                    ? 'bg-indigo-50/50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/60 ring-2 ring-indigo-500/20 shadow-md'
-                    : notif.read 
-                      ? 'bg-slate-50/40 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 opacity-85 hover:opacity-100 hover:bg-slate-100/50 dark:hover:bg-slate-900/60' 
-                      : 'bg-white dark:bg-slate-900 border-indigo-200/70 dark:border-indigo-900/40 shadow-xs hover:border-indigo-300'
-                } ${
-                  notif.type === 'comment' || notif.type === 'assignment' ? 'border-l-4 border-l-indigo-500' :
-                  notif.type === 'deadline' ? 'border-l-4 border-l-rose-500' :
-                  'border-l-4 border-l-slate-400 dark:border-l-slate-600'
-                }`}
-              >
-                {/* Pin indicator badge */}
-                {notif.pinned && (
-                  <div className="absolute top-2.5 right-2.5 text-amber-500">
-                    <Pin className="w-3 h-3 fill-current rotate-45" />
-                  </div>
-                )}
+              <div className="space-y-2">
+                {group.items.map(notif => {
+                  const hasTaskLink = !!getAssociatedTaskId(notif);
+                  const isSelected = selectedNotificationId === notif.id;
+                  const isChecked = selectedNotifIds.includes(notif.id);
 
-                {/* Left Indicator & Unread Dot */}
-                <div className="flex items-center gap-2 shrink-0 pt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(e) => handleToggleSelectNotif(notif.id, e as any)}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <div className={`w-2 h-2 rounded-full shrink-0 transition-opacity ${notif.read ? 'opacity-0' : 'bg-indigo-500 animate-pulse'}`} />
-                  <div className="w-8 h-8 rounded-xl shrink-0 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50">
-                    <Bell className="w-4 h-4" />
-                  </div>
-                </div>
+                  // Type styling
+                  const isComment = notif.type === 'comment';
+                  const isAssignment = notif.type === 'assignment';
+                  const isDeadline = notif.type === 'deadline';
 
-                {/* Main Notification Summary */}
-                <div className="flex-1 min-w-0 pr-6">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className={`text-xs truncate ${notif.read ? 'font-bold text-slate-700 dark:text-slate-300' : 'font-black text-slate-900 dark:text-white'}`}>
-                      {notif.title}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug mt-1 line-clamp-2">
-                    {notif.message}
-                  </p>
-                  
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9.5px] text-slate-400 font-extrabold">{notif.timestamp}</span>
-                    {hasTaskLink && (
-                      <span className="text-[8.5px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-extrabold px-2 py-0.5 rounded-md tracking-wider uppercase flex items-center gap-1">
-                        <CheckSquare className="w-2.5 h-2.5 text-indigo-500" />
-                        Công việc đính kèm
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* On-Hover Action Buttons Toolbar */}
-                <div className="absolute right-3 bottom-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-md z-20" onClick={e => e.stopPropagation()}>
-                  <button 
-                    onClick={() => handleTogglePin(notif.id)}
-                    className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.pinned ? 'text-amber-500' : 'text-slate-400'}`}
-                    title={notif.pinned ? "Unpin" : "Pin to Top"}
-                  >
-                    <Pin className="w-3.5 h-3.5 fill-current" />
-                  </button>
-
-                  <button 
-                    onClick={() => handleToggleRead(notif.id)}
-                    className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                    title={notif.read ? "Mark as unread" : "Mark as read"}
-                  >
-                    {notif.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {/* Snooze Dropdown Button */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === notif.id ? null : notif.id)}
-                      className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.snoozedUntil ? 'text-indigo-600' : 'text-slate-400'}`}
-                      title="Tạm ẩn thông báo"
+                  return (
+                    <div 
+                      key={notif.id}
+                      onClick={() => setSelectedNotificationId(notif.id)}
+                      className={`group p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer relative ${
+                        isSelected
+                          ? 'bg-blue-50/70 dark:bg-blue-600/15 border-blue-300 dark:border-blue-500/60 ring-2 ring-blue-500/20 shadow-md'
+                          : notif.read 
+                            ? 'bg-white/60 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700' 
+                            : 'bg-white dark:bg-slate-900 border-blue-200/80 dark:border-blue-900/60 shadow-2xs hover:border-blue-400 dark:hover:border-blue-600'
+                      }`}
                     >
-                      <Clock className="w-3.5 h-3.5" />
-                    </button>
+                      {/* Pin indicator badge */}
+                      {notif.pinned && (
+                        <div className="absolute top-2.5 right-2.5 text-amber-500">
+                          <Pin className="w-3 h-3 fill-current rotate-45" />
+                        </div>
+                      )}
 
-                    {showSnoozeDropdownId === notif.id && (
-                      <div className="absolute bottom-full right-0 mb-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 z-30 flex flex-col gap-1 text-xs min-w-[110px]">
-                        <button onClick={() => handleSnooze(notif.id, 2)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Sau 2 giờ</button>
-                        <button onClick={() => handleSnooze(notif.id, 24)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Tomorrow</button>
-                        <button onClick={() => handleSnooze(notif.id, 168)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left">Tuần tới</button>
+                      {/* Left Selection Checkbox & Visual Icon */}
+                      <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => handleToggleSelectNotif(notif.id, e as any)}
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div className={`w-2 h-2 rounded-full shrink-0 transition-opacity ${notif.read ? 'opacity-0' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.9)] animate-pulse'}`} />
+                        <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center border shadow-3xs ${
+                          isAssignment ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border-blue-200/80 dark:border-blue-800/60' :
+                          isComment ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300 border-sky-200/80 dark:border-sky-800/60' :
+                          isDeadline ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60' :
+                          'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/60'
+                        }`}>
+                          {isAssignment ? <UserIcon className="w-4 h-4" /> :
+                           isComment ? <MessageSquare className="w-4 h-4" /> :
+                           isDeadline ? <Clock className="w-4 h-4" /> :
+                           <Bell className="w-4 h-4" />}
+                        </div>
                       </div>
-                    )}
-                  </div>
 
-                  {activeTab === 'cleared' ? (
-                    <button 
-                      onClick={() => handleRestore(notif.id)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Khôi phục vào hộp thư"
-                    >
-                      <ArchiveRestore className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => handleClear(notif.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                      title="Chuyển vào lưu trữ"
-                    >
-                      <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    </button>
-                  )}
-                </div>
+                      {/* Main Notification Text */}
+                      <div className="flex-1 min-w-0 pr-5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className={`text-xs truncate ${notif.read ? 'font-bold text-slate-700 dark:text-slate-200' : 'font-black text-slate-900 dark:text-white'}`}>
+                            {notif.title}
+                          </h3>
+                        </div>
+                        <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug mt-1 line-clamp-2">
+                          {notif.message}
+                        </p>
+                        
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">{notif.timestamp}</span>
+                          {notif.workspaceId && notif.workspaceId !== 'all' && (
+                            <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-1.5 py-0.5 rounded">
+                              {workspaces.find(w => w.id === notif.workspaceId)?.name || 'Không gian'}
+                            </span>
+                          )}
+                          {hasTaskLink && (
+                            <span className="text-[9px] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 font-black px-2 py-0.5 rounded-md tracking-wider uppercase flex items-center gap-1">
+                              <CheckSquare className="w-2.5 h-2.5 text-blue-600 dark:text-sky-400" />
+                              Công việc đính kèm
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* On-Hover Action Buttons Toolbar */}
+                      <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-md z-20" onClick={e => e.stopPropagation()}>
+                        <button 
+                          onClick={() => handleTogglePin(notif.id)}
+                          className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.pinned ? 'text-amber-500' : 'text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'}`}
+                          title={notif.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+                        >
+                          <Pin className="w-3.5 h-3.5 fill-current" />
+                        </button>
+
+                        <button 
+                          onClick={() => handleToggleRead(notif.id)}
+                          className="p-1.5 text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                          title={notif.read ? "Đánh dấu chưa đọc" : "Đánh dấu đã đọc"}
+                        >
+                          {notif.read ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+
+                        {/* Snooze Dropdown */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setShowSnoozeDropdownId(showSnoozeDropdownId === notif.id ? null : notif.id)}
+                            className={`p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${notif.snoozedUntil ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'}`}
+                            title="Tạm ẩn thông báo"
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                          </button>
+
+                          {showSnoozeDropdownId === notif.id && (
+                            <>
+                              <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.stopPropagation(); setShowSnoozeDropdownId(null); }} />
+                              <div className="absolute bottom-full right-0 mb-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 z-30 flex flex-col gap-1 text-xs min-w-[120px]">
+                                <button onClick={() => handleSnooze(notif.id, 2)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left text-slate-800 dark:text-slate-200">Sau 2 giờ</button>
+                                <button onClick={() => handleSnooze(notif.id, 24)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left text-slate-800 dark:text-slate-200">Ngày mai</button>
+                                <button onClick={() => handleSnooze(notif.id, 168)} className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-bold text-left text-slate-800 dark:text-slate-200">Tuần tới</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {activeTab === 'cleared' ? (
+                          <button 
+                            onClick={() => handleRestore(notif.id)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-sky-300 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Khôi phục vào hộp thư"
+                          >
+                            <ArchiveRestore className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleClear(notif.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Chuyển vào lưu trữ"
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
 
-          {/* Empty Inbox State */}
+          {/* Smart Empty State */}
           {filteredNotifications.length === 0 && workspaceInvitations.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-3 select-none">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shadow-md">
-                <Check className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">Bạn đã xem hết mọi thông báo!</h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Không còn thông báo đang chờ trong luồng này.</p>
-              </div>
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-4 select-none">
+              {activeTab === 'important' && inboxStats.other > 0 ? (
+                <>
+                  <div className="w-16 h-16 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/10">
+                    <Bell className="w-8 h-8" />
+                  </div>
+                  <div className="max-w-xs space-y-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">Không có thông báo quan trọng</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bạn có {inboxStats.otherUnread > 0 ? `${inboxStats.otherUnread} thông báo mới` : `${inboxStats.other} thông báo`} trong mục Khác.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('other')}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
+                    >
+                      <span>Xem mục Khác ({inboxStats.other})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </>
+              ) : activeTab === 'other' && inboxStats.important > 0 ? (
+                <>
+                  <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-sky-300 flex items-center justify-center shadow-lg shadow-blue-500/10">
+                    <Flame className="w-8 h-8 text-amber-500" />
+                  </div>
+                  <div className="max-w-xs space-y-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">Mục Khác đang trống</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bạn có {inboxStats.importantUnread > 0 ? `${inboxStats.importantUnread} thông báo mới` : `${inboxStats.important} thông báo`} trong mục Quan trọng.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('important')}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
+                    >
+                      <span>Xem mục Quan trọng ({inboxStats.important})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500/10 via-sky-500/15 to-cyan-500/10 border border-blue-500/20 text-blue-600 dark:text-sky-300 flex items-center justify-center shadow-lg shadow-blue-500/10">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <div className="max-w-xs space-y-1.5">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">Hộp thư trống trải nghiệm tuyệt vời!</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Bạn đã xử lý hết mọi thông báo trong luồng này. Tiếp tục duy trì hiệu suất tuyệt vời hôm nay!
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
 
         {/* Floating Bulk Triage Bar */}
         {selectedNotifIds.length > 0 && (
-          <div className="p-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-2xl m-3 flex items-center justify-between shadow-xl">
+          <div className="p-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-2xl m-3 flex items-center justify-between shadow-xl animate-in fade-in slide-in-from-bottom-2">
             <span className="text-xs font-black px-2">{selectedNotifIds.length} mục đã chọn</span>
             <div className="flex items-center gap-2">
               <button 
@@ -796,18 +1002,18 @@ export default function InboxView({
               </button>
               <button 
                 onClick={handleClearSelected}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
               >
                 <Check className="w-3.5 h-3.5" />
-                Xóa mục đã chọn
+                Lưu trữ mục chọn
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Right Column: Detail & Discussion Context Pane (Split Screen) ── */}
-      <div className={`flex-[1.4] lg:flex-[1.6] min-w-0 bg-white dark:bg-[#07080c] rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
+      {/* ── Right Column: Detail & Discussion Context Pane / Productivity Hub ── */}
+      <div className={`flex-[1.4] lg:flex-[1.6] min-w-0 bg-white/90 dark:bg-[#07080c]/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
         selectedNotificationId ? 'flex' : 'hidden md:flex'
       }`}>
         
@@ -816,9 +1022,9 @@ export default function InboxView({
             {/* Split Screen Header */}
             <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <CheckSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+                <CheckSquare className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0" />
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
-                  Thảo luận công việc và ngữ cảnh hoạt động
+                  Thảo luận công việc & ngữ cảnh hoạt động
                 </span>
               </div>
               
@@ -826,15 +1032,15 @@ export default function InboxView({
                 {selectedNotif && !selectedNotif.cleared && (
                   <button 
                     onClick={() => handleClear(selectedNotif.id)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-xs font-black hover:bg-emerald-100 transition-colors cursor-pointer flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-black hover:bg-blue-100 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Xóa thông báo</span>
+                    <span>Lưu trữ thông báo</span>
                   </button>
                 )}
                 <button 
                   onClick={() => setSelectedNotificationId(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -870,27 +1076,27 @@ export default function InboxView({
               />
             </div>
 
-            {/* ClickUp 3.0 Style Quick Reply Footer Bar */}
+            {/* Quick Reply Footer Bar */}
             <form onSubmit={handleSendQuickReply} className="p-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200/80 dark:border-slate-800 shrink-0 flex items-center gap-2">
               <input 
                 type="text"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder={`Reply to discussion thread on "${selectedTask.title}"...`}
-                className="flex-1 text-xs font-semibold px-4 py-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 dark:text-slate-100"
+                placeholder={`Phản hồi nhanh vào luồng trao đổi "${selectedTask.title}"...`}
+                className="flex-1 text-xs font-semibold px-4 py-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
               />
               <button 
                 type="submit"
                 disabled={!replyText.trim() || isSendingReply}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-2xl text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Reply</span>
+                <span>Gửi</span>
               </button>
             </form>
           </div>
         ) : selectedNotif ? (
-          /* Notification Detail Card View */
+          /* General Notification Detail Card */
           <div className="w-full h-full flex flex-col min-h-0 relative">
             <div className="px-6 py-3.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shrink-0">
               <span className="text-xs font-black text-slate-800 dark:text-slate-100">
@@ -900,58 +1106,169 @@ export default function InboxView({
                 {selectedNotif.cleared ? (
                   <button 
                     onClick={() => handleRestore(selectedNotif.id)}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-black cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-black cursor-pointer"
                   >
-                    Restore
+                    Khôi phục
                   </button>
                 ) : (
                   <button 
                     onClick={() => handleClear(selectedNotif.id)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-xs font-black cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 text-xs font-black cursor-pointer"
                   >
-                    Archive
+                    Lưu trữ
                   </button>
                 )}
-                <button onClick={() => setSelectedNotificationId(null)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSelectedNotificationId(null)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             <div className="flex-1 p-6 space-y-6 overflow-y-auto text-left">
-              <div className="p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-xs">
+              <div className="p-6 bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                  <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-300 border border-blue-200/80 dark:border-blue-800/60 shadow-3xs">
                     <Bell className="w-6 h-6" />
                   </div>
                   <div>
                     <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight">
                       {selectedNotif.title}
                     </h2>
-                    <span className="text-[10px] text-slate-400 font-bold block mt-1">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold block mt-1">
                       {selectedNotif.timestamp}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl text-xs font-medium leading-relaxed">
+                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl text-xs font-medium leading-relaxed text-slate-800 dark:text-slate-200">
                   {selectedNotif.message}
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          /* Empty Placeholder State */
-          <div className="flex flex-col items-center justify-center p-12 text-center space-y-3.5 select-none h-full">
-            <div className="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-slate-400 shadow-xs">
-              <Inbox className="w-7 h-7 text-indigo-500" />
+          /* Rich Productivity Dashboard & Daily Focus Hub */
+          <div className="w-full h-full flex flex-col p-6 sm:p-8 overflow-y-auto justify-between text-left space-y-6">
+            <div className="space-y-6">
+              
+              {/* Hero Welcome Card */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-600 via-sky-600 to-blue-700 text-white shadow-xl shadow-blue-500/20 relative overflow-hidden">
+                <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="relative z-10 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-[10.5px] font-black tracking-wide uppercase border border-white/20">
+                    <Zap className="w-3 h-3 text-amber-300" />
+                    Trung tâm hiệu suất làm việc
+                  </div>
+                  <h2 className="text-xl font-black tracking-tight leading-snug">
+                    Chào {currentUser?.name || 'bạn'}, hôm nay là ngày làm việc hiệu quả!
+                  </h2>
+                  <p className="text-xs text-blue-100 max-w-md font-medium leading-relaxed">
+                    Bạn đã cập nhật đầy đủ thông tin. Hãy theo dõi các chỉ số bên dưới hoặc tạo tóm tắt AI để nắm bắt toàn diện tiến độ nhóm.
+                  </p>
+                </div>
+              </div>
+
+              {/* 3 Productivity Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-3xs">
+                  <div className="flex items-center justify-between text-slate-400 dark:text-slate-400">
+                    <span className="text-[11px] font-bold">Việc được giao</span>
+                    <CheckSquare className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">
+                    {productivityStats.totalAssigned}
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">Đầu việc cần xử lý</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-3xs">
+                  <div className="flex items-center justify-between text-slate-400 dark:text-slate-400">
+                    <span className="text-[11px] font-bold">Khẩn cấp</span>
+                    <Flame className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">
+                    {productivityStats.urgent}
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">Ưu tiên cao nhất</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 space-y-1.5 shadow-3xs">
+                  <div className="flex items-center justify-between text-slate-400 dark:text-slate-400">
+                    <span className="text-[11px] font-bold">Hoàn thành</span>
+                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">
+                    {productivityStats.completionRate}%
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{productivityStats.completed} việc đã xong</p>
+                </div>
+              </div>
+
+              {/* AI Briefing Card */}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/70 via-sky-50/40 to-slate-50 dark:from-blue-950/30 dark:via-sky-950/20 dark:to-slate-900/40 border border-blue-200/70 dark:border-blue-800/60 space-y-3 shadow-3xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600 dark:text-sky-300 animate-spin" />
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white">Apexa AI Daily Briefing</h3>
+                  </div>
+                  <button
+                    onClick={handleGenerateAiDigest}
+                    disabled={aiDigestLoading}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 active:scale-95"
+                  >
+                    {aiDigestLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    <span>{aiDigestLoading ? 'Đang tóm tắt…' : 'Tạo tóm tắt AI'}</span>
+                  </button>
+                </div>
+                {aiDigestText ? (
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-blue-200/60 dark:border-blue-800/50 text-xs leading-relaxed text-slate-700 dark:text-slate-200 font-medium">
+                    {aiDigestText}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                    Nhấn nút trên để AI quét toàn bộ công việc, thảo luận và tiến độ dự án để tạo báo cáo tổng hợp nhanh cho bạn.
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="max-w-xs">
-              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Chưa chọn thông báo</h3>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 leading-normal">
-                Chọn một thông báo ở danh sách bên trái để xem chi tiết công việc, đọc bình luận hoặc phản hồi trực tiếp theo thời gian thực.
-              </p>
+
+            {/* Quick Action Shortcuts Footer */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider block mb-3">
+                Lối tắt nhanh
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  onClick={() => onNavigateToTab?.('tasks')}
+                  className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                >
+                  <CheckSquare className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                  <span>Công việc</span>
+                </button>
+                <button
+                  onClick={() => onNavigateToTab?.('calendar')}
+                  className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                >
+                  <Calendar className="w-4 h-4 text-sky-500 group-hover:scale-110 transition-transform" />
+                  <span>Lịch tuần</span>
+                </button>
+                <button
+                  onClick={() => onNavigateToTab?.('goals')}
+                  className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                >
+                  <Target className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+                  <span>Mục tiêu OKR</span>
+                </button>
+                <button
+                  onClick={() => onNavigateToTab?.('chat')}
+                  className="p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                >
+                  <MessageSquare className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition-transform" />
+                  <span>Trò chuyện</span>
+                </button>
+              </div>
             </div>
+
           </div>
         )}
       </div>

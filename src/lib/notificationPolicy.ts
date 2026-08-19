@@ -53,7 +53,7 @@ export const isCreationConfirmation = ({ title = '', message = '' }: Notificatio
 const isAttentionEvent = ({ type = '', title = '', message = '' }: NotificationLike) => {
   const text = normalize(`${title} ${message}`);
 
-  if (['deadline', 'comment', 'message'].includes(type)) return true;
+  if (['deadline', 'comment', 'message', 'chat_message', 'system', 'warning', 'error'].includes(type)) return true;
   if (type === 'assignment' && !isCreationConfirmation({ type, title, message })) return true;
 
   return [
@@ -75,6 +75,8 @@ const isAttentionEvent = ({ type = '', title = '', message = '' }: NotificationL
     'status updated',
     'task completed',
     'action required',
+    'thong bao',
+    'nhac nho',
   ].some((phrase) => text.includes(phrase));
 };
 
@@ -88,4 +90,8 @@ export const shouldPersistInInbox = (
 };
 
 export const sanitizeInboxNotifications = <T extends NotificationLike>(notifications: T[]): T[] =>
-  notifications.filter((notification) => shouldPersistInInbox(notification));
+  notifications.filter((notification) => {
+    if (isCreationConfirmation(notification)) return false;
+    return true;
+  });
+

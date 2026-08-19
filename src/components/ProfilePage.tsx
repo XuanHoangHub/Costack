@@ -9,14 +9,15 @@ import {
   User as UserIcon, Camera, Mail, Briefcase, Shield, 
   Phone, Calendar, Activity, CheckCircle, 
   Clock, Save, Sparkles, AlertCircle, Plus, X, Star, RotateCcw,
-  FileText, Check, Copy, ExternalLink, Lock
+  FileText, Check, Copy, ExternalLink, Lock, SlidersHorizontal, Eye
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import SignedImage from './SignedImage';
-import { presenceDotClass } from '../lib/presence';
+import { presenceDotClass, uiStatusToPresence } from '../lib/presence';
+import { useUiStore } from '@/store/uiStore';
 
 interface ProfilePageProps {
-  currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member' | 'guest'; isPremium?: boolean };
+  currentUser: { name: string; email: string; avatar: string; role: 'admin' | 'member' | 'guest'; isPremium?: boolean; id?: string };
   setCurrentUser: (user: any) => void;
   members: User[];
   setMembers: React.Dispatch<React.SetStateAction<User[]>>;
@@ -39,6 +40,7 @@ function ProfilePage({
   onUpdateMember
 }: ProfilePageProps) {
   const { t, locale } = useTranslation();
+  const userStatus = useUiStore((s) => s.userStatus);
   
   // Safe Translation Helper to prevent unrendered key leakage (e.g. dept_..., editProfileInfo, etc.)
   const getText = (key: string, fallbackEn: string, fallbackVi?: string) => {
@@ -50,15 +52,21 @@ function ProfilePage({
   };
 
   const memberMe = useMemo(
-    () => members.find((member) => member.id === 'user' || member.email.toLowerCase() === currentUser.email.toLowerCase()),
-    [members, currentUser.email],
+    () => members.find((member) => member.id === 'user' || (member.email && currentUser?.email && member.email.toLowerCase() === currentUser.email.toLowerCase()) || (currentUser?.id && member.id === currentUser.id)),
+    [members, currentUser?.email, currentUser?.id],
   );
-  const accountPresenceStatus = isOffline ? 'offline' : (memberMe?.status || 'offline');
+  const accountPresenceStatus = isOffline 
+    ? 'offline' 
+    : (userStatus ? uiStatusToPresence(userStatus) : (memberMe?.status || 'online'));
   
   // Form states
   const [name, setName] = useState(currentUser.name);
   const [role, setRole] = useState(currentUser.role);
   const [avatar, setAvatar] = useState(currentUser.avatar);
+  const [bannerUrl, setBannerUrl] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return memberMe?.bannerUrl || memberMe?.coverUrl || localStorage.getItem('apexa_user_banner') || '';
+  });
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('');
   const [bio, setBio] = useState('');
@@ -68,8 +76,11 @@ function ProfilePage({
   const [copiedLink, setCopiedLink] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [bannerFit, setBannerFit] = useState<'cover' | 'contain'>('cover');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'dirty'>('saved');
-  const loadedProfileRef = useRef({ name: '', role: '', avatar: '', phone: '', department: '', bio: '', skills: [] as string[] });
+  const loadedProfileRef = useRef({ name: '', role: '', avatar: '', bannerUrl: '', phone: '', department: '', bio: '', skills: [] as string[] });
   const initializedIdentityRef = useRef('');
 
   // Initialize profile data on load
@@ -80,6 +91,8 @@ function ProfilePage({
 
     setName(currentUser.name);
     setAvatar(currentUser.avatar);
+    const loadedBanner = memberMe?.bannerUrl || memberMe?.coverUrl || (typeof window !== 'undefined' ? localStorage.getItem('apexa_user_banner') || '' : '') || '';
+    setBannerUrl(loadedBanner);
     setRole(currentUser.role);
     const loadedPhone = memberMe?.phone || '';
     const loadedDept = memberMe?.department || '';
@@ -101,6 +114,7 @@ function ProfilePage({
       name: currentUser.name,
       role: currentUser.role,
       avatar: currentUser.avatar,
+      bannerUrl: loadedBanner,
       phone: loadedPhone,
       department: loadedDept,
       bio: loadedBio,
@@ -198,6 +212,73 @@ function ProfilePage({
     }
   };
 
+  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      triggerToast?.('error', locale === 'vi' ? 'Lỗi chọn tệp' : 'File error', locale === 'vi' ? 'Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WebP).' : 'Please select a valid image file (PNG, JPG, WebP).');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      triggerToast?.('error', locale === 'vi' ? 'Tệp quá lớn' : 'File too large', locale === 'vi' ? 'Kích thước ảnh tối đa là 8MB.' : 'Maximum image size is 8MB.');
+      return;
+    }
+
+    setIsUploadingBanner(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      setBannerUrl(base64);
+      try {
+        localStorage.setItem('apexa_user_banner', base64);
+        if (memberMe?.id) {
+          localStorage.setItem(`apexa_user_banner_${memberMe.id}`, base64);
+        }
+      } catch (err) {
+        console.warn('LocalStorage quota limit:', err);
+      }
+      triggerToast?.('success', locale === 'vi' ? 'Đã đổi ảnh bìa 📸' : 'Banner updated', locale === 'vi' ? 'Ảnh bìa hồ sơ đã được cập nhật.' : 'Profile cover photo updated.');
+
+      if (!isOffline) {
+        try {
+          const fileExt = file.name.split('.').pop() || 'png';
+          const fileName = `banners/${memberMe?.id || 'user'}_${Date.now()}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+          if (!uploadError) {
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+            if (publicUrl) {
+              setBannerUrl(publicUrl);
+              localStorage.setItem('apexa_user_banner', publicUrl);
+              if (memberMe?.id) localStorage.setItem(`apexa_user_banner_${memberMe.id}`, publicUrl);
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Storage sync fallback to base64:', uploadErr);
+        } finally {
+          setIsUploadingBanner(false);
+        }
+      } else {
+        setIsUploadingBanner(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveBanner = () => {
+    setBannerUrl('');
+    localStorage.removeItem('apexa_user_banner');
+    if (memberMe?.id) {
+      localStorage.removeItem(`apexa_user_banner_${memberMe.id}`);
+    }
+    triggerToast?.('info', locale === 'vi' ? 'Khôi phục ảnh bìa' : 'Banner reset', locale === 'vi' ? 'Đã quay lại ảnh bìa mặc định.' : 'Reverted to default banner gradient.');
+  };
+
   const validateProfile = () => {
     const trimmedName = name.trim();
     if (trimmedName.length < 2) return locale === 'vi' ? 'Họ tên phải có ít nhất 2 ký tự.' : 'Name must contain at least 2 characters.';
@@ -238,6 +319,8 @@ function ProfilePage({
       name: updatedUser.name,
       email: updatedUser.email,
       avatar: updatedUser.avatar,
+      bannerUrl: bannerUrl || undefined,
+      coverUrl: bannerUrl || undefined,
       role: updatedUser.role,
       status: currentMember?.status || 'offline',
       customStatus: currentMember?.customStatus,
@@ -305,6 +388,7 @@ function ProfilePage({
       name: updatedUser.name,
       role: role,
       avatar: avatar,
+      bannerUrl: bannerUrl,
       phone: updatedMemberObj.phone || '',
       department: updatedMemberObj.department || '',
       bio: updatedMemberObj.bio || '',
@@ -322,13 +406,14 @@ function ProfilePage({
       name !== loadedProfileRef.current.name ||
       role !== loadedProfileRef.current.role ||
       avatar !== loadedProfileRef.current.avatar ||
+      bannerUrl !== loadedProfileRef.current.bannerUrl ||
       phone !== loadedProfileRef.current.phone ||
       department !== loadedProfileRef.current.department ||
       bio !== loadedProfileRef.current.bio ||
       JSON.stringify(skills) !== JSON.stringify(loadedProfileRef.current.skills);
 
     setSaveStatus(isDirty ? 'dirty' : 'saved');
-  }, [name, role, avatar, phone, department, bio, skills, saveStatus]);
+  }, [name, role, avatar, bannerUrl, phone, department, bio, skills, saveStatus]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,6 +450,7 @@ function ProfilePage({
     setName(initial.name);
     setRole(initial.role as 'admin' | 'member' | 'guest');
     setAvatar(initial.avatar);
+    setBannerUrl(initial.bannerUrl);
     setPhone(initial.phone);
     setDepartment(initial.department);
     setBio(initial.bio);
@@ -385,14 +471,86 @@ function ProfilePage({
       
       {/* ── 1. Hero Header Banner Card ── */}
       <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-xl transition-all">
-        {/* Animated Mesh Gradient Background Banner */}
-        <div className="h-48 md:h-56 bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-slate-950/40" />
-          <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-400/35 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-pink-400/35 rounded-full blur-3xl" />
+        {/* Animated Mesh Gradient Background Banner or Custom Banner */}
+        <div className="h-52 md:h-64 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 relative overflow-hidden group">
+          {bannerUrl ? (
+            <div className="relative w-full h-full overflow-hidden flex items-center justify-center">
+              <SignedImage
+                filePath={bannerUrl}
+                alt="Profile banner"
+                style={{
+                  imageRendering: '-webkit-optimize-contrast',
+                  objectFit: bannerFit
+                }}
+                className={`w-full h-full ${bannerFit === 'contain' ? 'object-contain bg-slate-950 p-2' : 'object-cover'} transition-transform duration-500 group-hover:scale-[1.02]`}
+              />
+              <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+            </div>
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-slate-950/40" />
+              <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-400/35 rounded-full blur-3xl" />
+              <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-pink-400/35 rounded-full blur-3xl" />
+            </>
+          )}
+
+          {/* Banner Upload Actions Bar */}
+          <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+            <button
+              type="button"
+              onClick={() => bannerFileInputRef.current?.click()}
+              disabled={isUploadingBanner}
+              className="px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+              title={locale === 'vi' ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+            >
+              {isUploadingBanner ? (
+                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-cyan-300" />
+              )}
+              <span>
+                {isUploadingBanner
+                  ? (locale === 'vi' ? 'Đang tải...' : 'Uploading...')
+                  : bannerUrl
+                    ? (locale === 'vi' ? 'Đổi ảnh bìa' : 'Change banner')
+                    : (locale === 'vi' ? 'Tải ảnh bìa' : 'Upload banner')}
+              </span>
+            </button>
+
+            {bannerUrl && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                  className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                  title={bannerFit === 'cover' ? (locale === 'vi' ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (locale === 'vi' ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{bannerFit === 'cover' ? (locale === 'vi' ? 'Vừa khung' : 'Fit') : (locale === 'vi' ? 'Phóng đầy' : 'Fill')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveBanner}
+                  className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                  title={locale === 'vi' ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove banner'}
+                >
+                  <X className="w-3.5 h-3.5 text-rose-300" />
+                </button>
+              </>
+            )}
+          </div>
+
+          <input
+            ref={bannerFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleBannerChange}
+            className="hidden"
+          />
           
           {/* Top Badges Bar */}
-          <div className="absolute top-4 right-4 flex items-center gap-2">
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
             <span className="px-3.5 py-1.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-black/30 text-white backdrop-blur-md border border-white/20 shadow-md flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${presenceDotClass(accountPresenceStatus, true)}`} />
               {presenceLabel}
@@ -870,7 +1028,7 @@ function ProfilePage({
                       ? 'bg-slate-100 text-slate-400 border border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 opacity-70'
                       : saveStatus === 'saving'
                       ? 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400 opacity-80 animate-pulse'
-                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20 hover:shadow-md'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-blue-500/20 hover:shadow-md'
                   }`}
                 >
                   {saveStatus === 'saving' ? (

@@ -378,8 +378,8 @@ export default function DocumentHub({
             >
               {/* Hero Icon with Ambient Glow */}
               <div className="relative group">
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-25 blur-xl group-hover:opacity-40 transition duration-500 animate-pulse" />
-                <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/30 border border-white/20">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 opacity-25 blur-xl group-hover:opacity-40 transition duration-500 animate-pulse" />
+                <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-500 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30 border border-white/20">
                   <FileText className="w-12 h-12 stroke-[1.5]" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-9 h-9 rounded-2xl bg-amber-400 flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-slate-900">
@@ -401,7 +401,7 @@ export default function DocumentHub({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleAddDoc()}
-                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
                   <span>Tạo tài liệu mới</span>
@@ -423,10 +423,10 @@ export default function DocumentHub({
                       key={tmpl.title}
                       whileHover={{ y: -4 }}
                       onClick={() => handleCreateFromTemplate(tmpl)}
-                      className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer flex flex-col justify-between group space-y-3 relative overflow-hidden backdrop-blur-xs"
+                      className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer flex flex-col justify-between group space-y-3 relative overflow-hidden backdrop-blur-xs"
                     >
                       <div className="space-y-2.5">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-xs">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-xs">
                           {tmpl.icon}
                         </div>
                         <h4 className="text-xs font-bold text-slate-850 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">

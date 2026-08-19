@@ -929,7 +929,7 @@ export default function DocumentEditor({
                       />
                     ))}
                   </div>
-                  <div className="pt-2 border-t border-slate-150 dark:border-slate-800">
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800">
                     <button
                       onClick={() => selectCover(null)}
                       className="w-full text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1.5 rounded-xl transition-colors"
@@ -1036,14 +1036,14 @@ export default function DocumentEditor({
 
         {/* Document Actions Bar */}
         {!isFocusMode && (
-          <div className="flex items-center justify-between gap-3 mt-3 select-none pb-2 border-b border-slate-150 dark:border-slate-800">
+          <div className="flex items-center justify-between gap-3 mt-3 select-none pb-2 border-b border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-2 flex-wrap">
               {/* AI Assistant Button */}
               <div className="relative">
                 <button
                   onClick={() => setShowAiMenu(!showAiMenu)}
                   disabled={isAiProcessing}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:to-pink-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 transition-all font-extrabold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Wand2 className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
                   <span>{isAiProcessing ? 'AI đang viết…' : 'Trợ lý AI'}</span>
@@ -1336,7 +1336,7 @@ export default function DocumentEditor({
                   className="absolute bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-40 w-80 max-h-80 overflow-y-auto text-left select-none scrollbar-thin"
                   style={{ top: slashMenuCoords.top, left: slashMenuCoords.left }}
                 >
-                  <div className="flex items-center justify-between gap-3 px-2 py-1.5 mb-1.5 border-b border-slate-150 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-3 px-2 py-1.5 mb-1.5 border-b border-slate-200/80 dark:border-slate-800">
                     <div>
                       <span className="block text-[10px] font-black uppercase tracking-widest text-slate-400">Chèn khối</span>
                       <span className="block text-[11px] font-semibold text-slate-500 mt-0.5">

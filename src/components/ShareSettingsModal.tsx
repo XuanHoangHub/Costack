@@ -5,6 +5,8 @@ import { Shield, Globe, Lock, UserPlus, Trash2, X, Check, ShieldAlert } from 'lu
 import { User } from '../types';
 import SignedImage from './SignedImage';
 
+import { useTranslation } from '../contexts/TranslationContext';
+
 interface ShareSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +34,7 @@ export default function ShareSettingsModal({
   onSave,
   canEdit
 }: ShareSettingsModalProps) {
+  const { isVietnamese } = useTranslation();
   const [isPrivate, setIsPrivate] = useState(initialIsPrivate);
   const [shareSettings, setShareSettings] = useState<Record<string, 'view' | 'edit'>>(initialShareSettings || {});
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -100,7 +103,9 @@ export default function ShareSettingsModal({
             </div>
             <div>
               <h4 className="text-sm font-black text-slate-855 dark:text-slate-50 uppercase tracking-wide leading-tight">
-                Chia sẻ {targetType === 'space' ? 'Không gian' : 'Danh sách'}
+                {isVietnamese 
+                  ? `Chia sẻ ${targetType === 'space' ? 'Không gian' : 'Danh sách'}`
+                  : `Share ${targetType === 'space' ? 'Space' : 'List'}`}
               </h4>
               <p className="text-[11px] text-slate-450 dark:text-slate-500 font-bold truncate max-w-[240px]">
                 {targetName}
@@ -119,13 +124,15 @@ export default function ShareSettingsModal({
         {!canEdit && (
           <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-805 border border-slate-200/60 dark:border-slate-700 rounded-2xl text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
             <ShieldAlert className="w-4 h-4 text-amber-550 shrink-0" />
-            <span>Bạn đang xem quyền truy cập ở chế độ chỉ đọc.</span>
+            <span>{isVietnamese ? 'Bạn đang xem quyền truy cập ở chế độ chỉ đọc.' : 'You are viewing permissions in read-only mode.'}</span>
           </div>
         )}
 
         {/* 1. Privacy Toggle */}
         <div className="space-y-2">
-          <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Mức độ riêng tư</span>
+          <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
+            {isVietnamese ? 'Mức độ riêng tư' : 'Privacy level'}
+          </span>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -141,7 +148,9 @@ export default function ShareSettingsModal({
             >
               <Globe className="w-4 h-4" />
               <div className="text-xs font-bold leading-none">Public</div>
-              <div className="text-[9px] text-slate-400 dark:text-slate-550 max-w-[120px] leading-tight mt-0.5">Mọi thành viên trong workspace đều xem được</div>
+              <div className="text-[9px] text-slate-400 dark:text-slate-550 max-w-[120px] leading-tight mt-0.5">
+                {isVietnamese ? 'Mọi thành viên trong workspace đều xem được' : 'All members in workspace can access'}
+              </div>
             </button>
 
             <button
@@ -158,7 +167,9 @@ export default function ShareSettingsModal({
             >
               <Lock className="w-4 h-4" />
               <div className="text-xs font-bold leading-none">Private</div>
-              <div className="text-[9px] text-slate-400 dark:text-slate-550 max-w-[120px] leading-tight mt-0.5">Chỉ những thành viên được mời mới truy cập được</div>
+              <div className="text-[9px] text-slate-400 dark:text-slate-550 max-w-[120px] leading-tight mt-0.5">
+                {isVietnamese ? 'Chỉ những thành viên được mời mới truy cập được' : 'Only invited members can access'}
+              </div>
             </button>
           </div>
         </div>
@@ -170,14 +181,16 @@ export default function ShareSettingsModal({
             {/* Add Member form */}
             {canEdit && (
               <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Thêm thành viên truy cập</span>
+                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
+                  {isVietnamese ? 'Thêm thành viên truy cập' : 'Add member access'}
+                </span>
                 <div className="flex gap-2">
                   <select
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
                     className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs px-3 py-2 text-slate-805 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                   >
-                    <option value="">Chọn thành viên...</option>
+                    <option value="">{isVietnamese ? 'Chọn thành viên...' : 'Select member...'}</option>
                     {addableMembers.map(m => (
                       <option key={m.id} value={m.userId || (m.id === 'user' ? currentUser?.id : m.id.replace('user-', ''))}>
                         {m.name} ({m.email})
@@ -198,9 +211,10 @@ export default function ShareSettingsModal({
                     type="button"
                     onClick={handleAddMember}
                     disabled={!selectedUserId}
-                    className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-650 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                    className="px-3 py-2 bg-indigo-500 hover:bg-indigo-650 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
+                    <span>{isVietnamese ? 'Thêm' : 'Add'}</span>
                   </button>
                 </div>
               </div>
@@ -208,7 +222,9 @@ export default function ShareSettingsModal({
 
             {/* List of Shared Members */}
             <div className="space-y-2">
-              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Thành viên có quyền truy cập</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
+                {isVietnamese ? 'Danh sách thành viên có quyền truy cập' : 'Members with access'} ({Object.keys(shareSettings).length})
+              </span>
               <div className="border border-slate-100 dark:border-slate-800/85 rounded-2xl overflow-hidden divide-y divide-slate-105 dark:divide-slate-800/50 bg-slate-50/20 max-h-[160px] overflow-y-auto custom-scrollbar">
                 
                 {/* Always show Owner as Editor (Read Only Owner Row) */}
@@ -224,12 +240,12 @@ export default function ShareSettingsModal({
                         {currentUser?.name || "Chủ sở hữu không gian"}
                       </span>
                       <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold block truncate">
-                        Chủ sở hữu
+                        {isVietnamese ? 'Chủ sở hữu' : 'Owner'}
                       </span>
                     </div>
                   </div>
                   <span className="px-2 py-0.5 text-[8.5px] font-black uppercase rounded-lg bg-indigo-50 dark:bg-indigo-955/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100/10 shrink-0">
-                    Chủ sở hữu (Biên tập)
+                    {isVietnamese ? 'Chủ sở hữu' : 'Owner'}
                   </span>
                 </div>
 
@@ -282,7 +298,7 @@ export default function ShareSettingsModal({
                             type="button"
                             onClick={() => handleRemoveMember(userId)}
                             className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg transition-colors cursor-pointer"
-                            title="Thu hồi quyền truy cập"
+                            title={isVietnamese ? 'Thu hồi quyền truy cập' : 'Revoke access'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -304,16 +320,16 @@ export default function ShareSettingsModal({
             onClick={onClose}
             className="px-4 py-2 border border-slate-205 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
           >
-            {canEdit ? 'Cancel' : 'Close'}
+            {isVietnamese ? (canEdit ? 'Hủy' : 'Đóng') : (canEdit ? 'Cancel' : 'Close')}
           </button>
           {canEdit && (
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
-              <span>Xác nhận</span>
+              <span>{isVietnamese ? 'Lưu' : 'Save'}</span>
             </button>
           )}
         </div>

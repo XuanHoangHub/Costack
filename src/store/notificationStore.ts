@@ -35,6 +35,7 @@ const defaultSettings: NotificationSettings = {
   dndScheduleStart: '22:00',
   dndScheduleEnd: '07:00',
   dndAllowUrgent: true,
+  enableChatMessages: true,
 };
 
 export const useNotificationStore = create<NotificationState>()(

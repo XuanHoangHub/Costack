@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const prompt = `Từ công việc "${title}" có mô tả: "${description || 'Không có mô tả chi tiết'}". Hãy phân tích và đề xuất danh sách 3 đến 5 công việc phụ (subtasks) thực tế và khả thi cần hoàn thành.`;
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: prompt,
       config: {
         systemInstruction: "Bạn là trưởng dự án thông thái. Hãy phân tích công việc và trả về kết quả dưới dạng JSON là một mảng chuỗi các subtasks có cấu trúc. Không giải thích dông dài, chỉ trả về JSON hợp lệ đại diện cho mảng chuỗi.",
@@ -31,12 +31,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, subtasks });
   } catch (error: any) {
     console.error("Subtasks generation error:", error);
-    // Return friendly local fallback if API fails
     return NextResponse.json({ 
       success: false, 
       subtasks: [
         "Xem xét tài liệu chi tiết công việc",
-        "Thảo luận với các bên liên quan để lấy phản hồi",
+        "Thực hiện các bước triển khai chính",
         "Kiểm thử và đánh giá kết quả hoàn thiện"
       ],
       error: error.message || "Failed to contact Gemini, returned default fallback."

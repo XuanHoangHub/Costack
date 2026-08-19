@@ -7,6 +7,8 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  bannerUrl?: string;
+  coverUrl?: string;
   role: 'admin' | 'member' | 'guest';
   status: 'online' | 'busy' | 'offline' | 'away';
   customStatus?: 'online' | 'busy' | 'offline' | 'away';
@@ -225,6 +227,7 @@ export interface NotificationSettings {
   dndScheduleStart?: string;
   dndScheduleEnd?: string;
   dndAllowUrgent?: boolean;
+  enableChatMessages: boolean;
 }
 
 export interface ChatMessage {
@@ -298,6 +301,9 @@ export interface SyncLog {
   action: string;
   time: string;
   status: 'offline_saved' | 'synced';
+  userName?: string;
+  userAvatar?: string;
+  category?: 'task' | 'space' | 'workspace' | 'doc' | 'member' | 'security' | 'system';
 }
 
 export interface TeamMemberCursor {

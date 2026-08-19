@@ -135,7 +135,7 @@ function MiniCalendarNavigator({
               onClick={() => onSelectDate(item.date)}
               className={`w-6.5 h-6.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer mx-auto ${
                 isSelected || isToday
-                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-500/25 scale-105'
+                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-blue-500/25 scale-105'
                   : item.isCurrentMonth
                   ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800'
                   : 'text-slate-350 dark:text-slate-650 opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -194,7 +194,7 @@ export default function CalendarView({
   const [quickAssigneeId, setQuickAssigneeId] = useState<string>('');
   const [quickStartTime, setQuickStartTime] = useState<string>('09:00');
   const [quickEndTime, setQuickEndTime] = useState<string>('10:00');
-  const [quickEventColor, setQuickEventColor] = useState<string>('#7B61FF');
+  const [quickEventColor, setQuickEventColor] = useState<string>('#2563EB');
   const [createType, setCreateType] = useState<'task' | 'event'>('task');
 
   // Sidebar expanded state
@@ -722,8 +722,8 @@ export default function CalendarView({
                
               {gcalConnected ? (
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-150 dark:border-indigo-900/60">
-                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60">
+                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">G</div>
                     <div className="min-w-0">
                       <span className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 truncate">{gcalUserEmail}</span>
                       <span className="block text-[8px] text-indigo-400 font-extrabold uppercase mt-0.5">Đã kết nối</span>
@@ -1053,7 +1053,7 @@ export default function CalendarView({
                           onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
                           whileHover={{ scale: 1.02 }}
                           className="px-2 py-1 rounded-lg text-[9px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none flex items-center gap-1.5"
-                          style={{ backgroundColor: evt.color || '#7B61FF' }}
+                          style={{ backgroundColor: evt.color || '#2563EB' }}
                         >
                           <span className="w-1 h-1 rounded-full bg-white block shrink-0 animate-pulse" />
                           <span className="truncate">{evt.summary}</span>
@@ -1077,7 +1077,7 @@ export default function CalendarView({
                                 ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 line-through font-bold' 
                                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-600'
                             }`}
-                            style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
+                            style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#2563EB' : '#94a3b8' } as any}
                           >
                             <span className="truncate">{task.title}</span>
                           </motion.div>
@@ -1195,7 +1195,7 @@ export default function CalendarView({
                               onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
                               whileHover={{ scale: 1.02 }}
                               className="px-2 py-1 rounded-lg text-[9px] font-bold text-white truncate shadow-3xs cursor-pointer hover:brightness-95 transition-all select-none flex items-center gap-1.5"
-                              style={{ backgroundColor: evt.color || '#7B61FF' }}
+                              style={{ backgroundColor: evt.color || '#2563EB' }}
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-white block shrink-0 animate-pulse" />
                               <span className="truncate">{evt.summary}</span>
@@ -1217,7 +1217,7 @@ export default function CalendarView({
                                     ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 line-through font-bold' 
                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-indigo-500 dark:hover:border-indigo-600'
                                 }`}
-                                style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#7B61FF' : '#94a3b8' } as any}
+                                style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#2563EB' : '#94a3b8' } as any}
                               >
                                 {task.status === 'completed' ? (
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -1347,7 +1347,7 @@ export default function CalendarView({
         whileHover={{ scale: 1.1, rotate: 6 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowAiModal(true)}
-        className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center shadow-xl shadow-indigo-500/30 border-2 border-white/20 cursor-pointer"
+        className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 text-white flex items-center justify-center shadow-xl shadow-blue-500/30 border-2 border-white/20 cursor-pointer"
         title="Trợ lý Xếp lịch AI"
       >
         <Brain className="w-6 h-6 text-white" />
@@ -1366,7 +1366,7 @@ export default function CalendarView({
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center shadow-md">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
@@ -1528,7 +1528,7 @@ export default function CalendarView({
               <div className="flex gap-2.5">
                 <button 
                   onClick={() => setSelectedTask(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:brightness-105 text-xs font-black text-white shadow-xs transition-all cursor-pointer text-center"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-105 text-xs font-black text-white shadow-xs transition-all cursor-pointer text-center"
                 >
                   Hoàn tất
                 </button>
@@ -1618,7 +1618,7 @@ export default function CalendarView({
                       <label className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">Màu nhãn</label>
                       <select value={quickEventColor} onChange={e => setQuickEventColor(e.target.value)}
                         className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none cursor-pointer font-black text-slate-700 dark:text-slate-200">
-                        <option value="#7B61FF" style={{ color: '#7B61FF' }}>Indigo</option>
+                        <option value="#2563EB" style={{ color: '#2563EB' }}>Indigo</option>
                         <option value="#10b981" style={{ color: '#10b981' }}>Emerald</option>
                         <option value="#ef4444" style={{ color: '#ef4444' }}>Rose</option>
                         <option value="#f59e0b" style={{ color: '#f59e0b' }}>Amber</option>

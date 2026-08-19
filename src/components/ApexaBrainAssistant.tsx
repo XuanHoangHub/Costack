@@ -145,6 +145,21 @@ export default function ApexaBrainAssistant({
     }
   }, []);
 
+  const [activeModelName, setActiveModelName] = useState('Gemini 2.5 Flash');
+  useEffect(() => {
+    const updateModelName = () => {
+      const raw = (typeof window !== 'undefined' ? localStorage.getItem('apexa_ai_model') : '') || 'gemini-2.5-flash';
+      if (raw.includes('2.5-pro')) setActiveModelName('Gemini 2.5 Pro');
+      else if (raw.includes('2.0')) setActiveModelName('Gemini 2.0 Flash');
+      else if (raw.includes('1.5-pro')) setActiveModelName('Gemini 1.5 Pro');
+      else if (raw.includes('1.5')) setActiveModelName('Gemini 1.5 Flash');
+      else setActiveModelName('Gemini 2.5 Flash');
+    };
+    updateModelName();
+    window.addEventListener('storage', updateModelName);
+    return () => window.removeEventListener('storage', updateModelName);
+  }, []);
+
   const toggleListening = () => {
     if (!recognitionRef.current) {
       setRecognitionError("Your browser does not support Web Speech API for voice recognition.");
@@ -562,7 +577,7 @@ Based on current information, here is a quick summary:
           }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-650 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-[0_4px_24px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_30px_rgba(236,72,153,0.55)] cursor-pointer relative z-10"
+          className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 flex items-center justify-center text-white shadow-[0_4px_24px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_30px_rgba(236,72,153,0.55)] cursor-pointer relative z-10"
           title="Trợ lý AI Apexa"
         >
           {isOpen ? (
@@ -577,7 +592,7 @@ Based on current information, here is a quick summary:
           )}
         </motion.button>
         {!isOpen && (
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-650 to-pink-500 animate-ping opacity-25 -z-0 scale-95 pointer-events-none" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 animate-ping opacity-25 -z-0 scale-95 pointer-events-none" />
         )}
       </div>
 
@@ -610,15 +625,15 @@ Based on current information, here is a quick summary:
                 <div className="absolute top-[-30px] right-[10%] w-[100px] h-[100px] bg-pink-500/10 rounded-full blur-[30px] pointer-events-none" />
 
                 <div className="flex items-center gap-3 relative z-10">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
                     <Sparkles className="w-5 h-5 text-indigo-300 animate-pulse" />
                   </div>
                   <div>
                     <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-white font-display">
                       AI Apexa
-                      <span className="flex items-center gap-1.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-extrabold px-2 py-0.5 rounded-full border border-indigo-500/30 shadow-sm">
+                      <span className="flex items-center gap-1.5 bg-sky-500/20 text-sky-300 text-[8px] font-extrabold px-2 py-0.5 rounded-full border border-sky-500/30 shadow-sm">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Gemini 3.5
+                        {activeModelName}
                       </span>
                     </h2>
                     <p className="text-[10px] text-slate-400">Trợ lý AI điều phối dự án thông minh</p>
@@ -641,7 +656,7 @@ Based on current information, here is a quick summary:
               )}
 
               {/* Navigation Tabs bar inside Drawer */}
-              <div className="flex border-b border-slate-150 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-900/40 p-1.5 gap-1.5 relative shrink-0">
+              <div className="flex border-b border-slate-200/80 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-900/40 p-1.5 gap-1.5 relative shrink-0">
                 {[
                   { id: 'query', label: 'Ask Progress', icon: TrendingUp },
                   { id: 'summarize', label: 'Wiki Summary', icon: FileText },
@@ -678,7 +693,7 @@ Based on current information, here is a quick summary:
                   <div className="p-3.5 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>⚠️ Chế độ ngoại tuyến / mô phỏng AI:</strong> AI Apexa đang chạy ở chế độ mô phỏng vì máy chủ ngoại tuyến hoặc chưa cấu hình khóa truy cập (GEMINI_API_KEY).
+                      <strong>Chế độ dự phòng:</strong> Chưa cấu hình khóa API Gemini hoặc kết nối ngoại tuyến. Bạn có thể thêm khóa tại <strong>Cài đặt &gt; Cấu hình Apexa AI</strong> để sử dụng AI trực tuyến.
                     </div>
                   </div>
                 )}
@@ -731,7 +746,7 @@ Based on current information, here is a quick summary:
                         ) : responseText ? (
                           <div className="space-y-4">
                             <div className="flex gap-3 items-start">
-                              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+                              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
                                 <Bot className="w-4 h-4" />
                               </div>
                               <div className="flex-1 space-y-2.5 relative pr-8 bg-slate-50/50 dark:bg-slate-800/20 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
@@ -872,7 +887,7 @@ Based on current information, here is a quick summary:
                             key={index}
                             onClick={() => handleSummarizeDoc(act.action)}
                             disabled={!selectedDocId || loading}
-                            className="flex-1 py-2.5 px-1 text-[10px] font-extrabold bg-indigo-50/60 dark:bg-indigo-950/20 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/40 border border-indigo-150/40 dark:border-indigo-900/30 text-indigo-755 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                            className="flex-1 py-2.5 px-1 text-[10px] font-extrabold bg-indigo-50/60 dark:bg-indigo-950/20 hover:bg-indigo-100/80 dark:hover:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
                           >
                             {act.label}
                           </button>
@@ -955,7 +970,7 @@ Based on current information, here is a quick summary:
                     <button
                       onClick={handleGenerateSubtasks}
                       disabled={!selectedTaskId || loading}
-                      className="w-full py-2.5 px-4 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-650 disabled:cursor-not-allowed border border-indigo-650/10 shrink-0"
+                      className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed border border-indigo-600/20 shrink-0"
                     >
                       {loading ? (
                         <>
@@ -1166,7 +1181,7 @@ Based on current information, here is a quick summary:
               </div>
 
               {/* Drawer Footer and credits */}
-              <div className="p-4 border-t border-slate-150 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+              <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
                   Công cụ AI Apexa đang hoạt động

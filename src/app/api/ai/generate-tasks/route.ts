@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -13,12 +13,12 @@ export async function POST(request: Request) {
     const aiPrompt = `Based on the user request: "${prompt}". Analyze and propose a structured list of actionable tasks to accomplish it.`;
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: aiPrompt,
       config: {
-        systemInstruction: "You are a professional Product Owner / Project Manager. Break down the user request into actionable tasks. Provide title, description, priority, estimated hours, relevant tags, and subtasks in the same language as the input prompt (English by default). Return a clean JSON matching the schema.",
+        systemInstruction: "You are a professional Product Owner / Project Manager. Break down the user request into actionable tasks. Provide title, description, priority, estimated hours, relevant tags, and subtasks in the same language as the input prompt. Return a clean JSON matching the schema.",
         responseMimeType: "application/json",
-        temperature: temperature !== undefined ? temperature : undefined,
+        temperature: temperature !== undefined ? temperature : 0.7,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  title: { type: Type.STRING, description: "Clear task title in user's language (e.g. English)" },
+                  title: { type: Type.STRING, description: "Clear task title in user's language" },
                   description: { type: Type.STRING, description: "Detailed task description in user's language" },
                   priority: { 
                     type: Type.STRING, 
@@ -60,33 +60,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, tasks: result.tasks || [] });
   } catch (error: any) {
     console.error("Generate tasks error:", error);
-    // Return friendly local fallback if API fails
     return NextResponse.json({
       success: false,
       tasks: [
         {
-          title: "UI/UX Design & Mockup",
-          description: "Draft wireframes and detailed UI layout for the requested feature.",
+          title: "Thiết kế & Lên kế hoạch",
+          description: "Phân tích yêu cầu và phác thảo các bước triển khai chi tiết.",
           priority: "high",
-          hoursEstimate: 8,
-          tags: ["Design"],
-          subtasks: ["Draft layout", "Design Figma mockup", "Gather team feedback"]
-        },
-        {
-          title: "Feature Core Implementation",
-          description: "Develop frontend components and integrate associated API endpoints.",
-          priority: "medium",
-          hoursEstimate: 12,
-          tags: ["Frontend", "API"],
-          subtasks: ["Build UI components", "Connect data API", "Handle edge cases"]
-        },
-        {
-          title: "Testing & Deployment",
-          description: "Run unit tests, fix identified bugs, and finalize deployment.",
-          priority: "low",
           hoursEstimate: 4,
-          tags: ["Testing"],
-          subtasks: ["Write unit tests", "Fix CSS/JS issues", "Deploy updates"]
+          tags: ["Planning"],
+          subtasks: ["Phân tích yêu cầu", "Lập dàn ý các bước", "Xác nhận với nhóm"]
+        },
+        {
+          title: "Thực thi tính năng chính",
+          description: "Xây dựng các thành phần và tích hợp chức năng theo yêu cầu.",
+          priority: "medium",
+          hoursEstimate: 8,
+          tags: ["Development"],
+          subtasks: ["Phát triển giao diện", "Kết nối dữ liệu", "Xử lý trường hợp biên"]
+        },
+        {
+          title: "Kiểm thử & Bàn giao",
+          description: "Kiểm tra chất lượng, sửa lỗi phát sinh và hoàn thiện.",
+          priority: "low",
+          hoursEstimate: 2,
+          tags: ["QA"],
+          subtasks: ["Kiểm thử chức năng", "Khắc phục lỗi", "Hoàn tất bàn giao"]
         }
       ],
       error: error.message || "Failed to contact Gemini, returned default fallback."

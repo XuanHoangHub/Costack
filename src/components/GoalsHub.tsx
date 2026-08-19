@@ -10,6 +10,7 @@ import {
   Sliders, TrendingUp, AlertCircle, BarChart3, HelpCircle, Download, FileText, Filter, Layers
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export interface GoalTarget {
   id: string;
@@ -48,6 +49,7 @@ export default function GoalsHub({
   onAddSyncLog,
   triggerToast
 }: GoalsHubProps) {
+  const { isVietnamese, locale } = useTranslation();
   // Goals State
   const [goals, setGoals] = useState<Goal[]>([]);
   const [expandedGoalIds, setExpandedGoalIds] = useState<string[]>([]);
@@ -349,7 +351,9 @@ export default function GoalsHub({
             <Target className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Mục tiêu đang hoạt động</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              {isVietnamese ? 'Mục tiêu đang hoạt động' : 'Active Goals'}
+            </span>
             <span className="text-2xl font-black tabular-nums">{totalGoals}</span>
           </div>
           <div className="absolute right-4 top-4 text-[10px] font-black bg-indigo-50 dark:bg-indigo-955/40 text-indigo-600 px-2 py-0.5 rounded-lg">
@@ -363,7 +367,9 @@ export default function GoalsHub({
             <Trophy className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Completed</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              {isVietnamese ? 'Đã hoàn thành' : 'Completed'}
+            </span>
             <span className="text-2xl font-black tabular-nums">{completedGoals} <span className="text-xs font-semibold text-slate-400">/ {totalGoals}</span></span>
           </div>
         </div>
@@ -374,7 +380,9 @@ export default function GoalsHub({
             <TrendingUp className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Tiến độ trung bình</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              {isVietnamese ? 'Tiến độ trung bình' : 'Average Progress'}
+            </span>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-2xl font-black tabular-nums">{averageProgress}%</span>
               <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -392,23 +400,29 @@ export default function GoalsHub({
       {/* Main Row: Goal Grid and Actions */}
       <div className="flex justify-between items-center">
         <div className="text-left">
-          <h2 className="text-lg font-black tracking-tight">Mục tiêu và kết quả then chốt</h2>
-          <p className="text-[10px] font-bold text-slate-405">Theo dõi và phối hợp mục tiêu nhóm thông qua các chỉ tiêu công việc.</p>
+          <h2 className="text-lg font-black tracking-tight">
+            {isVietnamese ? 'Mục tiêu và kết quả then chốt' : 'Objectives & Key Results'}
+          </h2>
+          <p className="text-[10px] font-bold text-slate-405">
+            {isVietnamese 
+              ? 'Theo dõi và phối hợp mục tiêu nhóm thông qua các chỉ tiêu công việc.' 
+              : 'Track team alignment and quarterly goals through linked task key results.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportOkrReport}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer shadow-xs"
-            title="Xuất Báo cáo OKRs (.md)"
+            title={isVietnamese ? "Xuất Báo cáo OKRs (.md)" : "Export OKRs Report (.md)"}
           >
-            <Download className="w-3.5 h-3.5" /> Xuất Báo cáo
+            <Download className="w-3.5 h-3.5" /> {isVietnamese ? 'Xuất Báo cáo' : 'Export Report'}
           </button>
           <button
             onClick={() => setShowCreateGoalModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-indigo-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black text-white rounded-2xl shadow-lg hover:shadow-blue-500/20 active:shadow-none hover:brightness-105 transition-all cursor-pointer"
             style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
           >
-            <Plus className="w-4 h-4" /> Tạo mục tiêu
+            <Plus className="w-4 h-4" /> {isVietnamese ? 'Tạo mục tiêu' : 'Create Goal'}
           </button>
         </div>
       </div>
@@ -418,8 +432,14 @@ export default function GoalsHub({
         <div className="border border-dashed border-slate-200 dark:border-slate-805 rounded-3xl p-10 text-center space-y-3 bg-white/30 dark:bg-slate-900/10">
           <Target className="w-8 h-8 mx-auto text-slate-350 animate-bounce" />
           <div className="space-y-1">
-            <h4 className="text-xs font-black text-slate-700 dark:text-slate-300">Chưa theo dõi mục tiêu nào</h4>
-            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">Tạo mục tiêu, xác định kết quả then chốt và liên kết với công việc để theo dõi tiến độ tổng thể!</p>
+            <h4 className="text-xs font-black text-slate-700 dark:text-slate-300">
+              {isVietnamese ? 'Chưa theo dõi mục tiêu nào' : 'No goals tracked yet'}
+            </h4>
+            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+              {isVietnamese 
+                ? 'Tạo mục tiêu, xác định kết quả then chốt và liên kết với công việc để theo dõi tiến độ tổng thể!' 
+                : 'Create goals, define key results, and link tasks to monitor team progress!'}
+            </p>
           </div>
         </div>
       ) : (
@@ -574,7 +594,7 @@ export default function GoalsHub({
               </div>
 
               {selectedGoal.description && (
-                <p className="text-[10.5px] font-semibold text-slate-505 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-2xl border border-slate-150/40 dark:border-slate-800/30">
+                <p className="text-[10.5px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/60">
                   {selectedGoal.description}
                 </p>
               )}
@@ -691,7 +711,7 @@ export default function GoalsHub({
                       return (
                         <div 
                           key={target.id}
-                          className="flex items-center justify-between p-3 rounded-2xl border border-slate-150/70 dark:border-slate-800/85 bg-slate-50/30 dark:bg-slate-950/20 gap-3 text-left"
+                          className="flex items-center justify-between p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/85 bg-slate-50/30 dark:bg-slate-950/20 gap-3 text-left"
                         >
                           <div className="flex-1 space-y-1 min-w-0">
                             <span className="text-[10.5px] font-bold text-slate-755 dark:text-slate-200 block truncate leading-tight">
@@ -845,13 +865,13 @@ export default function GoalsHub({
                   <button 
                     type="button" 
                     onClick={() => setShowCreateGoalModal(false)}
-                    className="flex-1 py-2 rounded-xl border border-slate-250 dark:border-slate-750 hover:bg-slate-50 dark:hover:bg-slate-850 text-xs font-bold text-slate-550 dark:text-slate-400 cursor-pointer text-center transition-colors"
+                    className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer text-center transition-colors"
                   >
                     Hủy
                   </button>
                   <button 
                     type="submit"
-                    className="flex-1 py-2 rounded-xl text-xs font-black text-white shadow-md hover:shadow-indigo-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center"
+                    className="flex-1 py-2 rounded-xl text-xs font-black text-white shadow-md hover:shadow-blue-500/20 active:shadow-none transition-all hover:brightness-105 cursor-pointer text-center"
                     style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                   >
                     Tạo mục tiêu

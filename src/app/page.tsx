@@ -38,6 +38,9 @@ import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { AutomationRulesModal } from '../components/AutomationRulesModal';
 import { ExportDataModal } from '../components/ExportDataModal';
 import { PricingModal } from '../components/PricingModal';
+import ThemeSwitch from '../components/ThemeSwitch';
+import LanguageDropdown from '../components/LanguageDropdown';
+import PromptModal, { PromptModalConfig } from '../components/PromptModal';
 import dynamic from 'next/dynamic';
 
 const ComponentLoading = () => (
@@ -75,6 +78,8 @@ const InboxView = dynamic(() => import('../components/InboxView'), { loading: Co
 const AnalyticsHub = dynamic(() => import('../components/AnalyticsHub'), { loading: ComponentLoading, ssr: false });
 const GoalsHub = dynamic(() => import('../components/GoalsHub'), { loading: ComponentLoading });
 const KeyboardShortcutsModal = dynamic(() => import('../components/KeyboardShortcutsModal'));
+const AddListModal = dynamic(() => import('../components/AddListModal'));
+const FinanceHub = dynamic(() => import('../components/FinanceHub'), { loading: ComponentLoading });
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -82,7 +87,8 @@ import {
   Search, X, FileText, Hash, Cog, Copy, Link as LinkIcon, ArrowRight, CornerDownLeft, Check, ChevronDown, Lock,
   Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
-  BarChart3, Target, Menu, Globe, Keyboard, Handshake
+  BarChart3, Target, Menu, Globe, Keyboard, Handshake, Landmark,
+  ListPlus, ListTodo, PanelLeftOpen, PanelLeftClose, PanelLeft, CheckSquare
 } from 'lucide-react';
 
 import {
@@ -149,7 +155,7 @@ const getShortLabel = (label: string) => {
 
 const DEFAULT_SIDEBAR_ORDER = [
   'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
-  'crm', 'base', 'docs', 'whiteboard', 'chat', 'team'
+  'crm', 'finance', 'base', 'docs', 'whiteboard', 'chat', 'team'
 ];
 
 export default function App() {
@@ -172,6 +178,7 @@ export default function App() {
   const activeTab = useUiStore((s) => s.activeTab);
   const setActiveTab = useUiStore((s) => s.setActiveTab);
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>('general');
+  const [promptModalConfig, setPromptModalConfig] = useState<PromptModalConfig | null>(null);
   const isMainSidebarCollapsed = useUiStore((s) => s.isMainSidebarCollapsed);
   const setIsMainSidebarCollapsed = useUiStore((s) => s.setIsMainSidebarCollapsed);
   const isMobileSidebarOpen = useUiStore((s) => s.isMobileSidebarOpen);
@@ -320,7 +327,7 @@ export default function App() {
 
     // Accent color sync across stores & CSS custom properties
     const ACCENT_MAP: Record<string, { primary: string; hover: string; light: string; ring: string }> = {
-      indigo: { primary: '#7B61FF', hover: '#6045EB', light: isDarkMode ? 'rgba(123, 97, 255, 0.18)' : '#ede9fe', ring: 'rgba(123, 97, 255, 0.35)' },
+      indigo: { primary: isDarkMode ? '#3B82F6' : '#2563EB', hover: isDarkMode ? '#60A5FA' : '#1D4ED8', light: isDarkMode ? 'rgba(59, 130, 246, 0.18)' : '#eff6ff', ring: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : 'rgba(37, 99, 235, 0.35)' },
       ocean: { primary: '#0ea5e9', hover: '#0284c7', light: isDarkMode ? 'rgba(14, 165, 233, 0.18)' : '#e0f2fe', ring: 'rgba(14, 165, 233, 0.35)' },
       forest: { primary: '#10b981', hover: '#059669', light: isDarkMode ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5', ring: 'rgba(16, 185, 129, 0.35)' },
       sunset: { primary: '#f43f5e', hover: '#e11d48', light: isDarkMode ? 'rgba(244, 63, 94, 0.18)' : '#ffe4e6', ring: 'rgba(244, 63, 94, 0.35)' },
@@ -416,64 +423,8 @@ export default function App() {
   // Dynamic effects below read from useUiStore values
   useEffect(() => {
     (window as any).showPremiumModal = () => setShowPremiumModal(true);
-    (window as any).playSystemSound = (type: 'click' | 'success' | 'toggle' | 'delete' | 'notification') => {
-      try {
-        if (!soundEnabled) return;
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        const now = ctx.currentTime;
-
-        if (type === 'click') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(1000, now);
-          osc.frequency.exponentialRampToValueAtTime(350, now + 0.08);
-          gain.gain.setValueAtTime(0.04, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          osc.start(now);
-          osc.stop(now + 0.08);
-        } else if (type === 'toggle') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(550, now);
-          osc.frequency.exponentialRampToValueAtTime(1100, now + 0.12);
-          gain.gain.setValueAtTime(0.05, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-          osc.start(now);
-          osc.stop(now + 0.12);
-        } else if (type === 'success') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, now);
-          osc.frequency.setValueAtTime(659.25, now + 0.08);
-          gain.gain.setValueAtTime(0.06, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          osc.start(now);
-          osc.stop(now + 0.3);
-        } else if (type === 'delete') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(300, now);
-          osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
-          gain.gain.setValueAtTime(0.05, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-          osc.start(now);
-          osc.stop(now + 0.2);
-        } else if (type === 'notification') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(600, now);
-          osc.frequency.setValueAtTime(900, now + 0.12);
-          gain.gain.setValueAtTime(0.05, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-          osc.start(now);
-          osc.stop(now + 0.35);
-        }
-      } catch { /* empty */ }
-    };
-  }, [soundEnabled, setShowPremiumModal]);
+    (window as any).playSystemSound = () => {};
+  }, [setShowPremiumModal]);
 
   useEffect(() => {
     if (currentUser?.id && localStorage.getItem('avaxa_pending_upgrade_cycle')) {
@@ -566,19 +517,28 @@ export default function App() {
   }, [currentUser?.id, setSpaces]);
 
   const handleSaveSpaces = async (newSpaces: Space[]) => {
-    setSpaces(newSpaces);
+    const currentAllSpaces = useSpaceStore.getState().spaces;
+    const allMergedSpaces = newSpaces;
+
+    setSpaces(allMergedSpaces);
     if (!currentUser?.id) return;
-    localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(newSpaces));
+    
+    // Save to localStorage with both key prefixes for consistency
+    try {
+      localStorage.setItem(`apexa_spaces_${currentUser.id}`, JSON.stringify(allMergedSpaces));
+      localStorage.setItem(`avaxa_spaces_${currentUser.id}`, JSON.stringify(allMergedSpaces));
+    } catch (e) {}
 
     if (!isOffline) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const userId = session.user.id;
+          const validWsIds = new Set(workspaces.map(w => w.id));
 
           // 1. Detect deleted spaces
-          const oldSpaceIds = spaces.map(s => s.id);
-          const newSpaceIds = newSpaces.map(s => s.id);
+          const oldSpaceIds = currentAllSpaces.map(s => s.id);
+          const newSpaceIds = allMergedSpaces.map(s => s.id);
           const deletedSpaceIds = oldSpaceIds.filter(id => !newSpaceIds.includes(id));
 
           if (deletedSpaceIds.length > 0) {
@@ -586,26 +546,52 @@ export default function App() {
           }
 
           // 2. Upsert each space and sync lists
-          for (const space of newSpaces) {
-            await supabase.from('spaces').upsert({
+          for (const space of allMergedSpaces) {
+            let spaceWsId = space.workspaceId;
+            if (!spaceWsId || (!validWsIds.has(spaceWsId) && validWsIds.size > 0)) {
+              spaceWsId = activeWorkspaceId || workspaces[0]?.id || spaceWsId;
+            }
+
+            const currentLists = space.lists || [];
+            const { error: spaceUpsertErr } = await supabase.from('spaces').upsert({
               id: space.id,
               name: space.name,
               emoji: space.emoji || null,
               theme_color: space.themeColor || null,
-              workspace_id: space.workspaceId,
+              workspace_id: spaceWsId,
               folders: space.folders || [],
               whiteboards: space.whiteboards || [],
               channels: space.channels || [],
               statuses: space.statuses || [],
-              click_apps: space.clickApps || {},
+              click_apps: {
+                ...(space.clickApps || {}),
+                spacePreferences: {
+                  description: space.description || '',
+                  isFavorite: !!space.isFavorite,
+                  isHidden: !!space.isHidden,
+                  isArchived: !!space.isArchived,
+                  listPreferences: Object.fromEntries(currentLists.map(list => [list.id, {
+                    isFavorite: !!list.isFavorite,
+                    isArchived: !!list.isArchived
+                  }]))
+                }
+              },
               custom_fields_config: space.customFields || [],
-              user_id: userId
+              user_id: userId,
+              is_private: space.isPrivate || false,
+              share_settings: space.shareSettings || {}
             });
 
+            if (spaceUpsertErr) {
+              console.warn('Failed to upsert space in Supabase:', spaceUpsertErr.message || spaceUpsertErr);
+              // Skip list upsert if space upsert failed to avoid FK/RLS violation
+              continue;
+            }
+
             // Sync lists for this space
-            const oldSpace = spaces.find(s => s.id === space.id);
-            const oldListIds = oldSpace ? oldSpace.lists.map(l => l.id) : [];
-            const newListIds = space.lists.map(l => l.id);
+            const oldSpace = currentAllSpaces.find(s => s.id === space.id);
+            const oldListIds = (oldSpace?.lists || []).map(l => l.id);
+            const newListIds = currentLists.map(l => l.id);
 
             // Delete removed lists
             const deletedListIds = oldListIds.filter(id => !newListIds.includes(id));
@@ -614,15 +600,23 @@ export default function App() {
             }
 
             // Upsert current lists
-            if (space.lists.length > 0) {
-              const listsToUpsert = space.lists.map(list => ({
+            if (currentLists.length > 0) {
+              const listsToUpsert = currentLists.map((list, idx) => ({
                 id: list.id,
                 name: list.name,
                 space_id: space.id,
                 folder_id: list.folderId || null,
-                user_id: userId
+                user_id: userId,
+                is_private: list.isPrivate || false,
+                share_settings: list.shareSettings || {},
+                is_favorite: Boolean(list.isFavorite),
+                is_archived: Boolean(list.isArchived),
+                position: typeof list.position === 'number' ? list.position : idx
               }));
-              await supabase.from('lists').upsert(listsToUpsert);
+              const { error: listUpsertErr } = await supabase.from('lists').upsert(listsToUpsert, { onConflict: 'id' });
+              if (listUpsertErr) {
+                console.error('Failed to upsert lists in Supabase:', listUpsertErr.message || listUpsertErr.details || listUpsertErr);
+              }
             }
           }
         }
@@ -697,22 +691,36 @@ export default function App() {
     addSyncLog(`Created new Space: "${newSpace.name}"`);
   };
 
-  const handleAddList = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newListName.trim() || !showAddListSpaceId) return;
-    const updated = spaces.map(s => {
-      if (s.id === showAddListSpaceId) {
+  const handleAddNewList = (spaceId: string, name: string, folderId?: string, color?: string) => {
+    const currentSpaces = useSpaceStore.getState().spaces;
+    const targetSpace = currentSpaces.find(s => s.id === spaceId);
+    if (!targetSpace) return;
+
+    const newList = {
+      id: `l-${Date.now()}`,
+      name: name.trim(),
+      folderId: folderId || undefined,
+      color: color || undefined,
+      isFavorite: false,
+      isArchived: false,
+      position: (targetSpace.lists || []).length
+    };
+
+    const updated = currentSpaces.map(s => {
+      if (s.id === spaceId) {
         return {
           ...s,
-          lists: [...s.lists, { id: `l-${Date.now()}`, name: newListName.trim() }]
+          lists: [...(s.lists || []), newList]
         };
       }
       return s;
     });
+
     handleSaveSpaces(updated);
     setNewListName('');
     setShowAddListSpaceId(null);
-    triggerToast('success', 'New List Created', 'List added successfully');
+    triggerToast('success', 'New List Created', locale === 'vi' ? `Đã tạo danh sách "${name}" thành công` : `Created list "${name}" successfully`);
+    addSyncLog(`Created List "${name}" in Space`);
   };
 
   const handleAddFolderToSpace = (spaceId: string, name: string) => {
@@ -1214,25 +1222,35 @@ export default function App() {
     setDragOverSide(null);
   };
 
+  const unreadNotificationsCount = useMemo(() => {
+    const now = Date.now();
+    const unreadNotifs = notificationsList.filter(
+      n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= now)
+    ).length;
+    const unreadInvites = workspaceInvitations?.length || 0;
+    return unreadNotifs + unreadInvites;
+  }, [notificationsList, workspaceInvitations]);
+
   const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string }>>(() => {
     return {
       dashboard: { label: t('homeOverview') || 'Home Overview', icon: PhHouse },
       inbox: { 
         label: t('inbox') || 'Inbox', 
         icon: PhTray, 
-        count: notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length
+        count: unreadNotificationsCount
       },
       tasks: { label: t('space') || 'Space', icon: PhBriefcase },
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
       goals: { label: locale === 'vi' ? 'Mục tiêu & OKR' : 'Goals & OKRs', icon: Target, badge: 'OKR' },
       crm: { label: 'CRM', icon: Handshake, badge: locale === 'vi' ? 'Mới' : 'New' },
+      finance: { label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', icon: Landmark, badge: 'AMIS' },
       base: { label: t('base') || 'Avaxa Base', icon: Database },
       docs: { label: t('docs') || 'Docs', icon: PhFileText },
       whiteboard: { label: locale === 'vi' ? 'Bảng trắng' : 'Whiteboard', icon: Grid },
       chat: { label: t('chat') || 'Chat', icon: PhChat },
       team: { label: locale === 'vi' ? 'Đội nhóm' : 'Team', icon: PhUsers },
     };
-  }, [locale, notificationsList, t]);
+  }, [locale, unreadNotificationsCount, t]);
 
   const orderedItems = useMemo(() => {
     const defaultOrder = DEFAULT_SIDEBAR_ORDER;
@@ -1301,7 +1319,12 @@ export default function App() {
   }, [notificationsList]);
 
   // Dynamic Toast notification trigger function
-  const triggerToast = useCallback((type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message', title: string, message: string) => {
+  const triggerToast = useCallback((
+    type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message',
+    title: string,
+    message: string,
+    options?: { taskId?: string; workspaceId?: string; persistInInbox?: boolean }
+  ) => {
     // Creating an entity is already confirmed by the UI. Do not create a second
     // toast or pollute the durable Inbox with the current user's own action.
     if (isCreationConfirmation({ type, title, message })) return;
@@ -1375,6 +1398,7 @@ export default function App() {
     // Category overrides
     if (type === 'assignment' && !notificationSettings.enableAssignments) return;
     if (type === 'deadline' && !notificationSettings.enableDeadlines) return;
+    if (type === 'chat_message' && !notificationSettings.enableChatMessages) return;
     if ((type === 'comment' || type === 'message') && !notificationSettings.enableComments) return;
     if ((type === 'success' || type === 'info') && !isStatusChange && !notificationSettings.enableSystemNotify) {
       return;
@@ -1436,7 +1460,7 @@ export default function App() {
 
     // Inbox is reserved for events that need attention. Routine confirmations
     // remain transient toasts and never become unread work for the user.
-    if (shouldPersistInInbox({ type, title, message })) {
+    if (shouldPersistInInbox({ type, title, message }, options)) {
       const newNotifId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       setNotificationsList(prev => [
         {
@@ -1444,6 +1468,8 @@ export default function App() {
           type,
           title,
           message,
+          taskId: options?.taskId,
+          workspaceId: options?.workspaceId || activeWorkspaceId,
           timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date().toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
           read: false
         },
@@ -1470,7 +1496,7 @@ export default function App() {
       message,
       duration: notificationSettings.toastDuration
     });
-  }, [pomodoroActive, notificationSettings, addToast, setNotificationsList]);
+  }, [pomodoroActive, notificationSettings, addToast, setNotificationsList, activeWorkspaceId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1488,25 +1514,28 @@ export default function App() {
     if (currentUser && tasks.length > 0) {
       const timer = setTimeout(() => {
         const now = new Date();
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(now.getDate() - 1);
         const threeDaysFromNow = new Date();
         threeDaysFromNow.setDate(now.getDate() + 3);
 
-        // Find tasks approaching their deadline (due within 3 days or overdue)
+        // Only scan tasks relevant to current user with deadlines in [today - 1 day, today + 3 days]
         const upcomingTasks = tasks.filter(t => {
           if (t.status === 'completed' || !t.dueDate) return false;
+          const isMyTask = t.assigneeId === currentUser.id || t.assigneeIds?.includes(currentUser.id) || !t.assigneeId;
+          if (!isMyTask) return false;
           try {
             const due = new Date(t.dueDate);
-            return !isNaN(due.getTime()) && due <= threeDaysFromNow;
+            return !isNaN(due.getTime()) && due >= oneDayAgo && due <= threeDaysFromNow;
           } catch (e) {
             return false;
           }
         });
 
         if (upcomingTasks.length > 0) {
-          // Read already notified deadlines from local storage to prevent duplicate warnings
           let notifiedMap: Record<string, string> = {};
           try {
-            const stored = localStorage.getItem('avaxa_notified_deadlines');
+            const stored = localStorage.getItem('apexa_notified_deadlines');
             if (stored) notifiedMap = JSON.parse(stored);
           } catch (e) {
             console.error('Error loading notified deadlines:', e);
@@ -1516,7 +1545,6 @@ export default function App() {
           const newNotifiedMap = { ...notifiedMap };
 
           upcomingTasks.forEach((t, index) => {
-            // Skip if already notified for this exact task ID and due date combination
             if (notifiedMap[t.id] === t.dueDate) {
               return;
             }
@@ -1525,9 +1553,10 @@ export default function App() {
               triggerToast(
                 'deadline',
                 'Deadline Warning',
-                `Task "${t.title}" is approaching its completion date (${t.dueDate}). Please check!`
+                `Task "${t.title}" is approaching its completion date (${t.dueDate}). Please check!`,
+                { taskId: t.id, workspaceId: (t as any).workspaceId || activeWorkspaceId }
               );
-            }, index * 1200); // Elegant staggered animations
+            }, index * 1200);
 
             newNotifiedMap[t.id] = t.dueDate || '';
             wasUpdated = true;
@@ -1535,7 +1564,7 @@ export default function App() {
 
           if (wasUpdated) {
             try {
-              localStorage.setItem('avaxa_notified_deadlines', JSON.stringify(newNotifiedMap));
+              localStorage.setItem('apexa_notified_deadlines', JSON.stringify(newNotifiedMap));
             } catch (e) {
               console.error('Error saving notified deadlines:', e);
             }
@@ -1544,10 +1573,49 @@ export default function App() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [currentUser, tasks, triggerToast]);
+  }, [currentUser, tasks, triggerToast, activeWorkspaceId]);
+
+  // Global Supabase Realtime subscription for chat message notifications
+  // This runs independently of ChatRoom mount state so notifications work across all tabs
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+  useEffect(() => {
+    if (!currentUser || isOffline) return;
+
+    const sub = supabase.channel('global-chat-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const msg = payload.new as any;
+          if (!msg) return;
+          // Skip own messages and AI messages
+          if (msg.sender_id === currentUser.id || msg.sender_id === 'apexa-ai') return;
+          // Skip if user is already viewing chat tab (ChatRoom handles its own display)
+          if (activeTabRef.current === 'chat') return;
+
+          const senderName = msg.sender_name || 'Người dùng';
+          const preview = msg.content
+            ? msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : msg.content
+            : msg.attachment ? '📎 Tệp đính kèm' : 'Tin nhắn mới';
+
+          triggerToast('chat_message', `💬 ${senderName}`, preview);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(sub);
+    };
+  }, [currentUser, isOffline, triggerToast]);
 
   const members = useMemberStore((s) => s.members);
-  const accountPresenceStatus = members.find((member) => member.id === 'user')?.status || 'offline';
+  const accountPresenceStatus = isOffline
+    ? 'offline'
+    : (userStatus
+        ? uiStatusToPresence(userStatus)
+        : (members.find((member) => member.id === 'user' || (member.email && currentUser?.email && member.email.toLowerCase() === currentUser.email.toLowerCase()) || (currentUser?.id && member.id === currentUser.id))?.status || 'online'));
   const setMembers = useMemberStore((s) => s.setMembers);
 
   // Synchronize dynamic members configuration when current user state loads or toggles
@@ -1639,14 +1707,45 @@ export default function App() {
   }, [currentUser?.email]);
 
   // Global SyncLog adder
-  const addSyncLog = (action: string) => {
+  const addSyncLog = (action: string, category: 'task' | 'space' | 'workspace' | 'doc' | 'member' | 'security' | 'system' = 'workspace') => {
+    const isTechnical = 
+      action.includes('Supabase') ||
+      action.includes('supabase') ||
+      action.includes('database') ||
+      action.includes('cloud server') ||
+      action.includes('compatibility mode') ||
+      action.includes('realtime-') ||
+      action.includes('Realtime sync') ||
+      action.includes('System merge') ||
+      action.includes('offline changes') ||
+      action.includes('offline cache') ||
+      action.includes('storage synchronized') ||
+      action.includes('Entered List:') ||
+      action.includes('sorting order');
+
+    if (isTechnical) return;
+
     const newLog: SyncLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       action,
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      status: isOffline ? 'offline_saved' : 'synced'
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      status: isOffline ? 'offline_saved' : 'synced',
+      userName: currentUser?.name || 'Chủ sở hữu',
+      userAvatar: currentUser?.avatar || '',
+      category
     };
-    setSyncLogs(prev => [...prev, newLog]);
+    setSyncLogs(prev => [
+      newLog,
+      ...prev.filter(l => 
+        !l.action.includes('Supabase') && 
+        !l.action.includes('supabase') && 
+        !l.action.includes('Realtime sync') &&
+        !l.action.includes('storage synchronized') &&
+        !l.action.includes('cloud server') &&
+        !l.action.includes('compatibility mode') &&
+        !l.action.includes('Entered List:')
+      )
+    ].slice(0, 100));
   };
 
   // Sync animation triggers when going online
@@ -1665,7 +1764,6 @@ export default function App() {
               setIsOffline(false);
               // Clean all offline saved logs into synchronized status
               setSyncLogs(prevLogs => prevLogs.map(l => l.status === 'offline_saved' ? { ...l, status: 'synced' as const } : l));
-              addSyncLog('Data successfully synchronized with the cloud server!');
 
               // Synchronize all local changes to Supabase in the background
               const syncOfflineData = async () => {
@@ -1807,9 +1905,6 @@ export default function App() {
                     // Run all batch database transaction updates concurrently to minimize network roundtrips!
                     if (syncPromises.length > 0) {
                       await Promise.all(syncPromises);
-                      addSyncLog(`System merge successful: Optimized sync (${tasksToUpsert.length} new/modified tasks, ${offlineDeletedTasks.length} deleted tasks, ${docsToUpsert.length} new/modified docs, ${offlineDeletedDocs.length} deleted docs).`);
-                    } else {
-                      addSyncLog('No new offline changes detected for synchronization.');
                     }
 
                     // Clear the offline queue states upon successful batch processing to reset database transaction trackers
@@ -1833,7 +1928,6 @@ export default function App() {
       }, 150);
     } else {
       setIsOffline(true);
-      addSyncLog('Disconnected from local network. Switched to offline cache storage.');
     }
   };
 
@@ -1888,7 +1982,8 @@ export default function App() {
             { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
             { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
           ],
-          click_apps: { subtasks: true, priorities: true }
+          click_apps: { subtasks: true, priorities: true },
+          user_id: userId
         }
       ]);
 
@@ -2135,7 +2230,8 @@ export default function App() {
                   { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
                   { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
                 ],
-                click_apps: { subtasks: true, priorities: true }
+                click_apps: { subtasks: true, priorities: true },
+                user_id: userId
               }
             ]);
             await supabase.from('lists').insert([
@@ -2213,7 +2309,8 @@ export default function App() {
                       { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' },
                       { id: 'completed', label: 'COMPLETE', color: '#10b981', type: 'completed' }
                     ],
-                    click_apps: { subtasks: true, priorities: true }
+                    click_apps: { subtasks: true, priorities: true },
+                    user_id: userId
                   }
                 ]);
                 await supabase.from('lists').insert([
@@ -2435,26 +2532,55 @@ export default function App() {
             const hasSeededSpaces = localStorage.getItem(`avaxa_seeded_spaces_${userId}`);
 
             if (finalSpaces.length > 0) {
-              const formattedSpaces = finalSpaces.map(s => ({
-                id: s.id,
-                name: s.name,
-                emoji: s.emoji || '📦',
-                themeColor: s.theme_color || 'indigo',
-                workspaceId: s.workspace_id,
-                lists: (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
+              const currentLocalSpaces = useSpaceStore.getState().spaces;
+              const formattedSpaces = finalSpaces.map(s => {
+                const remoteLists = (dbLists || []).filter(l => l.space_id === s.id).map(l => ({
                   id: l.id,
                   name: l.name,
-                  folderId: l.folder_id || undefined
-                })),
-                folders: s.folders || [],
-                whiteboards: s.whiteboards || [],
-                channels: s.channels || [],
-                statuses: s.statuses || [],
-                clickApps: s.click_apps || {}
-              }));
+                  folderId: l.folder_id || undefined,
+                  user_id: l.user_id,
+                  isPrivate: l.is_private || false,
+                  shareSettings: l.share_settings || {},
+                  isFavorite: Boolean(l.is_favorite || s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isFavorite),
+                  isArchived: Boolean(l.is_archived || s.click_apps?.spacePreferences?.listPreferences?.[l.id]?.isArchived),
+                  position: typeof l.position === 'number' ? l.position : 0
+                }));
+
+                // Preserve any local list in memory that hasn't propagated to dbLists yet
+                const matchingLocalSpace = currentLocalSpaces.find(loc => loc.id === s.id);
+                const localLists = matchingLocalSpace?.lists || [];
+                const remoteListIdSet = new Set(remoteLists.map(l => l.id));
+                const missingLocalLists = localLists.filter(l => !remoteListIdSet.has(l.id));
+                const mergedLists = [...remoteLists, ...missingLocalLists];
+
+                return {
+                  id: s.id,
+                  name: s.name,
+                  emoji: s.emoji || '📦',
+                  themeColor: s.theme_color || 'indigo',
+                  workspaceId: s.workspace_id,
+                  user_id: s.user_id,
+                  isPrivate: s.is_private || false,
+                  shareSettings: s.share_settings || {},
+                  description: s.click_apps?.spacePreferences?.description || '',
+                  isFavorite: !!s.is_favorite || !!s.click_apps?.spacePreferences?.isFavorite,
+                  isHidden: !!s.is_hidden || !!s.click_apps?.spacePreferences?.isHidden,
+                  isArchived: !!s.is_archived || !!s.click_apps?.spacePreferences?.isArchived,
+                  lists: mergedLists,
+                  folders: s.folders || [],
+                  whiteboards: s.whiteboards || [],
+                  channels: s.channels || [],
+                  statuses: s.statuses || [],
+                  clickApps: s.click_apps || {},
+                  customFields: s.custom_fields_config || []
+                };
+              });
               setSpaces(formattedSpaces);
               if (!hasSeededSpaces) {
-                try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
+                try {
+                  localStorage.setItem(`apexa_seeded_spaces_${userId}`, 'true');
+                  localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true');
+                } catch (e) {}
               }
               return true;
             }
@@ -2482,41 +2608,42 @@ export default function App() {
           }
 
           if (localSpaces.length === 0) {
+            const targetWsId = activeWorkspaceId || workspaces[0]?.id || 'w2';
             localSpaces = [
               {
-                id: 's-w1-personal',
+                id: `s-${targetWsId}-personal`,
                 name: 'Personal Space',
                 emoji: '🧘',
                 themeColor: 'indigo',
-                workspaceId: 'w1',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w1-inbox', name: 'Inbox' },
-                  { id: 'l-w1-todo', name: 'To Do' }
+                  { id: `l-${targetWsId}-inbox`, name: 'Inbox' },
+                  { id: `l-${targetWsId}-todo`, name: 'To Do' }
                 ],
                 clickApps: { subtasks: true, priorities: true }
               },
               {
-                id: 's-w2-product',
+                id: `s-${targetWsId}-product`,
                 name: 'Product Space',
                 emoji: '🔮',
                 themeColor: 'indigo',
-                workspaceId: 'w2',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w2-roadmap', name: 'Product Roadmap' },
-                  { id: 'l-w2-sprint1', name: 'Sprint 1' }
+                  { id: `l-${targetWsId}-roadmap`, name: 'Product Roadmap' },
+                  { id: `l-${targetWsId}-sprint1`, name: 'Sprint 1' }
                 ],
                 clickApps: { subtasks: true, priorities: true, customFields: true, timeTracking: true }
               },
               {
-                id: 's-w2-marketing',
+                id: `s-${targetWsId}-marketing`,
                 name: 'Marketing Space',
                 emoji: '📢',
                 themeColor: 'rose',
-                workspaceId: 'w2',
+                workspaceId: targetWsId,
                 lists: [
-                  { id: 'l-w2-campaign', name: 'Campaign Kickoff' },
-                  { id: 'l-w2-seo', name: 'SEO Plan' },
-                  { id: 'l-w2-email', name: 'Email Launch' }
+                  { id: `l-${targetWsId}-campaign`, name: 'Campaign Kickoff' },
+                  { id: `l-${targetWsId}-seo`, name: 'SEO Plan' },
+                  { id: `l-${targetWsId}-email`, name: 'Email Launch' }
                 ],
                 clickApps: { subtasks: true, priorities: true, customFields: true, relationships: true }
               }
@@ -2525,13 +2652,18 @@ export default function App() {
 
           // Migrate to Supabase
           try {
+            const validWorkspaceIds = new Set(workspaces.map(w => w.id));
             for (const space of localSpaces) {
-              await supabase.from('spaces').insert({
+              let spaceWsId = space.workspaceId;
+              if (!spaceWsId || (!validWorkspaceIds.has(spaceWsId) && validWorkspaceIds.size > 0)) {
+                spaceWsId = activeWorkspaceId || workspaces[0]?.id || spaceWsId;
+              }
+              const { error: spErr } = await supabase.from('spaces').insert({
                 id: space.id,
                 name: space.name,
                 emoji: space.emoji || null,
                 theme_color: space.themeColor || null,
-                workspace_id: space.workspaceId,
+                workspace_id: spaceWsId,
                 folders: space.folders || [],
                 whiteboards: space.whiteboards || [],
                 channels: space.channels || [],
@@ -2540,6 +2672,11 @@ export default function App() {
                 user_id: userId
               });
               
+              if (spErr) {
+                console.warn('Skipping lists insert for seeded space due to error:', spErr.message || spErr);
+                continue;
+              }
+
               if (space.lists.length > 0) {
                 const listsToInsert = space.lists.map(l => ({
                   id: l.id,
@@ -2548,7 +2685,10 @@ export default function App() {
                   folder_id: l.folderId || null,
                   user_id: userId
                 }));
-                await supabase.from('lists').insert(listsToInsert);
+                const { error: lsErr } = await supabase.from('lists').insert(listsToInsert);
+                if (lsErr) {
+                  console.error('Failed to insert lists during seed:', lsErr.message || lsErr);
+                }
               }
             }
             try { localStorage.setItem(`avaxa_seeded_spaces_${userId}`, 'true'); } catch (e) {}
@@ -2560,7 +2700,6 @@ export default function App() {
         }
 
         setDataLoaded(true);
-        addSyncLog('Cloud storage synchronized with Supabase successfully!');
 
         // Set up Realtime Postgres Changes Channels
         if (active) {
@@ -2824,8 +2963,6 @@ export default function App() {
               }
             )
             .subscribe();
-
-          addSyncLog('Realtime sync via Supabase channels successful!');
         }
       } catch (err) {
         console.error('Error during realtime data sync:', err);
@@ -2950,7 +3087,7 @@ export default function App() {
     setActiveListId(null);
     setAccentPreset(theme as any);
     triggerToast('success', 'Success', `Created and switched to new workspace: ${name}`);
-    addSyncLog(`Saved new workspace offline: ${name}`);
+    addSyncLog(`Đã tạo Không gian làm việc mới: "${name}"`, 'workspace');
   };
 
   const handleUpdateWorkspace = async (id: string, name: string, theme: string, coverUrl?: string, logoUrl?: string, settings?: any) => {
@@ -2972,7 +3109,7 @@ export default function App() {
               .update({ name, theme, initial })
               .eq('id', id);
           } else {
-            addSyncLog(`Synchronized workspace update "${name}" to Supabase`);
+            addSyncLog(`Đã cập nhật Không gian làm việc "${name}"`, 'workspace');
           }
         }
       } catch (err) {
@@ -3016,7 +3153,7 @@ export default function App() {
           if (error) {
             console.error('Error deleting workspace from database:', error.message);
           } else {
-            addSyncLog(`Synchronized workspace deletion "${targetWS.name}" on Supabase`);
+            addSyncLog(`Đã xóa Không gian làm việc "${targetWS.name}"`, 'workspace');
           }
         }
       } catch (err) {
@@ -3133,15 +3270,12 @@ export default function App() {
               if (retryError) {
                 console.error('Retry task insert failed:', retryError);
                 triggerToast('info', 'Task Save Error (Supabase)', `${retryError.message}`);
-              } else {
-                addSyncLog(`Task saved successfully in compatibility mode (No workspace_id): "${newTask.title}"`);
               }
             } else {
               triggerToast('info', 'Task Save Error (Supabase)', `${error.message}`);
             }
-          } else {
-            addSyncLog(`Task synchronized successfully to Supabase: "${newTask.title}"`);
           }
+          addSyncLog(`Đã tạo công việc mới: "${newTask.title}"`, 'task');
         }
       } catch (err) {
         console.error('Task sync failure:', err);
@@ -3149,6 +3283,7 @@ export default function App() {
     } else {
       setOfflineTasksQueue(prev => ({ ...prev, [newTask.id]: newTask }));
       setOfflineDeletedTasks(prev => prev.filter(id => id !== newTask.id));
+      addSyncLog(`Đã tạo công việc mới (Ngoại tuyến): "${newTask.title}"`, 'task');
     }
   };
 
@@ -3159,18 +3294,13 @@ export default function App() {
     if (isNewCompletion) {
       const incompleteBlockers = getIncompleteBlockers(updated, tasks);
       if (incompleteBlockers.length > 0) {
-        const blockerPreview = incompleteBlockers.slice(0, 2).map(task => `“${task.title}”`).join(', ');
         triggerToast(
           'info',
-          'Task is still blocked',
-          `Complete ${blockerPreview}${incompleteBlockers.length > 2 ? ` and ${incompleteBlockers.length - 2} more` : ''} before closing this task.`
+          'Cannot complete task',
+          `Task "${updated.title}" is blocked by ${incompleteBlockers.length} incomplete tasks.`
         );
         return;
       }
-    }
-
-    if (updated.status === 'completed' && !updated.completedAt) {
-      updated = { ...updated, completedAt: new Date().toISOString() };
     }
 
     if (oldTask) {
@@ -3181,37 +3311,38 @@ export default function App() {
           'Assignee Changed',
           `Task "${updated.title}" has been handed over to ${targetUser ? targetUser.name : 'another colleague'}.`
         );
+        addSyncLog(`Đã bàn giao công việc "${updated.title}" cho ${targetUser ? targetUser.name : 'thành viên khác'}`, 'task');
       }
       if (oldTask.status !== updated.status) {
         if (updated.status === 'completed') {
           triggerToast(
             'success',
-            'Task Completed! 🎉',
+            'Task Completed!',
             `Member has completed the task: "${updated.title}".`
           );
+          addSyncLog(`Đã hoàn thành công việc "${updated.title}"`, 'task');
         } else {
           const statusTranslation: Record<string, string> = {
-            todo: 'TO DO',
-            inprogress: 'IN PROGRESS',
-            review: 'REVIEW',
-            completed: 'COMPLETED'
+            todo: 'Việc cần làm',
+            inprogress: 'Đang thực hiện',
+            review: 'Đang kiểm tra',
+            completed: 'Đã hoàn thành'
           };
           triggerToast(
             'info',
             'Status Updated',
             `Task "${updated.title}" moved to "${statusTranslation[updated.status] || updated.status}".`
           );
+          addSyncLog(`Đã chuyển công việc "${updated.title}" sang "${statusTranslation[updated.status] || updated.status}"`, 'task');
         }
       }
     }
 
-    setTasks(prev => {
-      console.log('[handleUpdateTask] setTasks called. updated.id:', updated.id, 'updated.status:', updated.status);
-      console.log('[handleUpdateTask] prev task statuses:', prev.map(t => `${t.id}:${t.status}`));
-      const result = prev.map(t => t.id === updated.id ? updated : t);
-      console.log('[handleUpdateTask] result task statuses:', result.map(t => `${t.id}:${t.status}`));
-      return result;
-    });
+    if (updated.status === 'completed' && !updated.completedAt) {
+      updated = { ...updated, completedAt: new Date().toISOString() };
+    }
+
+    setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
 
     if (!isOffline) {
       try {
@@ -3223,29 +3354,36 @@ export default function App() {
             priority: updated.priority,
             status: updated.status,
             assigneeId: updated.assigneeId || null,
+            assigneeIds: updated.assigneeIds || null,
             startDate: updated.startDate || null,
             dueDate: updated.dueDate || null,
-            subtasks: updated.subtasks,
-            progress: updated.progress,
-            hoursEstimate: updated.hoursEstimate || null,
-            hoursLogged: updated.hoursLogged || null,
+            subtasks: updated.subtasks || [],
+            progress: updated.progress || 0,
             completedAt: updated.completedAt || null,
-            commentsCount: updated.commentsCount,
+            hoursEstimate: updated.hoursEstimate || null,
+            hoursLogged: updated.hoursLogged || 0,
+            commentsCount: updated.commentsCount || 0,
             tags: updated.tags || [],
             isPinned: updated.isPinned || false,
-            comments: updated.comments,
+            comments: updated.comments || [],
+            workspace_id: updated.workspaceId || null,
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
             custom_fields: buildTaskCustomFields(updated),
-            recurrence: updated.recurrence || null
+            recurrence: updated.recurrence || null,
+            relationships: updated.relationships || null
           }).eq('id', updated.id).eq('user_id', session.user.id);
-          if (error) console.error('Supabase Task Update Error:', error);
+          
+          if (error) {
+            console.error('Supabase Task Update Error:', error);
+          }
         }
       } catch (err) {
         console.error('Task update sync failure:', err);
       }
     } else {
       setOfflineTasksQueue(prev => ({ ...prev, [updated.id]: updated }));
+      setOfflineDeletedTasks(prev => prev.filter(id => id !== updated.id));
     }
 
     if (isNewCompletion && updated.recurrence && updated.recurrence.frequency !== 'none') {
@@ -3280,7 +3418,7 @@ export default function App() {
         relationships: updated.relationships,
         recurrence: updated.recurrence,
       });
-      addSyncLog(`Created next recurring occurrence for "${updated.title}" on ${nextDueDate}`);
+      addSyncLog(`Đã tạo chu kỳ lặp lại tiếp theo cho "${updated.title}" vào ngày ${nextDueDate}`, 'task');
     }
   };
 
@@ -3292,6 +3430,7 @@ export default function App() {
         'Task Deleted',
         `Task "${targetTask.title}" has been removed from the system.`
       );
+      addSyncLog(`Đã xóa công việc "${targetTask.title}"`, 'task');
     }
 
     setTasks(prev => prev.filter(t => t.id !== id));
@@ -3336,15 +3475,8 @@ export default function App() {
             console.warn('First task order upsert attempt failed, retrying without workspace_id:', error.message);
             if (error.message && (error.message.includes('workspace_id') || error.message.includes('column'))) {
               delete (payload as any).workspace_id;
-              const { error: retryError } = await supabase.from('docs').upsert([payload]);
-              if (retryError) {
-                console.error('Retry task order upsert failed:', retryError);
-              } else {
-                addSyncLog(`Synchronized task sorting order to DB (Compatibility mode)`);
-              }
+              await supabase.from('docs').upsert([payload]);
             }
-          } else {
-            addSyncLog(`Synchronized task sorting order to the cloud`);
           }
         }
       } catch (err) {
@@ -3363,6 +3495,7 @@ export default function App() {
     };
 
     setDocs(prev => [...prev, newDocObj]);
+    addSyncLog(`Đã tạo tài liệu mới: "${newDocObj.title}"`, 'doc');
 
     if (!isOffline) {
       try {
@@ -3390,14 +3523,10 @@ export default function App() {
               if (retryError) {
                 console.error('Retry doc insert failed:', retryError);
                 triggerToast('info', 'Document Save Error (Supabase)', `${retryError.message}`);
-              } else {
-                addSyncLog(`Document saved successfully in compatibility mode (No workspace_id): "${newDocObj.title}"`);
               }
             } else {
               triggerToast('info', 'Document Save Error (Supabase)', `${error.message}`);
             }
-          } else {
-            addSyncLog(`Document synchronized successfully to Supabase: "${newDocObj.title}"`);
           }
         }
       } catch (err) {
@@ -3716,7 +3845,7 @@ export default function App() {
           className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-[0_20px_50px_rgba(109,85,254,0.2)] space-y-6 overflow-hidden"
         >
           {/* Top gradient border */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400" />
           
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
@@ -3786,7 +3915,7 @@ export default function App() {
               <button 
                 type="submit"
                 disabled={onboardingSubmitting}
-                className="w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black rounded-2xl shadow-lg shadow-indigo-500/20 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
+                className="w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black rounded-2xl shadow-lg shadow-blue-500/20 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 {onboardingSubmitting ? (
                   <span>Đang tạo không gian...</span>
@@ -3825,15 +3954,15 @@ export default function App() {
           
           <div 
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/70 dark:bg-slate-850/60 border border-slate-200/60 dark:border-slate-800 cursor-pointer max-w-[130px] select-none"
+            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer max-w-[130px] select-none shadow-3xs"
           >
             <div 
-              className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden"
+              className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
               style={!currentWorkspace?.logoUrl ? {
                 background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                             currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
                             currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                            'linear-gradient(135deg, #7B61FF, #6D55FE)',
+                            'linear-gradient(135deg, #2563EB, #0284C7)',
               } : undefined}
             >
               {currentWorkspace?.logoUrl ? (
@@ -3849,80 +3978,61 @@ export default function App() {
         </div>
 
         {/* Left header switcher section (desktop) */}
-        <div className={`hidden md:flex items-center justify-between py-2 shrink-0 border-r border-[var(--cu-border)] transition-all duration-350 ease-in-out relative ${
-          isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-1 justify-center' : 'w-[var(--cu-sidebar-width)] px-3'
+        <div className={`hidden md:flex items-center justify-between py-2 shrink-0 transition-all duration-350 ease-in-out relative ${
+          isMainSidebarCollapsed ? 'px-2' : 'w-[var(--cu-sidebar-width)] px-3'
         }`}>
-          <div className={`flex items-center relative flex-1 min-w-0 ${isMainSidebarCollapsed ? 'justify-center' : 'gap-2 px-1'}`}>
-            {isMainSidebarCollapsed ? (
-              <motion.div 
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-md shrink-0 select-none overflow-hidden cursor-pointer hover:opacity-95 transition-all animate-fade-in relative group"
-                onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                style={!currentWorkspace?.logoUrl ? {
-                  background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                              currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                              currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                              'linear-gradient(135deg, #7B61FF, #6D55FE)',
-                } : undefined}
-                title={currentWorkspace?.name || 'Workspace'}
-              >
-                {currentWorkspace?.logoUrl ? (
-                  <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                ) : (
-                  <span>{currentWorkspace?.initial || 'A'}</span>
-                )}
-                {/* Glow ring */}
-                <div className="absolute inset-0 border border-white/20 rounded-2xl group-hover:border-white/40 transition-colors" />
-              </motion.div>
-            ) : (
-              <>
-                {/* Sidebar toggle button (collapse when expanded) */}
-                <button 
-                  onClick={() => setIsMainSidebarCollapsed(true)} 
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40"
-                  title="Thu gọn thanh bên"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
- 
-                {/* Compact Switcher Pill Button */}
-                <div 
-                  className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-full bg-slate-50/50 dark:bg-slate-900/40 border border-slate-250/55 dark:border-slate-850/55 hover:bg-slate-100/70 hover:border-slate-300/80 dark:hover:bg-slate-800/50 transition-all duration-200 cursor-pointer select-none group shadow-3xs min-w-0"
-                  onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div 
-                      className="w-5 h-5 rounded-lg flex items-center justify-center text-white font-black text-[9px] shadow-3xs shrink-0 select-none overflow-hidden"
-                      style={!currentWorkspace?.logoUrl ? {
-                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                    'linear-gradient(135deg, #7B61FF, #6D55FE)',
-                      } : undefined}
-                    >
-                      {currentWorkspace?.logoUrl ? (
-                        <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
-                      ) : (
-                        <span>{currentWorkspace?.initial || 'A'}</span>
-                      )}
-                    </div>
-                    <span className="font-sans font-extrabold text-slate-800 dark:text-slate-100 text-[12.5px] tracking-tight truncate flex-1">
-                      {currentWorkspace?.name || 'Loading...'}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
-                </div>
+          <div className="flex items-center gap-1.5 relative flex-1 min-w-0">
+            {/* Sidebar toggle button (collapse / expand) */}
+            <button 
+              onClick={() => setIsMainSidebarCollapsed(!isMainSidebarCollapsed)} 
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40"
+              title={isMainSidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+            >
+              {isMainSidebarCollapsed ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </button>
 
-                {/* Calendar Shortcut Button */}
-                <button 
-                  onClick={() => setActiveTab('calendar')} 
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40" 
-                  title="Lịch"
+            {/* Compact Switcher Pill Button - Always displays Avatar & Workspace Name */}
+            <button
+              type="button" 
+              className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 cursor-pointer select-none group shadow-3xs min-w-0 text-left"
+              onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div 
+                  className="w-5 h-5 rounded-lg flex items-center justify-center text-white font-black text-[9px] shadow-3xs shrink-0 select-none overflow-hidden"
+                  style={!currentWorkspace?.logoUrl ? {
+                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                'linear-gradient(135deg, #2563EB, #0284C7)',
+                  } : undefined}
                 >
-                  <Calendar className="w-4 h-4" />
-                </button>
-              </>
+                  {currentWorkspace?.logoUrl ? (
+                    <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
+                  ) : (
+                    <span>{currentWorkspace?.initial || (currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A')}</span>
+                  )}
+                </div>
+                <span className="font-sans font-extrabold text-slate-800 dark:text-slate-100 text-[12.5px] tracking-tight truncate flex-1">
+                  {currentWorkspace?.name || 'Avaxa'}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
+            </button>
+
+            {/* Calendar Shortcut Button */}
+            {!isMainSidebarCollapsed && (
+              <button 
+                onClick={() => setActiveTab('calendar')} 
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40" 
+                title="Lịch"
+              >
+                <Calendar className="w-4 h-4" />
+              </button>
             )}
 
             {/* Workspace Dropdown Menu */}
@@ -3943,7 +4053,7 @@ export default function App() {
                       
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-indigo-500/15 shrink-0 select-none overflow-hidden ring-2 ring-white dark:ring-slate-800 transition-transform duration-300 group-hover:scale-[1.03]"
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/15 shrink-0 select-none overflow-hidden ring-2 ring-white dark:ring-slate-800 transition-transform duration-300 group-hover:scale-[1.03]"
                           style={!currentWorkspace?.logoUrl ? {
                             background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                                         currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
@@ -4061,7 +4171,7 @@ export default function App() {
                         setShowWorkspaceMenu(false);
                         setShowAddWorkspaceModal(true);
                       }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-indigo-500/10 group/create"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-blue-500/10 group/create"
                     >
                       <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center group-hover/create:scale-110 transition-transform duration-200">
                         <Plus className="w-3.5 h-3.5 font-bold text-indigo-600 dark:text-indigo-300" />
@@ -4078,85 +4188,116 @@ export default function App() {
         {/* Right side Header section */}
         <div className="flex-1 flex items-center justify-between px-6 py-3 min-w-0">
           <div className="flex items-center gap-2.5">
-            {/* Sidebar toggle button (restore when collapsed) */}
-            {isMainSidebarCollapsed && (
-              <button 
-                onClick={() => setIsMainSidebarCollapsed(false)} 
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40 mr-1"
-                title="Mở rộng thanh bên"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-
+            {/* Modern Breadcrumb Navigation */}
             {(() => {
-              let label = '';
-              let ActiveIcon = null;
-              const activeItem = sidebarItems.find(i => i.id === activeTab);
-              if (activeItem) {
-                label = activeItem.label;
-                ActiveIcon = activeItem.icon;
-              } else if (activeTab === 'tasks' || activeTab === 'my-tasks') {
-                label = 'Space';
-                ActiveIcon = Briefcase;
-              }
-
-              // Evaluate theme values
-              const currentTheme = currentWorkspace?.theme || 'indigo';
-              const activeColors = (() => {
-                switch(currentTheme) {
-                  case 'ocean': return { bg: 'bg-sky-500/10 dark:bg-sky-500/20', text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-500/20 dark:border-sky-500/30', color: '#0891b2' };
-                  case 'forest': return { bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20 dark:border-emerald-500/30', color: '#047857' };
-                  case 'sunset': return { bg: 'bg-rose-500/10 dark:bg-rose-500/20', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/20 dark:border-rose-500/30', color: '#e11d48' };
-                  default: return { bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', text: 'text-indigo-650 dark:text-indigo-400', border: 'border-indigo-500/20 dark:border-indigo-500/30', color: '#7B61FF' };
-                }
-              })();
-
               const selectedSpace = spaces.find(space => space.id === activeSpaceId);
               const selectedList = selectedSpace?.lists.find(list => list.id === activeListId);
               const selectedFolder = selectedList?.folderId
                 ? selectedSpace?.folders?.find(folder => folder.id === selectedList.folderId)
                 : undefined;
 
-              if (activeTab === 'tasks' || activeTab === 'my-tasks') {
-                return (
-                  <nav aria-label="Cấu trúc không gian làm việc" className="flex min-w-0 items-center gap-1 text-[11px] font-bold">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('dashboard')}
-                      className="max-w-28 truncate rounded-lg px-1.5 py-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-                    >
-                      {currentWorkspace?.name || 'Workspace'}
-                    </button>
-                    <ChevronRight className="h-3 w-3 shrink-0 text-slate-300 dark:text-slate-600" />
-                    {selectedSpace ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setActiveSpaceId(selectedSpace.id); setActiveListId(null); }}
-                          className="max-w-32 truncate rounded-lg px-1.5 py-1 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                        >
-                          {selectedSpace.emoji || '◈'} {selectedSpace.name}
-                        </button>
-                        {selectedFolder && <><ChevronRight className="h-3 w-3 shrink-0 text-slate-300 dark:text-slate-600" /><span className="hidden max-w-28 truncate text-slate-500 md:inline dark:text-slate-400">{selectedFolder.name}</span></>}
-                        {selectedList && <><ChevronRight className="h-3 w-3 shrink-0 text-slate-300 dark:text-slate-600" /><span className="max-w-32 truncate rounded-lg bg-indigo-50 px-2 py-1 font-black text-indigo-650 dark:bg-indigo-500/10 dark:text-indigo-300">{selectedList.name}</span></>}
-                      </>
-                    ) : (
-                      <span className="rounded-lg bg-indigo-50 px-2 py-1 font-black text-indigo-650 dark:bg-indigo-500/10 dark:text-indigo-300">
-                        {activeTab === 'my-tasks' ? 'My Tasks' : 'All Tasks'}
-                      </span>
-                    )}
-                  </nav>
-                );
-              }
+              const activeItem = sidebarItems.find(i => i.id === activeTab);
 
               return (
-                <div className={`flex items-center gap-1.5 ${activeColors.bg} px-3.5 py-1 rounded-full border ${activeColors.border} shadow-3xs`}>
-                  {ActiveIcon && <ActiveIcon className="w-3.5 h-3.5 shrink-0" style={{ color: activeColors.color }} />}
-                  <h1 className={`text-[11.5px] font-black font-sans ${activeColors.text} tracking-tight capitalize select-none`}>
-                    {label}
-                  </h1>
-                </div>
+                <nav aria-label="Cấu trúc điều hướng" className="flex min-w-0 items-center gap-1.5 text-xs select-none">
+                  {/* Root: Workspace Item */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('dashboard')}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 font-extrabold text-[12px] transition-colors max-w-36 truncate cursor-pointer group"
+                    title={`Workspace: ${currentWorkspace?.name || 'Avaxa'}`}
+                  >
+                    <div 
+                      className="w-4 h-4 rounded-md flex items-center justify-center text-white font-black text-[8px] shrink-0 shadow-3xs overflow-hidden"
+                      style={!currentWorkspace?.logoUrl ? {
+                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
+                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
+                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
+                                    'linear-gradient(135deg, #2563EB, #0284C7)',
+                      } : undefined}
+                    >
+                      {currentWorkspace?.logoUrl ? (
+                        <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS" />
+                      ) : (
+                        <span>{currentWorkspace?.initial || 'A'}</span>
+                      )}
+                    </div>
+                    <span className="truncate">{currentWorkspace?.name || 'Avaxa'}</span>
+                  </button>
+
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />
+
+                  {/* Second level & details */}
+                  {(activeTab === 'tasks' || activeTab === 'my-tasks') ? (
+                    selectedSpace ? (
+                      <>
+                        <div className="flex items-center gap-0.5 rounded-lg hover:bg-slate-100/80 dark:hover:bg-slate-800/80 p-0.5 transition-colors group">
+                          {/* Nhấn trực tiếp vào icon để đổi biểu tượng & màu sắc */}
+                          <EmojiIconPicker
+                            size="inline"
+                            value={selectedSpace.emoji || 'Folder'}
+                            onChange={(newIcon) => {
+                              const updatedSpace = { ...selectedSpace, emoji: newIcon };
+                              useSpaceStore.getState().updateSpace(updatedSpace);
+                              if (currentUser && !(currentUser as any).isGuest) {
+                                supabase
+                                  .from('spaces')
+                                  .update({ emoji: newIcon })
+                                  .eq('id', selectedSpace.id)
+                                  .then(() => {});
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { setActiveSpaceId(selectedSpace.id); setActiveListId(null); }}
+                            className="px-1 py-0.5 text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white font-extrabold text-[12px] transition-colors max-w-36 truncate cursor-pointer"
+                          >
+                            <span className="truncate">{selectedSpace.name}</span>
+                          </button>
+                        </div>
+                        {selectedFolder && (
+                          <>
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />
+                            <span className="hidden md:inline px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 max-w-28 truncate">
+                              {selectedFolder.name}
+                            </span>
+                          </>
+                        )}
+                        {selectedList && (
+                          <>
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />
+                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-700 dark:text-sky-300 border border-blue-500/25 font-bold text-xs shadow-3xs max-w-44 truncate">
+                              <ListTodo className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
+                              <span className="truncate">{selectedList.name}</span>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-700 dark:text-sky-300 border border-blue-500/25 font-bold text-xs shadow-3xs">
+                        {activeTab === 'my-tasks' ? (
+                          <>
+                            <CheckSquare className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
+                            <span>Công việc của tôi</span>
+                          </>
+                        ) : (
+                          <>
+                            <ListTodo className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
+                            <span>Tất cả công việc</span>
+                          </>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    activeItem && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-700 dark:text-sky-300 border border-blue-500/25 font-bold text-xs shadow-3xs">
+                        {activeItem.icon && <activeItem.icon className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
+                        <span className="capitalize">{activeItem.label}</span>
+                      </div>
+                    )
+                  )}
+                </nav>
               );
             })()}
             
@@ -4253,26 +4394,31 @@ export default function App() {
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowDisplayOptionsMenu(false)} />
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.94, y: 10 }}
+                          initial={{ opacity: 0, scale: 0.95, y: 8 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.94, y: 10 }}
-                          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                          className="absolute right-0 top-full mt-2 w-80 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] p-5 z-50 text-left space-y-4.5 font-sans backdrop-blur-2xl"
+                          exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                          transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                          className="absolute right-0 top-full mt-2 w-84 sm:w-92 max-w-[92vw] bg-white dark:bg-[#0c0f18] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)] p-5 z-50 text-left space-y-4 font-sans overflow-hidden"
                         >
                           {/* Popover Header */}
                           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
                             <div className="flex items-center gap-2.5">
-                              <div className="p-2 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-500 border border-sky-500/20 shadow-2xs">
+                              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center shadow-3xs shrink-0">
                                 <Sliders className="w-4 h-4" />
                               </div>
-                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">
-                                {locale === 'vi' ? 'Tùy chọn hiển thị' : 'DISPLAY OPTIONS'}
-                              </h4>
+                              <div>
+                                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                                  {locale === 'vi' ? 'Tùy chọn hiển thị' : 'Display Options'}
+                                </h4>
+                                <span className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-400">
+                                  {locale === 'vi' ? 'Tùy chỉnh ngày giờ & giao diện' : 'Customize date & UI layout'}
+                                </span>
+                              </div>
                             </div>
                             <button 
                               type="button"
                               onClick={() => setShowDisplayOptionsMenu(false)} 
-                              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -4280,10 +4426,10 @@ export default function App() {
 
                           {/* Date Format Section */}
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest block">
-                              {locale === 'vi' ? 'Định dạng ngày & giờ' : 'DATE & TIME FORMAT'}
+                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider block px-1">
+                              {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time Format'}
                             </label>
-                            <div className="space-y-1">
+                            <div className="p-1 bg-slate-50/80 dark:bg-slate-950/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-1">
                               {[
                                 { id: 'short', label: locale === 'vi' ? 'Ngắn gọn (Wed, Jul 22)' : 'Short (Wed, Jul 22)', icon: '📅' },
                                 { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime (Wed, Jul 22 • 08:57)' : 'Live Clock (Wed, Jul 22 • 08:57)', icon: '⏰' },
@@ -4296,22 +4442,19 @@ export default function App() {
                                   <button
                                     key={fmt.id}
                                     type="button"
-                                    onClick={() => {
-                                      setDateFormat(fmt.id as any);
-                                      (window as any).playSystemSound?.('click');
-                                    }}
-                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                                    onClick={() => setDateFormat(fmt.id as any)}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
                                       isSelected
-                                        ? 'bg-sky-500/12 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-300/40 dark:border-sky-700/50 shadow-2xs font-extrabold'
-                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
+                                        ? 'bg-white dark:bg-slate-800/90 text-blue-600 dark:text-sky-300 border border-blue-200/80 dark:border-blue-700/60 shadow-xs font-black'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/60 border border-transparent font-bold'
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2.5 truncate">
-                                      <span className="text-sm">{fmt.icon}</span>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <span className="text-sm shrink-0">{fmt.icon}</span>
                                       <span className="truncate">{fmt.label}</span>
                                     </div>
                                     {isSelected && (
-                                      <Check className="w-4 h-4 text-sky-500 dark:text-sky-400 shrink-0 stroke-[3]" />
+                                      <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0 stroke-[3] ml-2" />
                                     )}
                                   </button>
                                 );
@@ -4321,20 +4464,17 @@ export default function App() {
 
                           {/* UI Density Options */}
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
-                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest block">
-                              {locale === 'vi' ? 'Mật độ hiển thị UI' : 'INTERFACE DENSITY'}
+                            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider block px-1">
+                              {locale === 'vi' ? 'Mật độ hiển thị UI' : 'Interface Density'}
                             </label>
-                            <div className="grid grid-cols-2 gap-2 bg-slate-100/60 dark:bg-slate-950/60 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                            <div className="grid grid-cols-2 gap-1.5 bg-slate-50/80 dark:bg-slate-950/60 p-1 rounded-2xl border border-slate-100 dark:border-slate-800/80">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setUiDensity('comfortable');
-                                  (window as any).playSystemSound?.('toggle');
-                                }}
+                                onClick={() => setUiDensity('comfortable')}
                                 className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                   uiDensity === 'comfortable'
-                                    ? 'bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-md border border-sky-200/60 dark:border-sky-800/60'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-xs border border-slate-200/60 dark:border-slate-700/60'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
                                 <span>🌿</span>
@@ -4342,14 +4482,11 @@ export default function App() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setUiDensity('compact');
-                                  (window as any).playSystemSound?.('toggle');
-                                }}
+                                onClick={() => setUiDensity('compact')}
                                 className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                   uiDensity === 'compact'
-                                    ? 'bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-md border border-sky-200/60 dark:border-sky-800/60'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-xs border border-slate-200/60 dark:border-slate-700/60'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
                                 <span>⚡</span>
@@ -4359,21 +4496,11 @@ export default function App() {
                           </div>
 
                           {/* Quick Theme Switch */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">
-                              {locale === 'vi' ? 'Chế độ giao diện' : 'THEME MODE'}
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-1">
+                            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">
+                              {locale === 'vi' ? 'Chế độ giao diện' : 'Theme Mode'}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsDarkMode(!isDarkMode);
-                                (window as any).playSystemSound?.('click');
-                              }}
-                              className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-all cursor-pointer shadow-2xs active:scale-95"
-                            >
-                              <span>{isDarkMode ? '🌙' : '☀️'}</span>
-                              <span>{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
-                            </button>
+                            <ThemeSwitch size="sm" />
                           </div>
                         </motion.div>
                       </>
@@ -4398,31 +4525,11 @@ export default function App() {
               </motion.button>
             )}
 
-            {/* Ngôn ngữ hiển thị được thống nhất là tiếng Việt */}
-            <div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-slate-800/60 text-xs font-black shadow-3xs"
-              title="Ngôn ngữ hiển thị: Tiếng Việt"
-            >
-              <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="uppercase text-[11px] font-mono tracking-tight font-extrabold">VI 🇻🇳</span>
-            </div>
+            {/* Language Selector Dropdown */}
+            <LanguageDropdown size="md" />
 
-            {/* Quick 1-Click Dark Mode Toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsDarkMode(!isDarkMode);
-                (window as any).playSystemSound?.('click');
-              }}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50 cursor-pointer"
-              title={isDarkMode ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
-            >
-              {isDarkMode ? (
-                <Sun className="w-4.5 h-4.5 text-amber-400 animate-spin-slow" />
-              ) : (
-                <Moon className="w-4.5 h-4.5 text-indigo-500" />
-              )}
-            </button>
+            {/* Quick 1-Click Dark Mode Toggle Switch */}
+            <ThemeSwitch size="md" />
 
             {/* 🔔 Notification Center Dropdown & Badge Manager */}
             <div className="relative">
@@ -4432,9 +4539,9 @@ export default function App() {
                 title="Cài đặt thông báo"
               >
                 <Bell className="w-4.5 h-4.5" />
-                {notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
+                {unreadNotificationsCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 bg-rose-500 border border-white dark:border-slate-900 rounded-full text-[9px] font-black text-white items-center justify-center animate-pulse shadow-sm">
-                    {notificationsList.filter(n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length}
+                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
                   </span>
                 )}
               </button>
@@ -4457,7 +4564,9 @@ export default function App() {
                       <div className="p-3.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
                         <div className="flex items-center gap-1.5">
                           <Bell className="w-4 h-4 text-indigo-500" />
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-200">Thông báo ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length})</span>
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                            Thông báo ({notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length + (workspaceInvitations?.length || 0)})
+                          </span>
                         </div>
                         {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length > 0 && (
                           <div className="flex gap-2.5">
@@ -4487,7 +4596,33 @@ export default function App() {
 
                       {/* Notifications List scrollable */}
                       <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/40">
-                        {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length === 0 ? (
+                        {/* Pending workspace invitations in dropdown */}
+                        {workspaceInvitations && workspaceInvitations.length > 0 && (
+                          workspaceInvitations.map(inv => (
+                            <div 
+                              key={inv.id} 
+                              onClick={() => {
+                                setActiveTab('inbox');
+                                setShowNotificationsMenu(false);
+                              }}
+                              className="p-3 bg-blue-50/70 dark:bg-blue-950/40 flex gap-2.5 items-start cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/40 transition-colors"
+                            >
+                              <div className="p-1.5 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-sky-300 mt-0.5 shrink-0">
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[11px] font-black text-slate-900 dark:text-white block truncate">
+                                  Lời mời: {inv.workspaceName || 'Không gian mới'}
+                                </span>
+                                <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">
+                                  {inv.invitedByName || 'Quản trị viên'} mời bạn tham gia với vai trò <span className="font-bold uppercase text-blue-600 dark:text-sky-300">{inv.role}</span>.
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+
+                        {notificationsList.filter(n => !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= Date.now())).length === 0 && (!workspaceInvitations || workspaceInvitations.length === 0) ? (
                           <div className="py-10 px-4 text-center space-y-2">
                             <span className="text-xl inline-block">🎉</span>
                             <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Hộp thư trống!</p>
@@ -4506,20 +4641,22 @@ export default function App() {
                                   <div className={`p-1.5 rounded-xl border ${
                                     notif.type === 'assignment' ? 'bg-indigo-50 border-indigo-100/50 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-900/30' :
                                     notif.type === 'deadline' ? 'bg-rose-50 border-rose-100/50 text-rose-600 dark:bg-rose-955/40 dark:border-rose-900/30' :
-                                    notif.type === 'comment' || notif.type === 'message' ? 'bg-sky-50 border-sky-100/50 text-sky-600 dark:bg-sky-955/40 dark:border-sky-900/30' :
+                                    notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message' ? 'bg-sky-50 border-sky-100/50 text-sky-600 dark:bg-sky-955/40 dark:border-sky-900/30' :
                                     'bg-emerald-50 border-emerald-100/50 text-emerald-600 dark:bg-emerald-955/40 dark:border-emerald-900/30'
                                   }`}>
                                     {notif.type === 'assignment' && <Briefcase className="w-3.5 h-3.5" />}
                                     {notif.type === 'deadline' && <Timer className="w-3.5 h-3.5" />}
-                                    {(notif.type === 'comment' || notif.type === 'message') && <MessageSquare className="w-3.5 h-3.5" />}
-                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && <Sparkles className="w-3.5 h-3.5" />}
+                                    {(notif.type === 'comment' || notif.type === 'message' || notif.type === 'chat_message') && <MessageSquare className="w-3.5 h-3.5" />}
+                                    {notif.type !== 'assignment' && notif.type !== 'deadline' && notif.type !== 'comment' && notif.type !== 'message' && notif.type !== 'chat_message' && <Sparkles className="w-3.5 h-3.5" />}
                                   </div>
                                 </div>
 
                                 {/* Body */}
                                 <div className="space-y-0.5 flex-1 pr-6 cursor-pointer" onClick={() => {
-                                  // mark as read
+                                  // mark as read and open inbox
                                   setNotificationsList(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                  setActiveTab('inbox');
+                                  setShowNotificationsMenu(false);
                                 }}>
                                   <div className="flex items-center justify-between gap-2">
                                     <span className={`text-[11px] block truncate ${isUnread ? 'font-black text-slate-900 dark:text-slate-100' : 'font-semibold text-slate-600 dark:text-slate-400'}`}>
@@ -4527,7 +4664,7 @@ export default function App() {
                                     </span>
                                     <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{notif.timestamp}</span>
                                   </div>
-                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed break-words">
+                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed break-words line-clamp-2">
                                     {notif.message}
                                   </p>
                                 </div>
@@ -4555,16 +4692,25 @@ export default function App() {
                         )}
                       </div>
                       
-                      {/* Footer link to settings */}
-                      <div className="p-2.5 text-center bg-slate-50/50 dark:bg-slate-950/20">
+                      {/* Footer link to settings & inbox */}
+                      <div className="p-2.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20 px-3">
+                        <button
+                          onClick={() => {
+                            setActiveTab('inbox');
+                            setShowNotificationsMenu(false);
+                          }}
+                          className="text-[10px] font-black text-blue-600 hover:text-blue-700 dark:text-sky-400 hover:underline cursor-pointer inline-flex items-center gap-1"
+                        >
+                          📥 Mở Hộp thư Apexa
+                        </button>
                         <button
                           onClick={() => {
                             setActiveTab('settings');
                             setShowNotificationsMenu(false);
                           }}
-                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer inline-flex items-center gap-1"
+                          className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 hover:underline cursor-pointer inline-flex items-center gap-1"
                         >
-                          ⚙️ Cài đặt và tùy chọn thông báo
+                          ⚙️ Cài đặt
                         </button>
                       </div>
                     </motion.div>
@@ -4838,7 +4984,7 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
             <main className="flex-1 relative w-full h-full overflow-hidden cu-content-area">
@@ -4898,6 +5044,8 @@ export default function App() {
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
                       workspaceInvitations={workspaceInvitations}
+                      spaces={spaces}
+                      onNavigateToTab={(tab) => setActiveTab(tab as any)}
                       onAcceptInvite={handleAcceptWorkspaceInvite}
                       onDeclineInvite={handleDeclineWorkspaceInvite}
                     />
@@ -5025,6 +5173,14 @@ export default function App() {
                       isOffline={isOffline}
                       onAddBase={handleAddBase}
                       onUpdateBase={handleUpdateBase}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
+                    />
+                  )}
+
+                  {activeTab === 'finance' && (
+                    <FinanceHub
+                      activeWorkspaceId={activeWorkspaceId}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                     />
@@ -5260,7 +5416,7 @@ export default function App() {
                   {/* ── Header ── */}
                   <div className="space-y-2 pr-8">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
                         <Sparkles className="w-5 h-5" />
                       </div>
                       <div>
@@ -5525,7 +5681,7 @@ export default function App() {
                         type="button"
                         onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
                         className={`w-11 h-[26px] flex items-center rounded-full p-[3px] cursor-pointer transition-all duration-300 outline-none shrink-0 ${
-                          newSpaceIsPrivate ? 'bg-gradient-to-r from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/20' : 'bg-slate-200 dark:bg-slate-800'
+                          newSpaceIsPrivate ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-md shadow-blue-500/20' : 'bg-slate-200 dark:bg-slate-800'
                         }`}
                       >
                         <div 
@@ -5540,7 +5696,7 @@ export default function App() {
                   {/* ── Footer Actions ── */}
                   <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
                     <button 
-                      type="button"
+                      type="button" 
                       onClick={() => setShowAddSpaceModal(false)}
                       className="px-5 py-2.5 rounded-xl text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer active:scale-95"
                     >
@@ -5549,7 +5705,7 @@ export default function App() {
                     
                     <button 
                       type="submit" 
-                      className="group px-6 py-2.5 rounded-xl text-[12px] font-extrabold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.97] shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
+                      className="group px-6 py-2.5 rounded-xl text-[12px] font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.97] shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
                     >
                       <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Space' : 'Create Space')}</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -5563,29 +5719,14 @@ export default function App() {
       </AnimatePresence>
 
       {/* ── ADD LIST MODAL ── */}
-      <AnimatePresence>
-        {showAddListSpaceId && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddListSpaceId(null)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }} className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden z-10 text-left">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Tạo danh sách công việc mới</h3>
-                <button onClick={() => setShowAddListSpaceId(null)} className="p-1 rounded-md text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
-              </div>
-              <form onSubmit={handleAddList} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400">Tên danh sách</label>
-                  <input type="text" required value={newListName} onChange={e => setNewListName(e.target.value)} placeholder="Nhập tên danh sách..." className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-semibold" />
-                </div>
-                <div className="flex gap-3.5 pt-2">
-                  <button type="button" onClick={() => setShowAddListSpaceId(null)} className="flex-1 py-2 rounded-xl border border-slate-250 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer">Hủy</button>
-                  <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-650 hover:bg-indigo-700 cursor-pointer">Tạo danh sách</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AddListModal
+        isOpen={!!showAddListSpaceId}
+        onClose={() => setShowAddListSpaceId(null)}
+        spaceId={showAddListSpaceId}
+        spaces={spaces}
+        onAddList={handleAddNewList}
+        locale={locale}
+      />
 
       {/* ── SPACE SETTINGS MODAL ── */}
       <AnimatePresence>
@@ -5671,16 +5812,26 @@ export default function App() {
                     <button 
                       type="button" 
                       onClick={() => {
-                        const name = prompt(t('enterNewStatus') || 'Enter new status name:');
-                        if (!name) return;
-                        const colors = ['#94a3b8', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#a855f7'];
-                        const newStatus = {
-                          id: `status-${Date.now()}`,
-                          label: name,
-                          color: colors[Math.floor(Math.random() * colors.length)],
-                          type: 'inprogress' as TaskStatus
-                        };
-                        setEditSpaceStatuses(prev => [...prev, newStatus]);
+                        setPromptModalConfig({
+                          isOpen: true,
+                          type: 'status',
+                          title: t('addCustomStatus') || 'Thêm trạng thái công việc',
+                          placeholder: t('enterNewStatus') || 'Nhập tên trạng thái mới...',
+                          confirmText: 'Thêm trạng thái',
+                          onConfirm: (name) => {
+                            setPromptModalConfig(null);
+                            if (!name) return;
+                            const colors = ['#94a3b8', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#a855f7'];
+                            const newStatus = {
+                              id: `status-${Date.now()}`,
+                              label: name,
+                              color: colors[Math.floor(Math.random() * colors.length)],
+                              type: 'inprogress' as TaskStatus
+                            };
+                            setEditSpaceStatuses(prev => [...prev, newStatus]);
+                          },
+                          onCancel: () => setPromptModalConfig(null)
+                        });
                       }}
                       className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer text-center transition-colors"
                     >
@@ -5692,7 +5843,7 @@ export default function App() {
                 <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <button type="button" onClick={() => { handleDeleteSpace(showSpaceSettingsId); setShowSpaceSettingsId(null); }} className="mr-auto py-2 px-4 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold text-rose-600 dark:text-rose-400 cursor-pointer transition-colors">{t('deleteSpace') || 'Delete Space'}</button>
                   <button type="button" onClick={() => setShowSpaceSettingsId(null)} className="py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-pointer transition-colors">{t('cancel') || 'Cancel'}</button>
-                  <button type="button" onClick={handleSaveSpaceSettings} className="py-2 px-4 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer transition-colors shadow-md shadow-indigo-500/20">{t('saveSettings') || 'Save Settings'}</button>
+                  <button type="button" onClick={handleSaveSpaceSettings} className="py-2 px-4 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer transition-colors shadow-md shadow-blue-500/20">{t('saveSettings') || 'Save Settings'}</button>
                 </div>
               </div>
             </motion.div>
@@ -5768,6 +5919,11 @@ export default function App() {
         triggerToast={triggerToast}
         addSyncLog={addSyncLog}
       />
+
+      {/* Modern UI/UX Prompt Modal */}
+      {promptModalConfig && (
+        <PromptModal {...promptModalConfig} />
+      )}
 
       </div>
     </div>

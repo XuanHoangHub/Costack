@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
 import { analyzeTasks, serializeTaskIntelligence } from '@/lib/taskIntelligence';
 import type { Task } from '@/types';
 
@@ -63,7 +63,7 @@ Sử dụng các bảng biểu, gạch đầu dòng, in đậm để định d�
     }
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: contents,
       config: config
     });

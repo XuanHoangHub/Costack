@@ -51,7 +51,7 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
   return (
     <div className="max-w-xl mx-auto py-6 px-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-indigo-950/40 dark:to-cyan-950/40">
           <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">{table.name} — Biểu mẫu</h2>
           <p className="text-xs text-slate-500 mt-1">Điền thông tin bên dưới để thêm bản ghi mới</p>
         </div>
@@ -79,7 +79,7 @@ export default function BaseFormView({ table, members, onAddRecord, triggerToast
             type="submit"
             disabled={submitted}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black text-white transition-all cursor-pointer disabled:opacity-70"
-            style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}
+            style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #2563EB), var(--apexa-gradient-end, #FF3366))' }}
           >
             {submitted ? (
               <><Check className="w-4 h-4" /> Đã gửi!</>

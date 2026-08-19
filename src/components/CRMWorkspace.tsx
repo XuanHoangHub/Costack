@@ -10,6 +10,7 @@ import {
 import { BaseApp, BaseField, BaseRecord, BaseTable, User } from '@/types';
 import { createBaseFromTemplate } from '@/lib/baseTemplates';
 import SignedImage from './SignedImage';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CRMWorkspaceProps {
   bases: BaseApp[];
@@ -36,6 +37,7 @@ const optionColor = (field: BaseField | undefined, value: unknown) => field?.opt
 export default function CRMWorkspace({
   bases, members, activeWorkspaceId, isOffline, onAddBase, onUpdateBase, onAddSyncLog, triggerToast
 }: CRMWorkspaceProps) {
+  const { isVietnamese, locale } = useTranslation();
   const [view, setView] = useState<CRMView>('overview');
   const [query, setQuery] = useState('');
   const [showNewDeal, setShowNewDeal] = useState(false);
@@ -160,38 +162,73 @@ export default function CRMWorkspace({
 
   if (!crmBase || !opportunities) {
     return <div className="flex min-h-[70vh] items-center justify-center">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-indigo-200/70 bg-white p-8 text-center shadow-xl shadow-indigo-500/10 dark:border-indigo-900/50 dark:bg-slate-900 md:p-12">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-indigo-200/70 bg-white p-8 text-center shadow-xl shadow-blue-500/10 dark:border-indigo-900/50 dark:bg-slate-900 md:p-12">
         <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
-        <div className="relative"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg"><Handshake className="h-8 w-8" /></div><p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Apexa CRM</p><h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Xây dựng quan hệ. Chốt giao dịch.</h2><p className="mx-auto mt-3 max-w-lg text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">Khởi tạo CRM đầy đủ gồm pipeline, cơ hội, doanh nghiệp, hoạt động chăm sóc và báo cáo doanh thu — đồng bộ cùng workspace của bạn.</p><button type="button" onClick={createCRM} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700"><Sparkles className="h-4 w-4" /> Khởi tạo CRM Workspace</button>{isOffline && <p className="mt-3 text-[10px] font-semibold text-amber-600">Đang ngoại tuyến: CRM sẽ lưu cục bộ và đồng bộ khi có mạng.</p>}</div>
+        <div className="relative"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg"><Handshake className="h-8 w-8" /></div><p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Apexa CRM</p><h2 className="mt-2 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Xây dựng quan hệ. Chốt giao dịch.</h2><p className="mx-auto mt-3 max-w-lg text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">Khởi tạo CRM đầy đủ gồm pipeline, cơ hội, doanh nghiệp, hoạt động chăm sóc và báo cáo doanh thu — đồng bộ cùng workspace của bạn.</p><button type="button" onClick={createCRM} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700"><Sparkles className="h-4 w-4" /> Khởi tạo CRM Workspace</button>{isOffline && <p className="mt-3 text-[10px] font-semibold text-amber-600">Đang ngoại tuyến: CRM sẽ lưu cục bộ và đồng bộ khi có mạng.</p>}</div>
       </div>
     </div>;
   }
 
   const tabs = [
-    { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'pipeline', label: 'Pipeline', icon: BriefcaseBusiness },
-    { id: 'contacts', label: 'Khách hàng', icon: UsersRound },
-    { id: 'activities', label: 'Hoạt động', icon: Activity },
-    { id: 'reports', label: 'Báo cáo', icon: BarChart3 },
+    { id: 'overview', label: isVietnamese ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
+    { id: 'pipeline', label: isVietnamese ? 'Pipeline' : 'Pipeline', icon: BriefcaseBusiness },
+    { id: 'contacts', label: isVietnamese ? 'Khách hàng' : 'Contacts', icon: UsersRound },
+    { id: 'activities', label: isVietnamese ? 'Hoạt động' : 'Activities', icon: Activity },
+    { id: 'reports', label: isVietnamese ? 'Báo cáo' : 'Reports', icon: BarChart3 },
   ] as const;
 
   return <div className="space-y-5">
     <section className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:flex-row xl:items-center xl:justify-between">
-      <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md"><Handshake className="h-5 w-5" /></div><div><div className="flex items-center gap-2"><h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">Không gian CRM</h2><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[8px] font-black uppercase text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">Đã đồng bộ</span></div><p className="mt-0.5 text-[10px] font-semibold text-slate-400">Quy trình · Liên hệ · Hoạt động · Phân tích doanh thu</p></div></div>
-      <div className="flex flex-wrap items-center gap-2">{(!companies || !activities) && <button type="button" onClick={upgradeCRM} className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[10px] font-black text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-400"><Sparkles className="h-3.5 w-3.5" /> Nâng cấp dữ liệu CRM</button>}<div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm khách hàng, công ty..." className="w-56 rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-indigo-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white" /></div><button type="button" onClick={() => setShowNewDeal(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white shadow-md hover:bg-indigo-700"><Plus className="h-4 w-4" /> Thêm cơ hội</button></div>
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-md">
+          <Handshake className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+              {isVietnamese ? 'Không gian CRM' : 'CRM Workspace'}
+            </h2>
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[8px] font-black uppercase text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+              {isVietnamese ? 'Đã đồng bộ' : 'Synced'}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+            {isVietnamese ? 'Quy trình · Liên hệ · Hoạt động · Phân tích doanh thu' : 'Pipeline · Contacts · Activities · Revenue Analytics'}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {(!companies || !activities) && (
+          <button type="button" onClick={upgradeCRM} className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[10px] font-black text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-400">
+            <Sparkles className="h-3.5 w-3.5" /> {isVietnamese ? 'Nâng cấp dữ liệu CRM' : 'Upgrade CRM Data'}
+          </button>
+        )}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input 
+            value={query} 
+            onChange={event => setQuery(event.target.value)} 
+            placeholder={isVietnamese ? "Tìm khách hàng, công ty..." : "Search contacts, companies..."} 
+            className="w-56 rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-indigo-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white" 
+          />
+        </div>
+        <button type="button" onClick={() => setShowNewDeal(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white shadow-md hover:bg-indigo-700">
+          <Plus className="h-4 w-4" /> {isVietnamese ? 'Thêm cơ hội' : 'New Deal'}
+        </button>
+      </div>
     </section>
 
     <nav className="flex overflow-x-auto rounded-2xl border border-slate-200/70 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">{tabs.map(tab => <button key={tab.id} type="button" onClick={() => setView(tab.id)} className={`flex min-w-32 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${view === tab.id ? 'bg-indigo-50 text-indigo-700 shadow-sm dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}><tab.icon className="h-4 w-4" /> {tab.label}</button>)}</nav>
 
     {view === 'overview' && <>
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[
-        { label: 'Giá trị pipeline', value: money.format(pipelineValue), note: `${activeDeals.length} cơ hội đang mở`, icon: CircleDollarSign, style: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' },
-        { label: 'Doanh thu đã chốt', value: money.format(wonValue), note: `${wonDeals.length} giao dịch thắng`, icon: CheckCircle2, style: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
-        { label: 'Dự báo có trọng số', value: money.format(weightedValue), note: 'Theo xác suất chốt', icon: TrendingUp, style: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400' },
-        { label: 'Cần follow-up', value: overdueFollowUps.length, note: 'Đã quá ngày chăm sóc', icon: CalendarClock, style: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' },
+        { label: isVietnamese ? 'Giá trị pipeline' : 'Pipeline Value', value: money.format(pipelineValue), note: isVietnamese ? `${activeDeals.length} cơ hội đang mở` : `${activeDeals.length} open deals`, icon: CircleDollarSign, style: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' },
+        { label: isVietnamese ? 'Doanh thu đã chốt' : 'Won Deals', value: money.format(wonValue), note: isVietnamese ? `${wonDeals.length} giao dịch thắng` : `${wonDeals.length} closed won`, icon: CheckCircle2, style: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
+        { label: isVietnamese ? 'Dự báo có trọng số' : 'Weighted Forecast', value: money.format(weightedValue), note: isVietnamese ? 'Theo xác suất chốt' : 'By win probability', icon: TrendingUp, style: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400' },
+        { label: isVietnamese ? 'Cần follow-up' : 'Follow-up Due', value: overdueFollowUps.length, note: isVietnamese ? 'Đã quá ngày chăm sóc' : 'Overdue for contact', icon: CalendarClock, style: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' },
       ].map(stat => <div key={stat.label} className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div className="flex items-start justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{stat.label}</p><p className="mt-2 text-xl font-black text-slate-900 dark:text-white">{stat.value}</p></div><div className={`rounded-xl p-2.5 ${stat.style}`}><stat.icon className="h-5 w-5" /></div></div><p className="mt-2 text-[9px] font-semibold text-slate-400">{stat.note}</p></div>)}</section>
-      <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]"><div className="rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Pipeline theo giai đoạn</h3><p className="mt-1 text-[10px] text-slate-400">Giá trị và số lượng cơ hội hiện tại</p></div><button type="button" onClick={() => setView('pipeline')} className="flex items-center gap-1 text-[10px] font-black text-indigo-600">Mở pipeline <ArrowRight className="h-3 w-3" /></button></div><div className="space-y-4">{stages.filter(stage => !['lost'].includes(normalize(stage.label))).map(stage => { const stageRecords = records.filter(record => valueOf(record, fields.stage) === stage.id); const amount = stageRecords.reduce((sum, record) => sum + Number(valueOf(record, fields.value) || 0), 0); const percent = pipelineValue ? Math.round(amount / pipelineValue * 100) : 0; return <div key={stage.id}><div className="mb-1.5 flex items-center justify-between text-[10px] font-bold"><span className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />{stage.label} <span className="text-slate-400">({stageRecords.length})</span></span><span className="text-slate-500">{money.format(amount)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full" style={{ width: `${Math.max(stageRecords.length ? 3 : 0, percent)}%`, backgroundColor: stage.color }} /></div></div>})}</div></div>
-      <div className="rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Việc cần làm</h3><p className="mt-1 text-[10px] text-slate-400">Follow-up ưu tiên</p></div><span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-600 dark:bg-rose-950/40">{overdueFollowUps.length} quá hạn</span></div><div className="mt-4 space-y-2">{activeDeals.sort((a,b) => String(valueOf(a, fields.followUp)||'9999').localeCompare(String(valueOf(b, fields.followUp)||'9999'))).slice(0,5).map(record => <button key={record.id} onClick={() => setSelectedRecordId(record.id)} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left dark:border-slate-800"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 dark:bg-indigo-950/40">{String(valueOf(record, fields.name)||'?').charAt(0)}</div><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-black text-slate-700 dark:text-slate-200">{String(valueOf(record, fields.name)||'Chưa đặt tên')}</p><p className="mt-0.5 truncate text-[9px] text-slate-400">{String(valueOf(record, fields.company)||'')} · {String(valueOf(record, fields.followUp)||'Chưa có lịch')}</p></div><Phone className="h-3.5 w-3.5 text-slate-300" /></button>)}</div></div></section>
+      <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]"><div className="rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'Pipeline theo giai đoạn' : 'Pipeline by Stage'}</h3><p className="mt-1 text-[10px] text-slate-400">{isVietnamese ? 'Giá trị và số lượng cơ hội hiện tại' : 'Current deal values and counts'}</p></div><button type="button" onClick={() => setView('pipeline')} className="flex items-center gap-1 text-[10px] font-black text-indigo-600">{isVietnamese ? 'Mở pipeline' : 'Open pipeline'} <ArrowRight className="h-3 w-3" /></button></div><div className="space-y-4">{stages.filter(stage => !['lost'].includes(normalize(stage.label))).map(stage => { const stageRecords = records.filter(record => valueOf(record, fields.stage) === stage.id); const amount = stageRecords.reduce((sum, record) => sum + Number(valueOf(record, fields.value) || 0), 0); const percent = pipelineValue ? Math.round(amount / pipelineValue * 100) : 0; return <div key={stage.id}><div className="mb-1.5 flex items-center justify-between text-[10px] font-bold"><span className="flex items-center gap-2 text-slate-600 dark:text-slate-300"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />{stage.label} <span className="text-slate-400">({stageRecords.length})</span></span><span className="text-slate-500">{money.format(amount)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full" style={{ width: `${Math.max(stageRecords.length ? 3 : 0, percent)}%`, backgroundColor: stage.color }} /></div></div>})}</div></div>
+      <div className="rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'Việc cần làm' : 'Tasks'}</h3><p className="mt-1 text-[10px] text-slate-400">{isVietnamese ? 'Follow-up ưu tiên' : 'Priority follow-ups'}</p></div><span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-600 dark:bg-rose-950/40">{overdueFollowUps.length} {isVietnamese ? 'quá hạn' : 'overdue'}</span></div><div className="mt-4 space-y-2">{activeDeals.sort((a,b) => String(valueOf(a, fields.followUp)||'9999').localeCompare(String(valueOf(b, fields.followUp)||'9999'))).slice(0,5).map(record => <button key={record.id} onClick={() => setSelectedRecordId(record.id)} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left dark:border-slate-800"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 dark:bg-indigo-950/40">{String(valueOf(record, fields.name)||'?').charAt(0)}</div><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-black text-slate-700 dark:text-slate-200">{String(valueOf(record, fields.name)|| (isVietnamese ? 'Chưa đặt tên' : 'Unnamed'))}</p><p className="mt-0.5 truncate text-[9px] text-slate-400">{String(valueOf(record, fields.company)||'')} · {String(valueOf(record, fields.followUp)|| (isVietnamese ? 'Chưa có lịch' : 'No schedule'))}</p></div><Phone className="h-3.5 w-3.5 text-slate-300" /></button>)}</div></div></section>
     </>}
 
     {view === 'pipeline' && <section className="overflow-x-auto pb-3"><div className="flex min-w-max gap-3">{stages.map(stage => { const stageRecords = filteredRecords.filter(record => valueOf(record, fields.stage) === stage.id); return <div key={stage.id} className="w-72 rounded-2xl bg-slate-100/70 p-2.5 dark:bg-slate-900"><div className="mb-2 flex items-center justify-between px-1"><span className="flex items-center gap-2 text-xs font-black text-slate-700 dark:text-slate-200"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />{stage.label}</span><span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-black text-slate-500 dark:bg-slate-800">{stageRecords.length}</span></div><div className="space-y-2">{stageRecords.map(record => <div key={record.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950"><button type="button" onClick={() => setSelectedRecordId(record.id)} className="w-full text-left"><p className="text-xs font-black text-slate-800 dark:text-white">{String(valueOf(record, fields.name)||'Chưa đặt tên')}</p><p className="mt-1 text-[9px] font-semibold text-slate-400">{String(valueOf(record, fields.company)||'Khách hàng cá nhân')}</p><p className="mt-3 text-sm font-black text-slate-900 dark:text-slate-100">{money.format(Number(valueOf(record, fields.value)||0))}</p></button><div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800"><span className="text-[9px] font-semibold text-slate-400">{String(valueOf(record, fields.followUp)||'Chưa follow-up')}</span><select aria-label="Chuyển giai đoạn" value={String(valueOf(record, fields.stage)||'')} onChange={event => moveDeal(record.id, event.target.value)} className="max-w-24 rounded-lg bg-slate-50 px-1.5 py-1 text-[8px] font-bold text-slate-500 outline-none dark:bg-slate-800">{stages.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></div></div>)}</div></div>})}</div></section>}

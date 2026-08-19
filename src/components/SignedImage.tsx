@@ -14,7 +14,6 @@ interface SignedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   bucket?: string;
 }
 
-
 const PRESET_GRADIENTS = [
   'linear-gradient(135deg, #4F46E5, #7C3AED)', // Indigo to Purple
   'linear-gradient(135deg, #0EA5E9, #2563EB)', // Sky to Blue
@@ -127,7 +126,7 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     const gradient = getGradient(alt || fallback || activePath || 'User');
     return (
       <div 
-        id={id}
+        id={id} 
         className={`flex items-center justify-center font-sans font-extrabold text-white uppercase select-none relative ${className || ''}`}
         style={{
           background: gradient,
@@ -152,7 +151,7 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
     return (
       <div 
         id={id ? `${id}_loading` : undefined}
-        className={`animate-pulse bg-slate-205 bg-slate-200/60 flex items-center justify-center ${className || ''}`}
+        className={`animate-pulse bg-slate-200/60 flex items-center justify-center ${className || ''}`}
         style={style}
       />
     );
@@ -164,7 +163,12 @@ export default function SignedImage({ filePath, fallback, id, className, style, 
       src={src || fallback} 
       alt={alt || 'Apexa Storage File'} 
       className={className}
-      style={style}
+      decoding="async"
+      loading="eager"
+      style={{
+        imageRendering: '-webkit-optimize-contrast',
+        ...style
+      }}
       {...props}
       onError={(event) => {
         setImageFailed(true);

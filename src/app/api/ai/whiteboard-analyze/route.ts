@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       }
     };
 
-    const targetModel = model || "gemini-3.5-flash";
+    const targetModel = resolveModel(model);
 
     if (mode === "tasks") {
       const response = await client.models.generateContent({

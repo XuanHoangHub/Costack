@@ -281,7 +281,7 @@ export default function BaseHub({
             <div>
               <div className="flex items-center gap-2.5 mb-1">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-sm"
-                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}>
+                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #2563EB), var(--apexa-gradient-end, #FF3366))' }}>
                   <Database className="w-4.5 h-4.5" />
                 </div>
                 <h1 className="text-xl font-black font-display text-slate-800 dark:text-slate-100 tracking-tight">Cơ sở dữ liệu Apexa</h1>
@@ -370,7 +370,7 @@ export default function BaseHub({
                   type="button"
                   onClick={() => setShowTemplateModal(true)}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black text-white cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #7B61FF), var(--apexa-gradient-end, #FF3366))' }}
+                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #2563EB), var(--apexa-gradient-end, #FF3366))' }}
                 >
                   <Sparkles className="w-4 h-4" />
                   Chọn mẫu

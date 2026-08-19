@@ -30,8 +30,9 @@ export const useSyncStore = create<SyncState>()(
   persist(
     (set, get) => ({
       syncLogs: [
-        { id: 'l1', action: 'Initialized Apexa OS Engine', time: '09:00 AM', status: 'synced' },
-        { id: 'l2', action: 'Synchronized real-time collaboration channels', time: '09:05 AM', status: 'synced' },
+        { id: 'l1', action: 'Đã khởi tạo Không gian làm việc', time: '08:30:00', status: 'synced', userName: 'Chủ sở hữu', category: 'workspace' },
+        { id: 'l2', action: 'Đã tạo Không gian: Dự án chính', time: '08:35:12', status: 'synced', userName: 'Chủ sở hữu', category: 'space' },
+        { id: 'l3', action: 'Đã thiết lập danh sách công việc', time: '08:40:05', status: 'synced', userName: 'Chủ sở hữu', category: 'task' },
       ],
       isOffline: false,
       syncing: false,
@@ -46,13 +47,46 @@ export const useSyncStore = create<SyncState>()(
         if (typeof action === 'function') {
           set({ syncLogs: action(get().syncLogs) });
         } else {
+          // Filter out low-level backend/Supabase/network messages
+          const isTechnical = 
+            action.includes('Supabase') ||
+            action.includes('supabase') ||
+            action.includes('database') ||
+            action.includes('cloud server') ||
+            action.includes('compatibility mode') ||
+            action.includes('realtime-') ||
+            action.includes('Realtime sync') ||
+            action.includes('System merge') ||
+            action.includes('offline changes') ||
+            action.includes('offline cache') ||
+            action.includes('storage synchronized') ||
+            action.includes('Entered List:') ||
+            action.includes('sorting order');
+
+          if (isTechnical) return;
+
           const newLog: SyncLog = {
             id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             action,
-            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             status: 'synced',
+            userName: 'Chủ sở hữu',
+            category: 'workspace'
           };
-          set((state) => ({ syncLogs: [...state.syncLogs, newLog] }));
+          set((state) => ({ 
+            syncLogs: [
+              newLog, 
+              ...state.syncLogs.filter(l => 
+                !l.action.includes('Supabase') && 
+                !l.action.includes('supabase') && 
+                !l.action.includes('Realtime sync') &&
+                !l.action.includes('storage synchronized') &&
+                !l.action.includes('cloud server') &&
+                !l.action.includes('compatibility mode') &&
+                !l.action.includes('Entered List:')
+              )
+            ].slice(0, 100) 
+          }));
         }
       },
       clearSyncLogs: () => set({ syncLogs: [] }),
@@ -69,7 +103,15 @@ export const useSyncStore = create<SyncState>()(
     {
       name: 'apexa_sync_logs',
       partialize: (state) => ({ 
-        syncLogs: state.syncLogs.slice(-50),
+        syncLogs: state.syncLogs.filter(l => 
+          !l.action.includes('Supabase') && 
+          !l.action.includes('supabase') && 
+          !l.action.includes('Realtime sync') &&
+          !l.action.includes('storage synchronized') &&
+          !l.action.includes('cloud server') &&
+          !l.action.includes('compatibility mode') &&
+          !l.action.includes('Entered List:')
+        ).slice(0, 100),
         isOffline: state.isOffline,
         syncing: state.syncing,
         syncProgress: state.syncProgress,

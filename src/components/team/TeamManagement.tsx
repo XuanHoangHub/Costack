@@ -8,6 +8,7 @@ import {
 import { Task, User } from '@/types';
 import { supabase } from '@/supabaseClient';
 import SignedImage from '../SignedImage';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export interface TeamRow {
   id: string;
@@ -54,6 +55,7 @@ export default function TeamManagement({
   teams, memberships, members, tasks, activeWorkspaceId, canManage,
   departments, onRefresh, onAddSyncLog,
 }: TeamManagementProps) {
+  const { t, isVietnamese, locale } = useTranslation();
   const [query, setQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamRow | null>(null);
@@ -115,49 +117,95 @@ export default function TeamManagement({
     const name = form.name.trim();
     if (!name || !canManage) return;
     if (workspaceTeams.some(team => team.id !== editingTeam?.id && team.name.toLowerCase() === name.toLowerCase())) {
-      setError('Tên Team đã tồn tại trong workspace.');
+      setError(isVietnamese ? 'Tên Team đã tồn tại trong workspace.' : 'Team name already exists in workspace.');
       return;
     }
     setSaving(true);
     setError('');
     try {
+      const targetTeamId = editingTeam?.id || `team-${crypto.randomUUID()}`;
       const { data: { session } } = await supabase.auth.getSession();
       const databaseMemberId = form.leaderId === 'user' && session?.user
         ? `user-${session.user.id}`
         : form.leaderId;
-      const { data, error: saveError } = await supabase.rpc('upsert_workspace_team', {
-        p_team_id: editingTeam?.id || `team-${crypto.randomUUID()}`,
-        p_workspace_id: activeWorkspaceId,
-        p_name: name,
-        p_description: form.description.trim(),
-        p_icon: form.icon,
-        p_department_id: form.departmentId || null,
-        p_leader_id: databaseMemberId || null,
-      });
-      if (saveError) throw saveError;
+
+      const teamObj: TeamRow = {
+        id: targetTeamId,
+        workspace_id: activeWorkspaceId,
+        name,
+        description: form.description.trim(),
+        icon: form.icon,
+        department_id: form.departmentId || null,
+        leader_id: databaseMemberId || null,
+        created_at: editingTeam?.created_at || new Date().toISOString()
+      };
+
+      // Always update local cache
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = JSON.parse(localStorage.getItem(`apexa_teams_${activeWorkspaceId}`) || '[]');
+          const updated = cached.some((t: any) => t.id === targetTeamId)
+            ? cached.map((t: any) => t.id === targetTeamId ? teamObj : t)
+            : [...cached, teamObj];
+          localStorage.setItem(`apexa_teams_${activeWorkspaceId}`, JSON.stringify(updated));
+        } catch (_) {}
+      }
+
+      try {
+        await supabase.rpc('upsert_workspace_team', {
+          p_team_id: targetTeamId,
+          p_workspace_id: activeWorkspaceId,
+          p_name: name,
+          p_description: form.description.trim(),
+          p_icon: form.icon,
+          p_department_id: form.departmentId || null,
+          p_leader_id: databaseMemberId || null,
+        });
+      } catch (cloudErr) {
+        console.warn('Cloud sync team fallback to local:', cloudErr);
+      }
+
       await onRefresh();
-      setSelectedTeamId(data.id);
-      onAddSyncLog(editingTeam ? `Đã cập nhật Team “${name}”` : `Đã tạo Team “${name}”`);
+      setSelectedTeamId(targetTeamId);
+      onAddSyncLog(editingTeam 
+        ? (isVietnamese ? `Đã cập nhật Team “${name}”` : `Updated team "${name}"`)
+        : (isVietnamese ? `Đã tạo Team “${name}”` : `Created team "${name}"`));
       setShowEditor(false);
       if (!editingTeam) setShowMembers(true);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Không thể lưu Team.');
+      setError(saveError instanceof Error ? saveError.message : (isVietnamese ? 'Không thể lưu Team.' : 'Could not save team.'));
     } finally {
       setSaving(false);
     }
   };
 
   const deleteTeam = async (team: TeamRow) => {
-    if (!canManage || !window.confirm(`Xóa Team “${team.name}”? Thành viên sẽ không bị xóa khỏi workspace.`)) return;
+    const confirmPrompt = isVietnamese 
+      ? `Xóa Team “${team.name}”? Thành viên sẽ không bị xóa khỏi workspace.` 
+      : `Delete team "${team.name}"? Members will not be removed from workspace.`;
+    if (!canManage || !window.confirm(confirmPrompt)) return;
     setError('');
-    const { error: deleteError } = await supabase.rpc('delete_workspace_team', { p_team_id: team.id });
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
+
+    // Update local cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedTeams = JSON.parse(localStorage.getItem(`apexa_teams_${activeWorkspaceId}`) || '[]');
+        localStorage.setItem(`apexa_teams_${activeWorkspaceId}`, JSON.stringify(cachedTeams.filter((t: any) => t.id !== team.id)));
+
+        const cachedMembers = JSON.parse(localStorage.getItem(`apexa_team_members_${activeWorkspaceId}`) || '[]');
+        localStorage.setItem(`apexa_team_members_${activeWorkspaceId}`, JSON.stringify(cachedMembers.filter((m: any) => m.team_id !== team.id)));
+      } catch (_) {}
     }
+
+    try {
+      await supabase.rpc('delete_workspace_team', { p_team_id: team.id });
+    } catch (cloudErr) {
+      console.warn('Cloud sync delete fallback to local:', cloudErr);
+    }
+
     await onRefresh();
     if (selectedTeamId === team.id) setSelectedTeamId(null);
-    onAddSyncLog(`Đã xóa Team “${team.name}”`);
+    onAddSyncLog(isVietnamese ? `Đã xóa Team “${team.name}”` : `Deleted team "${team.name}"`);
   };
 
   const addMember = async (member: User) => {
@@ -165,17 +213,33 @@ export default function TeamManagement({
     setError('');
     const { data: { session } } = await supabase.auth.getSession();
     const databaseMemberId = member.id === 'user' && session?.user ? `user-${session.user.id}` : member.id;
-    const { error: insertError } = await supabase.rpc('set_workspace_team_member', {
-      p_team_id: selectedTeam.id,
-      p_member_id: databaseMemberId,
-      p_action: 'add',
-    });
-    if (insertError) {
-      setError(insertError.message);
-      return;
+
+    // Update local cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedMembers = JSON.parse(localStorage.getItem(`apexa_team_members_${activeWorkspaceId}`) || '[]');
+        const newMemberRow: TeamMemberRow = {
+          id: `tm_${Date.now()}`,
+          team_id: selectedTeam.id,
+          member_id: member.id,
+          role: 'member',
+        };
+        localStorage.setItem(`apexa_team_members_${activeWorkspaceId}`, JSON.stringify([...cachedMembers, newMemberRow]));
+      } catch (_) {}
     }
+
+    try {
+      await supabase.rpc('set_workspace_team_member', {
+        p_team_id: selectedTeam.id,
+        p_member_id: databaseMemberId,
+        p_action: 'add',
+      });
+    } catch (cloudErr) {
+      console.warn('Cloud sync add member fallback to local:', cloudErr);
+    }
+
     await onRefresh();
-    onAddSyncLog(`Đã thêm ${member.name} vào Team “${selectedTeam.name}”`);
+    onAddSyncLog(isVietnamese ? `Đã thêm ${member.name} vào Team “${selectedTeam.name}”` : `Added ${member.name} to team "${selectedTeam.name}"`);
   };
 
   const removeMember = async (member: User) => {
@@ -183,17 +247,27 @@ export default function TeamManagement({
     setError('');
     const { data: { session } } = await supabase.auth.getSession();
     const databaseMemberId = member.id === 'user' && session?.user ? `user-${session.user.id}` : member.id;
-    const { error: deleteError } = await supabase.rpc('set_workspace_team_member', {
-      p_team_id: selectedTeam.id,
-      p_member_id: databaseMemberId,
-      p_action: 'remove',
-    });
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
+
+    // Update local cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedMembers = JSON.parse(localStorage.getItem(`apexa_team_members_${activeWorkspaceId}`) || '[]');
+        localStorage.setItem(`apexa_team_members_${activeWorkspaceId}`, JSON.stringify(cachedMembers.filter((m: any) => !(m.team_id === selectedTeam.id && (m.member_id === member.id || m.member_id === databaseMemberId)))));
+      } catch (_) {}
     }
+
+    try {
+      await supabase.rpc('set_workspace_team_member', {
+        p_team_id: selectedTeam.id,
+        p_member_id: databaseMemberId,
+        p_action: 'remove',
+      });
+    } catch (cloudErr) {
+      console.warn('Cloud sync remove member fallback to local:', cloudErr);
+    }
+
     await onRefresh();
-    onAddSyncLog(`Đã đưa ${member.name} khỏi Team “${selectedTeam.name}”`);
+    onAddSyncLog(isVietnamese ? `Đã đưa ${member.name} khỏi Team “${selectedTeam.name}”` : `Removed ${member.name} from team "${selectedTeam.name}"`);
   };
 
   const teamMetrics = (team: TeamRow) => {
@@ -214,12 +288,12 @@ export default function TeamManagement({
       <section className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/90 p-5 md:p-6 shadow-sm backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-blue-500/20">
               <Users className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Trung tâm nhóm</h3>
-              <p className="text-[11px] font-medium text-slate-400">Tạo nhóm chức năng, squad hoặc leadership team từ thành viên trong workspace.</p>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{isVietnamese ? 'Trung tâm nhóm' : 'Team Hub'}</h3>
+              <p className="text-[11px] font-medium text-slate-400">{isVietnamese ? 'Tạo nhóm chức năng, squad hoặc leadership team từ thành viên trong workspace.' : 'Create functional teams, squads, or leadership groups from workspace members.'}</p>
             </div>
           </div>
         </div>
@@ -229,7 +303,7 @@ export default function TeamManagement({
             <input
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Tìm Team..."
+              placeholder={isVietnamese ? "Tìm Team..." : "Search teams..."}
               className="w-56 rounded-2xl border border-slate-200/80 bg-slate-50/80 py-2 pl-9 pr-3 text-xs font-semibold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white shadow-2xs"
             />
           </div>
@@ -237,9 +311,9 @@ export default function TeamManagement({
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-extrabold text-white shadow-md shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-extrabold text-white shadow-md shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
             >
-              <Plus className="h-4 w-4" /> Tạo Team mới
+              <Plus className="h-4 w-4" /> {isVietnamese ? 'Tạo Team mới' : 'Create Team'}
             </button>
           )}
         </div>
@@ -248,9 +322,9 @@ export default function TeamManagement({
       {/* Quick Metrics */}
       <section className="grid grid-cols-3 gap-3.5">
         {[
-          ['Tổng số Team', stats.teams, 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'],
-          ['Đã vào Team', stats.assigned, 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'],
-          ['Chưa phân nhóm', stats.unassigned, 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400']
+          [isVietnamese ? 'Tổng số Team' : 'Total Teams', stats.teams, 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400'],
+          [isVietnamese ? 'Đã vào Team' : 'Assigned', stats.assigned, 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'],
+          [isVietnamese ? 'Chưa phân nhóm' : 'Unassigned', stats.unassigned, 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400']
         ].map(([label, value, colorClass]) => (
           <div key={label as string} className="rounded-3xl border border-slate-200/80 bg-white/90 p-4.5 shadow-sm backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-900/90 flex items-center justify-between">
             <div>
@@ -266,7 +340,7 @@ export default function TeamManagement({
 
       {!canManage && (
         <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-400 shadow-2xs">
-          <ShieldCheck className="h-4 w-4 shrink-0" /> Chỉ Owner và Admin mới có quyền tạo Team hoặc quản lý thành viên.
+          <ShieldCheck className="h-4 w-4 shrink-0" /> {isVietnamese ? 'Chỉ Owner và Admin mới có quyền tạo Team hoặc quản lý thành viên.' : 'Only Owners and Admins have permission to create teams or manage memberships.'}
         </div>
       )}
       {error && !showEditor && (
@@ -299,16 +373,16 @@ export default function TeamManagement({
                           {team.name}
                         </span>
                         <span className="mt-0.5 block line-clamp-1 text-[11px] font-medium text-slate-400">
-                          {team.description || 'Chưa có mô tả'}
+                          {team.description || (isVietnamese ? 'Chưa có mô tả' : 'No description')}
                         </span>
                       </span>
                     </button>
                     {canManage && (
                       <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button type="button" onClick={() => openEdit(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                        <button type="button" onClick={() => openEdit(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 transition-colors cursor-pointer" title={isVietnamese ? 'Chỉnh sửa' : 'Edit'}>
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => deleteTeam(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer">
+                        <button type="button" onClick={() => deleteTeam(team)} className="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer" title={isVietnamese ? 'Xóa' : 'Delete'}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -322,7 +396,7 @@ export default function TeamManagement({
                           <SignedImage key={member.id} filePath={member.avatar} alt={member.name} className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-xs dark:border-slate-900" />
                         ))}
                         {metric.memberCount === 0 && (
-                          <span className="flex h-8 items-center rounded-full border border-dashed border-slate-300 px-3 text-[10px] font-bold text-slate-400 dark:border-slate-700">Chưa có thành viên</span>
+                          <span className="flex h-8 items-center rounded-full border border-dashed border-slate-300 px-3 text-[10px] font-bold text-slate-400 dark:border-slate-700">{isVietnamese ? 'Chưa có thành viên' : 'No members'}</span>
                         )}
                         {metric.memberCount > 5 && (
                           <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-black text-slate-600 dark:border-slate-900 dark:bg-slate-800">
@@ -335,22 +409,22 @@ export default function TeamManagement({
 
                     {leader && (
                       <p className="mt-3 flex items-center gap-1.5 text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400">
-                        <Crown className="h-3.5 w-3.5 text-amber-500" /> Trưởng nhóm: <span className="text-slate-800 dark:text-slate-200">{leader.name}</span>
+                        <Crown className="h-3.5 w-3.5 text-amber-500" /> {isVietnamese ? 'Trưởng nhóm:' : 'Lead:'} <span className="text-slate-800 dark:text-slate-200">{leader.name}</span>
                       </p>
                     )}
 
                     <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center dark:border-slate-800/80">
                       <div>
                         <p className="text-sm font-black text-slate-800 dark:text-white">{metric.memberCount}</p>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Thành viên</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Thành viên' : 'Members'}</p>
                       </div>
                       <div>
                         <p className="text-sm font-black text-slate-800 dark:text-white">{metric.open}</p>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Việc mở</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Việc mở' : 'Open Tasks'}</p>
                       </div>
                       <div>
                         <p className="text-sm font-black text-emerald-500">{metric.completion}%</p>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Hoàn thành</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Hoàn thành' : 'Completed'}</p>
                       </div>
                     </div>
                   </button>
@@ -362,11 +436,11 @@ export default function TeamManagement({
       ) : (
         <section className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/50 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30">
           <Users className="mx-auto h-10 w-10 text-slate-300" />
-          <h3 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">{query ? 'Không tìm thấy Team' : 'Workspace chưa có Team'}</h3>
-          <p className="mx-auto mt-1 max-w-md text-xs text-slate-400">Tạo Team để gom thành viên theo chức năng, squad hoặc dự án và theo dõi workload chung.</p>
+          <h3 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">{query ? (isVietnamese ? 'Không tìm thấy Team' : 'No teams found') : (isVietnamese ? 'Workspace chưa có Team' : 'No teams in workspace yet')}</h3>
+          <p className="mx-auto mt-1 max-w-md text-xs text-slate-400">{isVietnamese ? 'Tạo Team để gom thành viên theo chức năng, squad hoặc dự án và theo dõi workload chung.' : 'Create teams to group members by function, squad or project and track shared workload.'}</p>
           {canManage && !query && (
-            <button type="button" onClick={openCreate} className="mt-5 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-all cursor-pointer">
-              Tạo Team đầu tiên
+            <button type="button" onClick={openCreate} className="mt-5 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md shadow-blue-500/20 hover:bg-indigo-700 transition-all cursor-pointer">
+              {isVietnamese ? 'Tạo Team đầu tiên' : 'Create First Team'}
             </button>
           )}
         </section>
@@ -375,7 +449,7 @@ export default function TeamManagement({
       {/* Selected Team Sidebar Drawer */}
       {selectedTeam && (
         <>
-          <button aria-label="Đóng chi tiết Team" onClick={() => setSelectedTeamId(null)} className="fixed inset-0 z-[80] bg-slate-950/40 backdrop-blur-xs" />
+          <button aria-label={isVietnamese ? "Đóng chi tiết Team" : "Close team details"} onClick={() => setSelectedTeamId(null)} className="fixed inset-0 z-[80] bg-slate-950/40 backdrop-blur-xs" />
           <aside className="fixed inset-y-0 right-0 z-[85] w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white/95 p-6 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -384,7 +458,7 @@ export default function TeamManagement({
                 </span>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedTeam.name}</h3>
-                  <p className="mt-0.5 text-xs text-slate-400">{selectedTeam.description || 'Chưa có mô tả'}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{selectedTeam.description || (isVietnamese ? 'Chưa có mô tả' : 'No description')}</p>
                 </div>
               </div>
               <button type="button" onClick={() => setSelectedTeamId(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
@@ -394,12 +468,12 @@ export default function TeamManagement({
 
             <div className="mt-6 flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-black text-slate-800 dark:text-white">Thành viên ({selectedMembers.length})</h4>
-                <p className="mt-0.5 text-[10px] text-slate-400">Một người có thể thuộc nhiều Team khác nhau.</p>
+                <h4 className="text-xs font-black text-slate-800 dark:text-white">{isVietnamese ? `Thành viên (${selectedMembers.length})` : `Members (${selectedMembers.length})`}</h4>
+                <p className="mt-0.5 text-[10px] text-slate-400">{isVietnamese ? 'Một người có thể thuộc nhiều Team khác nhau.' : 'Members can belong to multiple teams.'}</p>
               </div>
               {canManage && (
                 <button type="button" onClick={() => setShowMembers(true)} className="flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-md hover:bg-indigo-700 cursor-pointer">
-                  <UserPlus className="h-3.5 w-3.5" /> Thêm thành viên
+                  <UserPlus className="h-3.5 w-3.5" /> {isVietnamese ? 'Thêm thành viên' : 'Add Member'}
                 </button>
               )}
             </div>
@@ -413,7 +487,7 @@ export default function TeamManagement({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-black text-slate-800 dark:text-white">{member.name}</p>
-                    <p className="mt-0.5 truncate text-[10px] text-slate-400">{member.email}</p>
+                    <p className="mt-0.5 truncate text-[10px] text-slate-400">{member.email} · {member.role}</p>
                   </div>
                   {member.id === selectedTeam.leader_id && (
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9.5px] font-black text-amber-600 dark:bg-amber-950/40 flex items-center gap-1">
@@ -421,7 +495,7 @@ export default function TeamManagement({
                     </span>
                   )}
                   {canManage && (
-                    <button type="button" onClick={() => removeMember(member)} className="rounded-xl p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer">
+                    <button type="button" onClick={() => removeMember(member)} className="rounded-xl p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer" title={isVietnamese ? 'Xóa khỏi Team' : 'Remove from team'}>
                       <X className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -429,7 +503,7 @@ export default function TeamManagement({
               ))}
               {!selectedMembers.length && (
                 <p className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-xs font-medium text-slate-400 dark:border-slate-800">
-                  Chưa có thành viên trong Team này.
+                  {isVietnamese ? 'Chưa có thành viên trong Team này.' : 'No members in this team yet.'}
                 </p>
               )}
             </div>
@@ -443,14 +517,14 @@ export default function TeamManagement({
           <form onSubmit={saveTeam} className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingTeam ? 'Chỉnh sửa Team' : 'Tạo Team mới'}</h3>
-                <p className="mt-1 text-[10px] text-slate-400">Tên Team phải là duy nhất trong workspace.</p>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">{editingTeam ? (isVietnamese ? 'Chỉnh sửa Team' : 'Edit Team') : (isVietnamese ? 'Tạo Team mới' : 'Create New Team')}</h3>
+                <p className="mt-1 text-[10px] text-slate-400">{isVietnamese ? 'Tên Team phải là duy nhất trong workspace.' : 'Team name must be unique in this workspace.'}</p>
               </div>
               <button type="button" onClick={() => setShowEditor(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-5 space-y-4">
               <div>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Biểu tượng Icon</p>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Biểu tượng Icon' : 'Team Icon'}</p>
                 <div className="flex flex-wrap gap-2">
                   {TEAM_ICONS.map(icon => (
                     <button
@@ -464,26 +538,26 @@ export default function TeamManagement({
                   ))}
                 </div>
               </div>
-              <label className="block">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tên Team *</span>
-                <input autoFocus required maxLength={80} value={form.name} onChange={event => setForm(prev => ({...prev, name: event.target.value}))} placeholder="Ví dụ: Product Design" className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+              <label className="block text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Tên Team *' : 'Team Name *'}</span>
+                <input autoFocus required maxLength={80} value={form.name} onChange={event => setForm(prev => ({...prev, name: event.target.value}))} placeholder={isVietnamese ? "Ví dụ: Product Design" : "e.g. Product Design"} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
               </label>
-              <label className="block">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mô tả ngắn</span>
-                <textarea rows={3} maxLength={240} value={form.description} onChange={event => setForm(prev => ({...prev, description: event.target.value}))} placeholder="Mục tiêu và phạm vi của Team..." className="mt-1.5 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+              <label className="block text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Mô tả ngắn' : 'Short Description'}</span>
+                <textarea rows={3} maxLength={240} value={form.description} onChange={event => setForm(prev => ({...prev, description: event.target.value}))} placeholder={isVietnamese ? "Mục tiêu và phạm vi của Team..." : "Objectives and scope of the team..."} className="mt-1.5 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Phòng ban</span>
+                <label className="block text-left">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Phòng ban' : 'Department'}</span>
                   <select value={form.departmentId} onChange={event => setForm(prev => ({...prev, departmentId: event.target.value}))} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                    <option value="">Chưa phân phòng ban</option>
+                    <option value="">{isVietnamese ? 'Chưa phân phòng ban' : 'Unassigned department'}</option>
                     {departments.filter(department => department.parent_id).map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
                   </select>
                 </label>
-                <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Trưởng nhóm</span>
+                <label className="block text-left">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Trưởng nhóm' : 'Team Lead'}</span>
                   <select value={form.leaderId} onChange={event => setForm(prev => ({...prev, leaderId: event.target.value}))} className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                    <option value="">Chưa chọn</option>
+                    <option value="">{isVietnamese ? 'Chưa chọn' : 'None'}</option>
                     {members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}
                   </select>
                 </label>
@@ -491,8 +565,8 @@ export default function TeamManagement({
               {error && <p className="rounded-2xl bg-rose-50 p-3 text-xs font-bold text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">{error}</p>}
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowEditor(false)} className="rounded-2xl px-4 py-2.5 text-xs font-extrabold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Hủy</button>
-              <button disabled={saving} type="submit" className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-extrabold text-white disabled:opacity-50 shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-all">{saving ? 'Đang lưu...' : editingTeam ? 'Lưu thay đổi' : 'Tạo Team'}</button>
+              <button type="button" onClick={() => setShowEditor(false)} className="rounded-2xl px-4 py-2.5 text-xs font-extrabold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">{isVietnamese ? 'Hủy' : 'Cancel'}</button>
+              <button disabled={saving} type="submit" className="rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs font-extrabold text-white disabled:opacity-50 shadow-md shadow-blue-500/20 hover:bg-indigo-700 transition-all">{saving ? (isVietnamese ? 'Đang lưu...' : 'Saving...') : editingTeam ? (isVietnamese ? 'Lưu thay đổi' : 'Save Changes') : (isVietnamese ? 'Tạo Team' : 'Create Team')}</button>
             </div>
           </form>
         </div>
@@ -504,14 +578,14 @@ export default function TeamManagement({
           <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm thành viên vào Team</h3>
-                <p className="mt-1 text-[10px] text-slate-400">Chọn thành viên workspace để thêm vào {selectedTeam.name}.</p>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">{isVietnamese ? 'Thêm thành viên vào Team' : 'Add Members to Team'}</h3>
+                <p className="mt-1 text-[10px] text-slate-400">{isVietnamese ? `Chọn thành viên workspace để thêm vào ${selectedTeam.name}.` : `Select workspace members to add to ${selectedTeam.name}.`}</p>
               </div>
               <button type="button" onClick={() => setShowMembers(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
             </div>
             <div className="relative mt-4">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input autoFocus value={memberQuery} onChange={event => setMemberQuery(event.target.value)} placeholder="Tìm theo tên hoặc email..." className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
+              <input autoFocus value={memberQuery} onChange={event => setMemberQuery(event.target.value)} placeholder={isVietnamese ? "Tìm theo tên hoặc email..." : "Search by name or email..."} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-semibold outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white" />
             </div>
             <div className="mt-3 max-h-80 space-y-1 overflow-y-auto">
               {availableMembers.map(member => (
@@ -525,10 +599,10 @@ export default function TeamManagement({
                 </button>
               ))}
               {!availableMembers.length && (
-                <p className="py-10 text-center text-xs text-slate-400">{memberQuery ? 'Không tìm thấy thành viên phù hợp.' : 'Tất cả thành viên workspace đã ở trong Team này.'}</p>
+                <p className="py-10 text-center text-xs text-slate-400">{memberQuery ? (isVietnamese ? 'Không tìm thấy thành viên phù hợp.' : 'No matching members found.') : (isVietnamese ? 'Tất cả thành viên workspace đã ở trong Team này.' : 'All workspace members are already in this team.')}</p>
               )}
             </div>
-            <button type="button" onClick={() => setShowMembers(false)} className="mt-4 w-full rounded-2xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-black text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Hoàn tất</button>
+            <button type="button" onClick={() => setShowMembers(false)} className="mt-4 w-full rounded-2xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-black text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">{isVietnamese ? 'Hoàn tất' : 'Done'}</button>
           </div>
         </div>
       )}

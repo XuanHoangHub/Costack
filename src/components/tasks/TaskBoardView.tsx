@@ -23,11 +23,11 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass, Copy } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
-import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel } from '../../utils/fieldConfig';
+import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
 import { motion } from 'motion/react';
 import { useUiStore } from '../../store/uiStore';
 
@@ -84,7 +84,8 @@ function KanbanCard({
   inlineEditTitle, 
   setInlineEditTitle, 
   submitInlineEdit, 
-  isDraggingRef 
+  isDraggingRef,
+  onAddTask
 }: any) {
   const {
     attributes,
@@ -176,6 +177,27 @@ function KanbanCard({
                       title="Bắt đầu bấm giờ"
                     >
                       <Play className="w-3 h-3 text-emerald-505 fill-emerald-555" />
+                    </button>
+                  )}
+
+                  {onAddTask && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onAddTask({
+                          ...task,
+                          title: `${task.title} (Bản sao)`,
+                          subtasks: (task.subtasks || []).map((st: any) => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                          tags: task.tags ? [...task.tags] : []
+                        });
+                        triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
+                        if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
+                      }}
+                      className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
+                      title="Nhân bản công việc"
+                    >
+                      <Copy className="w-3 h-3" />
                     </button>
                   )}
                 </div>
@@ -282,7 +304,7 @@ function KanbanCard({
                   </div>
                   <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/10">
                     <motion.div 
-                      className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${subtaskPercent}%` }}
                       transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -514,21 +536,22 @@ export default function TaskBoardView({
   const dynamicStatusMeta = useMemo(() => {
     const meta: Record<string, any> = {};
     const baseList = statusConfigs.length > 0 ? statusConfigs : [
-      { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', color: 'slate-500' },
-      { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-505', color: 'amber-500' },
-      { id: 'review', label: 'REVIEW', dot: 'bg-cyan-505', color: 'cyan-500' },
-      { id: 'completed', label: 'COMPLETE', dot: 'bg-emerald-505', color: 'emerald-505' }
+      { id: 'todo', label: 'TO DO', color: 'slate' },
+      { id: 'inprogress', label: 'IN PROGRESS', color: 'amber' },
+      { id: 'review', label: 'REVIEW', color: 'cyan' },
+      { id: 'completed', label: 'COMPLETE', color: 'emerald' }
     ];
     baseList.forEach(s => {
-      const c = (s.color || 'slate-500').replace('bg-', '').replace('-500', '').replace('-600', '');
+      const colorMeta = getColorOption(s.color);
       meta[s.id] = {
         label: getLocalizedOptionLabel(s.id, s.label, locale),
-        dot: s.dot || `bg-${c}-500`,
+        dot: colorMeta.dot,
+        hex: colorMeta.hex,
         headerBg: 'bg-transparent',
-        headerText: `text-${c}-600`,
+        headerText: colorMeta.text,
         headerBorder: 'border-transparent',
-        badgeBg: `bg-${c}-100/70 dark:bg-${c}-950/40`,
-        badgeText: `text-${c}-755 dark:text-${c}-400 font-extrabold`
+        badgeBg: colorMeta.bg,
+        badgeText: `${colorMeta.text} font-extrabold`
       };
     });
     return meta;
@@ -537,20 +560,21 @@ export default function TaskBoardView({
   const dynamicPriorityMeta = useMemo(() => {
     const meta: Record<string, any> = {};
     const baseList = priorityConfigs.length > 0 ? priorityConfigs : [
-      { id: 'urgent', label: 'URGENT', color: 'red-600' },
-      { id: 'high', label: 'HIGH', color: 'orange-600' },
-      { id: 'medium', label: 'MEDIUM', color: 'yellow-600' },
-      { id: 'low', label: 'LOW', color: 'slate-500' }
+      { id: 'urgent', label: 'URGENT', color: 'red' },
+      { id: 'high', label: 'HIGH', color: 'orange' },
+      { id: 'medium', label: 'MEDIUM', color: 'amber' },
+      { id: 'low', label: 'LOW', color: 'slate' }
     ];
     baseList.forEach(p => {
-      const c = (p.color || 'slate-500').replace('text-', '').replace('-500', '').replace('-600', '');
+      const colorMeta = getColorOption(p.color);
       meta[p.id] = {
         label: getLocalizedOptionLabel(p.id, p.label, locale).toUpperCase(),
-        dot: `bg-${c}-500`,
-        bg: `bg-${c}-50/50 dark:bg-${c}-955/20`,
-        text: `text-${c}-600`,
-        badgeBg: `bg-${c}-100/70 dark:bg-${c}-955/40`,
-        badgeText: `text-${c}-700 dark:text-${c}-400 font-extrabold`
+        dot: colorMeta.dot,
+        hex: colorMeta.hex,
+        bg: colorMeta.bg,
+        text: colorMeta.text,
+        badgeBg: colorMeta.bg,
+        badgeText: `${colorMeta.text} font-extrabold`
       };
     });
     return meta;
@@ -559,14 +583,14 @@ export default function TaskBoardView({
   const dynamicPriorityColors = useMemo(() => {
     const colors: Record<string, string> = {};
     const baseList = priorityConfigs.length > 0 ? priorityConfigs : [
-      { id: 'urgent', color: 'red-600' },
-      { id: 'high', color: 'orange-600' },
-      { id: 'medium', color: 'yellow-600' },
-      { id: 'low', color: 'slate-500' }
+      { id: 'urgent', color: 'red' },
+      { id: 'high', color: 'orange' },
+      { id: 'medium', color: 'amber' },
+      { id: 'low', color: 'slate' }
     ];
     baseList.forEach(p => {
-      const c = (p.color || 'slate-500').replace('text-', '').replace('-500', '').replace('-600', '');
-      colors[p.id] = `border-l-${c}-500`;
+      const colorMeta = getColorOption(p.color);
+      colors[p.id] = colorMeta.border;
     });
     return colors;
   }, [priorityConfigs]);
@@ -1089,6 +1113,7 @@ export default function TaskBoardView({
         setInlineEditTitle={setInlineEditTitle}
         submitInlineEdit={submitInlineEdit}
         isDraggingRef={isDraggingRef}
+        onAddTask={onAddTask}
       />
     );
   };
@@ -1398,7 +1423,7 @@ export default function TaskBoardView({
                           <span className="text-[9.5px] font-mono text-slate-400 dark:text-slate-500">Esc để hủy</span>
                           <div className="flex items-center gap-1.5">
                             <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
-                            <button onClick={() => handleInlineAddSubmit(col)} className="px-3 py-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-black shadow-xs cursor-pointer active:scale-95 transition-all">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
+                            <button onClick={() => handleInlineAddSubmit(col)} className="px-3 py-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black shadow-xs cursor-pointer active:scale-95 transition-all">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                           </div>
                         </div>
                       </div>

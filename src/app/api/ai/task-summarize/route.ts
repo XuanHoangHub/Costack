@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +42,7 @@ Yêu cầu báo cáo bao gồm các mục tiêu chính sau (định dạng ngắ
 3. 🎯 **Hành động Tiếp theo Đề xuất**: Đưa ra 2 hành động cụ thể để đẩy nhanh/hoàn tất công việc này.`;
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: contents,
       config: {
         systemInstruction,

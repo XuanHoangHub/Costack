@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 Dựa trên ý nghĩa ngữ cảnh và các từ khoá, hãy gợi ý các nhãn phù hợp từ danh sách sau: ['Design', 'Frontend', 'Backend', 'Bugs', 'API', 'Marketing', 'Research', 'DevOps'].`;
 
     const response = await client.models.generateContent({
-      model: model || "gemini-3.5-flash",
+      model: resolveModel(model),
       contents: prompt,
       config: {
         systemInstruction: "Bạn là một PM thông thái. Hãy rà soát nội dung công việc và trả về danh sách các nhãn phù hợp dưới dạng mảng JSON chứa các chuỗi nhãn dán. Không giải thích gì thêm, chỉ trả về chuỗi JSON đại diện cho mảng các chuỗi, ví dụ: [\"Design\", \"Frontend\"].",

@@ -31,6 +31,7 @@ import {
   Layers3,
 } from 'lucide-react';
 import { Task, Document, Space, User as UserType } from '@/types';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export type SearchCategory = 'all' | 'tasks' | 'docs' | 'spaces' | 'channels' | 'members' | 'commands';
 
@@ -92,6 +93,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   isDarkMode,
   addSyncLog,
 }) => {
+  const { isVietnamese } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -517,7 +519,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           transition={{ duration: 0.15, ease: 'easeOut' }}
           className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-700/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[75vh] z-10 font-sans"
         >
-          <h2 id="global-search-title" className="sr-only">Tìm kiếm toàn cục</h2>
+          <h2 id="global-search-title" className="sr-only">{isVietnamese ? 'Tìm kiếm toàn cục' : 'Global Search'}</h2>
           {/* Searching Bar Input Field */}
           <div className="px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between gap-3 bg-white/40 dark:bg-slate-900/40 focus-within:border-indigo-500/50 transition-colors">
             {isCommandMode ? (
@@ -528,9 +530,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             <input
               ref={inputRef}
               type="text"
-              placeholder={isCommandMode ? "Nhập lệnh hoặc nội dung tìm kiếm..." : "Tìm công việc, tài liệu, khu vực, kênh trò chuyện..."}
+              placeholder={isCommandMode 
+                ? (isVietnamese ? "Nhập lệnh hoặc nội dung tìm kiếm..." : "Type command or search query...") 
+                : (isVietnamese ? "Tìm công việc, tài liệu, không gian, kênh trò chuyện..." : "Search tasks, docs, spaces, channels...")}
               value={searchQuery}
-              aria-label="Tìm công việc, tài liệu, khu vực, kênh và thành viên"
+              aria-label={isVietnamese ? "Tìm công việc, tài liệu, khu vực, kênh và thành viên" : "Search tasks, docs, spaces, channels and members"}
               aria-controls="global-search-results"
               aria-activedescendant={flatResults[selectedIndex] ? `global-search-result-${selectedIndex}` : undefined}
               onKeyDown={handleKeyDown}
@@ -555,7 +559,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             )}
             <button
               type="button"
-              aria-label="Đóng tìm kiếm toàn cục"
+              aria-label={isVietnamese ? "Đóng tìm kiếm toàn cục" : "Close global search"}
               onClick={() => {
                 onClose();
                 setSearchQuery('');
@@ -578,7 +582,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/50 dark:border-slate-700/50'
                 }`}
               >
-                Tất cả ({totalResultsCount})
+                {isVietnamese ? 'Tất cả' : 'All'} ({totalResultsCount})
               </button>
               <button
                 onClick={() => setSearchCategory('tasks')}
@@ -590,7 +594,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Briefcase className="w-3 h-3 shrink-0" />
-                <span>Công việc ({filteredTasks.length})</span>
+                <span>{isVietnamese ? 'Công việc' : 'Tasks'} ({filteredTasks.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('docs')}
@@ -602,7 +606,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <FileText className="w-3 h-3 shrink-0" />
-                <span>Tài liệu ({filteredDocs.length})</span>
+                <span>{isVietnamese ? 'Tài liệu' : 'Docs'} ({filteredDocs.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('spaces')}
@@ -614,7 +618,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Layers3 className="w-3 h-3 shrink-0" />
-                <span>Khu vực ({filteredSpaces.length})</span>
+                <span>{isVietnamese ? 'Không gian' : 'Spaces'} ({filteredSpaces.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('channels')}
@@ -626,7 +630,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Hash className="w-3 h-3 shrink-0" />
-                <span>Trò chuyện ({filteredChannels.length})</span>
+                <span>{isVietnamese ? 'Trò chuyện' : 'Chat'} ({filteredChannels.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('members')}
@@ -638,7 +642,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <UserIcon className="w-3 h-3 shrink-0" />
-                <span>Thành viên ({filteredMembers.length})</span>
+                <span>{isVietnamese ? 'Thành viên' : 'Members'} ({filteredMembers.length})</span>
               </button>
               <button
                 onClick={() => setSearchCategory('commands')}
@@ -650,7 +654,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 }`}
               >
                 <Terminal className="w-3 h-3 shrink-0" />
-                <span>Lệnh ({filteredCommands.length})</span>
+                <span>{isVietnamese ? 'Lệnh' : 'Commands'} ({filteredCommands.length})</span>
               </button>
             </div>
           )}
@@ -730,7 +734,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 </div>
 
                 {/* Footer Bar */}
-                <div className="pt-3.5 border-t border-slate-150 dark:border-slate-800/80 px-1 flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                <div className="pt-3.5 border-t border-slate-200/80 dark:border-slate-800/80 px-1 flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-slate-500">
                   <span className="flex items-center gap-1.5">
                     <span>
                       Press{' '}

@@ -13,7 +13,7 @@ import {
 
 export interface Toast {
   id: string;
-  type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message';
+  type: 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message' | 'chat_message';
   title: string;
   message: string;
   duration?: number;
@@ -60,7 +60,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         return {
           icon: <UserPlus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
           accentClass: 'bg-indigo-600 dark:bg-indigo-500',
-          bgClass: 'border-indigo-100/50 shadow-indigo-500/10 dark:border-indigo-500/20 dark:shadow-indigo-500/20'
+          bgClass: 'border-indigo-100/50 shadow-blue-500/10 dark:border-indigo-500/20 dark:shadow-blue-500/20'
         };
       case 'deadline':
         return {
@@ -79,6 +79,12 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
           icon: <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />,
           accentClass: 'bg-emerald-500 dark:bg-emerald-400',
           bgClass: 'border-emerald-100/50 shadow-emerald-500/10 dark:border-emerald-500/20 dark:shadow-emerald-500/20'
+        };
+      case 'chat_message':
+        return {
+          icon: <MessageSquare className="w-5 h-5 text-sky-500 dark:text-sky-400" />,
+          accentClass: 'bg-sky-500 dark:bg-sky-400',
+          bgClass: 'border-sky-100/50 shadow-sky-500/10 dark:border-sky-500/20 dark:shadow-sky-500/20'
         };
       case 'message':
         return {

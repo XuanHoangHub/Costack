@@ -853,26 +853,29 @@ export default function TaskDetailsPanel({
               </button>
               <AnimatePresence>
                 {showAssigneesDropdown && (
-                  <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                    className="absolute left-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-0.5 animate-in fade-in slide-in-from-top-1">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">Chọn người phụ trách</div>
-                    {members.map(m => {
-                      const checked = assigneeIds.includes(m.id);
-                      return (
-                        <label key={m.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
-                          <input type="checkbox" checked={checked}
-                            onChange={() => {
-                              const ids = assigneeIds;
-                              const nextIds = checked ? ids.filter(id => id !== m.id) : [...ids, m.id];
-                              onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
-                            }}
-                            className="rounded accent-indigo-650 w-3.5 h-3.5 cursor-pointer" />
-                          <SignedImage filePath={m.avatar} className="w-4.5 h-4.5 rounded-full object-cover shrink-0" alt={m.name} />
-                          <span className="truncate">{m.name}</span>
-                        </label>
-                      );
-                    })}
-                  </motion.div>
+                  <>
+                    <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowAssigneesDropdown(false)} />
+                    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+                      className="absolute left-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-0.5 animate-in fade-in slide-in-from-top-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">Chọn người phụ trách</div>
+                      {members.map(m => {
+                        const checked = assigneeIds.includes(m.id);
+                        return (
+                          <label key={m.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                            <input type="checkbox" checked={checked}
+                              onChange={() => {
+                                const ids = assigneeIds;
+                                const nextIds = checked ? ids.filter(id => id !== m.id) : [...ids, m.id];
+                                onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
+                              }}
+                              className="rounded accent-indigo-650 w-3.5 h-3.5 cursor-pointer" />
+                            <SignedImage filePath={m.avatar} className="w-4.5 h-4.5 rounded-full object-cover shrink-0" alt={m.name} />
+                            <span className="truncate">{m.name}</span>
+                          </label>
+                        );
+                      })}
+                    </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>
@@ -1100,21 +1103,24 @@ export default function TaskDetailsPanel({
                 </button>
                 <AnimatePresence>
                   {showTagsDropdown && (
-                    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                      className="absolute left-0 mt-1.5 z-30 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-36 space-y-0.5">
-                      {['Design', 'Frontend', 'Backend', 'Bug', 'Marketing', 'Research', 'Copywriting'].map(preset => (
-                        <button key={preset}
-                          onClick={() => {
-                            const current = task.tags || [];
-                            if (!current.includes(preset)) onUpdateTask({ ...task, tags: [...current, preset] });
-                            setShowTagsDropdown(false);
-                          }}
-                          className="w-full text-left px-2 py-1 text-[11px] font-medium text-slate-605 dark:text-slate-305 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getTagColor(preset).bg} border ${getTagColor(preset).border}`} />
-                          {preset}
-                        </button>
-                      ))}
-                    </motion.div>
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowTagsDropdown(false)} />
+                      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+                        className="absolute left-0 mt-1.5 z-30 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-36 space-y-0.5">
+                        {['Design', 'Frontend', 'Backend', 'Bug', 'Marketing', 'Research', 'Copywriting'].map(preset => (
+                          <button key={preset}
+                            onClick={() => {
+                              const current = task.tags || [];
+                              if (!current.includes(preset)) onUpdateTask({ ...task, tags: [...current, preset] });
+                              setShowTagsDropdown(false);
+                            }}
+                            className="w-full text-left px-2 py-1 text-[11px] font-medium text-slate-605 dark:text-slate-305 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${getTagColor(preset).bg} border ${getTagColor(preset).border}`} />
+                            {preset}
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
                   )}
                 </AnimatePresence>
               </div>
@@ -1590,7 +1596,7 @@ export default function TaskDetailsPanel({
     const response = aiResponseText || aiSummary;
 
     return (
-      <section className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/60 dark:from-indigo-950/30 dark:via-slate-950/50 dark:to-violet-950/20 overflow-hidden shadow-3xs">
+      <section className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-r from-blue-50/80 via-white to-sky-50/60 dark:from-blue-950/30 dark:via-slate-950/50 dark:to-cyan-950/20 overflow-hidden shadow-3xs">
         <button
           type="button"
           onClick={() => setIsAiPanelOpen(open => !open)}
@@ -1598,7 +1604,7 @@ export default function TaskDetailsPanel({
           className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer hover:bg-white/50 dark:hover:bg-slate-900/30 transition-colors"
         >
           <span className="flex items-center gap-2.5 min-w-0">
-            <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+            <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
               <Bot className="w-4 h-4" />
             </span>
             <span className="min-w-0">
@@ -2030,7 +2036,7 @@ export default function TaskDetailsPanel({
                     {task.subtasks.length > 0 && (
                       <div className="flex items-center gap-2.5 px-1 select-none">
                         <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                          <motion.div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500"
+                          <motion.div className="h-full rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400"
                             initial={{ width: 0 }} animate={{ width: `${task.progress}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
                         </div>
                         <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tabular-nums">{task.progress}%</span>
@@ -2139,26 +2145,29 @@ export default function TaskDetailsPanel({
                             + Thêm liên kết
                           </button>
                           {showLinkTaskDropdown && (
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      const list = [...(task.relationships?.tasks || []), t.id];
-                                      onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                                      setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
-                                      onAddSyncLog(`Linked task: "${t.title}"`);
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
+                            <>
+                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
+                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
+                                {allTasks
+                                  .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
+                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                  .map(t => (
+                                    <button key={t.id}
+                                      onClick={() => {
+                                        const list = [...(task.relationships?.tasks || []), t.id];
+                                        onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
+                                        setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
+                                        onAddSyncLog(`Linked task: "${t.title}"`);
+                                      }}
+                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                      {t.title}
+                                    </button>
+                                  ))}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2199,26 +2208,29 @@ export default function TaskDetailsPanel({
                             + Thêm liên kết
                           </button>
                           {showLinkDocDropdown && (
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-800" />
-                              {allDocs
-                                .filter(d => !task.relationships?.docs?.includes(d.id))
-                                .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(d => (
-                                  <button key={d.id}
-                                    onClick={() => {
-                                      const list = [...(task.relationships?.docs || []), d.id];
-                                      onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                                      setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
-                                      onAddSyncLog(`Linked document: "${d.title}"`);
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {d.title}
-                                  </button>
-                                ))}
-                            </div>
+                            <>
+                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
+                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                                <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
+                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-800" />
+                                {allDocs
+                                  .filter(d => !task.relationships?.docs?.includes(d.id))
+                                  .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                  .map(d => (
+                                    <button key={d.id}
+                                      onClick={() => {
+                                        const list = [...(task.relationships?.docs || []), d.id];
+                                        onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
+                                        setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
+                                        onAddSyncLog(`Linked document: "${d.title}"`);
+                                      }}
+                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                      {d.title}
+                                    </button>
+                                  ))}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2260,24 +2272,27 @@ export default function TaskDetailsPanel({
                             + Thêm công việc
                           </button>
                           {showBlockedByDropdown && (
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      addDependency('blockedBy', t.id);
-                                      setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
+                            <>
+                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
+                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
+                                {allTasks
+                                  .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
+                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                  .map(t => (
+                                    <button key={t.id}
+                                      onClick={() => {
+                                        addDependency('blockedBy', t.id);
+                                        setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
+                                      }}
+                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                      {t.title}
+                                    </button>
+                                  ))}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2318,24 +2333,27 @@ export default function TaskDetailsPanel({
                             + Thêm công việc
                           </button>
                           {showBlocksDropdown && (
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      addDependency('blocks', t.id);
-                                      setShowBlocksDropdown(false); setRelationshipSearchQuery('');
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
+                            <>
+                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
+                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
+                                {allTasks
+                                  .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
+                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                  .map(t => (
+                                    <button key={t.id}
+                                      onClick={() => {
+                                        addDependency('blocks', t.id);
+                                        setShowBlocksDropdown(false); setRelationshipSearchQuery('');
+                                      }}
+                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                      {t.title}
+                                    </button>
+                                  ))}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2554,26 +2572,29 @@ export default function TaskDetailsPanel({
                           + Thêm liên kết
                         </button>
                         {showLinkTaskDropdown && (
-                          <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                              onChange={e => setRelationshipSearchQuery(e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                            {allTasks
-                              .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
-                              .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                              .map(t => (
-                                <button key={t.id}
-                                  onClick={() => {
-                                    const list = [...(task.relationships?.tasks || []), t.id];
-                                    onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                                    setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
-                                    onAddSyncLog(`Linked task: "${t.title}"`);
-                                  }}
-                                  className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                  {t.title}
-                                </button>
-                              ))}
-                          </div>
+                          <>
+                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
+                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
+                              {allTasks
+                                .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
+                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                .map(t => (
+                                  <button key={t.id}
+                                    onClick={() => {
+                                      const list = [...(task.relationships?.tasks || []), t.id];
+                                      onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
+                                      setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
+                                      onAddSyncLog(`Linked task: "${t.title}"`);
+                                    }}
+                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                    {t.title}
+                                  </button>
+                                ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -2614,26 +2635,29 @@ export default function TaskDetailsPanel({
                           + Thêm liên kết
                         </button>
                         {showLinkDocDropdown && (
-                          <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
-                              onChange={e => setRelationshipSearchQuery(e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-805" />
-                            {allDocs
-                              .filter(d => !task.relationships?.docs?.includes(d.id))
-                              .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                              .map(d => (
-                                <button key={d.id}
-                                  onClick={() => {
-                                    const list = [...(task.relationships?.docs || []), d.id];
-                                    onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                                    setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
-                                    onAddSyncLog(`Linked document: "${d.title}"`);
-                                  }}
-                                  className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                  {d.title}
-                                </button>
-                              ))}
-                          </div>
+                          <>
+                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
+                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                              <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
+                                onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-805" />
+                              {allDocs
+                                .filter(d => !task.relationships?.docs?.includes(d.id))
+                                .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                .map(d => (
+                                  <button key={d.id}
+                                    onClick={() => {
+                                      const list = [...(task.relationships?.docs || []), d.id];
+                                      onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
+                                      setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
+                                      onAddSyncLog(`Linked document: "${d.title}"`);
+                                    }}
+                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                    {d.title}
+                                  </button>
+                                ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -2675,24 +2699,27 @@ export default function TaskDetailsPanel({
                           + Thêm công việc
                         </button>
                         {showBlockedByDropdown && (
-                          <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                              onChange={e => setRelationshipSearchQuery(e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                            {allTasks
-                              .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
-                              .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                              .map(t => (
-                                <button key={t.id}
-                                  onClick={() => {
-                                    addDependency('blockedBy', t.id);
-                                    setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
-                                  }}
-                                  className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                  {t.title}
-                                </button>
-                              ))}
-                          </div>
+                          <>
+                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
+                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
+                              {allTasks
+                                .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
+                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                .map(t => (
+                                  <button key={t.id}
+                                    onClick={() => {
+                                      addDependency('blockedBy', t.id);
+                                      setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
+                                    }}
+                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                    {t.title}
+                                  </button>
+                                ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
@@ -2733,24 +2760,27 @@ export default function TaskDetailsPanel({
                           + Thêm công việc
                         </button>
                         {showBlocksDropdown && (
-                          <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                            <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                              onChange={e => setRelationshipSearchQuery(e.target.value)}
-                              className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                            {allTasks
-                              .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
-                              .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                              .map(t => (
-                                <button key={t.id}
-                                  onClick={() => {
-                                    addDependency('blocks', t.id);
-                                    setShowBlocksDropdown(false); setRelationshipSearchQuery('');
-                                  }}
-                                  className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                  {t.title}
-                                </button>
-                              ))}
-                          </div>
+                          <>
+                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
+                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
+                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
+                                onChange={e => setRelationshipSearchQuery(e.target.value)}
+                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
+                              {allTasks
+                                .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
+                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                                .map(t => (
+                                  <button key={t.id}
+                                    onClick={() => {
+                                      addDependency('blocks', t.id);
+                                      setShowBlocksDropdown(false); setRelationshipSearchQuery('');
+                                    }}
+                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
+                                    {t.title}
+                                  </button>
+                                ))}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>

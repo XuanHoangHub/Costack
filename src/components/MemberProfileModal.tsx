@@ -1,14 +1,24 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Phone, Calendar, Briefcase, MessageSquare, CheckCircle2, Clock, Shield, Sparkles, UserCheck } from 'lucide-react';
+import { 
+  X, Mail, Phone, Calendar, Briefcase, MessageSquare, 
+  CheckCircle2, Clock, Shield, Sparkles, UserCheck, 
+  Copy, Check, Crown, Zap, FolderKanban, Flame, 
+  ChevronRight, ExternalLink, Activity, Camera, Trash2, RefreshCw, Upload, Image as ImageIcon,
+  Maximize2, Eye, SlidersHorizontal
+} from 'lucide-react';
 import { useMemberStore } from '@/store/memberStore';
 import { useTaskStore } from '@/store/taskStore';
 import { useUiStore } from '@/store/uiStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import { useAuthStore } from '@/store/authStore';
 import SignedImage from './SignedImage';
+import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { getLocalizedOptionLabel } from '@/utils/fieldConfig';
+import { uiStatusToPresence, presenceDotClass } from '@/lib/presence';
 import { User, Task } from '@/types';
 
 interface MemberProfileModalProps {
@@ -17,47 +27,200 @@ interface MemberProfileModalProps {
   onSelectTask?: (task: Task) => void;
 }
 
-const statusColors: Record<string, string> = {
-  online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30 animate-pulse',
-  busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
-  away: 'bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
-  offline: 'bg-slate-400 ring-2 ring-slate-400/20',
+const statusLabels: Record<string, { vi: string; en: string; iconColor: string; bg: string }> = {
+  online: { vi: 'Trực tuyến', en: 'Online', iconColor: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' },
+  busy: { vi: 'Đang bận', en: 'Busy', iconColor: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400' },
+  away: { vi: 'Vắng mặt', en: 'Away', iconColor: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' },
+  offline: { vi: 'Ngoại tuyến', en: 'Offline', iconColor: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/20 text-slate-600 dark:text-slate-400' },
 };
 
-const statusLabels: Record<string, { vi: string; en: string }> = {
-  online: { vi: 'Trực tuyến', en: 'Online' },
-  busy: { vi: 'Đang bận', en: 'Busy' },
-  away: { vi: 'Vắng mặt', en: 'Away' },
-  offline: { vi: 'Ngoại tuyến', en: 'Offline' },
-};
-
-const roleBadges: Record<string, { label: string; cls: string }> = {
-  admin: { label: 'Quản trị viên (Admin)', cls: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
-  member: { label: 'Thành viên (Member)', cls: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
-  owner: { label: 'Chủ sở hữu (Owner)', cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+const roleMeta: Record<string, { label: { vi: string; en: string }; badgeCls: string; icon: React.ComponentType<{ className?: string }> }> = {
+  owner: { 
+    label: { vi: 'Chủ sở hữu (Owner)', en: 'Workspace Owner' }, 
+    badgeCls: 'bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 ring-1 ring-amber-500/20',
+    icon: Crown
+  },
+  admin: { 
+    label: { vi: 'Quản trị viên (Admin)', en: 'Admin' }, 
+    badgeCls: 'bg-gradient-to-r from-indigo-500/15 to-blue-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 ring-1 ring-indigo-500/20',
+    icon: Shield
+  },
+  member: { 
+    label: { vi: 'Thành viên (Member)', en: 'Member' }, 
+    badgeCls: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-800 dark:text-cyan-300 border-cyan-500/30 ring-1 ring-cyan-500/20',
+    icon: Zap
+  },
+  guest: { 
+    label: { vi: 'Khách (Guest)', en: 'Guest' }, 
+    badgeCls: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    icon: UserCheck
+  },
 };
 
 export default function MemberProfileModal({ memberId, onClose, onSelectTask }: MemberProfileModalProps) {
-  const { t, locale } = useTranslation();
+  const { t, locale, isVietnamese } = useTranslation();
   const members = useMemberStore((s) => s.members);
   const tasks = useTaskStore((s) => s.tasks);
   const setActiveTab = useUiStore((s) => s.setActiveTab);
+  const userStatus = useUiStore((s) => s.userStatus);
   const setInitialSelectedChannelId = useUiStore((s) => s.setInitialSelectedChannelId);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const currentUser = useAuthStore((s) => s.currentUser);
+
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [bannerFeedback, setBannerFeedback] = useState<string>('');
+  const [bannerFit, setBannerFit] = useState<'cover' | 'contain'>('cover');
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        if (lightboxImage) setLightboxImage(null);
+        else onClose();
+      }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+  }, [onClose, lightboxImage]);
 
-  if (!memberId) return null;
+  const member = members.find(
+    (m) => m.id === memberId || m.id === `user-${memberId}` || (memberId === 'user' && (m.id === 'user' || (currentUser?.id && m.id === currentUser.id)))
+  );
 
-  const member = members.find((m) => m.id === memberId || m.id === `user-${memberId}` || (memberId === 'user' && m.id === 'user'));
+  const isOwnProfile = !member ? false : (
+    member.id === 'user' || 
+    (currentUser?.id && (member.id === currentUser.id || member.id === `user-${currentUser.id}`)) || 
+    (currentUser?.email && member.email?.toLowerCase() === currentUser.email.toLowerCase())
+  );
 
-  if (!member) return null;
+  const resolvedStatus = isOwnProfile ? uiStatusToPresence(userStatus) : (member?.status || 'offline');
+
+  const [customBannerUrl, setCustomBannerUrl] = useState<string>(() => {
+    if (typeof window === 'undefined' || !member) return '';
+    return member.bannerUrl || member.coverUrl || localStorage.getItem(`apexa_user_banner_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner') : '') || '';
+  });
+
+  useEffect(() => {
+    if (member) {
+      const saved = member.bannerUrl || member.coverUrl || localStorage.getItem(`apexa_user_banner_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner') : '') || '';
+      setCustomBannerUrl(saved);
+    }
+  }, [member, isOwnProfile]);
+
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !member) return;
+
+    if (!file.type.startsWith('image/')) {
+      setBannerFeedback(isVietnamese ? 'Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WebP).' : 'Please select a valid image file (PNG, JPG, WebP).');
+      setTimeout(() => setBannerFeedback(''), 3000);
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setBannerFeedback(isVietnamese ? 'Kích thước ảnh tối đa là 8MB.' : 'Image size cannot exceed 8MB.');
+      setTimeout(() => setBannerFeedback(''), 3000);
+      return;
+    }
+
+    setIsUploadingBanner(true);
+    setBannerFeedback('');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Url = event.target?.result as string;
+      setCustomBannerUrl(base64Url);
+
+      // Save to local storage for instant persistent display
+      try {
+        localStorage.setItem(`apexa_user_banner_${member.id}`, base64Url);
+        if (isOwnProfile) {
+          localStorage.setItem('apexa_user_banner', base64Url);
+        }
+      } catch (storageErr) {
+        console.warn('LocalStorage quota warning:', storageErr);
+      }
+
+      // Update Member store
+      useMemberStore.getState().updateMember({
+        ...member,
+        bannerUrl: base64Url,
+        coverUrl: base64Url
+      });
+
+      if (isOwnProfile) {
+        useAuthStore.getState().updateCurrentUser({
+          bannerUrl: base64Url,
+          coverUrl: base64Url
+        });
+      }
+
+      setBannerFeedback(isVietnamese ? 'Đã tải lên ảnh bìa thành công! 📸' : 'Banner uploaded successfully! 📸');
+      setTimeout(() => setBannerFeedback(''), 3000);
+
+      // Async cloud sync to Supabase storage
+      try {
+        const fileExt = file.name.split('.').pop() || 'png';
+        const fileName = `banners/${member.id}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+          if (publicUrl) {
+            setCustomBannerUrl(publicUrl);
+            localStorage.setItem(`apexa_user_banner_${member.id}`, publicUrl);
+            if (isOwnProfile) localStorage.setItem('apexa_user_banner', publicUrl);
+            useMemberStore.getState().updateMember({
+              ...member,
+              bannerUrl: publicUrl,
+              coverUrl: publicUrl
+            });
+            if (isOwnProfile) {
+              useAuthStore.getState().updateCurrentUser({
+                bannerUrl: publicUrl,
+                coverUrl: publicUrl
+              });
+            }
+          }
+        }
+      } catch (uploadErr) {
+        console.warn('Cloud sync fallback to local base64:', uploadErr);
+      } finally {
+        setIsUploadingBanner(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!member) return;
+    setCustomBannerUrl('');
+    localStorage.removeItem(`apexa_user_banner_${member.id}`);
+    if (isOwnProfile) {
+      localStorage.removeItem('apexa_user_banner');
+    }
+    useMemberStore.getState().updateMember({
+      ...member,
+      bannerUrl: undefined,
+      coverUrl: undefined
+    });
+    if (isOwnProfile) {
+      useAuthStore.getState().updateCurrentUser({
+        bannerUrl: undefined,
+        coverUrl: undefined
+      });
+    }
+    setBannerFeedback(isVietnamese ? 'Đã khôi phục ảnh bìa mặc định.' : 'Reverted to default banner.');
+    setTimeout(() => setBannerFeedback(''), 3000);
+  };
+
+  if (!memberId || !member) return null;
 
   const assignedTasks = tasks.filter(
     (t) => t.assigneeId === member.id || t.assigneeId === memberId || (t.assigneeIds && (t.assigneeIds.includes(member.id) || t.assigneeIds.includes(memberId)))
@@ -66,17 +229,27 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
   const completedTasksCount = assignedTasks.filter((t) => t.status === 'completed').length;
   const inProgressTasksCount = assignedTasks.filter((t) => t.status === 'inprogress').length;
   const totalHoursLogged = assignedTasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
-  const isOwnProfile = member.id === 'user';
+  const totalHoursEstimate = assignedTasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0);
+  const completionRate = assignedTasks.length > 0 ? Math.round((completedTasksCount / assignedTasks.length) * 100) : 0;
 
   const formatLastSeen = (timestamp?: string) => {
-    if (!timestamp) return locale === 'vi' ? 'Chưa rõ' : 'Unknown';
+    if (!timestamp) return isVietnamese ? 'Chưa rõ' : 'Unknown';
     const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return locale === 'vi' ? 'Chưa rõ' : 'Unknown';
+    if (isNaN(date.getTime())) return isVietnamese ? 'Chưa rõ' : 'Unknown';
     const diffSecs = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (diffSecs < 60) return locale === 'vi' ? 'Vừa xong' : 'Just now';
-    if (diffSecs < 3600) return locale === 'vi' ? `${Math.floor(diffSecs / 60)} phút trước` : `${Math.floor(diffSecs / 60)}m ago`;
-    if (diffSecs < 86400) return locale === 'vi' ? `${Math.floor(diffSecs / 3600)} giờ trước` : `${Math.floor(diffSecs / 3600)}h ago`;
-    return date.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' });
+    if (diffSecs < 60) return isVietnamese ? 'Vừa xong' : 'Just now';
+    if (diffSecs < 3600) return isVietnamese ? `${Math.floor(diffSecs / 60)} phút trước` : `${Math.floor(diffSecs / 60)}m ago`;
+    if (diffSecs < 86400) return isVietnamese ? `${Math.floor(diffSecs / 3600)} giờ trước` : `${Math.floor(diffSecs / 3600)}h ago`;
+    return date.toLocaleDateString(isVietnamese ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' });
+  };
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (member.email) {
+      navigator.clipboard.writeText(member.email);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }
   };
 
   const handleOpenChat = () => {
@@ -85,7 +258,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
       setActiveTab('profile');
       return;
     }
-    const currentUserId = 'user';
+    const currentUserId = currentUser?.id || 'user';
     const sortedIds = [currentUserId, member.id].sort();
     const dmChannelId = `${activeWorkspaceId || 'w1'}:dm-${sortedIds[0]}-${sortedIds[1]}`;
     setInitialSelectedChannelId(dmChannelId);
@@ -97,204 +270,397 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
     setActiveTab('tasks');
   };
 
+  const RoleIcon = roleMeta[member.role]?.icon || Shield;
+  const currentStatusMeta = statusLabels[resolvedStatus] || statusLabels.offline;
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="absolute inset-0" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 cursor-pointer" 
+          onClick={onClose} 
+        />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 20 }}
+          initial={{ opacity: 0, scale: 0.94, y: 18 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 20 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          exit={{ opacity: 0, scale: 0.94, y: 18 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="member-profile-title"
-          className="relative w-full max-w-xl ios27-glass rounded-[36px] shadow-2xl border border-white/80 dark:border-white/10 overflow-hidden z-10 flex flex-col max-h-[90vh]"
+          className="relative w-full max-w-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 flex flex-col max-h-[92vh] text-slate-800 dark:text-slate-100"
         >
-          {/* Header Banner */}
-          <div className="h-36 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 relative shrink-0 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/30 via-transparent to-black/40" />
-            <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
+          {/* Header Banner (Custom image or Mesh gradient) */}
+          <div className="h-52 sm:h-60 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none">
+            {customBannerUrl ? (
+              <div 
+                className="relative w-full h-full cursor-pointer overflow-hidden flex items-center justify-center"
+                onClick={() => setLightboxImage({ url: customBannerUrl, title: `${member.name} - Banner HD` })}
+                title={isVietnamese ? 'Nhấp để xem ảnh bìa kích thước đầy đủ (HD)' : 'Click to view full size banner (HD)'}
+              >
+                <SignedImage
+                  filePath={customBannerUrl}
+                  alt={`${member.name} banner`}
+                  style={{
+                    imageRendering: '-webkit-optimize-contrast',
+                    objectFit: bannerFit
+                  }}
+                  className={`w-full h-full ${bannerFit === 'contain' ? 'object-contain bg-slate-950 p-2' : 'object-cover'} transition-transform duration-500 group-hover:scale-[1.02]`}
+                />
+                {/* Subtle top edge vignette for button readability without darkening center logo */}
+                <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+              </div>
+            ) : (
+              <>
+                {/* Ambient Lighting & Mesh Accents */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(255,255,255,0.35),_transparent_50%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,_rgba(6,182,212,0.4),_transparent_50%)]" />
+                <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-cyan-400/20 blur-2xl" />
+                <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-indigo-500/30 blur-2xl" />
+                <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+                <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+              </>
+            )}
+
+            {/* Banner Actions Overlay: Upload, Fit Toggle, HD View, Remove */}
+            <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  bannerFileInputRef.current?.click();
+                }}
+                disabled={isUploadingBanner}
+                className="px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                title={isVietnamese ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+              >
+                {isUploadingBanner ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5 text-cyan-300" />
+                )}
+                <span>
+                  {isUploadingBanner
+                    ? (isVietnamese ? 'Đang tải...' : 'Uploading...')
+                    : customBannerUrl
+                      ? (isVietnamese ? 'Đổi ảnh bìa' : 'Change banner')
+                      : (isVietnamese ? 'Tải ảnh bìa' : 'Upload banner')}
+                </span>
+              </button>
+
+              {customBannerUrl && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
+                    }}
+                    className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                    title={bannerFit === 'cover' ? (isVietnamese ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (isVietnamese ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{bannerFit === 'cover' ? (isVietnamese ? 'Vừa khung' : 'Fit') : (isVietnamese ? 'Phóng đầy' : 'Fill')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImage({ url: customBannerUrl, title: `${member.name} Banner` });
+                    }}
+                    className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                    title={isVietnamese ? 'Xem ảnh gốc độ nét cao (HD)' : 'View original HD image'}
+                  >
+                    <Eye className="w-3.5 h-3.5 text-sky-300" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveBanner}
+                    className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                    title={isVietnamese ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove custom banner'}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-300" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Feedback notification pill */}
+            {bannerFeedback && (
+              <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-slate-950/85 border border-white/20 text-white text-[11px] font-bold backdrop-blur-md shadow-lg z-10 animate-fade-in">
+                {bannerFeedback}
+              </div>
+            )}
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={bannerFileInputRef}
+              onChange={handleBannerFileChange}
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              className="hidden"
+            />
+
+            {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-md text-white flex items-center justify-center transition-all cursor-pointer z-10 active:scale-90"
+              className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 border border-white/20 backdrop-blur-md text-white flex items-center justify-center transition-all cursor-pointer z-10 active:scale-90 shadow-md"
               title={locale === 'vi' ? 'Đóng' : 'Close'}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Profile Header Details */}
-          <div className="px-7 pb-5 relative shrink-0 border-b border-slate-200/50 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
-            <div className="flex justify-between items-end -mt-16 mb-4">
-              <div className="relative group">
-                <div className="w-26 h-26 rounded-3xl ring-4 ring-white/90 dark:ring-slate-900/90 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden ios27-glow-ring">
+          {/* Profile Header Details Bar */}
+          <div className="px-6 md:px-8 pb-5 relative shrink-0 border-b border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-18 mb-4 gap-4">
+              {/* Avatar with HD Ring & Live Status */}
+              <div 
+                className="relative group self-start cursor-pointer"
+                onClick={() => setLightboxImage({ url: member.avatar, title: `${member.name} Avatar` })}
+                title={isVietnamese ? 'Nhấp để xem ảnh đại diện HD' : 'Click to view HD avatar'}
+              >
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl ring-4 ring-white dark:ring-slate-900 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center transition-all group-hover:ring-indigo-400">
                   <SignedImage
                     filePath={member.avatar}
-                    className="w-full h-full object-cover"
+                    style={{ imageRendering: '-webkit-optimize-contrast' }}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     alt={member.name}
                   />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-3xl">
+                    <Eye className="w-5 h-5 text-white" />
+                  </div>
                 </div>
                 <div
-                  className={`absolute -bottom-1 -right-1 w-6.5 h-6.5 rounded-full border-2 border-white dark:border-slate-900 ${
-                    statusColors[member.status || 'offline']
+                  className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 ${
+                    presenceDotClass(resolvedStatus, resolvedStatus === 'online')
                   } flex items-center justify-center shadow-lg`}
-                  title={statusLabels[member.status || 'offline']?.[locale === 'vi' ? 'vi' : 'en']}
+                  title={currentStatusMeta[locale === 'vi' ? 'vi' : 'en']}
                 />
               </div>
 
-              <div className="flex items-center gap-2.5">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5 self-start sm:self-auto">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={handleOpenChat}
-                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
+                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>{isOwnProfile ? (locale === 'vi' ? 'Chỉnh sửa hồ sơ' : 'Edit profile') : (locale === 'vi' ? 'Gửi tin nhắn' : 'Chat')}</span>
+                  <span>
+                    {isOwnProfile 
+                      ? (locale === 'vi' ? 'Chỉnh sửa hồ sơ' : 'Edit profile') 
+                      : (locale === 'vi' ? 'Gửi tin nhắn' : 'Send message')}
+                  </span>
                 </motion.button>
+
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={handleFilterTasks}
-                  className="px-4 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-black flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-md backdrop-blur-md transition-all cursor-pointer"
+                  className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 text-xs font-black flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-xs transition-all cursor-pointer"
                 >
                   <Briefcase className="w-4 h-4 text-indigo-500" />
-                  <span>{locale === 'vi' ? 'Xem công việc' : 'Tasks'}</span>
+                  <span>{locale === 'vi' ? 'Xem công việc' : 'View tasks'}</span>
                 </motion.button>
               </div>
             </div>
 
-            <div>
+            {/* Name, Role & Email Row */}
+            <div className="space-y-2 text-left">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 id="member-profile-title" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h2 id="member-profile-title" className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                   {member.name}
                 </h2>
                 <span
-                  className={`text-[10px] font-black px-2.5 py-1 rounded-xl border uppercase tracking-wider shadow-2xs ${
-                    roleBadges[member.role]?.cls || 'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-xl border uppercase tracking-wider shadow-2xs ${
+                    roleMeta[member.role]?.badgeCls || 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
                   }`}
                 >
-                  {roleBadges[member.role]?.label || member.role}
+                  <RoleIcon className="w-3 h-3" />
+                  <span>{roleMeta[member.role]?.label[isVietnamese ? 'vi' : 'en'] || member.role}</span>
                 </span>
+                {isOwnProfile && (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                    {locale === 'vi' ? 'Bạn' : 'You'}
+                  </span>
+                )}
               </div>
-              <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-1 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5" />
-                <span>{member.email}</span>
-              </p>
-              <div className="mt-2 flex items-center gap-2 text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                <span>{statusLabels[member.status || 'offline']?.[locale === 'vi' ? 'vi' : 'en']}</span>
-                {member.status !== 'online' && <span>• {formatLastSeen(member.lastSeenAt)}</span>}
+
+              {/* Email with Quick Copy */}
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="group inline-flex items-center gap-1.5 font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+                  title={locale === 'vi' ? 'Sao chép email' : 'Copy email'}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>{member.email}</span>
+                  {copiedEmail ? (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <Copy className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </button>
+
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+
+                {/* Status Pill Badge */}
+                <div className="inline-flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${presenceDotClass(resolvedStatus, resolvedStatus === 'online')}`} />
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    {currentStatusMeta[locale === 'vi' ? 'vi' : 'en']}
+                  </span>
+                  {resolvedStatus !== 'online' && member.lastSeenAt && (
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                      • {formatLastSeen(member.lastSeenAt)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Status Message */}
+            {/* Custom Status Message */}
             {(member.statusMessage || member.statusEmoji) && (
-              <div className="mt-3.5 p-3 rounded-2xl bg-white/60 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2.5 shadow-2xs backdrop-blur-md">
+              <div className="mt-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2.5 shadow-2xs backdrop-blur-xs text-left">
                 <span className="text-lg leading-none">{member.statusEmoji || '💬'}</span>
                 <span className="italic font-medium">{member.statusMessage}</span>
               </div>
             )}
           </div>
 
-          {/* Modal Body Info Scrollable */}
-          <div className="p-7 overflow-y-auto space-y-6 flex-1">
-            {/* Task Stats Strip */}
-            <div className="grid grid-cols-3 gap-3.5">
-              <div className="ios27-card p-4 text-center">
-                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 block tracking-tight">
+          {/* Modal Body Scrollable */}
+          <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+            {/* Bento Stat Cards Strip */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {/* Card 1: Assigned Tasks */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-100 dark:border-indigo-900/30 text-left space-y-1 relative overflow-hidden group">
+                <div className="flex items-center justify-between text-indigo-500 dark:text-indigo-400">
+                  <FolderKanban className="w-4 h-4" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70">
+                    {inProgressTasksCount > 0 ? `${inProgressTasksCount} ${locale === 'vi' ? 'đang làm' : 'active'}` : ''}
+                  </span>
+                </div>
+                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
                   {assignedTasks.length}
                 </span>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mt-1">
-                  {locale === 'vi' ? 'Công việc được giao' : 'Assigned Tasks'}
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
+                  {locale === 'vi' ? 'Công việc được giao' : 'Assigned tasks'}
                 </span>
               </div>
 
-              <div className="ios27-card p-4 text-center">
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 block tracking-tight">
+              {/* Card 2: Completed Tasks */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-left space-y-1 relative overflow-hidden group">
+                <div className="flex items-center justify-between text-emerald-500 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {assignedTasks.length > 0 && (
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      {completionRate}%
+                    </span>
+                  )}
+                </div>
+                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
                   {completedTasksCount}
                 </span>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mt-1">
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
                   {locale === 'vi' ? 'Đã hoàn thành' : 'Completed'}
                 </span>
               </div>
 
-              <div className="ios27-card p-4 text-center">
-                <span className="text-2xl font-black text-purple-600 dark:text-purple-400 block tracking-tight">
+              {/* Card 3: Logged Hours */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:from-amber-950/20 dark:to-slate-900 border border-amber-100 dark:border-amber-900/30 text-left space-y-1 relative overflow-hidden group">
+                <div className="flex items-center justify-between text-amber-500 dark:text-amber-400">
+                  <Clock className="w-4 h-4" />
+                  {totalHoursEstimate > 0 && (
+                    <span className="text-[10px] font-extrabold text-amber-600/80 dark:text-amber-400/80">
+                      /{totalHoursEstimate}h {locale === 'vi' ? 'dự kiến' : 'est'}
+                    </span>
+                  )}
+                </div>
+                <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white block tracking-tight">
                   {totalHoursLogged}h
                 </span>
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mt-1">
-                  {locale === 'vi' ? 'Giờ đã làm' : 'Hours Logged'}
+                <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 block truncate">
+                  {locale === 'vi' ? 'Giờ đã làm' : 'Logged hours'}
                 </span>
               </div>
             </div>
 
-            {/* Profile Info Fields */}
-            <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-                  {locale === 'vi' ? 'Phòng ban / Chuyên môn' : 'Department'}
+            {/* Profile Info Details List */}
+            <div className="space-y-3 p-4.5 rounded-3xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 text-xs">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
+                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-indigo-500" />
+                  <span>{locale === 'vi' ? 'Phòng ban / Chuyên môn' : 'Department / Specialty'}</span>
                 </span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
+                <span className="font-extrabold text-slate-800 dark:text-slate-100">
                   {member.department || (locale === 'vi' ? 'Chưa cập nhật' : 'Not specified')}
                 </span>
               </div>
 
               {member.phone && (
-                <div className="flex items-center justify-between py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                  <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                    {locale === 'vi' ? 'Số điện thoại' : 'Phone'}
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
+                  <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-emerald-500" />
+                    <span>{locale === 'vi' ? 'Số điện thoại' : 'Phone'}</span>
                   </span>
-                  <a href={`tel:${member.phone}`} className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <a href={`tel:${member.phone}`} className="font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline">
                     {member.phone}
                   </a>
                 </div>
               )}
 
-              <div className="flex items-center justify-between py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                  {locale === 'vi' ? 'Ngày tham gia' : 'Joined Date'}
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
+                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-amber-500" />
+                  <span>{locale === 'vi' ? 'Ngày tham gia' : 'Joined Date'}</span>
                 </span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
+                <span className="font-extrabold text-slate-800 dark:text-slate-100">
                   {member.joinedDate || '2026'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between py-1">
-                <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-purple-500" />
-                  {locale === 'vi' ? 'Truy cập gần nhất' : 'Last Active'}
+              <div className="flex items-center justify-between py-1.5 text-left">
+                <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-purple-500" />
+                  <span>{locale === 'vi' ? 'Truy cập gần nhất' : 'Last Active'}</span>
                 </span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {member.status === 'online' ? (locale === 'vi' ? 'Đang truy cập' : 'Online now') : formatLastSeen(member.lastSeenAt)}
+                <span className="font-extrabold text-slate-800 dark:text-slate-100">
+                  {resolvedStatus === 'online' ? (locale === 'vi' ? 'Đang hoạt động' : 'Active now') : formatLastSeen(member.lastSeenAt)}
                 </span>
               </div>
             </div>
 
             {/* Short Bio */}
             {member.bio && (
-              <div className="space-y-1.5">
-                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <div className="space-y-2 text-left">
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {locale === 'vi' ? 'Giới thiệu bản thân' : 'Biography'}
                 </h4>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border-l-4 border-l-indigo-500">
                   "{member.bio}"
-                </p>
+                </div>
               </div>
             )}
 
+            {/* Skills & Expertise */}
             {member.skills && member.skills.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  {locale === 'vi' ? 'Kỹ năng & chuyên môn' : 'Skills & expertise'}
+              <div className="space-y-2 text-left">
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{locale === 'vi' ? 'Kỹ năng & chuyên môn' : 'Skills & expertise'}</span>
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {member.skills.map(skill => (
-                    <span key={skill} className="rounded-lg border border-indigo-200/70 bg-indigo-50 px-2.5 py-1 text-[10.5px] font-bold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
+                    <span key={skill} className="rounded-xl border border-indigo-200/70 bg-indigo-50/80 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
                       {skill}
                     </span>
                   ))}
@@ -302,50 +668,122 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
             )}
 
-            {/* Recent Assigned Tasks List */}
-            <div className="space-y-2">
-              <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center justify-between">
-                <span>{locale === 'vi' ? 'Công việc phụ trách gần đây' : 'Recent Tasks'} ({assignedTasks.length})</span>
-              </h4>
+            {/* Recent Assigned Tasks Section */}
+            <div className="space-y-3 text-left">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                  <FolderKanban className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{locale === 'vi' ? 'Công việc phụ trách gần đây' : 'Recent Assigned Tasks'}</span>
+                  <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                    {assignedTasks.length}
+                  </span>
+                </h4>
+
+                {assignedTasks.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleFilterTasks}
+                    className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <span>{locale === 'vi' ? 'Tất cả' : 'View all'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
               {assignedTasks.length === 0 ? (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
-                  {locale === 'vi' ? 'Thành viên này chưa có công việc được giao.' : 'No tasks assigned yet.'}
+                <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center text-xs space-y-1.5">
+                  <CheckCircle2 className="w-7 h-7 mx-auto text-slate-300 dark:text-slate-600" />
+                  <p className="font-bold text-slate-600 dark:text-slate-300">
+                    {locale === 'vi' ? 'Thành viên này chưa có công việc được giao' : 'No tasks assigned to this member'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {locale === 'vi' ? 'Giao công việc từ bảng công việc hoặc tạo mới.' : 'Assign tasks from workspace boards or backlogs.'}
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {assignedTasks.slice(0, 5).map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => {
-                        if (onSelectTask) {
-                          onClose();
-                          onSelectTask(task);
-                        }
-                      }}
-                      className="p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-indigo-500/50 transition-all flex items-center justify-between cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2
-                          className={`w-4 h-4 shrink-0 ${
-                            task.status === 'completed' ? 'text-emerald-500' : 'text-slate-350 dark:text-slate-600'
-                          }`}
-                        />
-                        <span className={`text-xs font-semibold truncate ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600'}`}>
-                          {task.title}
-                        </span>
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                  {assignedTasks.slice(0, 5).map((task) => {
+                    const isDone = task.status === 'completed';
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => {
+                          if (onSelectTask) {
+                            onClose();
+                            onSelectTask(task);
+                          }
+                        }}
+                        className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-400/50 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                          <CheckCircle2
+                            className={`w-4 h-4 shrink-0 transition-colors ${
+                              isDone ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600 group-hover:text-indigo-500'
+                            }`}
+                          />
+                          <div className="min-w-0 text-left">
+                            <p className={`text-xs font-bold truncate transition-colors ${
+                              isDone 
+                                ? 'line-through text-slate-400 dark:text-slate-500' 
+                                : 'text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                            }`}>
+                              {task.title}
+                            </p>
+                            {task.hoursEstimate ? (
+                              <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                                <Clock className="w-2.5 h-2.5" />
+                                {task.hoursEstimate}h {locale === 'vi' ? 'dự kiến' : 'est'}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[9.5px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
+                            {getLocalizedOptionLabel(task.status, 'status', isVietnamese ? 'vi' : 'en')}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
-                        {task.status}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Full-Resolution HD Lightbox Viewer */}
+      {lightboxImage && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-12 right-0 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/35 border border-white/25 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all cursor-pointer shadow-lg"
+            >
+              <X className="w-4 h-4" />
+              <span>{locale === 'vi' ? 'Đóng' : 'Close'}</span>
+            </button>
+            <SignedImage
+              filePath={lightboxImage.url}
+              alt={lightboxImage.title}
+              className="max-w-full max-h-[75vh] rounded-3xl object-contain shadow-2xl ring-1 ring-white/20 bg-slate-900/50"
+              style={{ imageRendering: '-webkit-optimize-contrast' }}
+            />
+            <div className="mt-3.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-white/20 text-white text-xs font-bold backdrop-blur-md shadow-xl flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{lightboxImage.title}</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }

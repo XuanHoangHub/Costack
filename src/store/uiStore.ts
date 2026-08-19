@@ -160,7 +160,8 @@ export const useUiStore = create<UiState>()(
         enableSystemNotify: true,
         toastDuration: 4000,
         dndActive: false,
-        frequencyLimit: 'throttled'
+        frequencyLimit: 'throttled',
+        enableChatMessages: true
       },
       initialSelectedTaskId: null,
       initialSelectedDocId: null,

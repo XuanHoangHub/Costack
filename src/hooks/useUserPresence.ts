@@ -40,9 +40,10 @@ let preference: PresencePreference = {
 
 function setOwnMemberStatus(status: PresenceStatus, lastSeenAt?: string) {
   useUiStore.getState().setUserStatus(presenceStatusToUi(status));
+  const currentAuth = useAuthStore.getState().currentUser;
   useMemberStore.getState().setMembers((members) =>
     members.map((member) =>
-      member.id === 'user'
+      member.id === 'user' || (currentAuth?.id && member.id === currentAuth.id) || (currentAuth?.email && member.email && member.email.toLowerCase() === currentAuth.email.toLowerCase())
         ? {
             ...member,
             status,
@@ -88,9 +89,13 @@ async function removePresenceChannel(channel: RealtimeChannel) {
   try {
     await channel.untrack();
   } catch (error) {
-    console.warn('Unable to untrack account presence:', error);
+    // Ignore untrack error during disconnect/unmount
   } finally {
-    await supabase.removeChannel(channel);
+    try {
+      await supabase.removeChannel(channel);
+    } catch (error) {
+      // Ignore channel removal error
+    }
   }
 }
 
@@ -226,14 +231,10 @@ export function useUserPresence() {
     };
 
     const start = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!effectIsActive) return;
-      if (!session?.user) {
-        return;
-      }
-
-      memberId = `user-${session.user.id}`;
-      const me = useMemberStore.getState().members.find((member) => member.id === 'user');
+      const currentAuth = useAuthStore.getState().currentUser;
+      const me = useMemberStore.getState().members.find(
+        (member) => member.id === 'user' || (currentAuth?.id && member.id === currentAuth.id) || (currentAuth?.email && member.email?.toLowerCase() === currentAuth.email.toLowerCase())
+      );
       if (me) {
         preference = {
           customStatus: me.customStatus || 'online',
@@ -247,9 +248,41 @@ export function useUserPresence() {
       isIdle = document.visibilityState === 'hidden';
       setOwnMemberStatus(resolvedOwnStatus());
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!effectIsActive) return;
+      if (!session?.user) {
+        return;
+      }
+
+      memberId = `user-${session.user.id}`;
+
+      // Ensure any existing presence channel instance is cleanly removed before subscribing
+      const existingChannels = supabase.getChannels().filter(
+        (c) => c.topic === 'realtime:apexa_presence' || c.topic === 'apexa_presence'
+      );
+      for (const ch of existingChannels) {
+        try {
+          await ch.untrack();
+        } catch {}
+        await supabase.removeChannel(ch);
+      }
+      if (!effectIsActive) return;
+
       channel = supabase.channel('apexa_presence', {
         config: { presence: { key: memberId } },
       });
+
+      // Guard against reused channel instances in non-closed state
+      if ((channel as any).state && (channel as any).state !== 'closed') {
+        try {
+          await supabase.removeChannel(channel);
+        } catch {}
+        if (!effectIsActive) return;
+        channel = supabase.channel('apexa_presence', {
+          config: { presence: { key: memberId } },
+        });
+      }
+
       activeChannel = channel;
       activeMemberId = memberId;
 
@@ -306,17 +339,21 @@ export function useUserPresence() {
         });
       };
 
-      channel
-        .on('presence', { event: 'sync' }, reconcileMembers)
-        .subscribe(async (status, error) => {
-          if (!effectIsActive) return;
-          if (status === 'SUBSCRIBED') {
-            await publishCurrentPresence();
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            setOwnMemberStatus('offline');
-            if (error) console.warn('Presence channel error:', error.message);
-          }
-        });
+      try {
+        channel
+          .on('presence', { event: 'sync' }, reconcileMembers)
+          .subscribe(async (status, error) => {
+            if (!effectIsActive) return;
+            if (status === 'SUBSCRIBED') {
+              await publishCurrentPresence();
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              setOwnMemberStatus('offline');
+              if (error) console.warn('Presence channel error:', error.message);
+            }
+          });
+      } catch (subErr) {
+        console.warn('Realtime presence subscription error caught:', subErr);
+      }
 
       window.addEventListener('mousemove', handleActivity, { passive: true });
       window.addEventListener('keydown', handleActivity);
@@ -357,11 +394,15 @@ export function useUserPresence() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       if (channel) {
-        void removePresenceChannel(channel);
+        const ch = channel;
+        channel = null;
+        void removePresenceChannel(ch);
       }
-      if (activeChannel === channel) {
+      if (activeChannel) {
+        const prevActive = activeChannel;
         activeChannel = null;
         activeMemberId = null;
+        void removePresenceChannel(prevActive);
       }
     };
   }, [appIsOffline, browserIsOffline, currentUserId, setMembers]);

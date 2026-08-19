@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Upload, Trash2, Loader2, AlertTriangle, 
@@ -13,6 +13,7 @@ import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
 import InviteModal from './InviteModal';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface WorkspaceSettingsModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export default function WorkspaceSettingsModal({
   onAddMember,
   onSendWorkspaceInvites
 }: WorkspaceSettingsModalProps) {
+  const { t, locale, isVietnamese } = useTranslation();
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>('general');
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,8 +89,8 @@ export default function WorkspaceSettingsModal({
 
   // Theme presets
   const themePresets = [
-    { id: 'indigo', name: 'Apexa Violet', color: 'bg-indigo-500', ring: 'ring-indigo-500', hex: '#7B61FF' },
-    { id: 'ocean', name: 'Ocean Blue', color: 'bg-sky-500', ring: 'ring-sky-500', hex: '#0ea5e9' },
+    { id: 'indigo', name: 'Apexa Blue (Default)', color: 'bg-blue-600', ring: 'ring-blue-500', hex: '#2563EB' },
+    { id: 'ocean', name: 'Ocean Sky', color: 'bg-sky-500', ring: 'ring-sky-500', hex: '#0ea5e9' },
     { id: 'forest', name: 'Forest Green', color: 'bg-emerald-500', ring: 'ring-emerald-500', hex: '#10b981' },
     { id: 'sunset', name: 'Sunset Pink', color: 'bg-rose-500', ring: 'ring-rose-500', hex: '#f43f5e' }
   ] as const;
@@ -96,7 +98,7 @@ export default function WorkspaceSettingsModal({
   const isCustomTheme = !themePresets.some(t => t.id === theme);
   const currentThemeHex = isCustomTheme 
     ? theme 
-    : (themePresets.find(t => t.id === theme)?.hex || '#7B61FF');
+    : (themePresets.find(t => t.id === theme)?.hex || '#2563EB');
 
   const fetchMemberships = React.useCallback(async () => {
     if (!workspace) return;
@@ -394,8 +396,7 @@ export default function WorkspaceSettingsModal({
         invited_by_name: inviterName,
         status: 'pending'
       }));
-
-      const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('workspace_invitations')
         .upsert(newRecords, { onConflict: 'workspace_id,email' })
         .select();
@@ -406,8 +407,8 @@ export default function WorkspaceSettingsModal({
           triggerToast({
             id: generateId(),
             type: 'success',
-            title: 'Invitation Sent',
-            message: `Link for ${record.email}: ${window.location.origin}/?invite_token=${record.token || record.id}`,
+            title: isVietnamese ? 'Đã tạo liên kết mời' : 'Invitation Sent',
+            message: `${isVietnamese ? 'Liên kết cho' : 'Link for'} ${record.email}: ${window.location.origin}/?invite_token=${record.token || record.id}`,
             duration: 8000
           });
         });
@@ -430,8 +431,8 @@ export default function WorkspaceSettingsModal({
         triggerToast({
           id: generateId(),
           type: 'success',
-          title: 'Resent Invitation',
-          message: `A fresh link is ready for ${inv.email}.`,
+          title: isVietnamese ? 'Đã làm mới lời mời' : 'Resent Invitation',
+          message: isVietnamese ? `Liên kết mới đã sẵn sàng cho ${inv.email}.` : `A fresh link is ready for ${inv.email}.`,
           duration: 10000
         });
         if (refreshed?.token) await copyInviteLink(refreshed.token);
@@ -440,7 +441,13 @@ export default function WorkspaceSettingsModal({
       }
     } catch (err) {
       console.error('Exception resending invite:', err);
-      triggerToast({ id: generateId(), type: 'info', title: 'Could not resend invitation', message: err instanceof Error ? err.message : 'Please try again.', duration: 4000 });
+      triggerToast({ 
+        id: generateId(), 
+        type: 'info', 
+        title: isVietnamese ? 'Không thể gửi lại lời mời' : 'Could not resend invitation', 
+        message: err instanceof Error ? err.message : (isVietnamese ? 'Vui lòng thử lại.' : 'Please try again.'), 
+        duration: 4000 
+      });
     }
   };
 
@@ -453,20 +460,32 @@ export default function WorkspaceSettingsModal({
         triggerToast({
           id: generateId(),
           type: 'success',
-          title: 'Invitation Revoked',
-          message: 'The invitation has been successfully cancelled.',
+          title: isVietnamese ? 'Đã thu hồi lời mời' : 'Invitation Revoked',
+          message: isVietnamese ? 'Lời mời đã được hủy bỏ thành công.' : 'The invitation has been successfully cancelled.',
           duration: 4000
         });
       }
     } catch (err) {
       console.error('Exception revoking invite:', err);
-      triggerToast({ id: generateId(), type: 'info', title: 'Could not revoke invitation', message: err instanceof Error ? err.message : 'Please try again.', duration: 4000 });
+      triggerToast({ 
+        id: generateId(), 
+        type: 'info', 
+        title: isVietnamese ? 'Không thể thu hồi lời mời' : 'Could not revoke invitation', 
+        message: err instanceof Error ? err.message : (isVietnamese ? 'Vui lòng thử lại.' : 'Please try again.'), 
+        duration: 4000 
+      });
     }
   };
 
   const copyInviteLink = async (token?: string) => {
     if (!token) {
-      triggerToast({ id: generateId(), type: 'info', title: 'Link unavailable', message: 'Resend this invitation to generate a new secure link.', duration: 3500 });
+      triggerToast({ 
+        id: generateId(), 
+        type: 'info', 
+        title: isVietnamese ? 'Liên kết không khả dụng' : 'Link unavailable', 
+        message: isVietnamese ? 'Hãy gửi lại lời mời này để tạo liên kết mới.' : 'Resend this invitation to generate a new secure link.', 
+        duration: 3500 
+      });
       return;
     }
 
@@ -474,25 +493,43 @@ export default function WorkspaceSettingsModal({
       const inviteUrl = new URL(window.location.origin);
       inviteUrl.searchParams.set('invite_token', token);
       await navigator.clipboard.writeText(inviteUrl.toString());
-      triggerToast({ id: generateId(), type: 'success', title: 'Invitation link copied', message: 'Share it only with the invited email address.', duration: 3000 });
+      triggerToast({ 
+        id: generateId(), 
+        type: 'success', 
+        title: isVietnamese ? 'Đã sao chép liên kết mời' : 'Invitation link copied', 
+        message: isVietnamese ? 'Chỉ chia sẻ liên kết này với đúng địa chỉ email được mời.' : 'Share it only with the invited email address.', 
+        duration: 3000 
+      });
     } catch {
-      triggerToast({ id: generateId(), type: 'info', title: 'Could not copy link', message: 'Clipboard access was blocked by the browser.', duration: 3500 });
+      triggerToast({ 
+        id: generateId(), 
+        type: 'info', 
+        title: isVietnamese ? 'Không thể sao chép liên kết' : 'Could not copy link', 
+        message: isVietnamese ? 'Trình duyệt đã chặn quyền truy cập bộ nhớ tạm.' : 'Clipboard access was blocked by the browser.', 
+        duration: 3500 
+      });
     }
   };
 
   // Delete workspace handler
   const handleDeleteWorkspace = async () => {
-    if (!isOwner) {
-      triggerToast({ id: generateId(), type: 'info', title: 'Owner access required', message: 'Only the workspace owner can delete it.', duration: 4000 });
+    if (!isOwner || !workspace) {
+      triggerToast({ 
+        id: generateId(), 
+        type: 'info', 
+        title: isVietnamese ? 'Yêu cầu quyền Chủ sở hữu' : 'Owner access required', 
+        message: isVietnamese ? 'Chỉ chủ sở hữu không gian làm việc mới có thể xóa.' : 'Only the workspace owner can delete it.', 
+        duration: 4000 
+      });
       return;
     }
     if (deleteConfirmText.trim() !== workspace.name) {
-      alert("Please type the exact name to confirm deletion.");
+      alert(isVietnamese ? "Vui lòng nhập chính xác tên không gian để xác nhận xóa." : "Please type the exact name to confirm deletion.");
       return;
     }
 
     if (workspacesCount <= 1) {
-      alert("You must retain at least one workspace.");
+      alert(isVietnamese ? "Hệ thống phải còn ít nhất một không gian làm việc." : "You must retain at least one workspace.");
       return;
     }
 
@@ -513,28 +550,32 @@ export default function WorkspaceSettingsModal({
   };
 
   // Keep settings navigation limited to fully functional modules.
-  const navigationItems = [
+  type NavLink = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; active: boolean };
+  type NavGroup = { category: string; links: NavLink[] };
+
+  const navigationItems: NavGroup[] = useMemo(() => [
     {
-      category: 'ADMIN',
+      category: isVietnamese ? 'QUẢN TRỊ' : 'ADMIN',
       links: [
-        { id: 'general', label: 'General Settings', icon: Briefcase, active: true },
-        { id: 'members', label: `Members (${activeWSMembers.length})`, icon: Users, active: true }
+        { id: 'general', label: isVietnamese ? 'Cài đặt chung' : 'General Settings', icon: Briefcase, active: true },
+        { id: 'members', label: isVietnamese ? `Thành viên (${activeWSMembers.length})` : `Members (${activeWSMembers.length})`, icon: Users, active: true }
       ]
     },
     {
-      category: 'FEATURES',
+      category: isVietnamese ? 'TÍNH NĂNG' : 'FEATURES',
       links: [
-        { id: 'clickapps', label: 'Workspace Features', icon: Sliders, active: true }
+        { id: 'clickapps', label: isVietnamese ? 'Tính năng Không gian' : 'Workspace Features', icon: Sliders, active: true }
       ]
     }
-  ];
+  ], [isVietnamese, activeWSMembers.length]);
+
   // Filtering based on search query
-  const filteredNavigation = navigationItems.map(group => {
-    const matchedLinks = group.links.filter(link => 
+  const filteredNavigation = navigationItems.map((group: NavGroup) => {
+    const matchedLinks = group.links.filter((link: NavLink) => 
       link.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
     return { ...group, links: matchedLinks };
-  }).filter(group => group.links.length > 0);
+  }).filter((group: NavGroup) => group.links.length > 0);
 
   return (
     <AnimatePresence>
@@ -568,10 +609,10 @@ export default function WorkspaceSettingsModal({
               </div>
               <div className="text-left">
                 <h3 className="font-display font-black text-slate-855 dark:text-slate-55 text-base leading-tight">
-                  {name || 'Workspace Settings'}
+                  {name || (isVietnamese ? 'Cài đặt không gian' : 'Workspace Settings')}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                  Cấu hình không gian làm việc
+                  {isVietnamese ? 'Cấu hình không gian làm việc' : 'Workspace Configuration'}
                 </p>
               </div>
             </div>
@@ -582,19 +623,20 @@ export default function WorkspaceSettingsModal({
                 {savingStatus === 'saving' && (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                    <span className="text-[10px]">Saving...</span>
+                    <span className="text-[10px]">{isVietnamese ? 'Đang lưu...' : 'Saving...'}</span>
                   </>
                 )}
                 {savingStatus === 'saved' && (
                   <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold">
                     <Check className="w-3.5 h-3.5" />
-                    <span>Đã lưu mọi thay đổi</span>
+                    <span>{isVietnamese ? 'Đã lưu mọi thay đổi' : 'All changes saved'}</span>
                   </span>
                 )}
               </div>
               <button 
                 onClick={onClose}
                 className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer transition-colors"
+                aria-label={isVietnamese ? 'Đóng' : 'Close'}
               >
                 ✕
               </button>
@@ -614,7 +656,7 @@ export default function WorkspaceSettingsModal({
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Tìm cài đặt..."
+                  placeholder={isVietnamese ? 'Tìm cài đặt...' : 'Search settings...'}
                   className="w-full pl-8 pr-12 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-905 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
                 <span className="absolute right-2 top-2 text-[8px] font-black text-slate-400 border border-slate-200 dark:border-slate-805 rounded px-1 select-none">
@@ -624,12 +666,12 @@ export default function WorkspaceSettingsModal({
 
               {/* Grouped Links */}
               <div className="space-y-4">
-                {filteredNavigation.map(group => (
+                {filteredNavigation.map((group: NavGroup) => (
                   <div key={group.category} className="space-y-1.5">
                     <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest block px-2 uppercase">
                       {group.category}
                     </span>
-                    {group.links.map(link => {
+                    {group.links.map((link: NavLink) => {
                       const IconComponent = link.icon;
                       return (
                         <button
@@ -659,43 +701,47 @@ export default function WorkspaceSettingsModal({
                   }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Khu vực nguy hiểm</span>
+                  <span>{isVietnamese ? 'Khu vực nguy hiểm' : 'Danger Zone'}</span>
                 </button>
               </div>
             </div>
 
             {/* Content Pane */}
-            <div className="flex-1 overflow-y-auto p-6 text-left">
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
               
-              {/* ACTIVE TABS */}
-
               {/* 1. General Settings Tab */}
               {activeTab === 'general' && (
                 <div className="space-y-6">
                   {!canAdminister && (
                     <div className="rounded-2xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-xs font-semibold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
-                      Bạn có {currentRole} quyền truy cập. Danh tính và thiết lập mặc định của không gian chỉ có thể xem.
+                      {isVietnamese
+                        ? `Bạn có quyền ${currentRole}. Danh tính và thiết lập mặc định của không gian chỉ có thể xem.`
+                        : `You have ${currentRole} permissions. Workspace identity and defaults are view-only.`}
                     </div>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Basic Settings */}
                     <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Tên không gian làm việc</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                          {isVietnamese ? 'Tên không gian làm việc' : 'Workspace Name'}
+                        </label>
                         <input
                           type="text"
                           required
                           value={name}
                           onChange={e => setName(e.target.value)}
                           disabled={!canAdminister}
-                          placeholder="Ví dụ: Acme Studio, Sản phẩm..."
+                          placeholder={isVietnamese ? 'Ví dụ: Acme Studio, Sản phẩm...' : 'e.g. Acme Studio, Product Team...'}
                           className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                         />
                       </div>
 
                       {/* Accent Color Presets */}
                       <div className="space-y-1.5">
-                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">Màu chủ đạo</span>
+                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                          {isVietnamese ? 'Màu chủ đạo' : 'Accent Color'}
+                        </span>
                         <div className="flex flex-wrap items-center gap-2.5 pt-1">
                           {themePresets.map(t => (
                             <button
@@ -711,7 +757,7 @@ export default function WorkspaceSettingsModal({
                           ))}
 
                           {/* Custom Color Selector */}
-                          <div className="relative w-8 h-8 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:scale-105 transition-transform group cursor-pointer" title="Chọn màu tùy chỉnh">
+                          <div className="relative w-8 h-8 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:scale-105 transition-transform group cursor-pointer" title={isVietnamese ? 'Chọn màu tùy chỉnh' : 'Choose custom color'}>
                             <span 
                               className="w-5 h-5 rounded-full block border border-slate-250 dark:border-slate-700 shadow-inner"
                               style={{ backgroundColor: currentThemeHex }}
@@ -733,7 +779,9 @@ export default function WorkspaceSettingsModal({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Description</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {isVietnamese ? 'Mô tả' : 'Description'}
+                        </label>
                         <textarea
                           value={description}
                           disabled={!canAdminister}
@@ -741,7 +789,7 @@ export default function WorkspaceSettingsModal({
                           onBlur={() => handleAutoSave({ updatedDescription: description.trim() })}
                           rows={3}
                           maxLength={240}
-                          placeholder="Không gian này dùng để điều phối nội dung gì?"
+                          placeholder={isVietnamese ? 'Không gian này dùng để điều phối nội dung gì?' : 'What is this workspace used for?'}
                           className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none transition-all focus:bg-white focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100"
                         />
                       </div>
@@ -765,7 +813,7 @@ export default function WorkspaceSettingsModal({
                             </span>
                           )}
                           <div className="absolute inset-0 bg-black/45 z-20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[10px] font-black uppercase tracking-wider">
-                            Change
+                            {isVietnamese ? 'Thay đổi' : 'Change'}
                           </div>
                         </div>
                         {logoUrl && canAdminister && (
@@ -773,7 +821,7 @@ export default function WorkspaceSettingsModal({
                             type="button"
                             onClick={handleRemoveAvatar}
                             className="absolute -top-1.5 -right-1.5 p-1 bg-rose-500 hover:bg-rose-600 text-white rounded-full shadow-md z-30 transition-colors"
-                            title="Xóa logo"
+                            title={isVietnamese ? 'Xóa logo' : 'Remove logo'}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -799,47 +847,53 @@ export default function WorkspaceSettingsModal({
                           ) : (
                             <Upload className="w-3 h-3" />
                           )}
-                          <span>{isUploading ? "Đang tải lên..." : "Tải logo lên"}</span>
+                          <span>{isUploading ? (isVietnamese ? 'Đang tải lên...' : 'Uploading...') : (isVietnamese ? 'Tải logo lên' : 'Upload logo')}</span>
                         </button>
                         <p className="text-[9px] text-slate-400 dark:text-slate-505">
-                          Hỗ trợ PNG, SVG hoặc JPG dưới 2 MB. Đường dẫn gốc được ẩn.
+                          {isVietnamese ? 'Hỗ trợ PNG, SVG hoặc JPG dưới 2 MB.' : 'Supports PNG, SVG, or JPG under 2 MB.'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/20">
+                  <div className="rounded-2xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-955/20">
                     <div className="mb-4">
-                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Thiết lập mặc định</h4>
-                      <p className="mt-1 text-[10px] text-slate-400">Áp dụng đồng bộ cho ngày tháng, kế hoạch và lời mời mới.</p>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                        {isVietnamese ? 'Thiết lập mặc định' : 'Default Preferences'}
+                      </h4>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        {isVietnamese ? 'Áp dụng đồng bộ cho ngày tháng, kế hoạch và lời mời mới.' : 'Applies to dates, schedules, and new member invitations.'}
+                      </p>
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <label className="space-y-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Timezone
+                        {isVietnamese ? 'Múi giờ' : 'Timezone'}
                         <select value={timezone} disabled={!canAdminister} onChange={e => { setTimezone(e.target.value); handleAutoSave({ updatedTimezone: e.target.value }); }} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold normal-case text-slate-700 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                          <option value="Asia/Ho_Chi_Minh">Châu Á/TP. Hồ Chí Minh</option>
-                          <option value="Asia/Singapore">Châu Á/Singapore</option>
-                          <option value="Asia/Tokyo">Asia/Tokyo</option>
-                          <option value="Europe/London">Châu Âu/London</option>
-                          <option value="America/New_York">Châu Mỹ/New York</option>
+                          <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option>
+                          <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
+                          <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+                          <option value="Europe/London">Europe/London (GMT+0)</option>
+                          <option value="America/New_York">America/New_York (EST)</option>
                         </select>
                       </label>
                       <label className="space-y-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Ngày bắt đầu tuần
+                        {isVietnamese ? 'Ngày bắt đầu tuần' : 'Week Starts On'}
                         <select value={weekStartsOn} disabled={!canAdminister} onChange={e => { const value = e.target.value as 'monday' | 'sunday'; setWeekStartsOn(value); handleAutoSave({ updatedWeekStartsOn: value }); }} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold normal-case text-slate-700 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                          <option value="monday">Monday</option>
-                          <option value="sunday">Sunday</option>
+                          <option value="monday">{isVietnamese ? 'Thứ Hai' : 'Monday'}</option>
+                          <option value="sunday">{isVietnamese ? 'Chủ Nhật' : 'Sunday'}</option>
                         </select>
                       </label>
                       <label className="space-y-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Vai trò mặc định khi mời
+                        {isVietnamese ? 'Vai trò mặc định khi mời' : 'Default Role on Invite'}
                         <select value={defaultRole} disabled={!canAdminister} onChange={e => { const value = e.target.value as Exclude<WorkspaceRole, 'owner'>; setDefaultRole(value); handleAutoSave({ updatedDefaultRole: value }); }} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold normal-case text-slate-700 outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                          <option value="member">Member</option><option value="guest">Guest</option><option value="admin">Admin</option>
+                          <option value="member">{isVietnamese ? 'Thành viên (Member)' : 'Member'}</option>
+                          <option value="guest">{isVietnamese ? 'Khách (Guest)' : 'Guest'}</option>
+                          <option value="admin">{isVietnamese ? 'Quản trị viên (Admin)' : 'Admin'}</option>
                         </select>
                       </label>
                       <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                        Thành viên được phép mời
-                        <input type="checkbox" checked={allowMemberInvites} disabled={!canAdminister} onChange={e => { setAllowMemberInvites(e.target.checked); handleAutoSave({ updatedAllowMemberInvites: e.target.checked }); }} className="h-4 w-4 rounded text-indigo-600" />
+                        {isVietnamese ? 'Thành viên được phép mời' : 'Allow Members to Invite'}
+                        <input type="checkbox" checked={allowMemberInvites} disabled={!canAdminister} onChange={e => { setAllowMemberInvites(e.target.checked); handleAutoSave({ updatedAllowMemberInvites: e.target.checked }); }} className="h-4 w-4 rounded text-indigo-600 cursor-pointer" />
                       </label>
                     </div>
                   </div>
@@ -848,9 +902,9 @@ export default function WorkspaceSettingsModal({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
+                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer"
                     >
-                      Done
+                      {isVietnamese ? 'Hoàn tất' : 'Done'}
                     </button>
                   </div>
                 </div>
@@ -862,21 +916,45 @@ export default function WorkspaceSettingsModal({
                   <div className="space-y-1">
                     <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                       <Sliders className="w-4 h-4 text-indigo-500" />
-                      Cấu hình ứng dụng trong không gian
+                      {isVietnamese ? 'Cấu hình ứng dụng trong không gian' : 'Workspace Features & Apps'}
                     </h4>
                     <p className="text-xs text-slate-400 dark:text-slate-550">
-                      Bật hoặc tắt các tính năng cộng tác cho mọi khu vực và danh sách.
+                      {isVietnamese ? 'Bật hoặc tắt các tính năng cộng tác cho mọi khu vực và danh sách.' : 'Enable or disable collaborative features across all spaces.'}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2">
                     {[
-                      { key: 'timeTracking', label: 'Time Tracking', desc: 'Track hours worked on tasks and log timesheets' },
-                      { key: 'multipleAssignees', label: 'Multiple Assignees', desc: 'Assign more than one member to a single card' },
-                      { key: 'customFields', label: 'Custom Fields', desc: 'Add personalized text, number or date columns' },
-                      { key: 'relationships', label: 'Relationships', desc: 'Connect documents, tasks, and link dependencies' },
-                      { key: 'subtasks', label: 'Subtasks', desc: 'Create nested task lists to track micro-milestones' },
-                      { key: 'priorities', label: 'Priorities', desc: 'Use flags (Emergency, High, Normal, Low) for sorting' }
+                      {
+                        key: 'timeTracking',
+                        label: isVietnamese ? 'Theo dõi thời gian' : 'Time Tracking',
+                        desc: isVietnamese ? 'Ghi nhận số giờ làm việc trên công việc và lập bảng chấm công' : 'Track hours worked on tasks and log timesheets'
+                      },
+                      {
+                        key: 'multipleAssignees',
+                        label: isVietnamese ? 'Nhiều người phụ trách' : 'Multiple Assignees',
+                        desc: isVietnamese ? 'Giao một công việc cho nhiều thành viên cùng lúc' : 'Assign more than one member to a single card'
+                      },
+                      {
+                        key: 'customFields',
+                        label: isVietnamese ? 'Trường tùy chỉnh' : 'Custom Fields',
+                        desc: isVietnamese ? 'Thêm các cột văn bản, số hoặc ngày tháng riêng biệt' : 'Add personalized text, number or date columns'
+                      },
+                      {
+                        key: 'relationships',
+                        label: isVietnamese ? 'Mối quan hệ & Phụ thuộc' : 'Relationships & Dependencies',
+                        desc: isVietnamese ? 'Kết nối tài liệu, công việc và liên kết ràng buộc tiến độ' : 'Connect documents, tasks, and link dependencies'
+                      },
+                      {
+                        key: 'subtasks',
+                        label: isVietnamese ? 'Công việc phụ (Subtasks)' : 'Nested Subtasks',
+                        desc: isVietnamese ? 'Tạo danh sách công việc phụ lồng nhau để chia nhỏ mục tiêu' : 'Create nested task lists to track micro-milestones'
+                      },
+                      {
+                        key: 'priorities',
+                        label: isVietnamese ? 'Mức độ ưu tiên' : 'Priority Levels',
+                        desc: isVietnamese ? 'Sử dụng các cờ ưu tiên (Khẩn cấp, Cao, Bình thường, Thấp)' : 'Use flags (Urgent, High, Normal, Low) for sorting'
+                      }
                     ].map(app => (
                       <label 
                         key={app.key} 
@@ -911,9 +989,9 @@ export default function WorkspaceSettingsModal({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
+                      className="px-4 py-2 bg-indigo-500 hover:bg-indigo-650 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer"
                     >
-                      Done
+                      {isVietnamese ? 'Hoàn tất' : 'Done'}
                     </button>
                   </div>
                 </div>
@@ -926,26 +1004,30 @@ export default function WorkspaceSettingsModal({
                     <div className="space-y-0.5 text-left">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                        Danh bạ thành viên
+                        {isVietnamese ? 'Danh bạ thành viên' : 'Member Directory'}
                       </h4>
                       <p className="text-xs text-slate-400 dark:text-slate-500">
-                        Quản lý vai trò, mời đồng nghiệp mới hoặc thu hồi quyền truy cập không gian này.
+                        {isVietnamese ? 'Quản lý vai trò, mời đồng nghiệp mới hoặc thu hồi quyền truy cập không gian này.' : 'Manage roles, invite new teammates, or adjust access permissions.'}
                       </p>
                     </div>
                   </div>
 
                   {!canAdminister && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-400">
-                      Chỉ chủ sở hữu và quản trị viên mới có thể mời người hoặc thay đổi vai trò.
+                      {isVietnamese ? 'Chỉ chủ sở hữu và quản trị viên mới có thể mời người hoặc thay đổi vai trò.' : 'Only workspace owners and admins can invite members or alter roles.'}
                     </div>
                   )}
 
                   {canAdminister && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Add Directory Member */}
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl space-y-3 text-left">
-                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">Thêm thành viên từ danh bạ</span>
+                      <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
+                        {isVietnamese ? 'Thêm thành viên từ danh bạ' : 'Add from Directory'}
+                      </span>
                       {nonWSMembers.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 italic py-2">Tất cả thành viên trong danh bạ đã thuộc không gian này.</p>
+                        <p className="text-[10px] text-slate-400 italic py-2">
+                          {isVietnamese ? 'Tất cả thành viên trong danh bạ đã thuộc không gian này.' : 'All directory members are already in this workspace.'}
+                        </p>
                       ) : (
                         <div className="flex gap-2">
                           <select
@@ -953,7 +1035,7 @@ export default function WorkspaceSettingsModal({
                             onChange={(e) => setSelectedMemberToAdd(e.target.value)}
                             className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs px-3 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                           >
-                            <option value="">Chọn thành viên...</option>
+                            <option value="">{isVietnamese ? 'Chọn thành viên...' : 'Select a member...'}</option>
                             {nonWSMembers.map(m => (
                               <option key={m.id} value={m.id}>
                                 {m.name} ({m.email})
@@ -967,7 +1049,7 @@ export default function WorkspaceSettingsModal({
                             className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-650 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
                           >
                             <UserPlus className="w-3.5 h-3.5" />
-                            <span>Add</span>
+                            <span>{isVietnamese ? 'Thêm' : 'Add'}</span>
                           </button>
                         </div>
                       )}
@@ -976,8 +1058,12 @@ export default function WorkspaceSettingsModal({
                     {/* Invite via Email */}
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-955/20 border border-slate-100 dark:border-slate-800/60 rounded-2xl flex flex-col justify-between items-start gap-3 text-left">
                       <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">Mời đồng nghiệp</span>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1">Gửi lời mời bảo mật đến nhiều thành viên trong nhóm.</p>
+                        <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-550 tracking-wider block">
+                          {isVietnamese ? 'Mời đồng nghiệp' : 'Invite Teammates'}
+                        </span>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-550 mt-1">
+                          {isVietnamese ? 'Gửi lời mời bảo mật đến nhiều thành viên trong nhóm.' : 'Send secure email invitations to teammates.'}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -985,17 +1071,19 @@ export default function WorkspaceSettingsModal({
                         className="px-4 py-2 bg-indigo-500 hover:bg-indigo-655 active:scale-[0.98] text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>Mời qua email</span>
+                        <span>{isVietnamese ? 'Mời qua email' : 'Invite via Email'}</span>
                       </button>
                     </div>
                   </div>}
 
                   {/* Active members list */}
                   <div className="space-y-2 text-left">
-                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">Thành viên đã tham gia ({activeWSMembers.length})</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
+                      {isVietnamese ? `Thành viên đã tham gia (${activeWSMembers.length})` : `Active Members (${activeWSMembers.length})`}
+                    </span>
                     <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-2xl p-2 bg-slate-50/20">
                       {membersLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-8 text-xs font-semibold text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Đang tải thành viên…</div>
+                        <div className="flex items-center justify-center gap-2 py-8 text-xs font-semibold text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> {isVietnamese ? 'Đang tải thành viên…' : 'Loading members…'}</div>
                       ) : activeWSMembers.map((member: User) => {
                         const isMe = member.userId === currentUser.userId;
                         const memberWorkspaceRole = member.userId ? membershipRoles[member.userId] : 'guest';
@@ -1015,7 +1103,7 @@ export default function WorkspaceSettingsModal({
                               </div>
                               <div className="text-left min-w-0">
                                 <span className="text-xs font-black text-slate-800 dark:text-slate-200 block truncate">
-                                  {member.name} {isMe && <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-455 ml-1">(Bạn)</span>}
+                                  {member.name} {isMe && <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-455 ml-1">{isVietnamese ? '(Bạn)' : '(You)'}</span>}
                                 </span>
                                 <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-medium block truncate">
                                   {member.email}
@@ -1044,7 +1132,7 @@ export default function WorkspaceSettingsModal({
                                     type="button"
                                     onClick={() => removeWorkspaceMember(member)}
                                     className="p-1 text-rose-500 hover:text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-lg transition-colors cursor-pointer"
-                                    title="Xóa thành viên"
+                                    title={isVietnamese ? 'Xóa thành viên' : 'Remove member'}
                                   >
                                     <UserMinus className="w-3.5 h-3.5" />
                                   </button>
@@ -1060,7 +1148,7 @@ export default function WorkspaceSettingsModal({
                   {canAdminister && invitations.some(invitation => invitation.status === 'pending') && (
                     <div className="space-y-2 text-left">
                       <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-555 tracking-wider block">
-                        Lời mời đang chờ ({invitations.filter(invitation => invitation.status === 'pending').length})
+                        {isVietnamese ? `Lời mời đang chờ (${invitations.filter(invitation => invitation.status === 'pending').length})` : `Pending Invitations (${invitations.filter(invitation => invitation.status === 'pending').length})`}
                       </span>
                       <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50/20 p-2 dark:border-slate-800/80">
                         {invitations.filter(invitation => invitation.status === 'pending').map(invitation => {
@@ -1071,20 +1159,20 @@ export default function WorkspaceSettingsModal({
                                 <div className="flex items-center gap-2">
                                   <span className="truncate text-xs font-black text-slate-800 dark:text-slate-200">{invitation.email}</span>
                                   <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">{invitation.role}</span>
-                                  {expired && <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">Expired</span>}
+                                  {expired && <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">{isVietnamese ? 'Hết hạn' : 'Expired'}</span>}
                                 </div>
                                 <p className="mt-1 text-[9.5px] font-medium text-slate-400">
-                                  {invitation.expiresAt ? `Expires ${new Date(invitation.expiresAt).toLocaleDateString()}` : 'Valid for 7 days'}
+                                  {invitation.expiresAt ? (isVietnamese ? `Hết hạn ${new Date(invitation.expiresAt).toLocaleDateString('vi-VN')}` : `Expires ${new Date(invitation.expiresAt).toLocaleDateString('en-US')}`) : (isVietnamese ? 'Hiệu lực 7 ngày' : 'Valid for 7 days')}
                                 </p>
                               </div>
                               <div className="flex shrink-0 items-center gap-1.5">
-                                <button type="button" onClick={() => copyInviteLink(invitation.token)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[9px] font-black text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300" title="Sao chép liên kết mời bảo mật">
-                                  <Copy className="h-3 w-3" /> Sao chép liên kết
+                                <button type="button" onClick={() => copyInviteLink(invitation.token)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[9px] font-black text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300" title={isVietnamese ? 'Sao chép liên kết mời' : 'Copy invite link'}>
+                                  <Copy className="h-3 w-3" /> {isVietnamese ? 'Sao chép link' : 'Copy link'}
                                 </button>
-                                <button type="button" onClick={() => handleResendInvite(invitation)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/30" title="Tạo liên kết mới">
+                                <button type="button" onClick={() => handleResendInvite(invitation)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/30" title={isVietnamese ? 'Gửi lại lời mời' : 'Resend invitation'}>
                                   <RefreshCw className="h-3.5 w-3.5" />
                                 </button>
-                                <button type="button" onClick={() => handleRevokeInvite(invitation.id)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30" title="Thu hồi lời mời">
+                                <button type="button" onClick={() => handleRevokeInvite(invitation.id)} className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30" title={isVietnamese ? 'Thu hồi lời mời' : 'Revoke invitation'}>
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               </div>
@@ -1103,9 +1191,15 @@ export default function WorkspaceSettingsModal({
                   <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-[11px] text-rose-700 dark:text-rose-350 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                     <div className="space-y-1 text-left">
-                      <span className="font-extrabold text-xs block">Xóa vĩnh viễn không gian làm việc</span>
+                      <span className="font-extrabold text-xs block">
+                        {isVietnamese ? 'Xóa vĩnh viễn không gian làm việc' : 'Permanently Delete Workspace'}
+                      </span>
                       <p className="leading-relaxed">
-                        Thao tác này sẽ xóa vĩnh viễn không gian làm việc <strong>{workspace.name}</strong>, cùng toàn bộ khu vực, công việc, danh sách, bảng trắng, tài liệu và kênh liên quan. Mọi dữ liệu đã đồng bộ trong cơ sở dữ liệu cũng sẽ bị xóa.
+                        {isVietnamese ? (
+                          <>Thao tác này sẽ xóa vĩnh viễn không gian làm việc <strong>{workspace.name}</strong>, cùng toàn bộ khu vực, công việc, danh sách, bảng trắng, tài liệu và kênh liên quan. Mọi dữ liệu đã đồng bộ trong cơ sở dữ liệu cũng sẽ bị xóa.</>
+                        ) : (
+                          <>This action will permanently delete the workspace <strong>{workspace.name}</strong> along with all spaces, tasks, lists, whiteboards, documents, and chat channels. All associated cloud data will be removed.</>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1113,13 +1207,17 @@ export default function WorkspaceSettingsModal({
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 block">
-                        Để xác nhận xóa, hãy nhập chính xác tên không gian làm việc: <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-rose-500 font-mono text-xs">{workspace.name}</code>
+                        {isVietnamese ? (
+                          <>Để xác nhận xóa, hãy nhập chính xác tên không gian làm việc: <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-rose-500 font-mono text-xs">{workspace.name}</code></>
+                        ) : (
+                          <>To confirm deletion, type the exact workspace name: <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-rose-500 font-mono text-xs">{workspace.name}</code></>
+                        )}
                       </label>
                       <input
                         type="text"
                         value={deleteConfirmText}
                         onChange={e => setDeleteConfirmText(e.target.value)}
-                        placeholder="Nhập chính xác tên không gian..."
+                        placeholder={isVietnamese ? 'Nhập chính xác tên không gian...' : 'Type exact workspace name...'}
                         className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-rose-250 dark:border-rose-900/40 bg-slate-50 dark:bg-slate-950/30 text-slate-850 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-rose-500/20 outline-none transition-all"
                       />
                     </div>
@@ -1131,15 +1229,17 @@ export default function WorkspaceSettingsModal({
                       className="w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black shadow-md shadow-rose-500/10 transition-all flex items-center justify-center gap-1.5"
                     >
                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      <span>Xóa vĩnh viễn không gian</span>
+                      <span>{isVietnamese ? 'Xóa vĩnh viễn không gian' : 'Permanently Delete Workspace'}</span>
                     </button>
                     {workspacesCount <= 1 && (
                       <p className="text-[10px] text-center text-slate-400 italic">
-                        Không thể xóa: hệ thống phải còn ít nhất một không gian làm việc.
+                        {isVietnamese ? 'Không thể xóa: hệ thống phải còn ít nhất một không gian làm việc.' : 'Cannot delete: at least one workspace must remain.'}
                       </p>
                     )}
                     {!isOwner && (
-                      <p className="text-[10px] text-center text-slate-400 italic">Chỉ chủ sở hữu mới có thể xóa không gian này.</p>
+                      <p className="text-[10px] text-center text-slate-400 italic">
+                        {isVietnamese ? 'Chỉ chủ sở hữu mới có thể xóa không gian này.' : 'Only the workspace owner can perform deletion.'}
+                      </p>
                     )}
                   </div>
                 </div>
