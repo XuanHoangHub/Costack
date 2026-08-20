@@ -273,11 +273,17 @@ export default function SpaceOverviewTab({
   }, [activeFolderId, space.lists]);
 
   const visibleDocs = useMemo(() => {
+    if (space.id === 'all-tasks' || !space.id) {
+      return docs;
+    }
     if (activeFolderId) return docs.filter(doc => doc.folderId === activeFolderId);
     return docs.filter(doc => doc.spaceId === space.id && !doc.folderId);
   }, [activeFolderId, docs, space.id]);
 
   const spaceTasks = useMemo(() => {
+    if (space.id === 'all-tasks' || !space.id) {
+      return tasks;
+    }
     return tasks.filter(task => task.spaceId === space.id && (!activeFolderId || (task.listId && contextListIds.includes(task.listId))));
   }, [activeFolderId, contextListIds, space.id, tasks]);
 

@@ -6,7 +6,7 @@ import { Task, User, SyncLog, Document } from '../types';
 import { 
   CheckCircle2, TrendingUp,
   Activity, FileText, Bot, Clock, Sparkles, AlertCircle,
-  PieChart as PieIcon, ListTodo, Flame, Zap, X, Database, WifiOff, ArrowUpRight
+  PieChart as PieIcon, ListTodo, Flame, Zap, X, Database, WifiOff, ArrowUpRight, Calendar
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -177,6 +177,29 @@ function DashboardOverview({
               </div>
             );
           }
+          const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+          if (numMatch) {
+            const num = numMatch[1];
+            const content = numMatch[2];
+            const boldMatch = content.match(/^\*\*(.*?)\*\*(.*)/);
+            return (
+              <div key={i} className="flex gap-2 ml-1 items-start text-xs">
+                <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-[9.5px] font-black flex items-center justify-center shadow-3xs mt-0.5 select-none font-sans">
+                  {num}
+                </span>
+                <span className="flex-1 pt-0.5">
+                  {boldMatch ? (
+                    <>
+                      <strong className="text-slate-900 dark:text-white font-bold">{boldMatch[1]}</strong>
+                      {boldMatch[2]}
+                    </>
+                  ) : (
+                    content
+                  )}
+                </span>
+              </div>
+            );
+          }
           if (trimmed === '') return <div key={i} className="h-1.5" />;
           return <p key={i} className="pl-1 text-slate-600 dark:text-slate-300 text-xs">{trimmed}</p>;
         })}
@@ -317,14 +340,15 @@ function DashboardOverview({
 
   const onlineMembersCount = useMemo(() => members.filter((member) => member.status === 'online').length, [members]);
   const now = new Date();
-  const todayDateFormatted = now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const currentHour = now.getHours();
+  const greetingIcon = currentHour < 12 ? '🌅' : currentHour < 18 ? '☀️' : '🌙';
   const greeting = locale === 'vi'
-    ? (now.getHours() < 12 ? 'Chào buổi sáng' : now.getHours() < 18 ? 'Chào buổi chiều' : 'Chào buổi tối')
-    : (now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening');
+    ? (currentHour < 12 ? 'Chào buổi sáng' : currentHour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối')
+    : (currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening');
 
   if (isLoading && !isOffline) {
     return (
-      <div className="min-h-full w-full bg-white p-5 text-slate-800 dark:bg-[#07080c] dark:text-slate-100 md:p-8" role="status" aria-live="polite">
+      <div className="min-h-full w-full bg-transparent p-5 text-slate-800 dark:text-slate-100 md:p-8" role="status" aria-live="polite">
         <span className="sr-only">{locale === 'vi' ? 'Đang tải dữ liệu Home từ Supabase' : 'Loading Home data from Supabase'}</span>
         <div className="space-y-6 animate-pulse">
           <div className="h-44 rounded-3xl bg-slate-100 dark:bg-slate-900" />
@@ -341,7 +365,7 @@ function DashboardOverview({
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-5 overflow-x-hidden bg-white px-4 py-5 text-slate-800 dark:bg-[#07080c] dark:text-slate-100 sm:space-y-6 sm:px-6 sm:py-6 xl:space-y-8 xl:px-8 xl:py-8">
+    <div className="mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-5 overflow-x-hidden bg-transparent px-4 py-5 text-slate-800 dark:text-slate-100 sm:space-y-6 sm:px-6 sm:py-6 xl:space-y-8 xl:px-8 xl:py-8">
       
       {/* ── Morning Briefing Notification Banner ── */}
       {showBriefing && (overdueTasks.length > 0 || briefingTasks.length > 0) && (
@@ -396,83 +420,42 @@ function DashboardOverview({
 
       {/* ── Hero Welcome Command Header ── */}
       <motion.div 
-        initial={prefersReducedMotion ? false : { opacity: 0, y: 18, scale: 0.99 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 16, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-        className="relative isolate flex min-h-[210px] flex-col items-start justify-between gap-7 overflow-hidden rounded-[30px] border border-indigo-200/70 bg-[linear-gradient(125deg,#f8faff_0%,#f4f1ff_52%,#fbf7ff_100%)] p-6 text-left shadow-[0_24px_70px_-38px_rgba(79,70,229,0.5)] dark:border-indigo-900/60 dark:bg-[linear-gradient(125deg,#11152a_0%,#171128_55%,#0d0f18_100%)] sm:p-7 md:flex-row md:items-center md:p-9"
+        transition={{ type: 'spring', stiffness: 140, damping: 22 }}
+        className="relative isolate flex flex-col items-start justify-between gap-6 overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-white/[0.08] bg-gradient-to-br from-white/95 via-slate-50/80 to-indigo-50/25 dark:from-[#0e121b]/95 dark:via-[#0a0d14]/90 dark:to-indigo-950/20 p-6 sm:p-7 md:flex-row md:items-center md:p-8 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_50px_-24px_rgba(0,0,0,0.6)] backdrop-blur-2xl text-left"
       >
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.18] dark:opacity-[0.12]"
-          style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,.18) 1px, transparent 1px)', backgroundSize: '34px 34px' }}
-        />
-        <motion.div
-          className="pointer-events-none absolute -right-24 -top-32 h-[360px] w-[360px] rounded-full bg-gradient-to-br from-blue-400/35 via-sky-400/25 to-cyan-400/10 blur-3xl"
-          animate={prefersReducedMotion ? undefined : { x: [0, -18, 0], y: [0, 16, 0], scale: [1, 1.08, 1] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="pointer-events-none absolute -bottom-32 left-[38%] h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl dark:bg-cyan-500/10"
-          animate={prefersReducedMotion ? undefined : { x: [0, 24, 0], scale: [1, 1.12, 1] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="relative z-10 max-w-3xl space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="flex items-center gap-1.5 rounded-full border border-indigo-200/70 bg-white/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-indigo-600 shadow-sm backdrop-blur-lg dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300">
-              <Zap className="w-3 h-3" />
-              <span>{todayDateFormatted}</span>
+        {/* Organic ambient light gradients */}
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-blue-400/15 blur-3xl dark:bg-blue-500/10" />
+        <div className="pointer-events-none absolute -bottom-24 left-[40%] h-60 w-60 rounded-full bg-indigo-300/15 blur-3xl dark:bg-indigo-500/10" />
+        
+        <div className="relative z-10 max-w-3xl space-y-1.5">
+          {/* Heading */}
+          <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.2]">
+            <span className="mr-2 inline-block">{greetingIcon}</span>
+            {greeting},{' '}
+            <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 dark:from-indigo-400 dark:via-sky-300 dark:to-cyan-300 bg-clip-text text-transparent">
+              {currentUser?.name || (locale === 'vi' ? 'bạn' : 'there')}
             </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-emerald-200/70 bg-white/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-600 shadow-sm backdrop-blur-lg dark:border-emerald-800/70 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{onlineMembersCount}/{members.length} {locale === 'vi' ? 'thành viên trực tuyến' : 'members online'}</span>
-            </span>
-            <span className={`flex items-center gap-1.5 rounded-full border bg-white/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm backdrop-blur-lg dark:bg-slate-950/50 ${
-              isOffline
-                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-                : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60'
-            }`}>
-              {isOffline ? <WifiOff className="h-3 w-3" /> : <Database className="h-3 w-3" />}
-              <span>
-                {isOffline
-                  ? (locale === 'vi' ? 'Dữ liệu cục bộ' : 'Local data')
-                  : isSynced
-                    ? 'Supabase Realtime'
-                    : (locale === 'vi' ? 'Đang đồng bộ Supabase' : 'Syncing with Supabase')}
-              </span>
-            </span>
-          </div>
-
-          <h1 className="max-w-3xl text-[clamp(1.75rem,4vw,3.25rem)] font-black leading-[1.04] tracking-[-0.045em] text-slate-950 dark:text-white">
-            {greeting}, <span className="bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-400 bg-clip-text text-transparent">{currentUser?.name || (locale === 'vi' ? 'thành viên Apexa' : 'Apexa member')}</span>
           </h1>
-          <p className="max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300 sm:text-[15px]">
+          <p className="max-w-2xl text-sm font-medium leading-relaxed text-slate-500 dark:text-zinc-400 sm:text-[14.5px]">
             {locale === 'vi'
               ? `Tổng quan trực tiếp của ${workspaceName || 'không gian làm việc hiện tại'}, được tính từ dữ liệu đã lưu.`
               : `Live overview for ${workspaceName || 'the current workspace'}, calculated from stored data.`}
           </p>
         </div>
 
-        <div className="relative z-10 flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:shrink-0">
+        {/* Action Buttons */}
+        <div className="relative z-10 flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row md:shrink-0">
           <motion.button
             onClick={() => onNavigate('tasks')}
-            whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.015 }}
+            whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.01 }}
             whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 px-5 py-3 text-xs font-black text-white shadow-[0_14px_30px_-14px_rgba(99,102,241,0.9)] transition-[filter,box-shadow] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:ring-offset-slate-950 sm:min-w-[176px]"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 transition-all cursor-pointer group"
           >
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle2 className="w-4 h-4 opacity-90" />
             <span>{locale === 'vi' ? 'Quản lý nhiệm vụ' : 'Manage Tasks'}</span>
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </motion.button>
-          <motion.button
-            onClick={onToggleOffline}
-            whileHover={prefersReducedMotion ? undefined : { y: -2 }}
-            whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-            className={`min-h-11 rounded-2xl border px-4 py-3 text-xs font-black shadow-sm backdrop-blur-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-              isOffline 
-                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800' 
-                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-            }`}
-          >
-            {isOffline ? (locale === 'vi' ? 'Ngoại tuyến' : 'Offline') : (locale === 'vi' ? 'Trực tuyến' : 'Online')}
+            <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </motion.button>
         </div>
       </motion.div>

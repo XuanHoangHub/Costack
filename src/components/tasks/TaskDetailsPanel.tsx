@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
-import { PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
+import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
+import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
 import { supabase } from '../../lib/supabaseClient';
 import { useUiStore } from '../../store/uiStore';
@@ -197,9 +198,9 @@ export default function TaskDetailsPanel({
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 backdrop-blur-xs pointer-events-none transition-all duration-300';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] modal-glass-card bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-none sm:border border-white/80 dark:border-slate-800/80 rounded-none sm:rounded-[28px] flex flex-col overflow-hidden shadow-[0_28px_90px_rgba(15,23,42,0.30)] pointer-events-auto' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shadow-2xl pointer-events-auto' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full modal-glass-card bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto`;
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-none sm:border border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-[28px] flex flex-col overflow-hidden shadow-[0_28px_90px_rgba(15,23,42,0.18)] pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -715,6 +716,11 @@ export default function TaskDetailsPanel({
       }
     }
   }
+  const activeSpaceFieldDefinitions = spaces.find(space => space.id === task.spaceId)?.customFields || [];
+  const dynamicCustomFieldNames = Array.from(new Set([
+    ...activeSpaceFieldDefinitions.map(field => field.name),
+    ...Object.keys(task.custom_fields || {})
+  ])).filter(key => !['Objective', 'Owner', 'Cost'].includes(key));
 
   const getFileIcon = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase();
@@ -1316,15 +1322,21 @@ export default function TaskDetailsPanel({
             </div>
 
             {/* Dynamic custom fields */}
-            {Object.keys(task.custom_fields || {}).filter(k => !['Objective', 'Owner', 'Cost'].includes(k)).filter(k => isShown(k)).length > 0 && (
+            {dynamicCustomFieldNames.filter(key => isShown(key)).length > 0 && (
               <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trường tùy chỉnh khác</label>
                 <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(task.custom_fields || {})
-                    .filter(([k]) => !['Objective', 'Owner', 'Cost'].includes(k))
-                    .filter(([k]) => isShown(k))
-                    .map(([key, val]) => (
-                      <div key={key} className="space-y-1 relative group/field">
+                  {dynamicCustomFieldNames
+                    .filter(key => isShown(key))
+                    .map(key => {
+                      const val = task.custom_fields?.[key] ?? '';
+                      const fieldConfig = activeSpaceFieldDefinitions.find(field => field.name === key);
+                      const updateValue = (nextValue: unknown) => onUpdateTask({
+                        ...task,
+                        custom_fields: { ...(task.custom_fields || {}), [key]: nextValue }
+                      });
+                      return (
+                      <div key={key} className={`space-y-1 relative group/field ${fieldConfig?.type === 'textarea' ? 'col-span-2' : ''}`}>
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-medium text-slate-555 dark:text-slate-400 capitalize">{key}</label>
                           <div className="flex items-center gap-1.5 opacity-0 group-hover/field:opacity-100 transition-opacity">
@@ -1342,11 +1354,30 @@ export default function TaskDetailsPanel({
                               className="text-[9px] text-rose-500 hover:underline cursor-pointer">Xóa</button>
                           </div>
                         </div>
-                        <input type="text" value={String(val || '')} 
-                          onChange={e => { const updated = { ...(task.custom_fields || {}), [key]: e.target.value }; onUpdateTask({ ...task, custom_fields: updated }); }}
-                          className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
+                        {fieldConfig?.type === 'dropdown' ? (
+                          <DropdownFieldSelect value={String(val)} options={fieldConfig.options || []} fieldId={fieldConfig.id} onChange={updateValue} />
+                        ) : fieldConfig?.type === 'labels' ? (
+                          <LabelsFieldSelect value={String(val)} options={fieldConfig.options || []} fieldId={fieldConfig.id} onChange={updateValue} />
+                        ) : fieldConfig?.type === 'checkbox' ? (
+                          <button type="button" onClick={() => updateValue(!(val === true || val === 'true'))}
+                            className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${val === true || val === 'true' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' : 'border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400'}`}>
+                            <CheckSquare className="h-3.5 w-3.5" /> {fieldConfig.checkboxLabel || 'Đánh dấu'}
+                          </button>
+                        ) : fieldConfig?.type === 'textarea' ? (
+                          <textarea rows={3} value={String(val)} placeholder={fieldConfig.placeholder}
+                            onChange={event => updateValue(event.target.value)}
+                            className="w-full resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-805 outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-105" />
+                        ) : (
+                          <input
+                            type={fieldConfig?.type === 'date' ? 'date' : fieldConfig?.type === 'number' || fieldConfig?.type === 'money' || fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 'number' : fieldConfig?.type === 'email' ? 'email' : fieldConfig?.type === 'phone' ? 'tel' : fieldConfig?.type === 'url' ? 'url' : 'text'}
+                            min={fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 0 : fieldConfig?.numberMin}
+                            max={fieldConfig?.type === 'progress' ? fieldConfig.progressMax || 100 : fieldConfig?.type === 'rating' ? fieldConfig.ratingMax || 5 : fieldConfig?.numberMax}
+                            value={String(val)} placeholder={fieldConfig?.placeholder}
+                            onChange={event => updateValue(event.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
+                        )}
                       </div>
-                    ))}
+                    );})}
                 </div>
               </div>
             )}
@@ -1704,7 +1735,7 @@ export default function TaskDetailsPanel({
           aria-labelledby="task-modal-title"
           tabIndex={-1}
           onClick={e => e.stopPropagation()}
-          className={`${panelClass} overflow-hidden`}
+          className={`${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
         >
           {/* Ambient Glowing Blobs */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none">
@@ -2004,16 +2035,6 @@ export default function TaskDetailsPanel({
                       className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
                       <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Đính kèm tệp
                     </button>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-2 text-left">
-                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 select-none">
-                      <FileText className="w-3.5 h-3.5" /> Mô tả
-                    </label>
-                    <textarea value={descValue} onChange={e => setDescValue(e.target.value)} onBlur={saveDesc}
-                      placeholder="Thêm mô tả hoặc viết bằng AI..."
-                      className="w-full min-h-[120px] p-4 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-[12.5px] text-slate-700 dark:text-slate-200 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all leading-relaxed placeholder-slate-350 font-medium" />
                   </div>
 
                   {/* Subtasks */}
@@ -2382,6 +2403,19 @@ export default function TaskDetailsPanel({
                     </div>
                   </div>
 
+                  {/* Notion Doc / Tài liệu & Mô tả chi tiết (Vị trí cuối cùng) */}
+                  <div className="pt-2">
+                    <NotionDocEditor
+                      value={descValue}
+                      onChange={val => {
+                        setDescValue(val);
+                        onUpdateTask({ ...task, description: val });
+                      }}
+                      onBlur={saveDesc}
+                      taskTitle={task.title}
+                    />
+                  </div>
+
                   {/* Chronological Timeline feed */}
                   {renderTimelineFeed()}
                 </div>
@@ -2448,16 +2482,6 @@ export default function TaskDetailsPanel({
 
                 {/* Custom Fields Accordion */}
                 {renderCustomFieldsAccordion()}
-
-                {/* Description */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-405 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" /> Mô tả
-                  </label>
-                  <textarea value={descValue} onChange={e => setDescValue(e.target.value)} onBlur={saveDesc}
-                    placeholder="Thêm mô tả hoặc viết bằng AI..."
-                    className="w-full min-h-[95px] p-4 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-805 text-[12.5px] text-slate-700 dark:text-slate-200 resize-none outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10 transition-all leading-relaxed placeholder-slate-350 font-medium" />
-                </div>
 
                 {/* Actions Button row */}
                 <div className="flex flex-wrap gap-2 py-2 border-t border-slate-100 dark:border-slate-800/60">
@@ -2807,6 +2831,19 @@ export default function TaskDetailsPanel({
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* Notion Doc / Tài liệu & Mô tả chi tiết (Vị trí cuối cùng) */}
+                <div className="pt-2">
+                  <NotionDocEditor
+                    value={descValue}
+                    onChange={val => {
+                      setDescValue(val);
+                      onUpdateTask({ ...task, description: val });
+                    }}
+                    onBlur={saveDesc}
+                    taskTitle={task.title}
+                  />
                 </div>
 
                 {/* Timeline Comments block */}

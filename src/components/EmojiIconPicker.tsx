@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import * as LucideIcons from 'lucide-react';
 import { 
@@ -503,7 +503,7 @@ export default function EmojiIconPicker({
     if (color) setSelectedColor(color);
   }, [value]);
 
-  const updateCoords = () => {
+  const updateCoords = useCallback(() => {
     if (triggerRef.current && typeof window !== 'undefined') {
       const rect = triggerRef.current.getBoundingClientRect();
       const popoverWidth = 368;
@@ -524,7 +524,7 @@ export default function EmojiIconPicker({
       }
       setCoords({ top, left });
     }
-  };
+  }, [align]);
 
   // Close popover on outside click or Escape, track scroll/resize
   useEffect(() => {
@@ -556,7 +556,7 @@ export default function EmojiIconPicker({
       window.removeEventListener('resize', updateCoords);
       window.removeEventListener('scroll', updateCoords, true);
     };
-  }, [isOpen, align]);
+  }, [isOpen, updateCoords]);
 
   // Active color object
   const activeColorObj = useMemo(() => {

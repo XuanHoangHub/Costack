@@ -10,10 +10,10 @@ interface CardProps extends HTMLMotionProps<"div"> {
 }
 
 const variantStyles = {
-  default: "cu-card border-[var(--cu-border)] bg-[var(--cu-surface)]",
-  elevated: "cu-card cu-card-elevated border-[var(--cu-border-strong)] bg-[var(--cu-surface)] shadow-md",
+  default: "cu-card border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-[var(--cu-shadow-xs)]",
+  elevated: "cu-card cu-card-elevated border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-[var(--cu-shadow-md)]",
   ghost: "bg-transparent border-transparent shadow-none",
-  interactive: "cu-card cu-card-interactive cursor-pointer hover:border-[var(--cu-primary)]/40 hover:-translate-y-0.5 transition-all duration-200",
+  interactive: "cu-card cu-card-interactive cursor-pointer hover:border-[var(--cu-primary)]/35 hover:-translate-y-0.5 transition-all duration-200",
   glass: "glass-card-ultra",
   shots: "shots-glass-card",
   bento: "shots-glass-card hover:scale-[1.01] hover:shadow-[0_20px_45px_-10px_rgba(37,99,235,0.2)]",
@@ -22,8 +22,8 @@ const variantStyles = {
 const radiusStyles = {
   lg: "rounded-[var(--cu-radius-lg)]",
   xl: "rounded-[var(--cu-radius-xl)]",
-  "2xl": "rounded-2xl",
-  "3xl": "rounded-3xl",
+  "2xl": "rounded-[var(--cu-radius-2xl)]",
+  "3xl": "rounded-[28px]",
 };
 
 const paddingStyles = {
@@ -46,7 +46,7 @@ export function Card({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
       className={[variantStyles[variant], radiusStyles[radius], paddingStyles[padding], className]
         .filter(Boolean)
         .join(" ")}

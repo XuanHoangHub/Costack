@@ -19,15 +19,15 @@ interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.5)] border-transparent active:scale-[0.98]",
+    "bg-gradient-to-br from-indigo-500 via-indigo-600 to-blue-700 text-white shadow-[var(--cu-shadow-primary)] hover:brightness-105 hover:shadow-[0_16px_32px_-16px_rgba(79,70,229,0.9)] border-white/10 active:scale-[0.98]",
   secondary:
-    "bg-[var(--cu-surface-2)] text-[var(--cu-text-primary)] hover:bg-[var(--cu-surface-3)] border-[var(--cu-border)] hover:border-[var(--cu-border-strong)] active:scale-[0.98]",
+    "bg-[var(--cu-surface)] text-[var(--cu-text-primary)] hover:bg-[var(--cu-surface-2)] border-[var(--cu-border)] hover:border-[var(--cu-border-strong)] shadow-[var(--cu-shadow-xs)] active:scale-[0.98]",
   ghost:
     "bg-transparent text-[var(--cu-text-secondary)] hover:bg-[var(--cu-primary-subtle)] hover:text-[var(--cu-primary)] border-transparent active:scale-[0.98]",
   danger:
     "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_4px_14px_rgba(225,29,72,0.3)] hover:shadow-[0_6px_20px_rgba(225,29,72,0.45)] border-transparent active:scale-[0.98]",
   outline:
-    "bg-transparent text-[var(--cu-text-primary)] border-[var(--cu-border)] hover:bg-[var(--cu-surface-2)] hover:border-[var(--cu-primary)]/50 active:scale-[0.98]",
+    "bg-transparent text-[var(--cu-text-primary)] border-[var(--cu-border-strong)] hover:bg-[var(--cu-primary-subtle)] hover:text-[var(--cu-primary)] hover:border-[var(--cu-primary)]/40 active:scale-[0.98]",
   shots:
     "bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black shadow-[0_8px_25px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[0_8px_25px_rgba(255,255,255,0.2),inset_0_1px_0_rgba(255,255,255,0.9)] hover:scale-[1.02] active:scale-[0.98] border-transparent transition-all",
   glass:
@@ -35,12 +35,12 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  tiny: "px-2 py-0.5 text-[10px] font-bold gap-1 rounded-full",
-  xs: "px-2.5 py-1 text-[11px] font-medium gap-1 rounded-[var(--cu-radius-sm)]",
-  sm: "px-3.5 py-1.5 text-xs font-semibold gap-1.5 rounded-[var(--cu-radius-md)]",
-  md: "px-4 py-2 text-sm font-semibold gap-2 rounded-[var(--cu-radius-lg)]",
-  lg: "px-5 py-2.5 text-sm font-bold gap-2.5 rounded-[var(--cu-radius-lg)]",
-  huge: "px-7 py-3.5 text-base font-extrabold gap-3 rounded-full shadow-xl",
+  tiny: "min-h-6 px-2 py-0.5 text-[10px] font-bold gap-1 rounded-full",
+  xs: "min-h-7 px-2.5 py-1 text-[11px] font-medium gap-1 rounded-[var(--cu-radius-sm)]",
+  sm: "min-h-9 px-3.5 py-1.5 text-xs font-semibold gap-1.5 rounded-[var(--cu-radius-md)]",
+  md: "min-h-10 px-4 py-2 text-sm font-semibold gap-2 rounded-[var(--cu-radius-lg)]",
+  lg: "min-h-11 px-5 py-2.5 text-sm font-bold gap-2.5 rounded-[var(--cu-radius-lg)]",
+  huge: "min-h-13 px-7 py-3.5 text-base font-extrabold gap-3 rounded-full shadow-xl",
 };
 
 export function Button({
@@ -63,8 +63,8 @@ export function Button({
       transition={{ duration: 0.15 }}
       disabled={disabled || loading}
       className={[
-        "inline-flex items-center justify-center font-semibold border transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cu-primary)]/30 focus-visible:ring-offset-1",
+        "inline-flex items-center justify-center whitespace-nowrap font-semibold border transition-all duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cu-primary)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cu-bg)]",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
         "cursor-pointer select-none",
         variantStyles[variant],

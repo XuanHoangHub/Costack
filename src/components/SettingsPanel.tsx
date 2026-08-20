@@ -16,6 +16,7 @@ import TeamDirectory from './TeamDirectory';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { supabase } from '@/lib/supabaseClient';
 import type { ThemePreference } from '@/lib/theme';
 import type { NotificationSettings, SyncLog, Task, User, Workspace } from '@/types';
 
@@ -42,6 +43,10 @@ interface SettingsPanelProps {
   setSoundEnabled: (value: boolean) => void;
   blurIntensity: BlurIntensity;
   setBlurIntensity: (value: BlurIntensity) => void;
+  dateFormat: 'short' | 'full' | 'vi' | 'numeric' | 'clock';
+  setDateFormat: (value: 'short' | 'full' | 'vi' | 'numeric' | 'clock') => void;
+  uiDensity: 'comfortable' | 'compact';
+  setUiDensity: (value: 'comfortable' | 'compact') => void;
   notificationSettings: NotificationSettings;
   setNotificationSettings: React.Dispatch<React.SetStateAction<NotificationSettings>>;
   workspaces?: Workspace[];
@@ -125,7 +130,7 @@ function SettingRow({ title, description, children, last = false }: { title: str
 
 export default function SettingsPanel({
   isDarkMode, themePreference, setThemePreference, accentPreset, setAccentPreset, soundEnabled,
-  setSoundEnabled, blurIntensity, setBlurIntensity, notificationSettings,
+  setSoundEnabled, blurIntensity, setBlurIntensity, dateFormat, setDateFormat, uiDensity, setUiDensity, notificationSettings,
   setNotificationSettings, workspaces = [], activeWorkspaceId = '',
   onUpdateWorkspace, onDeleteWorkspace, onAddWorkspace, members = [], tasks = [],
   onAddMember, onUpdateMember, onDeleteMember, onAddSyncLog, syncLogs = [],
@@ -198,6 +203,18 @@ export default function SettingsPanel({
   const [testingAi, setTestingAi] = useState(false);
   const [logSearch, setLogSearch] = useState('');
   const [copiedLogs, setCopiedLogs] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [revokingSessions, setRevokingSessions] = useState(false);
+  const [sessionDetails, setSessionDetails] = useState<{ lastSignIn?: string; expiresAt?: number } | null>(null);
+  const [mfaFactors, setMfaFactors] = useState<Array<{ id: string; friendly_name?: string; status: string; created_at?: string }>>([]);
+  const [mfaEnrollment, setMfaEnrollment] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -217,6 +234,27 @@ export default function SettingsPanel({
     setAiDailyBriefingEnabled(localStorage.getItem('apexa_ai_daily_briefing_enabled') !== 'false');
     setAiDailyBriefingTime(localStorage.getItem('apexa_ai_daily_briefing_time') || '08:00');
   }, []);
+
+  const loadSecurityState = React.useCallback(async () => {
+    const [{ data: sessionData }, { data: factorData }] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.auth.mfa.listFactors()
+    ]);
+    setSessionDetails(sessionData.session ? {
+      lastSignIn: sessionData.session.user.last_sign_in_at,
+      expiresAt: sessionData.session.expires_at
+    } : null);
+    setMfaFactors((factorData?.totp || []).map(factor => ({
+      id: factor.id,
+      friendly_name: factor.friendly_name,
+      status: factor.status,
+      created_at: factor.created_at
+    })));
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'security') void loadSecurityState();
+  }, [activeTab, loadSecurityState]);
 
   const visibleNavigation = navigationSections.map(section => ({
     ...section,
@@ -258,11 +296,24 @@ export default function SettingsPanel({
 
   const saveWorkspace = async () => {
     if (!activeWorkspace || !workspaceName.trim() || !onUpdateWorkspace) return;
+    const invalidAssetUrl = [workspaceCover, workspaceLogo].find(value => {
+      if (!value) return false;
+      try { const url = new URL(value); return !['http:', 'https:'].includes(url.protocol); } catch { return true; }
+    });
+    if (invalidAssetUrl) {
+      triggerToast?.('warning', isVietnamese ? 'Đường dẫn hình ảnh không hợp lệ' : 'Invalid image URL', isVietnamese ? 'Logo và ảnh bìa phải dùng đường dẫn http hoặc https.' : 'Logo and cover must use an http or https URL.');
+      return;
+    }
     setIsSavingWorkspace(true);
-    await Promise.resolve(onUpdateWorkspace(activeWorkspace.id, workspaceName.trim(), workspaceTheme, workspaceCover || undefined, workspaceLogo || undefined, activeWorkspace.settings));
-    onAddSyncLog?.(isVietnamese ? `Đã cập nhật cài đặt không gian “${workspaceName.trim()}”` : `Updated settings for workspace "${workspaceName.trim()}"`);
-    triggerToast?.('success', t('changesSaved') || 'Changes saved', isVietnamese ? 'Đã lưu thay đổi về nhận diện và thương hiệu.' : 'Saved identity and branding changes.');
-    window.setTimeout(() => setIsSavingWorkspace(false), 350);
+    try {
+      await Promise.resolve(onUpdateWorkspace(activeWorkspace.id, workspaceName.trim(), workspaceTheme, workspaceCover || undefined, workspaceLogo || undefined, activeWorkspace.settings));
+      onAddSyncLog?.(isVietnamese ? `Đã cập nhật cài đặt không gian “${workspaceName.trim()}”` : `Updated settings for workspace "${workspaceName.trim()}"`);
+      triggerToast?.('success', t('changesSaved') || 'Changes saved', isVietnamese ? 'Đã lưu thay đổi về nhận diện và thương hiệu.' : 'Saved identity and branding changes.');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Không thể lưu workspace' : 'Could not save workspace', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      window.setTimeout(() => setIsSavingWorkspace(false), 350);
+    }
   };
 
   const createWorkspace = (event: React.FormEvent) => {
@@ -315,11 +366,29 @@ export default function SettingsPanel({
 
   const exportWorkspaceData = () => {
     const payload = {
+      format: 'apexa-workspace-backup',
+      version: 1,
       exportedAt: new Date().toISOString(),
       workspace: activeWorkspace,
       members,
       tasks: tasks.filter(task => !activeWorkspace || task.workspaceId === activeWorkspace.id),
-      activity: syncLogs
+      activity: syncLogs,
+      settings: {
+        themePreference,
+        accentPreset,
+        blurIntensity,
+        dateFormat,
+        uiDensity,
+        soundEnabled,
+        notificationSettings,
+        ai: {
+          model: aiModel,
+          temperature: aiTemperature,
+          searchGrounding: aiSearchGrounding,
+          dailyBriefingEnabled: aiDailyBriefingEnabled,
+          dailyBriefingTime: aiDailyBriefingTime
+        }
+      }
     };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a');
@@ -329,6 +398,171 @@ export default function SettingsPanel({
     URL.revokeObjectURL(url);
     triggerToast?.('success', t('exportReady') || 'Data ready', t('exportReadyDesc') || 'JSON backup downloaded.');
     onAddSyncLog?.(isVietnamese ? 'Đã xuất dữ liệu không gian làm việc' : 'Exported workspace data backup');
+  };
+
+  const importSettingsBackup = async (file: File) => {
+    try {
+      if (file.size > 10 * 1024 * 1024) throw new Error(isVietnamese ? 'Tệp sao lưu vượt quá giới hạn 10MB.' : 'Backup file exceeds the 10MB limit.');
+      const parsed = JSON.parse(await file.text());
+      if (parsed?.format !== 'apexa-workspace-backup' || parsed?.version !== 1 || typeof parsed?.settings !== 'object') {
+        throw new Error(isVietnamese ? 'Tệp này không phải bản sao lưu Apexa hợp lệ.' : 'This is not a valid Apexa backup.');
+      }
+      const settings = parsed.settings;
+      if (['light', 'dark', 'system'].includes(settings.themePreference)) setThemePreference(settings.themePreference);
+      if (['indigo', 'ocean', 'forest', 'sunset'].includes(settings.accentPreset)) setAccentPreset(settings.accentPreset);
+      if (['soft', 'default', 'immersive'].includes(settings.blurIntensity)) setBlurIntensity(settings.blurIntensity);
+      if (['short', 'full', 'vi', 'numeric', 'clock'].includes(settings.dateFormat)) setDateFormat(settings.dateFormat);
+      if (['comfortable', 'compact'].includes(settings.uiDensity)) setUiDensity(settings.uiDensity);
+      if (typeof settings.soundEnabled === 'boolean') setSoundEnabled(settings.soundEnabled);
+      if (settings.notificationSettings && typeof settings.notificationSettings === 'object') {
+        setNotificationSettings(previous => ({ ...previous, ...settings.notificationSettings }));
+      }
+      if (settings.ai && typeof settings.ai === 'object') {
+        if (typeof settings.ai.model === 'string') { setAiModel(settings.ai.model); localStorage.setItem('apexa_ai_model', settings.ai.model); }
+        if (typeof settings.ai.temperature === 'number') { const temperature = Math.max(0, Math.min(1, settings.ai.temperature)); setAiTemperature(temperature); localStorage.setItem('apexa_ai_temperature', String(temperature)); }
+        if (typeof settings.ai.searchGrounding === 'boolean') { setAiSearchGrounding(settings.ai.searchGrounding); localStorage.setItem('apexa_ai_search_grounding', String(settings.ai.searchGrounding)); }
+        if (typeof settings.ai.dailyBriefingEnabled === 'boolean') { setAiDailyBriefingEnabled(settings.ai.dailyBriefingEnabled); localStorage.setItem('apexa_ai_daily_briefing_enabled', String(settings.ai.dailyBriefingEnabled)); }
+        if (typeof settings.ai.dailyBriefingTime === 'string') { setAiDailyBriefingTime(settings.ai.dailyBriefingTime); localStorage.setItem('apexa_ai_daily_briefing_time', settings.ai.dailyBriefingTime); }
+        window.dispatchEvent(new Event('apexa-ai-settings-changed'));
+      }
+      if (parsed.workspace && activeWorkspace && onUpdateWorkspace) {
+        await Promise.resolve(onUpdateWorkspace(
+          activeWorkspace.id,
+          typeof parsed.workspace.name === 'string' ? parsed.workspace.name : activeWorkspace.name,
+          typeof parsed.workspace.theme === 'string' ? parsed.workspace.theme : activeWorkspace.theme,
+          typeof parsed.workspace.coverUrl === 'string' ? parsed.workspace.coverUrl : activeWorkspace.coverUrl,
+          typeof parsed.workspace.logoUrl === 'string' ? parsed.workspace.logoUrl : activeWorkspace.logoUrl,
+          parsed.workspace.settings || activeWorkspace.settings
+        ));
+      }
+      triggerToast?.('success', isVietnamese ? 'Đã khôi phục cài đặt' : 'Settings restored', isVietnamese ? 'Giao diện, thông báo, AI và nhận diện workspace đã được áp dụng.' : 'Appearance, notifications, AI and workspace identity were restored.');
+      onAddSyncLog?.(isVietnamese ? 'Đã khôi phục cài đặt từ bản sao lưu' : 'Restored settings from backup');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Không thể nhập bản sao lưu' : 'Could not import backup', error instanceof Error ? error.message : 'Invalid backup file.');
+    } finally {
+      if (backupInputRef.current) backupInputRef.current.value = '';
+    }
+  };
+
+  const resetDisplayPreferences = () => {
+    setThemePreference('system');
+    setAccentPreset('indigo');
+    setBlurIntensity('default');
+    setDateFormat('short');
+    setUiDensity('comfortable');
+    setSoundEnabled(false);
+    localStorage.removeItem('avaxa_accent_preset');
+    triggerToast?.('success', isVietnamese ? 'Đã đặt lại giao diện' : 'Display reset', isVietnamese ? 'Chủ đề, màu nhấn, hiệu ứng và âm thanh đã về mặc định.' : 'Theme, accent, effects and sounds were reset to defaults.');
+  };
+
+  const copyAuditLogs = async () => {
+    try {
+      await navigator.clipboard.writeText(cleanLogs.map(log => `[${log.time}] ${log.userName ? `[${log.userName}] ` : ''}${log.action}`).join('\n'));
+      setCopiedLogs(true);
+      window.setTimeout(() => setCopiedLogs(false), 1600);
+    } catch {
+      triggerToast?.('error', isVietnamese ? 'Không thể sao chép' : 'Copy failed', isVietnamese ? 'Trình duyệt đã từ chối quyền truy cập clipboard.' : 'Clipboard permission was denied.');
+    }
+  };
+
+  const updatePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPasswordError('');
+    if (newPassword.length < 10 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setPasswordError(isVietnamese ? 'Mật khẩu cần ít nhất 10 ký tự, gồm chữ hoa, chữ thường và số.' : 'Use at least 10 characters with uppercase, lowercase and a number.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(isVietnamese ? 'Mật khẩu xác nhận không khớp.' : 'Password confirmation does not match.');
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const attributes: { password: string; current_password?: string } = { password: newPassword };
+      if (currentPassword) attributes.current_password = currentPassword;
+      const { error } = await supabase.auth.updateUser(attributes);
+      if (error) throw error;
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      triggerToast?.('success', isVietnamese ? 'Đã đổi mật khẩu' : 'Password updated', isVietnamese ? 'Mật khẩu mới đã có hiệu lực.' : 'Your new password is now active.');
+      onAddSyncLog?.(isVietnamese ? 'Đã cập nhật mật khẩu tài khoản' : 'Updated account password');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (isVietnamese ? 'Không thể đổi mật khẩu.' : 'Could not update password.');
+      setPasswordError(message);
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  const revokeOtherSessions = async () => {
+    setRevokingSessions(true);
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'others' });
+      if (error) throw error;
+      triggerToast?.('success', isVietnamese ? 'Đã thu hồi các phiên khác' : 'Other sessions revoked', isVietnamese ? 'Chỉ thiết bị hiện tại còn đăng nhập.' : 'Only this device remains signed in.');
+      onAddSyncLog?.(isVietnamese ? 'Đã đăng xuất tài khoản trên các thiết bị khác' : 'Signed out account on other devices');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Không thể thu hồi phiên' : 'Could not revoke sessions', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setRevokingSessions(false);
+    }
+  };
+
+  const startMfaEnrollment = async () => {
+    setMfaBusy(true);
+    try {
+      await Promise.all(mfaFactors.filter(factor => factor.status !== 'verified').map(factor => supabase.auth.mfa.unenroll({ factorId: factor.id })));
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Apexa Authenticator' });
+      if (error) throw error;
+      setMfaEnrollment({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
+      setMfaCode('');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Không thể bật xác thực hai bước' : 'Could not start MFA setup', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const cancelMfaEnrollment = async () => {
+    if (mfaEnrollment) await supabase.auth.mfa.unenroll({ factorId: mfaEnrollment.factorId });
+    setMfaEnrollment(null);
+    setMfaCode('');
+    await loadSecurityState();
+  };
+
+  const verifyMfaEnrollment = async () => {
+    if (!mfaEnrollment || !/^\d{6}$/.test(mfaCode)) return;
+    setMfaBusy(true);
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaEnrollment.factorId });
+      if (challengeError) throw challengeError;
+      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaEnrollment.factorId, challengeId: challenge.id, code: mfaCode });
+      if (verifyError) throw verifyError;
+      setMfaEnrollment(null);
+      setMfaCode('');
+      await loadSecurityState();
+      triggerToast?.('success', isVietnamese ? 'Đã bật xác thực hai bước' : 'Two-factor authentication enabled', isVietnamese ? 'Tài khoản hiện được bảo vệ bằng ứng dụng Authenticator.' : 'Your account is now protected by an authenticator app.');
+      onAddSyncLog?.(isVietnamese ? 'Đã bật xác thực hai bước (TOTP)' : 'Enabled two-factor authentication (TOTP)');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Mã xác thực không hợp lệ' : 'Invalid verification code', error instanceof Error ? error.message : 'Try a new code.');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const removeMfaFactor = async (factorId: string) => {
+    setMfaBusy(true);
+    try {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+      await loadSecurityState();
+      triggerToast?.('success', isVietnamese ? 'Đã tắt xác thực hai bước' : 'Two-factor authentication disabled', isVietnamese ? 'Thiết bị xác thực đã được gỡ.' : 'The authenticator factor was removed.');
+    } catch (error) {
+      triggerToast?.('error', isVietnamese ? 'Không thể gỡ xác thực' : 'Could not remove MFA', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setMfaBusy(false);
+    }
   };
 
   return (
@@ -451,6 +685,24 @@ export default function SettingsPanel({
                           <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('workspaceName') || (isVietnamese ? 'Tên không gian' : 'Workspace Name')}</span>
                           <input value={workspaceName} onChange={event => setWorkspaceName(event.target.value)} maxLength={60} className={inputClass} />
                         </label>
+                        <label className="space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'URL logo' : 'Logo URL'}</span>
+                          <input type="url" value={workspaceLogo} onChange={event => setWorkspaceLogo(event.target.value)} placeholder="https://…/logo.png" className={inputClass} />
+                        </label>
+                      </div>
+                      <div className="mt-5">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Ảnh bìa không gian' : 'Workspace Cover'}</p>
+                          {workspaceCover && <button type="button" onClick={() => setWorkspaceCover('')} className="text-[10px] font-bold text-rose-500 hover:underline">{isVietnamese ? 'Xóa ảnh bìa' : 'Remove cover'}</button>}
+                        </div>
+                        <input type="url" value={workspaceCover} onChange={event => setWorkspaceCover(event.target.value)} placeholder="https://…/cover.jpg" className={inputClass} />
+                        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                          {WORKSPACE_COVERS.map(cover => (
+                            <button type="button" key={cover.id} onClick={() => setWorkspaceCover(cover.url)} aria-label={cover.name} aria-pressed={workspaceCover === cover.url} className={`aspect-[16/9] overflow-hidden rounded-lg border transition ${workspaceCover === cover.url ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 opacity-75 hover:opacity-100 dark:border-slate-800'}`}>
+                              <img src={cover.url} alt="" className="h-full w-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div className="mt-5">
                         <p className="mb-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('brandColor') || (isVietnamese ? 'Màu thương hiệu' : 'Brand Color')}</p>
@@ -573,6 +825,21 @@ export default function SettingsPanel({
                         <option value="immersive">{t('depthImmersive') || (isVietnamese ? 'Nổi bật' : 'Immersive')}</option>
                       </select>
                     </SettingRow>
+                    <SettingRow title={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} description={isVietnamese ? 'Thu gọn khoảng cách để hiển thị nhiều dữ liệu hơn.' : 'Adjust spacing to show more information on screen.'}>
+                      <select value={uiDensity} onChange={event => setUiDensity(event.target.value as 'comfortable' | 'compact')} className={`${selectClass} w-40`}>
+                        <option value="comfortable">{isVietnamese ? 'Thoải mái' : 'Comfortable'}</option>
+                        <option value="compact">{isVietnamese ? 'Thu gọn' : 'Compact'}</option>
+                      </select>
+                    </SettingRow>
+                    <SettingRow title={isVietnamese ? 'Định dạng ngày giờ' : 'Date & Time Format'} description={isVietnamese ? 'Áp dụng thống nhất trong task, lịch và báo cáo.' : 'Used consistently across tasks, calendars and reports.'}>
+                      <select value={dateFormat} onChange={event => setDateFormat(event.target.value as typeof dateFormat)} className={`${selectClass} w-44`}>
+                        <option value="short">20/08/2026</option>
+                        <option value="full">20 tháng 8, 2026</option>
+                        <option value="vi">Thứ Năm, 20/08</option>
+                        <option value="numeric">2026-08-20</option>
+                        <option value="clock">20/08 · 14:30</option>
+                      </select>
+                    </SettingRow>
                     <SettingRow title={t('uiSounds') || (isVietnamese ? 'Âm thanh giao diện' : 'Interface Sounds')} description={t('uiSoundsDesc') || (isVietnamese ? 'Phát âm thanh phản hồi nhẹ cho các thao tác quan trọng.' : 'Play subtle audio feedback for key interactions.')} last>
                       <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
                     </SettingRow>
@@ -643,12 +910,28 @@ export default function SettingsPanel({
                       </label>
                     </div>
                   )}
-                  <SettingRow title={t('alertFrequency') || (isVietnamese ? 'Tần suất cảnh báo' : 'Alert Frequency')} description={t('alertFrequencyDesc') || (isVietnamese ? 'Gom nhóm thông báo để giảm gián đoạn.' : 'Group notifications to minimize disruptions.')} last>
+                  <SettingRow title={isVietnamese ? 'Cho phép cảnh báo khẩn cấp' : 'Allow Urgent Alerts'} description={isVietnamese ? 'Hạn chót và cảnh báo quan trọng vẫn được gửi trong Không làm phiền.' : 'Deadlines and critical alerts can bypass Do Not Disturb.'}>
+                    <Toggle checked={!!notificationSettings.dndAllowUrgent} onChange={value => setNotificationSettings(previous => ({ ...previous, dndAllowUrgent: value }))} label="Allow urgent alerts" />
+                  </SettingRow>
+                  <SettingRow title={t('alertFrequency') || (isVietnamese ? 'Tần suất cảnh báo' : 'Alert Frequency')} description={t('alertFrequencyDesc') || (isVietnamese ? 'Gom nhóm thông báo để giảm gián đoạn.' : 'Group notifications to minimize disruptions.')}>
                     <select value={notificationSettings.frequencyLimit} onChange={event => setNotificationSettings(previous => ({ ...previous, frequencyLimit: event.target.value as NotificationSettings['frequencyLimit'] }))} className={`${selectClass} w-44`}>
                       <option value="all">{t('freqAll') || (isVietnamese ? 'Mọi cập nhật' : 'All updates')}</option>
                       <option value="throttled">{t('freqThrottled') || (isVietnamese ? 'Nhóm thông minh' : 'Smart throttling')}</option>
                       <option value="minimal">{t('freqMinimal') || (isVietnamese ? 'Tối thiểu' : 'Minimal only')}</option>
                     </select>
+                  </SettingRow>
+                  <SettingRow title={isVietnamese ? 'Thời gian hiển thị' : 'Display Duration'} description={isVietnamese ? 'Khoảng thời gian toast xuất hiện trước khi tự đóng.' : 'How long each toast remains visible.'} last>
+                    <div className="flex items-center gap-2">
+                      <select value={notificationSettings.toastDuration} onChange={event => setNotificationSettings(previous => ({ ...previous, toastDuration: Number(event.target.value) }))} className={`${selectClass} w-32`}>
+                        <option value={2500}>2.5 giây</option>
+                        <option value={4000}>4 giây</option>
+                        <option value={6000}>6 giây</option>
+                        <option value={10000}>10 giây</option>
+                      </select>
+                      <button type="button" onClick={() => triggerToast?.('deadline', isVietnamese ? 'Thông báo thử nghiệm' : 'Test notification', isVietnamese ? 'Các thiết lập âm thanh, thời lượng và tập trung đang hoạt động.' : 'Sound, duration and focus settings are working.')} className="h-10 rounded-xl border border-slate-200 px-3 text-[10px] font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                        {isVietnamese ? 'Gửi thử' : 'Send test'}
+                      </button>
+                    </div>
                   </SettingRow>
                 </SettingsCard>
               </>
@@ -782,11 +1065,7 @@ export default function SettingsPanel({
                     <div className="flex items-center gap-2">
                       <button 
                         type="button" 
-                        onClick={async () => { 
-                          await navigator.clipboard.writeText(cleanLogs.map(log => `[${log.time}] ${log.userName ? `[${log.userName}] ` : ''}${log.action}`).join('\n')); 
-                          setCopiedLogs(true); 
-                          window.setTimeout(() => setCopiedLogs(false), 1600); 
-                        }} 
+                        onClick={copyAuditLogs}
                         className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3.5 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       >
                         {copiedLogs ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
@@ -916,12 +1195,82 @@ export default function SettingsPanel({
                   </div>
                 </SettingsCard>
 
+                <SettingsCard title={isVietnamese ? 'Đổi mật khẩu' : 'Change Password'} description={isVietnamese ? 'Dùng mật khẩu mạnh và không sử dụng lại từ dịch vụ khác.' : 'Use a strong password that is unique to Apexa.'} icon={KeyRound}>
+                  <form onSubmit={updatePassword} className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu hiện tại' : 'Current password'}</span>
+                        <input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder={isVietnamese ? 'Nếu tài khoản có mật khẩu' : 'If your account has one'} className={inputClass} />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mật khẩu mới' : 'New password'}</span>
+                        <input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} className={inputClass} />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Nhập lại mật khẩu' : 'Confirm password'}</span>
+                        <input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} className={inputClass} />
+                      </label>
+                    </div>
+                    {passwordError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">{passwordError}</p>}
+                    <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+                      <p className="text-[10px] leading-4 text-slate-400">{isVietnamese ? 'Tối thiểu 10 ký tự, gồm chữ hoa, chữ thường và số.' : 'At least 10 characters with uppercase, lowercase and a number.'}</p>
+                      <button type="submit" disabled={updatingPassword || !newPassword || !confirmPassword} className="inline-flex h-9 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-40">
+                        {updatingPassword && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}{isVietnamese ? 'Cập nhật mật khẩu' : 'Update password'}
+                      </button>
+                    </div>
+                  </form>
+                </SettingsCard>
+
+                <SettingsCard title={isVietnamese ? 'Xác thực hai bước' : 'Two-factor Authentication'} description={isVietnamese ? 'Bảo vệ tài khoản bằng mã TOTP từ ứng dụng Authenticator.' : 'Protect your account with TOTP codes from an authenticator app.'} icon={ShieldCheck}>
+                  {mfaEnrollment ? (
+                    <div className="grid gap-5 md:grid-cols-[180px_1fr]">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-white">
+                        <img src={mfaEnrollment.qrCode} alt="Authenticator QR code" className="h-full w-full" />
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-black text-slate-800 dark:text-slate-100">{isVietnamese ? 'Quét mã bằng ứng dụng Authenticator' : 'Scan with your authenticator app'}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{isVietnamese ? 'Sau khi quét, nhập mã 6 chữ số để hoàn tất.' : 'After scanning, enter the 6-digit code to finish setup.'}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/50">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Mã thiết lập thủ công' : 'Manual setup secret'}</p>
+                          <code className="mt-1 block break-all text-[11px] font-bold text-slate-700 dark:text-slate-300">{mfaEnrollment.secret}</code>
+                        </div>
+                        <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className={`${inputClass} max-w-44 text-center font-mono tracking-[0.35em]`} />
+                        <div className="flex gap-2">
+                          <button type="button" onClick={verifyMfaEnrollment} disabled={mfaBusy || mfaCode.length !== 6} className="h-9 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white disabled:opacity-40">{isVietnamese ? 'Xác minh và bật' : 'Verify and enable'}</button>
+                          <button type="button" onClick={cancelMfaEnrollment} disabled={mfaBusy} className="h-9 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-600 dark:border-slate-700 dark:text-slate-300">{t('cancel') || 'Cancel'}</button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : mfaFactors.some(factor => factor.status === 'verified') ? (
+                    <div className="space-y-3">
+                      {mfaFactors.filter(factor => factor.status === 'verified').map(factor => (
+                        <div key={factor.id} className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/15">
+                          <div><p className="text-xs font-black text-emerald-800 dark:text-emerald-300">{factor.friendly_name || 'Authenticator'}</p><p className="mt-1 text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{isVietnamese ? 'Đang hoạt động · TOTP' : 'Active · TOTP'}</p></div>
+                          <button type="button" onClick={() => removeMfaFactor(factor.id)} disabled={mfaBusy} className="h-9 rounded-xl border border-rose-200 bg-white px-3 text-[10px] font-extrabold text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900">{isVietnamese ? 'Gỡ thiết bị' : 'Remove'}</button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div><p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Chưa bật xác thực hai bước' : 'Two-factor authentication is off'}</p><p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Hỗ trợ Google Authenticator, Microsoft Authenticator, 1Password và ứng dụng TOTP tương thích.' : 'Works with Google Authenticator, Microsoft Authenticator, 1Password and compatible TOTP apps.'}</p></div>
+                      <button type="button" onClick={startMfaEnrollment} disabled={mfaBusy} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50"><ShieldCheck className="h-3.5 w-3.5" />{isVietnamese ? 'Thiết lập ngay' : 'Set up now'}</button>
+                    </div>
+                  )}
+                </SettingsCard>
+
                 <SettingsCard title={isVietnamese ? 'Trạng thái phiên' : 'Session Status'} description={isVietnamese ? 'Trình duyệt này đang có một phiên xác thực hoạt động.' : 'This device has an active authenticated session.'} icon={LockKeyhole}>
-                  <SettingRow title={isVietnamese ? 'Thiết bị hiện tại' : 'Current Device'} description={`${typeof navigator !== 'undefined' ? navigator.platform : 'Browser'} · ${isVietnamese ? 'Đang hoạt động' : 'Active'}`}>
+                  <SettingRow title={isVietnamese ? 'Thiết bị hiện tại' : 'Current Device'} description={`${typeof navigator !== 'undefined' ? navigator.platform : 'Browser'} · ${sessionDetails?.lastSignIn ? new Date(sessionDetails.lastSignIn).toLocaleString(locale) : (isVietnamese ? 'Đang hoạt động' : 'Active')}`}>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       {isVietnamese ? 'Hiện tại' : 'Current'}
                     </span>
+                  </SettingRow>
+                  <SettingRow title={isVietnamese ? 'Đăng xuất các thiết bị khác' : 'Sign Out Other Devices'} description={isVietnamese ? 'Thu hồi refresh token trên mọi phiên khác nhưng giữ thiết bị này.' : 'Revoke refresh tokens on every other session while keeping this device active.'}>
+                    <button type="button" onClick={revokeOtherSessions} disabled={revokingSessions} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">
+                      {revokingSessions ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}{isVietnamese ? 'Thu hồi phiên khác' : 'Revoke others'}
+                    </button>
                   </SettingRow>
                   <SettingRow title={t('signOut') || (isVietnamese ? 'Đăng xuất' : 'Sign Out')} description={isVietnamese ? 'Kết thúc phiên trình duyệt hiện tại một cách an toàn.' : 'Safely end the current session.'} last>
                     <button type="button" onClick={onLogout} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 cursor-pointer">
@@ -961,9 +1310,15 @@ export default function SettingsPanel({
                         <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Được tạo an toàn cục bộ trong trình duyệt.' : 'Generated securely in your browser.'}</p>
                       </div>
                     </div>
-                    <button type="button" onClick={exportWorkspaceData} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 cursor-pointer">
-                      <Download className="h-3.5 w-3.5" />{t('exportData') || (isVietnamese ? 'Xuất dữ liệu' : 'Export Data')}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <input ref={backupInputRef} type="file" accept="application/json,.json" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void importSettingsBackup(file); }} />
+                      <button type="button" onClick={() => backupInputRef.current?.click()} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">
+                        <Upload className="h-3.5 w-3.5" />{isVietnamese ? 'Nhập cài đặt' : 'Import Settings'}
+                      </button>
+                      <button type="button" onClick={exportWorkspaceData} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 cursor-pointer">
+                        <Download className="h-3.5 w-3.5" />{t('exportData') || (isVietnamese ? 'Xuất dữ liệu' : 'Export Data')}
+                      </button>
+                    </div>
                   </div>
                 </SettingsCard>
                 <SettingsCard title={isVietnamese ? 'Bộ nhớ đệm cục bộ' : 'Local Cache'} description={isVietnamese ? 'Đặt lại tùy chọn hiển thị trên thiết bị mà không xóa dữ liệu không gian.' : 'Reset device display preferences without touching cloud data.'} icon={RefreshCw}>
@@ -974,13 +1329,10 @@ export default function SettingsPanel({
                     </div>
                     <button 
                       type="button" 
-                      onClick={() => { 
-                        localStorage.removeItem('apexa_accent_preset'); 
-                        triggerToast?.('success', isVietnamese ? 'Đã xóa bộ nhớ đệm' : 'Cache cleared', isVietnamese ? 'Tùy chọn hiển thị đã được làm mới.' : 'Display preferences have been refreshed.'); 
-                      }} 
+                      onClick={resetDisplayPreferences}
                       className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />{isVietnamese ? 'Xóa bộ nhớ đệm' : 'Clear Cache'}
+                      <Trash2 className="h-3.5 w-3.5" />{isVietnamese ? 'Đặt lại giao diện' : 'Reset Display'}
                     </button>
                   </div>
                 </SettingsCard>

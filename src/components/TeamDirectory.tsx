@@ -1444,7 +1444,7 @@ export default function TeamDirectory({
                 {t('corporateGuidelines') || 'Corporate Guidelines'}
               </h4>
               <p className="text-[11px] text-slate-405 leading-relaxed font-medium">
-                {t('corporateGuidelinesDesc') || 'Our organizational structure synchronizes roles dynamically. All modifications here auto-provision unified Lark-style chat threads and calendar overlays.'}
+                {t('corporateGuidelinesDesc') || 'Our organizational structure synchronizes roles dynamically. All modifications here auto-provision unified team chat threads and calendar overlays.'}
               </p>
             </div>
           </div>

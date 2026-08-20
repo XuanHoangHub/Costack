@@ -48,7 +48,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
     'Apexa AI, Automations, and advanced reports',
     'Gantt charts, time tracking, and data export',
     'Activity history & advanced workspace permissions',
-    'Priority 24/7 support & unified billing'
+    'Priority support & unified billing'
   ];
   const [cycle, setCycle] = useState<BillingCycle>('yearly');
   const [entitlement, setEntitlement] = useState<Entitlement>({ plan: currentUser?.isPremium ? 'pro' : 'free', status: currentUser?.isPremium ? 'active' : 'inactive', is_pro: Boolean(currentUser?.isPremium) });
@@ -109,12 +109,15 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
     setError('');
     try {
       const data = await authorizedFetch(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
-      addSyncLog?.(endpoint.includes('portal') ? 'Opened secure billing portal' : `Started Pro ${cycle} checkout`);
-      window.location.assign(data.url);
+      if (data?.url) {
+        addSyncLog?.(endpoint.includes('portal') ? 'Opened secure billing portal' : `Started Pro ${cycle} checkout`);
+        window.location.assign(data.url);
+        return;
+      }
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : 'Không thể bắt đầu thanh toán.';
+      const message = requestError instanceof Error ? requestError.message : (isVietnamese ? 'Không thể kết nối hệ thống thanh toán.' : 'Unable to connect to billing.');
       setError(message);
-      triggerToast?.('info', 'Thanh toán chưa bắt đầu', message);
+      triggerToast?.('error', isVietnamese ? 'Thanh toán chưa hoàn tất' : 'Billing not completed', message);
     } finally {
       setLoading(false);
     }

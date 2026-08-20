@@ -347,26 +347,28 @@ export function FinanceHub({ activeWorkspaceId = 'w1', onAddSyncLog, triggerToas
     note: ''
   });
 
-  // Load saved state from LocalStorage
+  const wsKey = activeWorkspaceId || 'default';
+
+  // Load saved state from LocalStorage per workspace
   useEffect(() => {
     try {
-      const savedTx = localStorage.getItem('apexa_finance_transactions');
+      const savedTx = localStorage.getItem(`apexa_finance_transactions_${wsKey}`) || localStorage.getItem('apexa_finance_transactions');
       if (savedTx) setTransactions(JSON.parse(savedTx));
-      const savedInv = localStorage.getItem('apexa_finance_invoices');
+      const savedInv = localStorage.getItem(`apexa_finance_invoices_${wsKey}`) || localStorage.getItem('apexa_finance_invoices');
       if (savedInv) setInvoices(JSON.parse(savedInv));
-      const savedDebts = localStorage.getItem('apexa_finance_debts');
+      const savedDebts = localStorage.getItem(`apexa_finance_debts_${wsKey}`) || localStorage.getItem('apexa_finance_debts');
       if (savedDebts) setDebts(JSON.parse(savedDebts));
     } catch (e) {}
-  }, []);
+  }, [wsKey]);
 
-  // Save changes to LocalStorage
+  // Save changes to LocalStorage per workspace
   useEffect(() => {
     try {
-      localStorage.setItem('apexa_finance_transactions', JSON.stringify(transactions));
-      localStorage.setItem('apexa_finance_invoices', JSON.stringify(invoices));
-      localStorage.setItem('apexa_finance_debts', JSON.stringify(debts));
+      localStorage.setItem(`apexa_finance_transactions_${wsKey}`, JSON.stringify(transactions));
+      localStorage.setItem(`apexa_finance_invoices_${wsKey}`, JSON.stringify(invoices));
+      localStorage.setItem(`apexa_finance_debts_${wsKey}`, JSON.stringify(debts));
     } catch (e) {}
-  }, [transactions, invoices, debts]);
+  }, [transactions, invoices, debts, wsKey]);
 
   // Financial Metrics Calculation
   const metrics = useMemo(() => {
@@ -553,7 +555,7 @@ export function FinanceHub({ activeWorkspaceId = 'w1', onAddSyncLog, triggerToas
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 dark:bg-slate-950/60">
+    <div className="flex h-full flex-1 flex-col overflow-hidden bg-[var(--cu-bg-subtle)]">
       {/* Finance Header */}
       <div className="shrink-0 px-6 py-4 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1422,11 +1424,12 @@ export function FinanceHub({ activeWorkspaceId = 'w1', onAddSyncLog, triggerToas
       <AnimatePresence>
         {showNewTxModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowNewTxModal(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
+              className="relative z-10 w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
@@ -1563,11 +1566,12 @@ export function FinanceHub({ activeWorkspaceId = 'w1', onAddSyncLog, triggerToas
       <AnimatePresence>
         {showDunningModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowDunningModal(null)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
+              className="relative z-10 w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">

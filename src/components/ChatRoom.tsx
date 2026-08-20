@@ -215,11 +215,27 @@ const formatMessageContent = (text: string) => {
   if (!text) return '';
   const lines = text.split('\n');
   const processedLines = lines.map((line, idx) => {
-    if (line.trim().startsWith('>')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('>')) {
       const content = line.substring(line.indexOf('>') + 1).trim();
       return (
         <div key={idx} className="pl-3 py-1 border-l-3 border-indigo-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-r-lg text-slate-500 dark:text-slate-400 italic my-1">
           {formatLineMarkdown(content)}
+        </div>
+      );
+    }
+    const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+    if (numMatch) {
+      const num = numMatch[1];
+      const content = numMatch[2];
+      return (
+        <div key={idx} className="flex items-start gap-2 py-0.5 min-h-[20px]">
+          <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-[9.5px] font-black flex items-center justify-center shadow-3xs mt-0.5 select-none font-sans">
+            {num}
+          </span>
+          <span className="flex-1 min-h-[16px]">
+            {formatLineMarkdown(content)}
+          </span>
         </div>
       );
     }

@@ -40,12 +40,79 @@ export function NavItem({
 }: NavItemProps) {
   const displayText = collapsed ? shortLabel || label : label;
 
+  if (collapsed) {
+    return (
+      <div className="relative my-0.5 flex w-full items-center justify-center">
+        {dragIndicator}
+
+        {/* Left Glowing Neon Indicator Bar */}
+        {isActive && (
+          <motion.div
+            layoutId="sidebarActiveIndicatorCollapsed"
+            className="absolute left-0 top-1/2 z-20 h-5.5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-indigo-400 to-sky-400 shadow-[0_0_12px_rgba(99,102,241,0.85)]"
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          />
+        )}
+
+        <motion.button
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.94 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
+          draggable={Boolean(onDragStart)}
+          onDragStart={onDragStart as any}
+          onDragOver={onDragOver as any}
+          onDragLeave={onDragLeave as any}
+          onDragEnd={onDragEnd as any}
+          onDrop={onDrop as any}
+          onClick={onClick}
+          aria-label={label}
+          style={style}
+          className={[
+            "group relative flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded-[13px] border transition-all duration-200",
+            isActive
+              ? "border-white/20 bg-white/[0.14] text-white shadow-[0_4px_16px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/10"
+              : "border-transparent bg-transparent text-zinc-400 hover:border-white/[0.08] hover:bg-white/[0.08] hover:text-white",
+          ].join(" ")}
+        >
+          <Icon
+            size={20}
+            weight={isActive ? "fill" : "regular"}
+            className="shrink-0 transition-transform duration-200 group-hover:scale-110"
+          />
+
+          {/* Unread / Count Badge */}
+          {count !== undefined && count > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white font-black text-[8.5px] flex items-center justify-center ring-2 ring-[#080a0f] shadow-xs">
+              {count > 99 ? "99+" : count}
+            </span>
+          )}
+
+          {/* Tooltip */}
+          <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-xl border border-white/10 bg-[#11141d]/95 px-3 py-2 text-xs font-bold text-white opacity-0 shadow-2xl backdrop-blur-2xl transition-all duration-200 group-hover:opacity-100">
+            <span>{label}</span>
+            {badge && (
+              <span className="text-[8px] bg-blue-500/20 text-sky-300 border border-blue-400/30 font-black px-1.5 py-0.2 rounded-full uppercase">
+                {badge}
+              </span>
+            )}
+            {count !== undefined && count > 0 && (
+              <span className="bg-rose-500 text-white font-black text-[9px] px-1.5 py-0.2 rounded-full shadow-xs">
+                {count}
+              </span>
+            )}
+          </div>
+        </motion.button>
+      </div>
+    );
+  }
+
+  // Expanded View Mode
   return (
     <motion.button
-      whileHover={{ scale: collapsed ? 1.03 : 1.01 }}
+      whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      draggable
+      draggable={Boolean(onDragStart)}
       onDragStart={onDragStart as any}
       onDragOver={onDragOver as any}
       onDragLeave={onDragLeave as any}
@@ -53,94 +120,64 @@ export function NavItem({
       onDrop={onDrop as any}
       onClick={onClick}
       aria-label={label}
-      title={collapsed ? label : undefined}
       style={style}
       className={[
-        "group w-full relative flex transition-all duration-200 cursor-pointer select-none border",
-        collapsed
-          ? "items-center justify-center h-10 px-0 rounded-xl overflow-visible"
-          : "py-2 px-3 rounded-2xl items-center gap-2.5 overflow-hidden",
+        "group relative my-0.5 flex min-h-10 w-full cursor-pointer select-none items-center gap-2.5 rounded-[14px] border px-2.5 py-2 transition-all duration-200",
         isActive
-          ? "bg-blue-500/10 dark:bg-blue-500/15 text-blue-700 dark:text-sky-300 border-blue-200/80 dark:border-blue-500/30 shadow-xs font-bold"
-          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-950 dark:hover:text-white border-transparent font-medium",
+          ? "border-white/[0.12] bg-white/[0.10] font-bold text-white shadow-sm backdrop-blur-md"
+          : "border-transparent font-medium text-zinc-300 hover:border-white/[0.06] hover:bg-white/[0.06] hover:text-white",
       ].join(" ")}
     >
       {dragIndicator}
 
-      {/* Clean Inset Active Pill */}
+      {/* Left indicator capsule for expanded mode */}
       {isActive && (
         <motion.div
-          layoutId={collapsed ? "sidebarActiveIndicatorCollapsed" : "sidebarActiveIndicator"}
-          className={
-            collapsed
-              ? "absolute left-1 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm z-20"
-              : "absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-full bg-blue-600 dark:bg-sky-400 shadow-sm z-20"
-          }
-          transition={{ type: "spring", stiffness: 450, damping: 35 }}
+          layoutId="sidebarActiveIndicatorExpanded"
+          className="absolute left-0 top-1/2 z-20 h-5 w-1 -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-sky-400 shadow-[0_0_10px_rgba(129,140,248,0.6)]"
+          transition={{ type: "spring", stiffness: 500, damping: 35 }}
         />
       )}
 
-      {/* Icon with soft squircle box */}
+      {/* Icon Frame */}
       <div className={[
-        "relative flex items-center justify-center shrink-0 z-10 rounded-lg transition-colors",
-        collapsed ? "w-7 h-7" : "w-6 h-6",
+        "relative z-10 flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-[10px] transition-all duration-200",
         isActive
-          ? "text-blue-600 dark:text-sky-400 bg-blue-500/15 dark:bg-blue-400/20"
-          : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white",
+          ? "bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-sm shadow-indigo-500/30"
+          : "bg-white/[0.05] text-zinc-300 group-hover:bg-white/[0.09] group-hover:text-white",
       ].join(" ")}>
         <Icon
-          size={collapsed ? 18 : 16}
-          weight={isActive ? "bold" : "regular"}
+          size={18}
+          weight={isActive ? "fill" : "regular"}
           className="shrink-0 transition-transform duration-200 group-hover:scale-105"
         />
       </div>
 
       {/* Label Text */}
-      <span
-        className={[
-          "transition-colors duration-200 z-10 truncate text-xs text-left tracking-tight",
-          collapsed ? "sr-only" : "flex-1",
-          isActive
-            ? "text-blue-700 dark:text-sky-200 font-bold"
-            : "text-slate-700 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white font-medium",
-        ].join(" ")}
-      >
+      <span className={[
+        "transition-colors duration-200 z-10 truncate text-xs text-left tracking-tight flex-1",
+        isActive ? "text-white font-extrabold" : "text-zinc-300 group-hover:text-white font-semibold",
+      ].join(" ")}>
         {displayText}
       </span>
 
-      {/* Item Count Badge */}
+      {/* Count Badge */}
       {count !== undefined && count > 0 && (
-        <span
-          className={[
-            "font-extrabold flex items-center justify-center shrink-0 z-20 tabular-nums transition-colors",
-            isActive
-              ? "bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60"
-              : "bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400",
-            collapsed
-              ? "absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full text-[8px]"
-              : "ml-auto min-w-[18px] h-[18px] px-1.5 rounded-full text-[9.5px]",
-          ].join(" ")}
-        >
+        <span className={[
+          "font-black flex items-center justify-center shrink-0 z-20 tabular-nums transition-colors ml-auto min-w-[19px] h-[19px] px-1.5 rounded-full text-[9.5px]",
+          isActive
+            ? "bg-rose-500 text-white shadow-xs"
+            : "bg-white/[0.12] text-zinc-300 border border-white/10 group-hover:bg-white/[0.18] group-hover:text-white",
+        ].join(" ")}>
           {count > 99 ? "99+" : count}
         </span>
       )}
 
-      {badge && !collapsed && (
-        <span className="ml-auto shrink-0 rounded-full bg-sky-100 dark:bg-sky-950/80 px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wide text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/70 shadow-3xs">
+      {/* Feature Badge */}
+      {badge && (
+        <span className="ml-auto shrink-0 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-sky-300 border border-blue-400/30 shadow-[0_0_8px_rgba(56,189,248,0.2)]">
           {badge}
         </span>
-      )}
-
-      {/* Tooltip on collapsed */}
-      {collapsed && (
-        <div className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[11px] font-bold py-1 px-2.5 rounded-xl shadow-lg border border-slate-800 z-50 whitespace-nowrap flex items-center gap-2">
-          <span>{label}</span>
-          {count !== undefined && count > 0 && (
-            <span className="bg-blue-500 text-white font-bold text-[9px] px-1.5 py-0.2 rounded-full">
-              {count}
-            </span>
-          )}
-        </div>
       )}
     </motion.button>
   );

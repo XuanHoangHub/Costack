@@ -23,8 +23,37 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apexa",
-  description: "Không gian làm việc năng suất tất cả trong một dành cho kỹ thuật, thiết kế và kinh doanh.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  title: {
+    default: "Apexa OS — Không gian làm việc AI cho đội ngũ hiện đại",
+    template: "%s · Apexa OS",
+  },
+  description: "Quản lý công việc, tài liệu, chat thời gian thực, CRM, ERP, tài chính và trợ lý AI trong một workspace Việt–Anh.",
+  applicationName: "Apexa OS",
+  authors: [{ name: "Apexa OS" }],
+  creator: "Apexa OS",
+  publisher: "Apexa OS",
+  category: "productivity",
+  keywords: ["quản lý công việc", "workspace", "kanban", "CRM", "ERP", "tài liệu", "trợ lý AI", "Apexa OS"],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    alternateLocale: "en_US",
+    url: "/",
+    siteName: "Apexa OS",
+    title: "Apexa OS — Vận hành công việc trên một workspace",
+    description: "Tasks, Docs, Chat, CRM, ERP, Finance và AI — kết nối trong một không gian làm việc.",
+    images: [{ url: "/icon.png", width: 512, height: 512, alt: "Apexa OS" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Apexa OS — Không gian làm việc AI",
+    description: "Một workspace cho công việc, tài liệu, cộng tác và vận hành.",
+    images: ["/icon.png"],
+  },
+  robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -52,7 +81,7 @@ export default function RootLayout({
         <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />
         <InlineHeadScript id="ignore-extension-errors" html={IGNORE_EXTENSION_ERRORS_SCRIPT} />
       </head>
-      <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
+      <body className={`${plusJakarta.className} min-h-full flex flex-col font-sans bg-white dark:bg-[#080A10] text-[var(--cu-text-primary)] antialiased`}>
         <SecurityGuard />
         <TranslationProvider>
           {children}

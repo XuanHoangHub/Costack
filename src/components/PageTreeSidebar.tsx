@@ -60,7 +60,7 @@ export default function PageTreeSidebar({
   // Filter archived vs active
   const activeDocs = useMemo(() => {
     return documents
-      .filter(d => !d.is_archived && d.workspace_id === workspaceId)
+      .filter(d => !d.is_archived && (!workspaceId || d.workspace_id === workspaceId || (d as any).workspaceId === workspaceId))
       .filter(d => scope === 'favorites' ? d.is_favorite : true)
       .filter(d => scope === 'published' ? d.is_published : true)
       .sort((a, b) => {
@@ -70,7 +70,7 @@ export default function PageTreeSidebar({
   }, [documents, scope, workspaceId]);
 
   const archivedDocs = useMemo(() => {
-    return documents.filter(d => d.is_archived && d.workspace_id === workspaceId);
+    return documents.filter(d => d.is_archived && (!workspaceId || d.workspace_id === workspaceId || (d as any).workspaceId === workspaceId));
   }, [documents, workspaceId]);
 
   // Build tree index of documents for fast lookup
@@ -321,8 +321,8 @@ export default function PageTreeSidebar({
           <SlidersHorizontal className="w-3 h-3 text-slate-400 shrink-0 ml-1.5 mr-0.5" />
           {([
             ['all', 'Tất cả', activeDocs.length],
-            ['favorites', 'Yêu thích', documents.filter(d => !d.is_archived && d.workspace_id === workspaceId && d.is_favorite).length],
-            ['published', 'Đã chia sẻ', documents.filter(d => !d.is_archived && d.workspace_id === workspaceId && d.is_published).length]
+            ['favorites', 'Yêu thích', documents.filter(d => !d.is_archived && (!workspaceId || d.workspace_id === workspaceId || (d as any).workspaceId === workspaceId) && d.is_favorite).length],
+            ['published', 'Đã chia sẻ', documents.filter(d => !d.is_archived && (!workspaceId || d.workspace_id === workspaceId || (d as any).workspaceId === workspaceId) && d.is_published).length]
           ] as const).map(([value, label, count]) => (
             <button
               key={value}

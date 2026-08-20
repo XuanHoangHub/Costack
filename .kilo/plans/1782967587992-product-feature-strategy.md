@@ -1,7 +1,7 @@
 # Product Feature Strategy — Avaxa Productivity OS (Refined v2)
 
 ## Executive Summary
-**Avaxa Productivity OS** không cạnh tranh với Notion/ClickUp/Linear/Lark bằng "all-in-one đầy đủ".
+**Avaxa Productivity OS** không cạnh tranh với Notion/Competitor/Linear/Competitor bằng "all-in-one đầy đủ".
 Chiến lược: trở thành **AI-Native Productivity OS** duy nhất có giao diện Glassmorphic, offline-first, voice-ready và co-pilot ngữ cảnh toàn workspace.
 
 ### Unique Selling Propositions (USP)
@@ -25,15 +25,15 @@ Chiến lược: trở thành **AI-Native Productivity OS** duy nhất có giao 
 
 ## 2. Competitive Gap Analysis
 
-| Dimension | ClickUp | Notion | Linear | Lark | **Avaxa** |
+| Dimension | Competitor | Notion | Linear | Competitor | **Avaxa** |
 |---|---|---|---|---|---|
 | Task Hierarchy | Space → List → Task | DB only | Issue only | Multimode | **Space → List → Task** |
 | Giao diện đẹp | 7/10 | 9/10 | 10/10 | 8/10 | **10/10 (Glassmorphic)** |
 | Offline-first | Partial | No | No | Yes | **Yes (full mutation queue)** |
 | AI depth | Chat only | AI fill | AI issues | Co-pilot | **10 endpoints AI** |
 | Voice input | No | No | No | Yes | **Có thể thêm** |
-| Whiteboard | ClickUp Whiteboard | No | No | Lark Board | **Custom canvas** |
-| No-code DB | ClickUp DB | Notion DB | No | Lark Base | **Avaxa Base (5 views)** |
+| Whiteboard | Competitor Whiteboard | No | No | Canvas Board | **Custom canvas** |
+| No-code DB | Competitor DB | Notion DB | No | No-code Base | **Avaxa Base (5 views)** |
 | Mã nguồn | Closed | Closed | Closed | Closed | **Own stack có thể customize** |
 | Pricing | Expensive | Expensive | Mid | Expensive | **Freemium + Premium** |
 
@@ -117,7 +117,7 @@ Tính năng tạo khác biệt khó sao chép.
 **Deliverable**: Build sạch, unchunk, không crash khi re-render.
 
 ### Phase 1 — Enhanced UX (6-16 tuần)
-> Mục tiêu: "Như ClickUp nhưng đẹp hơn và AI tốt hơn".
+> Mục tiêu: "Như Competitor nhưng đẹp hơn và AI tốt hơn".
 
 | Feature | Tuần | Owner | Acceptance Criteria |
 |---|---|---|---|
@@ -132,7 +132,7 @@ Tính năng tạo khác biệt khó sao chép.
 | Dark Mode Toggle | 14 | FE | Re-enable state; toggle in Settings; persist localStorage |
 | Advanced Filters + Saved Views | 15-16 | FE | Filter bar; save view; load view by name |
 
-**Deliverable**: Feature parity với Linear/ClickUp cơ bản.
+**Deliverable**: Feature parity với Linear/Competitor cơ bản.
 
 ### Phase 2 — Team & Intelligence (16-28 tuần)
 > Mục tiêu: Trở thành "must-have" cho startup team.
@@ -310,7 +310,7 @@ Avaxa có logic premium sẵn. Cần align features với tiers rõ ràng.
 ## 9. Go-to-Market Strategy (High Level)
 
 1. **Pre-launch**: Invite-only beta cho 50-100 startup founders (Product Hunt, Vietnamese tech communities). Mục tiêu feedback sâu.
-2. **Launch**: PSA (Product Hunt Alternative) + LinkedIn personal brand. Content: "How I replaced ClickUp + Notion + Miro + ChatGPT with one Glass OS".
+2. **Launch**: PSA (Product Hunt Alternative) + LinkedIn personal brand. Content: "How I replaced Competitor + Notion + Miro + ChatGPT with one Glass OS".
 3. **Growth**: Template marketplace (free templates SEO); AI use-case demos; referral program (1 month free).
 4. **Retention**: Weekly AI Briefing email; Wellness insights; Streaks & Archetypes.
 
@@ -349,7 +349,7 @@ Avaxa có logic premium sẵn. Cần align features với tiers rõ ràng.
 
 ## 11. Rapid Prototyping Checklist (trước khi code)
 - [ ] **User Research**: Interview 10 target users về workflow hiện tại + pain points
-- [ ] **Competitor Teardown**: Deep dive Notion AI, ClickUp Brain, Linear, Lark Base
+- [ ] **Competitor Teardown**: Deep dive Notion AI, Competitor Brain, Linear, No-code Base
 - [ ] **Design System Audit**: Inventory tất cả modal/panel/button styles hiện có; document token dùng Tailwind v4
 - [ ] **Architecture Review**: Vẽ sơ đồ state flow; xác định Zustand stores
 - [ ] **Sprint 0 Plan**: Chọn 5 tính năng Phase 1 đầu tiên để implement trong 2 sprints

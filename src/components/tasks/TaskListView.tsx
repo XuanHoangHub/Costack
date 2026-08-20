@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, D
 import { 
   ChevronDown, Plus, Paperclip, X, MessageSquare, Check, Pin, Edit2, Tag, 
   MoreHorizontal, Play, Clock, AlertTriangle, Hourglass, Trash2, 
-  CheckCircle2, ListChecks, Repeat2, Copy
+  CheckCircle2, ListChecks, Repeat2, Copy, ChevronsUpDown, Sparkles, Layers, Users, Calendar, Flag, GripVertical
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
@@ -199,6 +199,15 @@ const TaskListView = React.memo(function TaskListView({
     setExpandedGroups(prev => ({ ...prev, [statusId]: !prev[statusId] }));
   };
 
+  const toggleAllGroups = () => {
+    const anyExpanded = Object.values(expandedGroups).some(v => v);
+    const newObj: Record<string, boolean> = {};
+    currentStatuses.forEach(s => {
+      newObj[s.id] = !anyExpanded;
+    });
+    setExpandedGroups(newObj);
+  };
+
   const handleInlineAdd = (statusId: string) => {
     if (!inlineAddingTitle.trim()) return;
     onAddTask({
@@ -209,7 +218,7 @@ const TaskListView = React.memo(function TaskListView({
     const standardLabel = dynamicStatusMeta[statusId]?.label;
     const label = standardLabel || statusId.toUpperCase();
     onAddSyncLog(`Quick added: "${inlineAddingTitle.trim()}" to ${label}`);
-    if (triggerToast) triggerToast('success', 'Quick Add', `Added "${inlineAddingTitle.trim()}"`);
+    if (triggerToast) triggerToast('success', 'Tạo nhanh công việc', `Đã thêm "${inlineAddingTitle.trim()}"`);
     setInlineAddingTitle('');
     setInlineAddingStatus(null);
   };
@@ -227,17 +236,17 @@ const TaskListView = React.memo(function TaskListView({
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate.split('T')[0]); due.setHours(0, 0, 0, 0);
     const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { text: `Overdue ${Math.abs(diff)}d`, cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.15)] font-bold' };
-    if (diff === 0) return { text: 'Today', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 font-black shadow-3xs' };
-    if (diff === 1) return { text: 'Tomorrow', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20' };
-    return { text: `${diff}d`, cls: 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50' };
+    if (diff < 0) return { text: `Quá hạn ${Math.abs(diff)} ngày`, cls: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.15)] font-bold' };
+    if (diff === 0) return { text: 'Hôm nay', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 font-black shadow-3xs' };
+    if (diff === 1) return { text: 'Ngày mai', cls: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 font-bold' };
+    return { text: `${diff} ngày`, cls: 'text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 font-medium' };
   };
 
   const currentStatuses = statuses || [
-    { id: 'todo', label: 'TO DO', color: '#94a3b8', type: 'todo' as TaskStatus },
-    { id: 'inprogress', label: 'IN PROGRESS', color: '#f59e0b', type: 'inprogress' as TaskStatus },
-    { id: 'review', label: 'REVIEW', color: '#06b6d4', type: 'review' as TaskStatus },
-    { id: 'completed', label: 'DONE', color: '#10b981', type: 'completed' as TaskStatus }
+    { id: 'todo', label: 'CẦN LÀM', color: '#94a3b8', type: 'todo' as TaskStatus },
+    { id: 'inprogress', label: 'ĐANG THỰC HIỆN', color: '#f59e0b', type: 'inprogress' as TaskStatus },
+    { id: 'review', label: 'CHỜ DUYỆT', color: '#06b6d4', type: 'review' as TaskStatus },
+    { id: 'completed', label: 'HOÀN THÀNH', color: '#10b981', type: 'completed' as TaskStatus }
   ];
 
   const handleDragEnd = (result: DropResult) => {
@@ -285,7 +294,7 @@ const TaskListView = React.memo(function TaskListView({
       const t = tasks.find(item => item.id === id);
       if (t) onUpdateTask({ ...t, status: 'completed' });
     });
-    if (triggerToast) triggerToast('success', 'Bulk Action', `Completed ${selectedTaskIds.length} tasks`);
+    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã hoàn thành ${selectedTaskIds.length} công việc`);
     setSelectedTaskIds([]);
   };
 
@@ -294,7 +303,7 @@ const TaskListView = React.memo(function TaskListView({
       const t = tasks.find(item => item.id === id);
       if (t) onUpdateTask({ ...t, status: st });
     });
-    if (triggerToast) triggerToast('success', 'Bulk Action', `Updated status for ${selectedTaskIds.length} tasks`);
+    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã cập nhật trạng thái cho ${selectedTaskIds.length} công việc`);
     setSelectedTaskIds([]);
   };
 
@@ -303,7 +312,7 @@ const TaskListView = React.memo(function TaskListView({
       const t = tasks.find(item => item.id === id);
       if (t) onUpdateTask({ ...t, priority: p });
     });
-    if (triggerToast) triggerToast('success', 'Bulk Action', `Updated priority for ${selectedTaskIds.length} tasks`);
+    if (triggerToast) triggerToast('success', 'Thao tác hàng loạt', `Đã cập nhật độ ưu tiên cho ${selectedTaskIds.length} công việc`);
     setSelectedTaskIds([]);
   };
 
@@ -321,21 +330,23 @@ const TaskListView = React.memo(function TaskListView({
           setSelectedTaskIds([]);
         }
       });
-    } else if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} selected tasks?`)) {
+    } else if (confirm(`Bạn có chắc muốn xóa ${selectedTaskIds.length} công việc đã chọn?`)) {
       selectedTaskIds.forEach(id => onDeleteTask(id));
-      if (triggerToast) triggerToast('info', 'Bulk Delete', `Deleted ${selectedTaskIds.length} tasks`);
+      if (triggerToast) triggerToast('info', 'Xóa hàng loạt', `Đã xóa ${selectedTaskIds.length} công việc`);
       setSelectedTaskIds([]);
     }
   };
 
   const isCompact = density === 'compact';
+  const totalCompleted = useMemo(() => filteredTasks.filter(t => t.status === 'completed').length, [filteredTasks]);
+  const overallPercent = filteredTasks.length > 0 ? Math.round((totalCompleted / filteredTasks.length) * 100) : 0;
 
   return (
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="relative pb-16 space-y-4">
+      <div className="relative pb-20 space-y-4 font-sans">
         
-        {/* ── Sticky Column Header Row ── */}
-        <div className="sticky top-0 z-20 bg-slate-50/95 dark:bg-[#090b10]/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-3 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 shadow-xs text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+        {/* ── Sticky Column Header Bar ── */}
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#090b10]/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-3.5 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3.5 shadow-sm text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none transition-all">
           
           {/* Select all checkbox */}
           <div className="flex items-center gap-2 shrink-0">
@@ -348,47 +359,78 @@ const TaskListView = React.memo(function TaskListView({
             />
           </div>
 
+          {/* Toggle All Groups Button */}
+          <button
+            type="button"
+            onClick={toggleAllGroups}
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors shrink-0"
+            title="Đóng / Mở tất cả các nhóm"
+          >
+            <ChevronsUpDown className="w-3.5 h-3.5" />
+          </button>
+
           {/* Column Titles */}
-          <div className="flex-1 flex items-center gap-1.5 min-w-0 font-extrabold text-slate-600 dark:text-slate-300">
-            <span>Công việc ({filteredTasks.length})</span>
+          <div className="flex-1 flex items-center gap-2 min-w-0 font-extrabold text-slate-700 dark:text-slate-200">
+            <ListChecks className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Công việc</span>
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold">
+              {filteredTasks.length}
+            </span>
+
+            {/* Overall Progress pill */}
+            {filteredTasks.length > 0 && (
+              <div className="hidden md:flex items-center gap-2 ml-3 px-2.5 py-0.5 rounded-full bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[9px] font-bold lowercase">
+                <span className="font-bold">{totalCompleted}/{filteredTasks.length} xong</span>
+                <div className="w-12 h-1 bg-indigo-200 dark:bg-indigo-900 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-500" style={{ width: `${overallPercent}%` }} />
+                </div>
+                <span>{overallPercent}%</span>
+              </div>
+            )}
           </div>
 
-          <div className="hidden xl:block w-20 shrink-0 text-slate-400">
+          <div className="hidden xl:flex items-center gap-1 w-20 shrink-0 text-slate-400">
+            <Layers className="w-3 h-3" />
             <span>Không gian</span>
           </div>
 
-          <div className="hidden lg:block w-24 shrink-0 text-slate-400">
+          <div className="hidden lg:flex items-center gap-1 w-24 shrink-0 text-slate-400">
+            <Tag className="w-3 h-3" />
             <span>Thẻ Tag</span>
           </div>
 
-          <div className="hidden md:block w-24 shrink-0 text-center text-slate-400">
+          <div className="hidden md:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
+            <Users className="w-3 h-3" />
             <span>Thực hiện</span>
           </div>
 
-          <div className="hidden lg:block w-20 shrink-0 text-right text-slate-400">
+          <div className="hidden lg:flex items-center justify-end gap-1 w-20 shrink-0 text-right text-slate-400">
+            <Calendar className="w-3 h-3" />
             <span>Bắt đầu</span>
           </div>
 
-          <div className="hidden sm:block w-20 shrink-0 text-right text-slate-400">
+          <div className="hidden sm:flex items-center justify-end gap-1 w-20 shrink-0 text-right text-slate-400">
+            <Clock className="w-3 h-3" />
             <span>Hạn chót</span>
           </div>
 
-          <div className="hidden md:block w-24 shrink-0 text-center text-slate-400">
+          <div className="hidden md:flex items-center justify-center gap-1 w-24 shrink-0 text-center text-slate-400">
+            <Flag className="w-3 h-3" />
             <span>Ưu tiên</span>
           </div>
 
           {/* Density switcher */}
-          <div className="hidden sm:flex shrink-0 items-center bg-slate-200/60 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-300/40 dark:border-slate-700/40">
+          <div className="hidden sm:flex shrink-0 items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
             <button
               onClick={() => setDensity('comfortable')}
-              className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-3xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
               title="Chế độ vừa phải"
             >
               Thoải mái
             </button>
             <button
               onClick={() => setDensity('compact')}
-              className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold transition-all cursor-pointer ${isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-3xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
               title="Chế độ thu gọn mật độ cao"
             >
               Thu gọn
@@ -524,8 +566,8 @@ const TaskListView = React.memo(function TaskListView({
                                       <motion.div 
                                         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
                                         {...(dragProvided.dragHandleProps as any)}
-                                        whileHover={{ x: 2, boxShadow: '0 4px 16px rgba(15,23,42,0.04)' }}
-                                        className={`flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2.5'} border-l-[4px] border border-slate-200/40 dark:border-slate-800/40 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/40 hover:border-slate-300 dark:hover:border-slate-700 ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-955/20 border-indigo-300 dark:border-indigo-800' : 'bg-white dark:bg-[#0b0e14]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
+                                        whileHover={{ y: -1, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}
+                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2.5'} border-l-[3.5px] border border-slate-200/60 dark:border-slate-800/60 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 shadow-xs' : 'bg-white/95 dark:bg-[#0b0e14]/95 shadow-3xs'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
                                       >
 
                                         {/* Subtask Tree indentation */}
@@ -543,7 +585,7 @@ const TaskListView = React.memo(function TaskListView({
                                           <button 
                                             type="button"
                                             onClick={e => { e.stopPropagation(); toggleSubtaskExpand(task.id); }}
-                                            className={`p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all shrink-0 ${
+                                            className={`p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all shrink-0 ${
                                               expandedSubtaskTaskIds.includes(task.id) ? 'opacity-100' : 'opacity-60 group-hover/row:opacity-100'
                                             }`}
                                           >
@@ -581,11 +623,11 @@ const TaskListView = React.memo(function TaskListView({
                                           className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                                             task.status === 'completed'
                                               ? 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.35)]'
-                                              : 'border-slate-300 dark:border-slate-600 bg-transparent hover:border-emerald-500'
+                                              : 'border-slate-300 dark:border-slate-600 bg-transparent hover:border-emerald-500 hover:bg-emerald-50/20'
                                           }`}
                                           title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
                                         >
-                                          <Check className={`w-2.5 h-2.5 text-white dark:text-slate-100 transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
+                                          <Check className={`w-2.5 h-2.5 text-white transition-transform duration-200 ${task.status === 'completed' ? 'scale-100' : 'scale-0'}`} strokeWidth={3} />
                                         </motion.button>
 
                                         {/* Status select dropdown */}
@@ -597,7 +639,7 @@ const TaskListView = React.memo(function TaskListView({
                                         </div>
 
                                         {/* Title & Metadata badges */}
-                                        <div className="flex-1 min-w-[112px]" onClick={e => e.stopPropagation()}>
+                                        <div className="flex-1 min-w-[120px]" onClick={e => e.stopPropagation()}>
                                           {inlineEditTaskId === task.id ? (
                                             <input 
                                               autoFocus 
@@ -625,7 +667,7 @@ const TaskListView = React.memo(function TaskListView({
 
                                                 {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
                                                 {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                                                  <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/60 bg-indigo-50 px-1.5 py-0.5 text-[9px] font-extrabold text-indigo-650 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Repeats every ${task.recurrence.interval} ${task.recurrence.frequency}`}>
+                                                  <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/60 bg-indigo-50 px-1.5 py-0.5 text-[9px] font-extrabold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Lặp lại mỗi ${task.recurrence.interval} ${task.recurrence.frequency}`}>
                                                     <Repeat2 className="h-2.5 w-2.5" />
                                                     <span>{task.recurrence.frequency}</span>
                                                   </span>
@@ -633,13 +675,13 @@ const TaskListView = React.memo(function TaskListView({
                                                  
                                                 {/* Dependency Badges */}
                                                 {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                                                  <span className="bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
+                                                  <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
                                                     <Hourglass className="w-2.5 h-2.5 animate-pulse" />
                                                     <span>Đang chờ</span>
                                                   </span>
                                                 )}
                                                 {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
-                                                  <span className="bg-rose-50 dark:bg-rose-955/30 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
+                                                  <span className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0">
                                                     <AlertTriangle className="w-2.5 h-2.5" />
                                                     <span>Đang chặn</span>
                                                   </span>
@@ -647,14 +689,14 @@ const TaskListView = React.memo(function TaskListView({
 
                                                 {/* Timer indicator */}
                                                 {activeTimerTaskId === task.id && (
-                                                  <span className="flex items-center gap-1 text-[9px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/30 px-2 py-0.5 rounded-full border border-rose-300 dark:border-rose-800/60 animate-pulse shrink-0">
+                                                  <span className="flex items-center gap-1 text-[9px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-300 dark:border-rose-800/60 animate-pulse shrink-0">
                                                     <Clock className="w-3 h-3 animate-spin text-rose-500" /> Đang bấm giờ
                                                   </span>
                                                 )}
                                               </div>
 
                                               {/* Hover Action Shortcuts Toolbar */}
-                                              <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-1 transition-all ml-2 shrink-0">
+                                              <div className="hidden lg:flex opacity-0 group-hover/row:opacity-100 items-center gap-1 transition-all ml-2 shrink-0 bg-white/90 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 shadow-3xs backdrop-blur-md">
                                                 {/* Timer toggle */}
                                                 {activeTimerTaskId === task.id ? (
                                                   <button 
@@ -738,7 +780,7 @@ const TaskListView = React.memo(function TaskListView({
                                                       }
                                                     }
                                                   }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-955/40 transition-all cursor-pointer"
+                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
                                                   title="Thêm Tag"
                                                 >
                                                   <Tag className="w-3.5 h-3.5" />
@@ -751,7 +793,7 @@ const TaskListView = React.memo(function TaskListView({
                                                     setInlineEditTaskId(task.id);
                                                     setInlineEditTitle(task.title);
                                                   }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-955/40 transition-all cursor-pointer"
+                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all cursor-pointer"
                                                   title="Đổi tên"
                                                 >
                                                   <Edit2 className="w-3.5 h-3.5" />
@@ -770,7 +812,7 @@ const TaskListView = React.memo(function TaskListView({
                                                     if (triggerToast) triggerToast('success', 'Đã nhân bản', `Đã nhân bản công việc "${task.title}"`);
                                                     if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
                                                   }}
-                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-955/40 transition-all cursor-pointer"
+                                                  className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-all cursor-pointer"
                                                   title="Nhân bản công việc"
                                                 >
                                                   <Copy className="w-3.5 h-3.5" />
@@ -797,7 +839,7 @@ const TaskListView = React.memo(function TaskListView({
                                                         onDeleteTask(task.id);
                                                       }
                                                     }}
-                                                    className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/40 transition-all cursor-pointer"
+                                                    className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
                                                     title="Xóa công việc"
                                                   >
                                                     <Trash2 className="w-3.5 h-3.5" />
@@ -814,7 +856,7 @@ const TaskListView = React.memo(function TaskListView({
                                           return (
                                             <div className="hidden xl:block w-20 shrink-0">
                                               {ws ? (
-                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md select-none bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 dark:border-indigo-900/40">
+                                                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/40 dark:border-indigo-900/40">
                                                   {ws.name}
                                                 </span>
                                               ) : null}
@@ -828,8 +870,8 @@ const TaskListView = React.memo(function TaskListView({
                                             <span 
                                               key={tag} 
                                               onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                                              className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                                                filterTag === tag ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-955/40'
+                                              className={`text-[9px] font-black px-1.5 py-0.5 rounded-md cursor-pointer transition-colors ${
+                                                filterTag === tag ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
                                               }`}
                                             >
                                               #{tag}
@@ -888,7 +930,7 @@ const TaskListView = React.memo(function TaskListView({
                                             }} 
                                             label="Hạn chót" 
                                             align="right" 
-                                            className={daysInfo ? `text-[10px] px-1.5 py-0.5 rounded cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer border-0 bg-transparent hover:text-slate-700 dark:hover:text-slate-200"} 
+                                            className={daysInfo ? `text-[10px] px-1.5 py-0.5 rounded-lg cursor-pointer select-none transition-all ${daysInfo.cls}` : "text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer border-0 bg-transparent hover:text-slate-700 dark:hover:text-slate-200"} 
                                           />
                                         </div>
 
@@ -912,7 +954,7 @@ const TaskListView = React.memo(function TaskListView({
                                         <div className="shrink-0 relative w-6 flex items-center justify-center" onClick={e => e.stopPropagation()}>
                                           <button 
                                             onClick={() => setSelectedTask(task)}
-                                            className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                                            className="opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
                                             title="Tùy chọn công việc"
                                           >
                                             <MoreHorizontal className="w-3.5 h-3.5" />
@@ -932,7 +974,7 @@ const TaskListView = React.memo(function TaskListView({
                       {/* Inline Add Task Form */}
                       <div className="px-2 py-2">
                         {inlineAddingStatus === statusItem.id ? (
-                          <div className="flex items-center gap-2.5 p-2 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-indigo-50/90 dark:from-indigo-955/50 dark:via-purple-955/30 dark:to-indigo-955/50 border border-indigo-300 dark:border-indigo-800 rounded-2xl shadow-md transition-all">
+                          <div className="flex items-center gap-2.5 p-2 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-indigo-50/90 dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-indigo-950/50 border border-indigo-300 dark:border-indigo-800 rounded-2xl shadow-md transition-all">
                             <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
                               <Plus className="w-4 h-4" />
                             </div>
@@ -950,7 +992,7 @@ const TaskListView = React.memo(function TaskListView({
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 onClick={() => handleInlineAdd(statusItem.id)} 
-                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-cyan-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
+                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
                               >
                                 {t('inlineAdd') || 'Tạo mới'}
                               </button>
@@ -965,9 +1007,9 @@ const TaskListView = React.memo(function TaskListView({
                         ) : (
                           <button 
                             onClick={() => setInlineAddingStatus(statusItem.id)}
-                            className="flex items-center gap-2 text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all py-1.5 px-3 rounded-xl border border-dashed border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/40 dark:hover:bg-indigo-955/20 group w-full"
+                            className="flex items-center gap-2 text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all py-2 px-3.5 rounded-xl border border-dashed border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 group w-full"
                           >
-                            <div className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-600 text-slate-500 group-hover:text-white flex items-center justify-center transition-all duration-200">
+                            <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-600 text-slate-500 group-hover:text-white flex items-center justify-center transition-all duration-200 shadow-3xs">
                               <Plus className="w-3.5 h-3.5" />
                             </div>
                             <span>{t('addNewTaskInline') || 'Thêm công việc mới vào ' + meta.label}</span>

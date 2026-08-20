@@ -529,6 +529,30 @@ Based on current information, here is a quick summary:
             );
           }
           
+          const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+          if (numMatch) {
+            const num = numMatch[1];
+            const content = numMatch[2];
+            const boldMatch = content.match(/^\*\*(.*?)\*\*(.*)/);
+            return (
+              <div key={i} className="flex gap-2 ml-1 items-start">
+                <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-[9.5px] font-black flex items-center justify-center shadow-3xs mt-0.5 select-none font-sans">
+                  {num}
+                </span>
+                <span className="flex-1 pt-0.5">
+                  {boldMatch ? (
+                    <>
+                      <strong className="text-slate-900 dark:text-white font-semibold">{boldMatch[1]}</strong>
+                      {boldMatch[2]}
+                    </>
+                  ) : (
+                    content
+                  )}
+                </span>
+              </div>
+            );
+          }
+          
           if (trimmed === '') return <div key={i} className="h-1" />;
           
           return <p key={i} className="pl-0.5">{trimmed}</p>;

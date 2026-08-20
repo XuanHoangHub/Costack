@@ -54,7 +54,7 @@ export function SegmentedControl<T extends string = string>({
     <div
       role="tablist"
       className={[
-        "relative inline-flex items-center bg-slate-200/70 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300/60 dark:border-white/10 shadow-inner select-none",
+        "relative inline-flex items-center bg-[var(--cu-surface-3)]/70 backdrop-blur-xl border border-[var(--cu-border)] shadow-inner select-none",
         currentSize.container,
         fullWidth ? "w-full flex" : "",
         className,
@@ -76,15 +76,15 @@ export function SegmentedControl<T extends string = string>({
               currentSize.item,
               fullWidth ? "flex-1" : "",
               isSelected
-                ? "text-slate-950 dark:text-white"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200",
+                ? "text-[var(--cu-text-primary)]"
+                : "text-[var(--cu-text-secondary)] hover:text-[var(--cu-text-primary)]",
             ].filter(Boolean).join(" ")}
           >
             {isSelected && (
               <motion.div
                 layoutId={`${layoutIdPrefix}-pill`}
                 transition={{ type: "spring", stiffness: 480, damping: 36 }}
-                className="absolute inset-0 bg-white dark:bg-slate-800 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] -z-10"
+                className="absolute inset-0 -z-10 rounded-full border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-[var(--cu-shadow-sm)]"
               />
             )}
             {Icon && (
@@ -93,8 +93,8 @@ export function SegmentedControl<T extends string = string>({
                 className={[
                   "shrink-0 transition-transform duration-200",
                   isSelected
-                    ? "text-blue-600 dark:text-sky-400 scale-105"
-                    : "text-slate-500 dark:text-slate-400",
+                    ? "text-[var(--cu-primary)] scale-105"
+                    : "text-[var(--cu-text-muted)]",
                 ].join(" ")}
               />
             )}

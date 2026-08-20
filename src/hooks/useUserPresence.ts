@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import {
+  getAutomaticPresenceStatus,
+  PRESENCE_TIMINGS,
   presenceKeyAliases,
   presenceStatusToUi,
   resolvePresence,
@@ -15,10 +17,10 @@ import { useAuthStore } from '@/store';
 import { useMemberStore } from '@/store/memberStore';
 import { useUiStore } from '@/store/uiStore';
 
-const ACTIVITY_THROTTLE_MS = 10_000;
-const IDLE_TIMEOUT_MS = 5 * 60_000;
-const PRESENCE_HEARTBEAT_MS = 60_000;
-const DATABASE_HEARTBEAT_MS = 60_000;
+const PRESENCE_TOPIC = 'apexa_presence';
+const CROSS_TAB_TOPIC = 'apexa_presence_tabs_v2';
+const ACTIVITY_STORAGE_PREFIX = 'apexa_presence_activity:';
+const PREFERENCE_STORAGE_PREFIX = 'apexa_presence_preference:';
 
 interface PresencePreference {
   customStatus: PresenceStatus;
@@ -27,10 +29,20 @@ interface PresencePreference {
   statusChangedAt: string;
 }
 
+type CrossTabMessage =
+  | { type: 'activity'; userId: string; at: number }
+  | { type: 'preference'; userId: string; preference: PresencePreference };
+
 let activeChannel: RealtimeChannel | null = null;
 let activeMemberId: string | null = null;
+let activeAuthUserId: string | null = null;
+let activeCrossTabChannel: BroadcastChannel | null = null;
+let channelSubscribed = false;
+let networkAvailable = true;
 let lastActivityAt = Date.now();
-let isIdle = false;
+let tabHiddenSince: number | null = null;
+let lastPublishedStatus: PresenceStatus | null = null;
+let lastPresencePublishedAt = 0;
 let preference: PresencePreference = {
   customStatus: 'online',
   statusMessage: '',
@@ -38,77 +50,172 @@ let preference: PresencePreference = {
   statusChangedAt: new Date().toISOString(),
 };
 
-function setOwnMemberStatus(status: PresenceStatus, lastSeenAt?: string) {
-  useUiStore.getState().setUserStatus(presenceStatusToUi(status));
-  const currentAuth = useAuthStore.getState().currentUser;
-  useMemberStore.getState().setMembers((members) =>
-    members.map((member) =>
-      member.id === 'user' || (currentAuth?.id && member.id === currentAuth.id) || (currentAuth?.email && member.email && member.email.toLowerCase() === currentAuth.email.toLowerCase())
-        ? {
-            ...member,
-            status,
-            customStatus: preference.customStatus,
-            statusMessage: preference.statusMessage,
-            statusEmoji: preference.statusEmoji,
-            ...(lastSeenAt ? { lastSeenAt } : {}),
-          }
-        : member
-    )
+const tabId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  ? crypto.randomUUID()
+  : `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+function preferenceTimestamp(value: PresencePreference): number {
+  const parsed = Date.parse(value.statusChangedAt);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isPresencePreference(value: unknown): value is PresencePreference {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<PresencePreference>;
+  return (
+    ['online', 'busy', 'away', 'offline'].includes(candidate.customStatus || '') &&
+    typeof candidate.statusMessage === 'string' &&
+    typeof candidate.statusEmoji === 'string' &&
+    typeof candidate.statusChangedAt === 'string'
   );
 }
 
-function currentPayload(memberId: string): PresencePayload {
+function readStoredJson(key: string): unknown {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeJson(key: string, value: unknown) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Presence remains fully functional when storage is blocked.
+  }
+}
+
+function setPreferenceUi(status: PresenceStatus) {
+  useUiStore.getState().setPresencePreference(presenceStatusToUi(status));
+}
+
+function setOwnMemberStatus(status: PresenceStatus, lastSeenAt?: string) {
+  useUiStore.getState().setUserStatus(presenceStatusToUi(status));
+  const currentAuth = useAuthStore.getState().currentUser;
+  useMemberStore.getState().setMembers((members) => {
+    let changed = false;
+    const next = members.map((member) => {
+      const isCurrentAccount =
+        member.id === 'user' ||
+        (currentAuth?.id && member.id === currentAuth.id) ||
+        (currentAuth?.email && member.email && member.email.toLowerCase() === currentAuth.email.toLowerCase());
+
+      if (!isCurrentAccount) return member;
+      if (
+        member.status === status &&
+        member.customStatus === preference.customStatus &&
+        member.statusMessage === preference.statusMessage &&
+        member.statusEmoji === preference.statusEmoji &&
+        (!lastSeenAt || member.lastSeenAt === lastSeenAt)
+      ) return member;
+
+      changed = true;
+      return {
+        ...member,
+        status,
+        customStatus: preference.customStatus,
+        statusMessage: preference.statusMessage,
+        statusEmoji: preference.statusEmoji,
+        ...(lastSeenAt ? { lastSeenAt } : {}),
+      };
+    });
+    return changed ? next : members;
+  });
+}
+
+function resolvedOwnStatus(now = Date.now()): PresenceStatus {
+  return getAutomaticPresenceStatus({
+    customStatus: preference.customStatus,
+    lastActivityAt,
+    now,
+    hiddenSince: tabHiddenSince,
+    networkOnline: networkAvailable,
+  });
+}
+
+function currentPayload(memberId: string, status: PresenceStatus): PresencePayload {
   return {
     user_id: memberId,
     custom_status: preference.customStatus,
+    effective_status: status,
     status_message: preference.statusMessage,
     status_emoji: preference.statusEmoji,
-    is_idle: isIdle,
+    is_idle: status === 'away',
+    tab_id: tabId,
+    is_visible: typeof document !== 'undefined' && document.visibilityState === 'visible',
     last_active: new Date(lastActivityAt).toISOString(),
     status_changed_at: preference.statusChangedAt,
   };
 }
 
-function resolvedOwnStatus(): PresenceStatus {
-  if (preference.customStatus === 'offline' || preference.customStatus === 'busy' || preference.customStatus === 'away') {
-    return preference.customStatus;
-  }
-  return isIdle ? 'away' : 'online';
-}
+async function publishCurrentPresence(force = false) {
+  const now = Date.now();
+  const status = resolvedOwnStatus(now);
+  setOwnMemberStatus(status, new Date(lastActivityAt).toISOString());
 
-async function publishCurrentPresence() {
-  if (!activeChannel || !activeMemberId) return;
-  if (preference.customStatus === 'offline') {
-    await activeChannel.untrack();
+  if (!activeChannel || !activeMemberId || !channelSubscribed) return;
+
+  if (status === 'offline') {
+    if (lastPublishedStatus !== 'offline') {
+      try {
+        await activeChannel.untrack();
+      } finally {
+        lastPublishedStatus = 'offline';
+        lastPresencePublishedAt = now;
+      }
+    }
     return;
   }
-  await activeChannel.track(currentPayload(activeMemberId));
+
+  if (
+    !force &&
+    lastPublishedStatus === status &&
+    now - lastPresencePublishedAt < PRESENCE_TIMINGS.heartbeatMs
+  ) return;
+
+  await activeChannel.track(currentPayload(activeMemberId, status));
+  lastPublishedStatus = status;
+  lastPresencePublishedAt = now;
 }
 
 async function removePresenceChannel(channel: RealtimeChannel) {
   try {
     await channel.untrack();
-  } catch (error) {
-    // Ignore untrack error during disconnect/unmount
-  } finally {
-    try {
-      await supabase.removeChannel(channel);
-    } catch (error) {
-      // Ignore channel removal error
-    }
+  } catch {
+    // The socket may already be gone during page close or network loss.
   }
+  try {
+    await supabase.removeChannel(channel);
+  } catch {
+    // Removing an already closed channel is harmless.
+  }
+}
+
+function broadcastPreference(nextPreference: PresencePreference) {
+  if (!activeAuthUserId) return;
+  storeJson(`${PREFERENCE_STORAGE_PREFIX}${activeAuthUserId}`, nextPreference);
+  activeCrossTabChannel?.postMessage({
+    type: 'preference',
+    userId: activeAuthUserId,
+    preference: nextPreference,
+  } satisfies CrossTabMessage);
 }
 
 /** Leave Presence before Auth destroys the session/socket during sign-out. */
 export async function disconnectUserPresence() {
-  setOwnMemberStatus('offline', new Date().toISOString());
+  setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
   const channel = activeChannel;
   activeChannel = null;
   activeMemberId = null;
+  activeAuthUserId = null;
+  channelSubscribed = false;
+  lastPublishedStatus = 'offline';
   if (channel) await removePresenceChannel(channel);
 }
 
-/** Update the account preference and the live Presence connection from any UI. */
+/** Update the account preference and immediately fan it out to every open tab. */
 export async function setUserPresenceStatus(
   status: PresenceStatus,
   message = '',
@@ -122,12 +229,15 @@ export async function setUserPresenceStatus(
     statusChangedAt: changedAt,
   };
 
-  useUiStore.getState().setUserStatus(presenceStatusToUi(status));
-  setOwnMemberStatus(resolvedOwnStatus(), changedAt);
+  setPreferenceUi(status);
+  setOwnMemberStatus(resolvedOwnStatus(), new Date(lastActivityAt).toISOString());
+  broadcastPreference(preference);
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return;
 
+  activeAuthUserId = session.user.id;
+  broadcastPreference(preference);
   const memberId = `user-${session.user.id}`;
   const { error } = await supabase
     .from('members')
@@ -143,7 +253,7 @@ export async function setUserPresenceStatus(
   if (error) console.warn('Unable to persist account presence preference:', error.message);
 
   try {
-    await publishCurrentPresence();
+    await publishCurrentPresence(true);
   } catch (error) {
     console.warn('Unable to publish account presence:', error);
   }
@@ -171,238 +281,339 @@ export function useUserPresence() {
   useEffect(() => {
     let effectIsActive = true;
     let channel: RealtimeChannel | null = null;
-    let idleTimer: ReturnType<typeof setInterval> | null = null;
-    let presenceHeartbeat: ReturnType<typeof setInterval> | null = null;
-    let databaseHeartbeat: ReturnType<typeof setInterval> | null = null;
-    let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
     let memberId: string | null = null;
+    let authUserId: string | null = null;
+    let crossTabChannel: BroadcastChannel | null = null;
+    let evaluationTimer: ReturnType<typeof setInterval> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let databaseTimer: ReturnType<typeof setInterval> | null = null;
+    let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempt = 0;
+    let lastDatabaseActivityAt = 0;
 
-    if (appIsOffline || browserIsOffline) {
-      setOwnMemberStatus('offline');
+    networkAvailable = !appIsOffline && !browserIsOffline;
+    if (!networkAvailable) {
+      setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
       return;
     }
 
-    const updateLastSeen = async () => {
-      if (!memberId) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+    const updateLastSeen = async (force = false) => {
+      if (!memberId || !authUserId) return;
+      if (!force && lastDatabaseActivityAt === lastActivityAt) return;
+      lastDatabaseActivityAt = lastActivityAt;
       const lastSeenAt = new Date(lastActivityAt).toISOString();
       const { error } = await supabase
         .from('members')
         .update({ last_seen_at: lastSeenAt })
         .eq('id', memberId)
-        .eq('user_id', session.user.id);
+        .eq('user_id', authUserId);
       if (!error) setOwnMemberStatus(resolvedOwnStatus(), lastSeenAt);
+    };
+
+    const refreshPresence = (force = false) => {
+      const status = resolvedOwnStatus();
+      setOwnMemberStatus(status, new Date(lastActivityAt).toISOString());
+      if (force || status !== lastPublishedStatus) {
+        void publishCurrentPresence(force).catch((error) => {
+          console.warn('Unable to refresh presence:', error);
+        });
+      }
+    };
+
+    const announceActivity = (at: number) => {
+      if (!authUserId) return;
+      storeJson(`${ACTIVITY_STORAGE_PREFIX}${authUserId}`, at);
+      crossTabChannel?.postMessage({ type: 'activity', userId: authUserId, at } satisfies CrossTabMessage);
     };
 
     const handleActivity = () => {
       const now = Date.now();
-      const resumedFromIdle = isIdle;
-      if (!resumedFromIdle && now - lastActivityAt < ACTIVITY_THROTTLE_MS) return;
-
+      if (now - lastActivityAt < PRESENCE_TIMINGS.activityThrottleMs) return;
+      const previousStatus = resolvedOwnStatus(now);
       lastActivityAt = now;
-      isIdle = false;
-      if (resumedFromIdle) {
-        setOwnMemberStatus(resolvedOwnStatus(), new Date(now).toISOString());
-        void publishCurrentPresence();
-      }
+      if (document.visibilityState === 'visible') tabHiddenSince = null;
+      announceActivity(now);
+      const nextStatus = resolvedOwnStatus(now);
+      setOwnMemberStatus(nextStatus, new Date(now).toISOString());
+      if (previousStatus !== nextStatus || previousStatus === 'offline') refreshPresence(true);
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        isIdle = true;
-        setOwnMemberStatus(resolvedOwnStatus());
-        void publishCurrentPresence();
+        tabHiddenSince = Date.now();
+        refreshPresence();
       } else {
-        handleActivity();
+        tabHiddenSince = null;
+        lastActivityAt = Date.now();
+        announceActivity(lastActivityAt);
+        refreshPresence(true);
       }
     };
 
     const handlePageHide = (event: PageTransitionEvent) => {
+      tabHiddenSince = Date.now();
       if (event.persisted) {
-        isIdle = true;
-        setOwnMemberStatus(resolvedOwnStatus());
-        void publishCurrentPresence();
+        refreshPresence();
         return;
       }
+
       setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
-      if (channel) void removePresenceChannel(channel);
-      void updateLastSeen();
+      void updateLastSeen(true);
+      if (channel) {
+        const closingChannel = channel;
+        channel = null;
+        if (activeChannel === closingChannel) activeChannel = null;
+        channelSubscribed = false;
+        void removePresenceChannel(closingChannel);
+      }
+    };
+
+    const applyRemotePreference = (nextPreference: PresencePreference) => {
+      if (preferenceTimestamp(nextPreference) <= preferenceTimestamp(preference)) return;
+      preference = nextPreference;
+      setPreferenceUi(preference.customStatus);
+      refreshPresence(true);
+    };
+
+    const handleCrossTabMessage = (event: MessageEvent<CrossTabMessage>) => {
+      const message = event.data;
+      if (!authUserId || !message || message.userId !== authUserId) return;
+      if (message.type === 'activity' && Number.isFinite(message.at) && message.at > lastActivityAt) {
+        lastActivityAt = message.at;
+        refreshPresence();
+      } else if (message.type === 'preference' && isPresencePreference(message.preference)) {
+        applyRemotePreference(message.preference);
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (!authUserId || !event.key || !event.newValue) return;
+      if (event.key === `${ACTIVITY_STORAGE_PREFIX}${authUserId}`) {
+        try {
+          const at = Number(JSON.parse(event.newValue));
+          if (Number.isFinite(at) && at > lastActivityAt) {
+            lastActivityAt = at;
+            refreshPresence();
+          }
+        } catch {
+          // Ignore malformed values written by older application versions.
+        }
+      } else if (event.key === `${PREFERENCE_STORAGE_PREFIX}${authUserId}`) {
+        try {
+          const nextPreference = JSON.parse(event.newValue);
+          if (isPresencePreference(nextPreference)) applyRemotePreference(nextPreference);
+        } catch {
+          // Ignore malformed values written by older application versions.
+        }
+      }
+    };
+
+    const reconcileMembers = (presenceChannel: RealtimeChannel) => {
+      if (!effectIsActive || presenceChannel !== channel) return;
+      const state = presenceChannel.presenceState<PresencePayload>();
+      const onlineAccounts = new Map<string, ResolvedPresence>();
+
+      for (const [key, payloads] of Object.entries(state)) {
+        const resolved = resolvePresence(payloads);
+        if (!resolved) continue;
+        for (const alias of presenceKeyAliases(key, ...payloads.map((payload) => payload.user_id))) {
+          onlineAccounts.set(alias, resolved);
+        }
+      }
+
+      const ownStatus = resolvedOwnStatus();
+      setMembers((members) => {
+        let changed = false;
+        const nextMembers = members.map((member) => {
+          const accountIds = presenceKeyAliases(
+            member.id === 'user' ? memberId : member.id,
+            member.userId
+          );
+          const resolved = accountIds
+            .map((accountId) => onlineAccounts.get(accountId))
+            .find((presence): presence is ResolvedPresence => Boolean(presence));
+          const isOwnAccount = Boolean(memberId && accountIds.includes(memberId));
+
+          if (!resolved) {
+            const nextStatus = isOwnAccount ? ownStatus : 'offline';
+            if (member.status === nextStatus) return member;
+            changed = true;
+            return { ...member, status: nextStatus as PresenceStatus };
+          }
+
+          if (
+            member.status === resolved.status &&
+            member.customStatus === resolved.customStatus &&
+            member.statusMessage === resolved.statusMessage &&
+            member.statusEmoji === resolved.statusEmoji &&
+            member.lastSeenAt === resolved.lastSeenAt
+          ) return member;
+
+          changed = true;
+          return {
+            ...member,
+            status: resolved.status,
+            customStatus: resolved.customStatus,
+            statusMessage: resolved.statusMessage,
+            statusEmoji: resolved.statusEmoji,
+            lastSeenAt: resolved.lastSeenAt,
+          };
+        });
+        return changed ? nextMembers : members;
+      });
+    };
+
+    const scheduleReconnect = (connect: () => Promise<void>) => {
+      if (!effectIsActive || reconnectTimer || !networkAvailable) return;
+      const delay = Math.min(30_000, 1_000 * (2 ** reconnectAttempt));
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (!effectIsActive || channelSubscribed) return;
+        void connect();
+      }, delay);
+    };
+
+    const connectChannel = async () => {
+      if (!effectIsActive || !memberId) return;
+      if (channel) {
+        const staleChannel = channel;
+        channel = null;
+        if (activeChannel === staleChannel) activeChannel = null;
+        await removePresenceChannel(staleChannel);
+      }
+      if (!effectIsActive) return;
+
+      const nextChannel = supabase.channel(PRESENCE_TOPIC, {
+        config: { presence: { key: memberId } },
+      });
+      channel = nextChannel;
+      activeChannel = nextChannel;
+      activeMemberId = memberId;
+      channelSubscribed = false;
+      lastPublishedStatus = null;
+
+      nextChannel
+        .on('presence', { event: 'sync' }, () => reconcileMembers(nextChannel))
+        .subscribe(async (status, error) => {
+          if (!effectIsActive || channel !== nextChannel) return;
+          if (status === 'SUBSCRIBED') {
+            channelSubscribed = true;
+            reconnectAttempt = 0;
+            await publishCurrentPresence(true);
+            reconcileMembers(nextChannel);
+            return;
+          }
+
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            channelSubscribed = false;
+            lastPublishedStatus = null;
+            setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
+            if (error) console.warn('Presence channel error:', error.message);
+            scheduleReconnect(connectChannel);
+          }
+        });
     };
 
     const start = async () => {
-      const currentAuth = useAuthStore.getState().currentUser;
-      const me = useMemberStore.getState().members.find(
-        (member) => member.id === 'user' || (currentAuth?.id && member.id === currentAuth.id) || (currentAuth?.email && member.email?.toLowerCase() === currentAuth.email.toLowerCase())
-      );
-      if (me) {
-        preference = {
-          customStatus: me.customStatus || 'online',
-          statusMessage: me.statusMessage || '',
-          statusEmoji: me.statusEmoji || '',
-          statusChangedAt: new Date().toISOString(),
-        };
-      }
-
-      lastActivityAt = Date.now();
-      isIdle = document.visibilityState === 'hidden';
-      setOwnMemberStatus(resolvedOwnStatus());
-
       const { data: { session } } = await supabase.auth.getSession();
-      if (!effectIsActive) return;
-      if (!session?.user) {
-        return;
-      }
+      if (!effectIsActive || !session?.user) return;
 
+      authUserId = session.user.id;
       memberId = `user-${session.user.id}`;
-
-      // Ensure any existing presence channel instance is cleanly removed before subscribing
-      const existingChannels = supabase.getChannels().filter(
-        (c) => c.topic === 'realtime:apexa_presence' || c.topic === 'apexa_presence'
-      );
-      for (const ch of existingChannels) {
-        try {
-          await ch.untrack();
-        } catch {}
-        await supabase.removeChannel(ch);
-      }
-      if (!effectIsActive) return;
-
-      channel = supabase.channel('apexa_presence', {
-        config: { presence: { key: memberId } },
-      });
-
-      // Guard against reused channel instances in non-closed state
-      if ((channel as any).state && (channel as any).state !== 'closed') {
-        try {
-          await supabase.removeChannel(channel);
-        } catch {}
-        if (!effectIsActive) return;
-        channel = supabase.channel('apexa_presence', {
-          config: { presence: { key: memberId } },
-        });
-      }
-
-      activeChannel = channel;
+      activeAuthUserId = authUserId;
       activeMemberId = memberId;
 
-      const reconcileMembers = () => {
-        if (!effectIsActive || !channel) return;
-        const state = channel.presenceState<PresencePayload>();
-        const onlineAccounts = new Map<string, ResolvedPresence>();
-
-        for (const [key, payloads] of Object.entries(state)) {
-          const resolved = resolvePresence(payloads);
-          if (!resolved) continue;
-
-          const payloadAccountIds = payloads.map((payload) => payload.user_id);
-          for (const alias of presenceKeyAliases(key, ...payloadAccountIds)) {
-            onlineAccounts.set(alias, resolved);
-          }
-        }
-
-        setMembers((members) => {
-          let changed = false;
-          const nextMembers = members.map((member) => {
-              const accountIds = presenceKeyAliases(
-                member.id === 'user' ? memberId : member.id,
-                member.userId
-              );
-              const resolved = accountIds
-                .map((accountId) => onlineAccounts.get(accountId))
-                .find((presence): presence is ResolvedPresence => Boolean(presence));
-
-              if (!resolved) {
-                if (member.status === 'offline') return member;
-                changed = true;
-                return { ...member, status: 'offline' as const };
-              }
-
-              if (
-                member.status === resolved.status &&
-                member.customStatus === resolved.customStatus &&
-                member.statusMessage === resolved.statusMessage &&
-                member.statusEmoji === resolved.statusEmoji &&
-                member.lastSeenAt === resolved.lastSeenAt
-              ) return member;
-              changed = true;
-              return {
-                ...member,
-                status: resolved.status,
-                customStatus: resolved.customStatus,
-                statusMessage: resolved.statusMessage,
-                statusEmoji: resolved.statusEmoji,
-                lastSeenAt: resolved.lastSeenAt,
-              };
-            });
-          return changed ? nextMembers : members;
-        });
+      const currentAuth = useAuthStore.getState().currentUser;
+      const me = useMemberStore.getState().members.find(
+        (member) =>
+          member.id === 'user' ||
+          (currentAuth?.id && member.id === currentAuth.id) ||
+          (currentAuth?.email && member.email?.toLowerCase() === currentAuth.email.toLowerCase())
+      );
+      const memberPreference: PresencePreference = {
+        customStatus: me?.customStatus || 'online',
+        statusMessage: me?.statusMessage || '',
+        statusEmoji: me?.statusEmoji || '',
+        statusChangedAt: new Date().toISOString(),
       };
+      const storedPreference = readStoredJson(`${PREFERENCE_STORAGE_PREFIX}${authUserId}`);
+      preference = isPresencePreference(storedPreference) &&
+        preferenceTimestamp(storedPreference) > preferenceTimestamp(memberPreference)
+        ? storedPreference
+        : memberPreference;
+      setPreferenceUi(preference.customStatus);
 
-      try {
-        channel
-          .on('presence', { event: 'sync' }, reconcileMembers)
-          .subscribe(async (status, error) => {
-            if (!effectIsActive) return;
-            if (status === 'SUBSCRIBED') {
-              await publishCurrentPresence();
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              setOwnMemberStatus('offline');
-              if (error) console.warn('Presence channel error:', error.message);
-            }
-          });
-      } catch (subErr) {
-        console.warn('Realtime presence subscription error caught:', subErr);
+      lastActivityAt = Date.now();
+      tabHiddenSince = document.visibilityState === 'hidden' ? Date.now() : null;
+      announceActivity(lastActivityAt);
+      setOwnMemberStatus(resolvedOwnStatus(), new Date(lastActivityAt).toISOString());
+
+      if ('BroadcastChannel' in window) {
+        crossTabChannel = new BroadcastChannel(CROSS_TAB_TOPIC);
+        crossTabChannel.addEventListener('message', handleCrossTabMessage);
+        activeCrossTabChannel = crossTabChannel;
       }
 
       window.addEventListener('mousemove', handleActivity, { passive: true });
       window.addEventListener('keydown', handleActivity);
       window.addEventListener('pointerdown', handleActivity, { passive: true });
+      window.addEventListener('touchstart', handleActivity, { passive: true });
       window.addEventListener('scroll', handleActivity, { passive: true });
       window.addEventListener('focus', handleActivity);
+      window.addEventListener('storage', handleStorage);
       window.addEventListener('pagehide', handlePageHide);
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      idleTimer = setInterval(() => {
-        if (!isIdle && Date.now() - lastActivityAt >= IDLE_TIMEOUT_MS) {
-          isIdle = true;
-          setOwnMemberStatus(resolvedOwnStatus());
-          void publishCurrentPresence();
-        }
-      }, 15_000);
+      await connectChannel();
+      if (!effectIsActive) return;
 
-      presenceHeartbeat = setInterval(() => void publishCurrentPresence(), PRESENCE_HEARTBEAT_MS);
-      databaseHeartbeat = setInterval(() => void updateLastSeen(), DATABASE_HEARTBEAT_MS);
-      // A database/profile refresh must never overwrite the server Presence snapshot.
-      reconciliationTimer = setInterval(reconcileMembers, 5_000);
+      evaluationTimer = setInterval(() => refreshPresence(), PRESENCE_TIMINGS.evaluationMs);
+      heartbeatTimer = setInterval(
+        () => void publishCurrentPresence(true).catch(() => undefined),
+        PRESENCE_TIMINGS.heartbeatMs
+      );
+      databaseTimer = setInterval(
+        () => void updateLastSeen(),
+        PRESENCE_TIMINGS.databaseHeartbeatMs
+      );
+      reconciliationTimer = setInterval(() => {
+        if (channel) reconcileMembers(channel);
+      }, 5_000);
     };
 
     void start();
 
     return () => {
       effectIsActive = false;
-      if (idleTimer) clearInterval(idleTimer);
-      if (presenceHeartbeat) clearInterval(presenceHeartbeat);
-      if (databaseHeartbeat) clearInterval(databaseHeartbeat);
+      networkAvailable = typeof navigator === 'undefined' ? false : navigator.onLine;
+      if (evaluationTimer) clearInterval(evaluationTimer);
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (databaseTimer) clearInterval(databaseTimer);
       if (reconciliationTimer) clearInterval(reconciliationTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('pointerdown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
       window.removeEventListener('scroll', handleActivity);
       window.removeEventListener('focus', handleActivity);
+      window.removeEventListener('storage', handleStorage);
       window.removeEventListener('pagehide', handlePageHide);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      crossTabChannel?.removeEventListener('message', handleCrossTabMessage);
+      crossTabChannel?.close();
+      if (activeCrossTabChannel === crossTabChannel) activeCrossTabChannel = null;
 
       if (channel) {
-        const ch = channel;
+        const closingChannel = channel;
         channel = null;
-        void removePresenceChannel(ch);
-      }
-      if (activeChannel) {
-        const prevActive = activeChannel;
-        activeChannel = null;
-        activeMemberId = null;
-        void removePresenceChannel(prevActive);
+        if (activeChannel === closingChannel) activeChannel = null;
+        if (activeMemberId === memberId) activeMemberId = null;
+        if (activeAuthUserId === authUserId) activeAuthUserId = null;
+        channelSubscribed = false;
+        void removePresenceChannel(closingChannel);
       }
     };
   }, [appIsOffline, browserIsOffline, currentUserId, setMembers]);

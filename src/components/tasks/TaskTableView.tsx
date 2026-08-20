@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Repeat2 } from 'lucide-react';
+import { ArrowUpDown, Pin, MessageSquare, Paperclip, Plus, Check, X, Circle, CheckCircle2, Trophy, Flag, Timer, Pencil, ShieldAlert, ArrowLeft, ArrowRight, Zap, EyeOff, Copy, Trash2, Bot, Sparkles, SlidersHorizontal, Play, Clock, ChevronDown, AlertTriangle, Hourglass, Tag, Repeat2, Mail, Phone, ExternalLink } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -99,32 +99,41 @@ function CustomFieldCellEditor({
         <button
           type="button"
           onClick={() => onChange(isChecked ? 'false' : 'true')}
-          className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+          className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
             isChecked
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-blue-500/20'
-              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900'
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+              : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-400'
           }`}
         >
-          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+          <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isChecked ? 'bg-white text-indigo-600 border-white' : 'border-slate-400'}`}>
+            {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+          </div>
+          {field.checkboxLabel && <span className="truncate max-w-[90px]">{field.checkboxLabel}</span>}
         </button>
       );
 
     case 'rating':
       const ratingVal = parseInt(String(val)) || 0;
+      const maxStars = field.ratingMax || 5;
+      const ratingIcon = field.ratingIcon || 'star';
       return (
         <div className="flex items-center gap-0.5 select-none">
-          {[1, 2, 3, 4, 5].map(star => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => onChange(ratingVal === star ? '' : String(star))}
-              className={`text-sm transition-transform hover:scale-125 cursor-pointer leading-none ${
-                star <= ratingVal ? 'text-amber-400' : 'text-slate-200 dark:text-slate-800'
-              }`}
-            >
-              ★
-            </button>
-          ))}
+          {Array.from({ length: maxStars }).map((_, idx) => {
+            const star = idx + 1;
+            return (
+              <button
+                key={star}
+                type="button"
+                onClick={() => onChange(ratingVal === star ? '' : String(star))}
+                className={`text-sm transition-transform hover:scale-125 cursor-pointer leading-none ${
+                  star <= ratingVal ? 'text-amber-400' : 'text-slate-200 dark:text-slate-800'
+                }`}
+                title={`${star}/${maxStars}`}
+              >
+                {ratingIcon === 'heart' ? '❤️' : ratingIcon === 'flame' ? '🔥' : ratingIcon === 'thumb' ? '👍' : '★'}
+              </button>
+            );
+          })}
         </div>
       );
 
@@ -160,18 +169,19 @@ function CustomFieldCellEditor({
       );
 
     case 'progress':
-      const percent = Math.min(100, Math.max(0, parseInt(String(val)) || 0));
+      const maxScale = field.progressMax || 100;
+      const percent = Math.min(maxScale, Math.max(0, parseInt(String(val)) || 0));
       return (
-        <div className="flex items-center gap-1.5 min-w-[100px] select-none">
+        <div className="flex items-center gap-2 min-w-[110px] select-none">
           <input
             type="range"
             min="0"
-            max="100"
+            max={maxScale}
             value={percent}
             onChange={e => onChange(e.target.value)}
-            className="w-16 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-805 accent-indigo-600"
+            className="w-16 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
           />
-          <span className="text-[10px] font-black text-slate-550 w-7 shrink-0">{percent}%</span>
+          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 w-8 shrink-0">{percent}%</span>
         </div>
       );
 
@@ -180,24 +190,111 @@ function CustomFieldCellEditor({
         <input
           type="number"
           value={String(val)}
-          placeholder="0"
+          min={field.numberMin}
+          max={field.numberMax}
+          placeholder={field.placeholder || "0"}
           onChange={e => onChange(e.target.value)}
-          className="px-2 py-1 text-xs border border-slate-205 dark:border-slate-800 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[80px] focus:border-indigo-500 transition-colors font-semibold"
+          className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[90px] focus:border-indigo-500 transition-colors font-bold"
         />
       );
 
     case 'money':
+      const sym = field.currencySymbol || '$';
+      const isSuffix = field.currencyPosition === 'suffix';
       return (
-        <div className="relative flex items-center max-w-[100px]">
-          <span className="absolute left-2 text-xs font-bold text-slate-405">$</span>
+        <div className="relative flex items-center max-w-[120px]">
+          {!isSuffix && <span className="absolute left-2 text-xs font-bold text-slate-400">{sym}</span>}
           <input
             type="text"
             value={String(val)}
-            placeholder="0.00"
+            placeholder={field.placeholder || "0.00"}
             onChange={e => onChange(e.target.value)}
-            className="pl-5 pr-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none w-full focus:border-indigo-505 transition-colors font-semibold"
+            className={`${!isSuffix ? 'pl-5' : 'pl-2'} ${isSuffix ? 'pr-5' : 'pr-2'} py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none w-full focus:border-indigo-500 transition-colors font-bold`}
           />
+          {isSuffix && <span className="absolute right-2 text-xs font-bold text-slate-400">{sym}</span>}
         </div>
+      );
+
+    case 'email':
+      return (
+        <div className="flex items-center gap-1 max-w-[150px]">
+          <input
+            type="email"
+            value={String(val)}
+            placeholder={field.placeholder || "name@email.com"}
+            onChange={e => onChange(e.target.value)}
+            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
+          />
+          {val && (
+            <a
+              href={`mailto:${val}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-indigo-600 transition-colors"
+              title="Gửi email"
+            >
+              <Mail className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      );
+
+    case 'phone':
+      return (
+        <div className="flex items-center gap-1 max-w-[140px]">
+          <input
+            type="tel"
+            value={String(val)}
+            placeholder={field.placeholder || "09..."}
+            onChange={e => onChange(e.target.value)}
+            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
+          />
+          {val && (
+            <a
+              href={`tel:${val}`}
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-emerald-600 transition-colors"
+              title="Gọi điện"
+            >
+              <Phone className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      );
+
+    case 'url':
+      return (
+        <div className="flex items-center gap-1 max-w-[160px]">
+          <input
+            type="url"
+            value={String(val)}
+            placeholder={field.placeholder || "https://..."}
+            onChange={e => onChange(e.target.value)}
+            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none flex-1 min-w-0 focus:border-indigo-500 font-medium"
+          />
+          {val && (
+            <a
+              href={String(val).startsWith('http') ? String(val) : `https://${val}`}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400 hover:text-sky-600 transition-colors"
+              title="Mở liên kết"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      );
+
+    case 'textarea':
+      return (
+        <input
+          type="text"
+          value={String(val)}
+          placeholder={field.placeholder || "Ghi chú..."}
+          onChange={e => onChange(e.target.value)}
+          className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[160px] focus:border-indigo-500 transition-colors font-medium truncate"
+          title={String(val)}
+        />
       );
 
     default:
@@ -205,9 +302,9 @@ function CustomFieldCellEditor({
         <input
           type="text"
           value={String(val)}
-          placeholder="..."
+          placeholder={field.placeholder || "..."}
           onChange={e => onChange(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[120px] focus:border-indigo-500 transition-colors font-semibold"
+          className="px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[130px] focus:border-indigo-500 transition-colors font-semibold"
         />
       );
   }
@@ -1407,14 +1504,28 @@ export default function TaskTableView({
 
                 <button
                   onClick={() => {
-                    if (triggerToast) triggerToast?.('info', 'Enterprise Feature', 'Privacy and permissions are only available for Enterprise Workspaces.');
-                    else alert('Privacy and permissions are only available for Enterprise Workspaces.');
+                    if (setCustomFields && customFields) {
+                      const target = customFields.find(cf => cf.id === activeMenu.fieldId);
+                      if (target) {
+                        const nextPrivate = !target.isPrivate;
+                        setCustomFields(prev => prev.map(cf => cf.id === activeMenu.fieldId
+                          ? { ...cf, isPrivate: nextPrivate }
+                          : cf));
+                        triggerToast?.(
+                          'info',
+                          nextPrivate ? 'Đã đặt trường riêng tư' : 'Đã bỏ riêng tư',
+                          nextPrivate
+                            ? 'Trường này chỉ hiển thị trong Space hiện tại.'
+                            : 'Trường này có thể hiển thị cho thành viên có quyền truy cập Space.'
+                        );
+                      }
+                    }
                     setActiveMenu(null);
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Quyền riêng tư và phân quyền</span>
+                  <span>{customFields.find(cf => cf.id === activeMenu.fieldId)?.isPrivate ? 'Bỏ riêng tư' : 'Đặt trường riêng tư'}</span>
                 </button>
 
                 <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />

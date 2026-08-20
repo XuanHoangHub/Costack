@@ -23,7 +23,7 @@ interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  default: "bg-[var(--cu-surface-3)] text-[var(--cu-text-secondary)] border-[var(--cu-border)]",
+  default: "bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)] border-[var(--cu-border)]",
   primary: "bg-[var(--cu-primary-light)] text-[var(--cu-primary)] border-[var(--cu-primary)]/20 shadow-xs",
   success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shadow-xs",
   warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 shadow-xs",
@@ -51,7 +51,7 @@ export function Badge({
   return (
     <span
       className={[
-        "inline-flex items-center gap-1.5 font-semibold rounded-full border border-transparent select-none",
+        "inline-flex items-center gap-1.5 font-bold leading-none rounded-full border border-transparent select-none",
         sizeStyles[size],
         variantStyles[variant],
         className,

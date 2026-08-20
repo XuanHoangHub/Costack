@@ -74,7 +74,9 @@ function MiniCalendarNavigator({
     for (let i = 1; i <= lastDate; i++) {
       result.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    const remaining = 35 - result.length;
+    const totalCells = Math.ceil(result.length / 7) * 7;
+    const targetTotal = totalCells < 35 ? 35 : totalCells;
+    const remaining = targetTotal - result.length;
     for (let i = 1; i <= remaining; i++) {
       result.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
@@ -91,7 +93,7 @@ function MiniCalendarNavigator({
   const selectedStr = formatDateStr(selectedDate);
 
   return (
-    <div className="p-4 select-none pb-4">
+    <div className="p-4 select-none pb-4 font-sans">
       <div className="flex items-center justify-between mb-3 px-1">
         <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">
           {monthNames[month]} {year}
@@ -133,12 +135,16 @@ function MiniCalendarNavigator({
               key={idx}
               type="button"
               onClick={() => onSelectDate(item.date)}
-              className={`w-6.5 h-6.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer mx-auto ${
-                isSelected || isToday
-                  ? 'bg-indigo-600 text-white font-black shadow-md shadow-blue-500/25 scale-105'
+              className={`w-7 h-7 rounded-full text-[10.5px] font-sans flex items-center justify-center transition-all cursor-pointer mx-auto ${
+                isSelected && isToday
+                  ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-500/30 ring-2 ring-blue-400 scale-105'
+                  : isToday
+                  ? 'bg-blue-600 text-white font-black shadow-sm'
+                  : isSelected
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 font-black border border-blue-300 dark:border-blue-700 ring-2 ring-blue-500/30 scale-105'
                   : item.isCurrentMonth
-                  ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800'
-                  : 'text-slate-350 dark:text-slate-650 opacity-40 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                  : 'text-slate-400/50 dark:text-slate-600 font-normal hover:bg-slate-100 dark:hover:bg-slate-800/40'
               }`}
             >
               {item.date.getDate()}
@@ -166,7 +172,7 @@ export default function CalendarView({
   const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Navigation states
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 7, 12)); // August 12, 2026 matching screenshot context
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | '4day' | 'day' | 'schedule'>('month');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -568,7 +574,9 @@ export default function CalendarView({
       });
     }
     
-    const remaining = 35 - days.length;
+    const totalCells = Math.ceil(days.length / 7) * 7;
+    const targetTotal = totalCells < 35 ? 35 : totalCells;
+    const remaining = targetTotal - days.length;
     for (let i = 1; i <= remaining; i++) {
       days.push({
         date: new Date(year, month + 1, i),
@@ -693,7 +701,7 @@ export default function CalendarView({
   }[priority]);
 
   return (
-    <div className="flex flex-row w-full h-full font-sans select-none text-slate-800 dark:text-slate-100 bg-white dark:bg-[#07080c] overflow-hidden relative">
+    <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-[var(--cu-surface)] font-sans text-slate-800 dark:text-slate-100">
       
       {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
@@ -887,7 +895,7 @@ export default function CalendarView({
       </button>
 
       {/* Main Calendar Views */}
-      <div className="flex-1 p-3 sm:p-5 flex flex-col gap-4 min-w-0 bg-white dark:bg-[#07080c] overflow-y-auto relative">
+      <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto bg-[var(--cu-surface)] p-3 sm:p-5">
         
         {/* Calendar Navigation Header */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-200/70 dark:border-slate-800/80 pb-4">

@@ -103,6 +103,11 @@ export default function BaseCalendarView({
     );
   }
 
+  const trailing = cells.length % 7 === 0 ? 0 : 7 - (cells.length % 7);
+  for (let i = 0; i < trailing; i++) {
+    cells.push(<div key={`empty-trail-${i}`} className="min-h-[90px] bg-slate-50/30 dark:bg-slate-950/30 rounded-lg" />);
+  }
+
   const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (

@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import PageTreeSidebar from './PageTreeSidebar';
 import DocumentEditor from './DocumentEditor';
-import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ArrowRight, Zap, BookOpen, ChevronRight } from 'lucide-react';
+import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ArrowRight, Zap, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface DocumentHubProps {
@@ -29,11 +29,16 @@ export default function DocumentHub({
   onAddSyncLog,
   initialSelectedDocId,
   onClearInitialSelectedDocId,
+  docs: propDocs,
+  onAddDoc: propOnAddDoc,
+  onUpdateDoc: propOnUpdateDoc,
+  onDeleteDoc: propOnDeleteDoc,
   onCreateTaskFromDoc,
   spaceId,
   folderId
 }: DocumentHubProps) {
-  const activeWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
+  const storeActiveWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
+  const activeWorkspaceId = storeActiveWorkspaceId || (currentUser as any)?.workspaceId || 'workspace-default';
   const [documents, setDocuments] = useState<any[]>([]);
   const [activeDocId, setActiveDocId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -41,54 +46,109 @@ export default function DocumentHub({
 
   const cacheKey = activeWorkspaceId
     ? `apexa-documents:${activeWorkspaceId}:${spaceId || 'workspace'}`
-    : '';
+    : 'apexa-documents:default';
 
   // 1. Initial documents load
   useEffect(() => {
+    let isMounted = true;
+
     const fetchDocs = async () => {
-      if (!activeWorkspaceId) {
-        setIsLoading(false);
-        return;
-      }
       setIsLoading(true);
 
-      const cached = cacheKey ? localStorage.getItem(cacheKey) : null;
+      // A. Load from LocalStorage Cache
+      let localCached: any[] = [];
+      const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) setDocuments(parsed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localCached = parsed;
+          }
         } catch { /* Ignore invalid local cache */ }
       }
 
+      // B. Merge with propDocs if provided
+      if (propDocs && propDocs.length > 0) {
+        const propFormatted = propDocs.map(d => ({
+          id: d.id,
+          title: d.title || 'Tài liệu mới',
+          workspace_id: d.workspace_id || d.workspaceId || activeWorkspaceId,
+          space_id: d.space_id || d.spaceId || spaceId || null,
+          folder_id: d.folder_id || d.folderId || folderId || null,
+          parent_document_id: d.parent_document_id || null,
+          icon: d.icon || '📝',
+          cover_url: d.cover_url || null,
+          content: d.content || { type: 'doc', content: [] },
+          is_archived: Boolean(d.is_archived),
+          is_published: Boolean(d.is_published),
+          is_favorite: Boolean(d.is_favorite),
+          position: d.position || 0,
+          user_id: d.user_id || d.userId || null,
+          created_at: d.created_at || d.createdAt || new Date().toISOString(),
+          updated_at: d.updated_at || d.updatedAt || new Date().toISOString()
+        }));
+
+        const mergedMap = new Map<string, any>();
+        localCached.forEach(d => mergedMap.set(d.id, d));
+        propFormatted.forEach(d => mergedMap.set(d.id, { ...mergedMap.get(d.id), ...d }));
+        localCached = Array.from(mergedMap.values());
+      }
+
+      if (localCached.length > 0 && isMounted) {
+        setDocuments(localCached);
+        setActiveDocId(curr => {
+          if (curr && localCached.some(d => d.id === curr && !d.is_archived)) return curr;
+          return localCached.find(d => !d.is_archived)?.id || '';
+        });
+      }
+
       if (isOffline) {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
         return;
       }
 
-      let query = supabase
-        .from('documents')
-        .select('*')
-        .eq('workspace_id', activeWorkspaceId)
-        .order('created_at', { ascending: true });
+      // C. Query Supabase
+      try {
+        let query = supabase
+          .from('documents')
+          .select('*')
+          .order('created_at', { ascending: true });
 
-      query = spaceId ? query.eq('space_id', spaceId) : query.is('space_id', null);
-      const { data, error } = await query;
-        
-      if (!error && data) {
-        setDocuments(data);
-        setActiveDocId(current => data.some(d => d.id === current && !d.is_archived)
-          ? current
-          : (data.find(d => !d.is_archived)?.id || ''));
+        if (activeWorkspaceId && activeWorkspaceId !== 'workspace-default') {
+          query = query.eq('workspace_id', activeWorkspaceId);
+        }
+        if (spaceId) {
+          query = query.eq('space_id', spaceId);
+        }
+
+        const { data, error } = await query;
+          
+        if (!error && data && data.length > 0 && isMounted) {
+          setDocuments(data);
+          setActiveDocId(curr => {
+            if (curr && data.some(d => d.id === curr && !d.is_archived)) return curr;
+            return data.find(d => !d.is_archived)?.id || '';
+          });
+        }
+      } catch (err) {
+        console.warn('Documents initial fetch warning:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchDocs();
-  }, [activeWorkspaceId, cacheKey, isOffline, spaceId]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeWorkspaceId, cacheKey, isOffline, spaceId, folderId, propDocs]);
 
   useEffect(() => {
     if (!cacheKey) return;
-    localStorage.setItem(cacheKey, JSON.stringify(documents));
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(documents));
+    } catch { /* storage full */ }
   }, [cacheKey, documents]);
 
   // 2. Realtime listener for workspace document updates
@@ -135,14 +195,14 @@ export default function DocumentHub({
     }
   }, [initialSelectedDocId, documents, onClearInitialSelectedDocId]);
 
-  // 4. Document Operations
+  // 4. Robust Document Operations
   const handleAddDoc = async (parentId?: string) => {
-    if (!activeWorkspaceId || isOffline) return;
+    const newDocId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const payload = {
+    const newDoc = {
+      id: newDocId,
       title: 'Tài liệu mới',
       workspace_id: activeWorkspaceId,
       space_id: spaceId || null,
@@ -153,30 +213,84 @@ export default function DocumentHub({
       content: { type: 'doc', content: [] },
       is_archived: false,
       is_published: false,
-      user_id: session.user.id
+      is_favorite: false,
+      position: documents.length,
+      user_id: (currentUser as any)?.id || 'user',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('documents')
-      .insert([payload])
-      .select()
-      .single();
+    // A. Optimistically update local state immediately
+    setDocuments(prev => [...prev, newDoc]);
+    setActiveDocId(newDocId);
+    onAddSyncLog?.(`Đã tạo tài liệu mới: "${newDoc.title}"`);
+    propOnAddDoc?.(newDoc);
 
-    if (!error && data) {
-      setDocuments(prev => [...prev, data]);
-      setActiveDocId(data.id);
-      onAddSyncLog(`Đã tạo tài liệu mới: "${data.title}"`);
+    // B. Sync to Supabase in background
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const payload: any = {
+          id: newDocId,
+          title: newDoc.title,
+          workspace_id: activeWorkspaceId,
+          space_id: spaceId || null,
+          folder_id: folderId || null,
+          parent_document_id: parentId || null,
+          icon: newDoc.icon,
+          cover_url: null,
+          content: newDoc.content,
+          is_archived: false,
+          is_published: false,
+          position: newDoc.position
+        };
+
+        if (session?.user?.id) {
+          payload.user_id = session.user.id;
+        }
+
+        const { data, error } = await supabase
+          .from('documents')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase documents insert warning (using local doc):', error.message);
+          // Fallback to docs table if available
+          if (session?.user?.id) {
+            try {
+              await supabase.from('docs').insert([{
+                id: newDocId,
+                title: newDoc.title,
+                content: JSON.stringify(newDoc.content),
+                category: 'General',
+                updatedAt: new Date().toISOString().split('T')[0],
+                updatedBy: (currentUser as any)?.name || 'User',
+                user_id: session.user.id,
+                workspace_id: activeWorkspaceId
+              }]);
+            } catch { /* ignore fallback insert error */ }
+          }
+        } else if (data) {
+          setDocuments(prev => prev.map(d => d.id === newDocId ? data : d));
+        }
+      } catch (err) {
+        console.warn('Error saving document to Supabase:', err);
+      }
     }
   };
 
   const handleDuplicateDoc = async (doc: any) => {
-    if (isOffline) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
+    const newDocId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    const payload = {
-      title: `${doc.title} (Nhân bản)`,
-      workspace_id: doc.workspace_id,
+    const duplicateDoc = {
+      ...doc,
+      id: newDocId,
+      title: `${doc.title || 'Tài liệu'} (Nhân bản)`,
+      workspace_id: doc.workspace_id || activeWorkspaceId,
       space_id: doc.space_id || spaceId || null,
       folder_id: doc.folder_id || folderId || null,
       parent_document_id: doc.parent_document_id || null,
@@ -185,106 +299,99 @@ export default function DocumentHub({
       content: doc.content || { type: 'doc', content: [] },
       is_archived: false,
       is_published: false,
-      user_id: session.user.id
+      is_favorite: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('documents')
-      .insert([payload])
-      .select()
-      .single();
+    setDocuments(prev => [...prev, duplicateDoc]);
+    setActiveDocId(newDocId);
+    onAddSyncLog?.(`Đã nhân bản tài liệu: "${doc.title}"`);
+    propOnAddDoc?.(duplicateDoc);
 
-    if (!error && data) {
-      setDocuments(prev => [...prev, data]);
-      setActiveDocId(data.id);
-      onAddSyncLog(`Đã nhân bản tài liệu: "${doc.title}"`);
+    if (!isOffline) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const payload: any = {
+          id: newDocId,
+          title: duplicateDoc.title,
+          workspace_id: duplicateDoc.workspace_id,
+          space_id: duplicateDoc.space_id,
+          folder_id: duplicateDoc.folder_id,
+          parent_document_id: duplicateDoc.parent_document_id,
+          icon: duplicateDoc.icon,
+          cover_url: duplicateDoc.cover_url,
+          content: duplicateDoc.content,
+          is_archived: false,
+          is_published: false
+        };
+
+        if (session?.user?.id) {
+          payload.user_id = session.user.id;
+        }
+
+        const { data, error } = await supabase
+          .from('documents')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (!error && data) {
+          setDocuments(prev => prev.map(d => d.id === newDocId ? data : d));
+        }
+      } catch (err) {
+        console.warn('Error saving duplicated doc to Supabase:', err);
+      }
     }
   };
 
   const handleUpdateDoc = async (id: string, updates: any) => {
-    if (isOffline) return;
-    const previous = documents;
-    setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-    
-    const { error } = await supabase
-      .from('documents')
-      .update(updates)
-      .eq('id', id);
+    setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates, updated_at: new Date().toISOString() } : d));
+    propOnUpdateDoc?.({ id, ...updates });
 
-    if (error) {
-      setDocuments(previous);
-      return;
+    if (updates.is_archived === true) {
+      onAddSyncLog?.(`Đã di chuyển tài liệu vào Thùng rác`);
+      if (activeDocId === id) {
+        const nextActive = documents.find(d => d.id !== id && !d.is_archived);
+        setActiveDocId(nextActive ? nextActive.id : '');
+      }
+    } else if (updates.is_archived === false) {
+      onAddSyncLog?.(`Đã khôi phục tài liệu từ Thùng rác`);
+    } else {
+      onAddSyncLog?.(`Đã cập nhật thuộc tính tài liệu`);
     }
 
-    if (!error) {
-      if (updates.is_archived === true) {
-        onAddSyncLog(`Đã di chuyển tài liệu vào Thùng rác`);
-        if (activeDocId === id) {
-          const nextActive = documents.find(d => d.id !== id && !d.is_archived);
-          setActiveDocId(nextActive ? nextActive.id : '');
-        }
-      } else if (updates.is_archived === false) {
-        onAddSyncLog(`Đã khôi phục tài liệu từ Thùng rác`);
-      } else {
-        onAddSyncLog(`Đã cập nhật thuộc tính tài liệu`);
+    if (!isOffline) {
+      try {
+        await supabase
+          .from('documents')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', id);
+      } catch (err) {
+        console.warn('Error updating document in Supabase:', err);
       }
     }
   };
 
   const handleDeleteDoc = async (id: string) => {
-    if (isOffline) return;
-    const previous = documents;
     setDocuments(prev => prev.filter(d => d.id !== id));
-    
-    const { error } = await supabase
-      .from('documents')
-      .delete()
-      .eq('id', id);
+    propOnDeleteDoc?.(id);
+    onAddSyncLog?.(`Đã xóa vĩnh viễn tài liệu`);
 
-    if (error) {
-      setDocuments(previous);
-      return;
+    if (activeDocId === id) {
+      const nextActive = documents.find(d => d.id !== id && !d.is_archived);
+      setActiveDocId(nextActive ? nextActive.id : '');
     }
 
-    if (!error) {
-      onAddSyncLog(`Đã xóa vĩnh viễn tài liệu`);
-      if (activeDocId === id) {
-        const nextActive = documents.find(d => d.id !== id && !d.is_archived);
-        setActiveDocId(nextActive ? nextActive.id : '');
+    if (!isOffline) {
+      try {
+        await supabase
+          .from('documents')
+          .delete()
+          .eq('id', id);
+      } catch (err) {
+        console.warn('Error deleting document in Supabase:', err);
       }
-    }
-  };
-
-  const handleCreateFromTemplate = async (template: any) => {
-    if (!activeWorkspaceId || isOffline) return;
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-
-    const payload = {
-      title: template.title,
-      workspace_id: activeWorkspaceId,
-      space_id: spaceId || null,
-      folder_id: folderId || null,
-      parent_document_id: null,
-      icon: template.icon,
-      cover_url: null,
-      content: template.content,
-      is_archived: false,
-      is_published: false,
-      user_id: session.user.id
-    };
-
-    const { data, error } = await supabase
-      .from('documents')
-      .insert([payload])
-      .select()
-      .single();
-
-    if (!error && data) {
-      setDocuments(prev => [...prev, data]);
-      setActiveDocId(data.id);
-      onAddSyncLog(`Đã tạo tài liệu từ mẫu: "${data.title}"`);
     }
   };
 
@@ -408,44 +515,6 @@ export default function DocumentHub({
                 </button>
               </div>
 
-              {/* Template Section */}
-              <div className="w-full pt-4 space-y-4">
-                <div className="flex items-center justify-between px-1 border-b border-slate-200/60 dark:border-slate-800 pb-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-500" /> Khởi đầu nhanh bằng mẫu có sẵn
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-medium">4 mẫu phổ biến</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-left">
-                  {TEMPLATES.map((tmpl) => (
-                    <motion.div 
-                      key={tmpl.title}
-                      whileHover={{ y: -4 }}
-                      onClick={() => handleCreateFromTemplate(tmpl)}
-                      className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-blue-500/10 transition-all cursor-pointer flex flex-col justify-between group space-y-3 relative overflow-hidden backdrop-blur-xs"
-                    >
-                      <div className="space-y-2.5">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-xs">
-                          {tmpl.icon}
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-850 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">
-                          {tmpl.title}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium line-clamp-2">
-                          {tmpl.description}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 opacity-80 group-hover:opacity-100 transition-opacity pt-1">
-                        <span>Dùng mẫu này</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
             </motion.div>
           </div>
         )}
@@ -456,65 +525,3 @@ export default function DocumentHub({
   );
 }
 
-const TEMPLATES = [
-  {
-    title: 'Biên bản cuộc họp (Meeting Notes)',
-    icon: '📅',
-    description: 'Theo dõi chương trình cuộc họp, quyết định và danh sách công việc cần làm.',
-    content: {
-      type: 'doc',
-      content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: '📅 Biên Bản Cuộc Họp' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Ngày: ' + new Date().toLocaleDateString('vi-VN') + ' | Người ghi chép: Team Leader' }] },
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Nội dung thảo luận' }] },
-        { type: 'bulletList', content: [
-          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Đánh giá tiến độ dự án quý này' }] }] },
-          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Thảo luận kế hoạch ra mắt tính năng mới' }] }] }
-        ] }
-      ]
-    }
-  },
-  {
-    title: 'Yêu cầu sản phẩm (PRD)',
-    icon: '🚀',
-    description: 'Xác định phạm vi tính năng mới, mục tiêu và danh sách các User Stories.',
-    content: {
-      type: 'doc',
-      content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: '🚀 Product Requirements Document (PRD)' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Trạng thái: Bản nháp | Nhóm sở hữu: Product Team' }] },
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: '1. Mục tiêu (Objective)' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Mô tả ngắn gọn lý do xây dựng tính năng này và tác động mong đợi đối với người dùng.' }] }
-      ]
-    }
-  },
-  {
-    title: 'Kế hoạch dự án (Roadmap)',
-    icon: '🗺️',
-    description: 'Bản đồ chiến lược, các mốc thời gian (milestones) và phân công nhiệm vụ.',
-    content: {
-      type: 'doc',
-      content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: '🗺️ Kế Hoạch & Lộ Trình Phát Triển' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Tài liệu định hướng mục tiêu sản phẩm trong Q3 & Q4.' }] },
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: '1. Các mốc quan trọng' }] },
-        { type: 'taskList', content: [
-          { type: 'taskItem', attrs: { checked: true }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hoàn thiện thiết kế UI/UX' }] }] },
-          { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Phát triển backend & API Supabase' }] }] }
-        ] }
-      ]
-    }
-  },
-  {
-    title: 'Nhật ký công việc (Daily Journal)',
-    icon: '📔',
-    description: 'Ghi lại các việc đã hoàn thành, khó khăn gặp phải và mục tiêu ngày tiếp theo.',
-    content: {
-      type: 'doc',
-      content: [
-        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: '📔 Nhật Ký Hằng Ngày' }] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Ghi chép phản hồi công việc cá nhân.' }] }
-      ]
-    }
-  }
-];

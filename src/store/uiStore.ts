@@ -18,6 +18,7 @@ interface UiState {
   showNotificationsMenu: boolean;
   showStatusMenu: boolean;
   userStatus: 'online' | 'focused' | 'away' | 'offline';
+  presencePreference: 'online' | 'focused' | 'away' | 'offline';
   blurIntensity: 'soft' | 'default' | 'immersive';
   accentPreset: 'indigo' | 'ocean' | 'forest' | 'sunset';
   soundEnabled: boolean;
@@ -84,6 +85,7 @@ interface UiState {
   setShowNotificationsMenu: (show: boolean) => void;
   setShowStatusMenu: (show: boolean) => void;
   setUserStatus: (status: 'online' | 'focused' | 'away' | 'offline') => void;
+  setPresencePreference: (status: 'online' | 'focused' | 'away' | 'offline') => void;
   setBlurIntensity: (intensity: 'soft' | 'default' | 'immersive') => void;
   setAccentPreset: (preset: 'indigo' | 'ocean' | 'forest' | 'sunset') => void;
   setSoundEnabled: (enabled: boolean) => void;
@@ -141,6 +143,7 @@ export const useUiStore = create<UiState>()(
       showNotificationsMenu: false,
       showStatusMenu: false,
       userStatus: 'online',
+      presencePreference: 'online',
       blurIntensity: 'default',
       isDarkMode: false,
       themePreference: 'system',
@@ -210,6 +213,7 @@ export const useUiStore = create<UiState>()(
       setShowNotificationsMenu: (showNotificationsMenu) => set({ showNotificationsMenu }),
       setShowStatusMenu: (showStatusMenu) => set({ showStatusMenu }),
       setUserStatus: (userStatus) => set({ userStatus }),
+      setPresencePreference: (presencePreference) => set({ presencePreference }),
       setBlurIntensity: (blurIntensity) => set({ blurIntensity }),
       setAccentPreset: (accentPreset) => set({ accentPreset }),
       setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
@@ -259,11 +263,12 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'apexa_ui',
-      version: 2,
+      version: 3,
       migrate: (persistedState) => {
         const state = persistedState as Partial<UiState>;
         return {
           ...state,
+          presencePreference: state.presencePreference || 'online',
           themePreference: getStoredThemePreference(),
         } as UiState;
       },

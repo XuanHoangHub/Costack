@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { GoogleGenAI } from "@google/genai";
 
 export function getGeminiClient(customApiKey?: string): GoogleGenAI {

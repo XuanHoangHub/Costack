@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
@@ -20,7 +21,7 @@ import LanguageDropdown from './LanguageDropdown';
 import LandingPage from './landing/LandingPage';
 
 interface LoginScreenProps {
-  onLoginSuccess: (user: { name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
+  onLoginSuccess: (user: { id: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
 }
 
 type AuthMode = 'signin' | 'signup' | 'forgot';
@@ -42,14 +43,13 @@ function GlowInputField({
   return (
     <div className="space-y-1.5 text-left w-full">
       {label && (
-        <label htmlFor={id} className="flex items-center justify-between text-[11px] font-extrabold tracking-tight text-slate-700 dark:text-slate-300">
-          <span>{label}</span>
+        <label htmlFor={id} className="block text-xs font-bold text-slate-700 dark:text-slate-300 select-none">
+          {label}
         </label>
       )}
       <div className="relative group/input w-full">
-        <div className={`pointer-events-none absolute -inset-[1px] rounded-[17px] bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-400 opacity-0 blur-[2px] transition-opacity duration-300 ${isFocused ? 'opacity-70' : 'group-hover/input:opacity-20'}`} />
         <div className="relative flex items-center">
-          <div className={`absolute left-3.5 z-10 transition-colors duration-200 ${isFocused ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
+          <div className={`pointer-events-none absolute left-3.5 z-10 transition-colors duration-200 ${isFocused ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
             <Icon className="w-4 h-4" />
           </div>
           <input
@@ -68,12 +68,12 @@ function GlowInputField({
             minLength={minLength}
             disabled={disabled}
             spellCheck={type === 'email' ? false : undefined}
-            className={`relative h-[50px] w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} text-xs sm:text-sm rounded-2xl bg-slate-50/80 dark:bg-slate-950/70 border transition-all duration-200 font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none shadow-2xs ${
+            className={`relative h-[48px] w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} text-xs sm:text-sm rounded-xl bg-slate-50/90 dark:bg-slate-950/70 border transition-all duration-200 font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none ${
               error
                 ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/10 dark:border-rose-700 dark:bg-rose-950/20'
                 : isFocused
-                ? 'border-indigo-500 bg-white dark:bg-slate-900 ring-4 ring-indigo-500/10'
-                : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                ? 'border-indigo-600 dark:border-indigo-400 bg-white dark:bg-slate-900 ring-4 ring-indigo-500/15 dark:ring-indigo-400/20 shadow-sm'
+                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
             } disabled:cursor-not-allowed disabled:opacity-60`}
           />
           {rightElement && <div className="absolute right-3 z-10">{rightElement}</div>}
@@ -104,6 +104,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mfaPendingUser, setMfaPendingUser] = useState<SupabaseAuthUser | null>(null);
+  const [mfaFactorId, setMfaFactorId] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaRememberMe, setMfaRememberMe] = useState(true);
   const onLoginSuccessRef = useRef(onLoginSuccess);
   const oauthCompletionRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -203,7 +208,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
     };
 
-    const finalizeOAuthUser = (sessionUser: SupabaseAuthUser) => {
+    const finalizeOAuthUser = async (sessionUser: SupabaseAuthUser) => {
       if (!isActive || oauthCompletionRef.current) return;
 
       const metadata = sessionUser.user_metadata || {};
@@ -219,13 +224,33 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         return;
       }
 
-      oauthCompletionRef.current = true;
       const displayName = metadata.full_name || metadata.name || metadata.display_name || userEmail.split('@')[0] || 'Apexa Champion';
       const shouldRemember = sessionStorage.getItem('apexa_oauth_remember_me') !== 'false';
+      const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const factor = factors?.totp.find(item => item.status === 'verified');
+        if (factor) {
+          const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+          if (!challengeError && challenge && isActive) {
+            oauthCompletionRef.current = true;
+            setIsAuthActive(true);
+            setMfaPendingUser(sessionUser);
+            setMfaFactorId(factor.id);
+            setMfaChallengeId(challenge.id);
+            setMfaRememberMe(shouldRemember);
+            setMfaCode('');
+            cleanOAuthParams();
+            return;
+          }
+        }
+      }
+      oauthCompletionRef.current = true;
       sessionStorage.removeItem('apexa_oauth_remember_me');
       cleanOAuthParams();
 
       onLoginSuccessRef.current({
+        id: sessionUser.id,
         name: displayName,
         email: userEmail,
         avatar: metadata.avatar_url || metadata.picture || metadata.avatar || '',
@@ -258,11 +283,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         console.warn('Unable to restore OAuth session:', sessionError.message);
         return;
       }
-      if (session?.user) finalizeOAuthUser(session.user);
+      if (session?.user) void finalizeOAuthUser(session.user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) finalizeOAuthUser(session.user);
+      if (session?.user) void finalizeOAuthUser(session.user);
     });
 
     return () => {
@@ -405,7 +430,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   };
 
   const closeAuth = () => {
+    if (mfaPendingUser) void supabase.auth.signOut({ scope: 'local' });
     setIsAuthActive(false);
+    setMfaPendingUser(null);
+    setMfaFactorId('');
+    setMfaChallengeId('');
+    setMfaCode('');
     clearFeedback();
     window.requestAnimationFrame(() => previousFocusRef.current?.focus());
   };
@@ -473,6 +503,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         const sessionUser = signUpData.user;
         const displayName = sessionUser?.user_metadata?.name || name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
         onLoginSuccess({
+          id: sessionUser.id,
           name: displayName,
           email: sessionUser?.email || normalizedEmail,
           avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
@@ -484,9 +515,25 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         if (signInError) throw signInError;
 
         const sessionUser = data.user;
+        const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
+          const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+          if (factorsError) throw factorsError;
+          const factor = factors.totp.find(item => item.status === 'verified');
+          if (!factor) throw new Error(isVietnamese ? 'Không tìm thấy thiết bị xác thực đã đăng ký.' : 'No verified authenticator was found.');
+          const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+          if (challengeError) throw challengeError;
+          setMfaPendingUser(sessionUser);
+          setMfaFactorId(factor.id);
+          setMfaChallengeId(challenge.id);
+          setMfaCode('');
+          setMfaRememberMe(rememberMe);
+          return;
+        }
         const displayName = sessionUser?.user_metadata?.name || sessionUser?.email?.split('@')[0] || 'Apexa Champion';
 
         onLoginSuccess({
+          id: sessionUser.id,
           name: displayName,
           email: sessionUser?.email || normalizedEmail,
           avatar: sessionUser?.user_metadata?.avatar_url || sessionUser?.user_metadata?.avatar || '',
@@ -500,6 +547,42 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMfaVerify = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!mfaPendingUser || !/^\d{6}$/.test(mfaCode)) return;
+    setLoading(true);
+    setError('');
+    try {
+      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code: mfaCode });
+      if (verifyError) throw verifyError;
+      const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Apexa Champion';
+      onLoginSuccess({
+        id: mfaPendingUser.id,
+        name: displayName,
+        email: mfaPendingUser.email || email,
+        avatar: mfaPendingUser.user_metadata?.avatar_url || mfaPendingUser.user_metadata?.avatar || '',
+        role: resolveAppRole(mfaPendingUser),
+        status: 'online'
+      }, mfaRememberMe);
+    } catch (caughtError) {
+      setError(getAuthErrorMessage(caughtError));
+      setMfaCode('');
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+      if (!challengeError) setMfaChallengeId(challenge.id);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelMfaLogin = async () => {
+    await supabase.auth.signOut({ scope: 'local' });
+    setMfaPendingUser(null);
+    setMfaFactorId('');
+    setMfaChallengeId('');
+    setMfaCode('');
+    setError('');
   };
 
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
@@ -545,8 +628,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
-        activeUsers={2847}
-        tasksCompleted={12453}
       />
 
       {/* Auth Modal Overlay */}
@@ -682,16 +763,16 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <span className="h-px w-6 bg-indigo-500" /> {copy.securePortal}
                   </div>
                   <h2 id="auth-dialog-title" className="text-2xl font-black text-slate-900 sm:text-[28px] dark:text-white tracking-[-0.035em] leading-tight">
-                    {isForgot ? copy.forgotTitle : isSignUp ? copy.signupTitle : copy.signinTitle}
+                    {mfaPendingUser ? (isVietnamese ? 'Xác minh danh tính' : 'Verify your identity') : isForgot ? copy.forgotTitle : isSignUp ? copy.signupTitle : copy.signinTitle}
                   </h2>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {isForgot ? copy.forgotDescription : isSignUp ? copy.signupDescription : copy.signinDescription}
+                    {mfaPendingUser ? (isVietnamese ? 'Nhập mã 6 chữ số từ ứng dụng Authenticator để hoàn tất đăng nhập.' : 'Enter the 6-digit code from your authenticator app to finish signing in.') : isForgot ? copy.forgotDescription : isSignUp ? copy.signupDescription : copy.signinDescription}
                   </p>
                 </div>
               </div>
 
               {/* Segmented Tab Switcher (Sign In vs Sign Up) */}
-              {!isForgot && (
+              {!isForgot && !mfaPendingUser && (
                 <div role="tablist" aria-label={isVietnamese ? 'Chọn phương thức truy cập' : 'Choose access method'} className="relative p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex select-none">
                   <button
                     type="button"
@@ -741,7 +822,23 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               )}
 
               {/* Forgot Password Flow */}
-              {isForgot ? (
+              {mfaPendingUser ? (
+                <form onSubmit={handleMfaVerify} className="space-y-4" noValidate>
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-center dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                    <ShieldCheck className="mx-auto h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+                    <p className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{mfaPendingUser.email}</p>
+                  </div>
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mã xác thực' : 'Authentication code'}</span>
+                    <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => { setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }} placeholder="000000" className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-mono text-xl font-black tracking-[0.5em] text-slate-900 outline-none focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                  </label>
+                  {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+                  <button type="submit" disabled={loading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                    {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <ShieldCheck className="h-4 w-4" />}{isVietnamese ? 'Xác minh và đăng nhập' : 'Verify and sign in'}
+                  </button>
+                  <button type="button" onClick={cancelMfaLogin} className="w-full py-2 text-xs font-extrabold text-slate-500 hover:text-indigo-600 dark:text-slate-400">{isVietnamese ? 'Quay lại đăng nhập' : 'Back to sign in'}</button>
+                </form>
+              ) : isForgot ? (
                 <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>
                   <GlowInputField
                     id="input_forgot_email"
@@ -994,7 +1091,17 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                           aria-describedby={fieldErrors.terms ? 'signup_terms_error' : undefined}
                           className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
                         />
-                        <span>{copy.terms}</span>
+                        <span>
+                          {isVietnamese ? 'Tôi đồng ý với ' : 'I agree to Apexa’s '}
+                          <Link href="/legal/terms" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="font-black text-indigo-600 hover:underline dark:text-indigo-400">
+                            {isVietnamese ? 'Điều khoản sử dụng' : 'Terms of Use'}
+                          </Link>
+                          {isVietnamese ? ' và ' : ' and '}
+                          <Link href="/legal/privacy" target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="font-black text-indigo-600 hover:underline dark:text-indigo-400">
+                            {isVietnamese ? 'Chính sách quyền riêng tư' : 'Privacy Policy'}
+                          </Link>
+                          .
+                        </span>
                       </label>
                       {fieldErrors.terms && (
                         <p id="signup_terms_error" className="pl-6 text-[10.5px] font-semibold text-rose-600 dark:text-rose-400">

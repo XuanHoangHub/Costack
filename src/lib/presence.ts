@@ -4,9 +4,12 @@ export type UiPresenceStatus = 'online' | 'focused' | 'away' | 'offline';
 export interface PresencePayload {
   user_id?: string;
   custom_status?: PresenceStatus;
+  effective_status?: PresenceStatus;
   status_message?: string;
   status_emoji?: string;
   is_idle?: boolean;
+  tab_id?: string;
+  is_visible?: boolean;
   last_active?: string;
   status_changed_at?: string;
 }
@@ -20,6 +23,58 @@ export interface ResolvedPresence {
 }
 
 const VALID_STATUSES: PresenceStatus[] = ['online', 'busy', 'away', 'offline'];
+
+export const PRESENCE_TIMINGS = {
+  activityThrottleMs: 5_000,
+  awayAfterMs: 2 * 60_000,
+  offlineAfterMs: 15 * 60_000,
+  hiddenAwayAfterMs: 30_000,
+  hiddenOfflineAfterMs: 5 * 60_000,
+  evaluationMs: 10_000,
+  heartbeatMs: 60_000,
+  databaseHeartbeatMs: 60_000,
+} as const;
+
+export interface AutomaticPresenceInput {
+  customStatus: PresenceStatus;
+  lastActivityAt: number;
+  now?: number;
+  hiddenSince?: number | null;
+  networkOnline?: boolean;
+}
+
+/**
+ * Computes the status shown to teammates. Explicit focus/away modes are kept
+ * while the tab is active, but a long idle period or lost connection always
+ * wins so accounts cannot remain online forever.
+ */
+export function getAutomaticPresenceStatus({
+  customStatus,
+  lastActivityAt,
+  now = Date.now(),
+  hiddenSince = null,
+  networkOnline = true,
+}: AutomaticPresenceInput): PresenceStatus {
+  if (!networkOnline || customStatus === 'offline') return 'offline';
+
+  const idleFor = Math.max(0, now - lastActivityAt);
+  const hiddenFor = hiddenSince === null ? 0 : Math.max(0, now - hiddenSince);
+
+  if (
+    idleFor >= PRESENCE_TIMINGS.offlineAfterMs ||
+    hiddenFor >= PRESENCE_TIMINGS.hiddenOfflineAfterMs
+  ) return 'offline';
+
+  if (customStatus === 'busy') return 'busy';
+  if (customStatus === 'away') return 'away';
+
+  if (
+    idleFor >= PRESENCE_TIMINGS.awayAfterMs ||
+    hiddenFor >= PRESENCE_TIMINGS.hiddenAwayAfterMs
+  ) return 'away';
+
+  return 'online';
+}
 
 function normalizeStatus(status: unknown): PresenceStatus {
   return VALID_STATUSES.includes(status as PresenceStatus)
@@ -52,7 +107,9 @@ export function resolvePresence(payloads: PresencePayload[]): ResolvedPresence |
   const lastActivePayload = [...payloads].sort(
     (a, b) => timestamp(b.last_active) - timestamp(a.last_active)
   )[0];
-  const allConnectionsIdle = payloads.every((payload) => Boolean(payload.is_idle));
+  const allConnectionsIdle = payloads.every(
+    (payload) => payload.effective_status === 'away' || Boolean(payload.is_idle)
+  );
   const status: PresenceStatus =
     customStatus === 'busy'
       ? 'busy'
@@ -95,7 +152,7 @@ export function presenceKeyAliases(...values: Array<string | null | undefined>):
 export function presenceDotClass(status: PresenceStatus, pulse = false): string {
   const color = {
     online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30',
-    busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
+    busy: 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.7)] ring-2 ring-indigo-500/30',
     away: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
     offline: 'bg-slate-400 ring-2 ring-slate-400/20',
   }[status] || 'bg-slate-400';

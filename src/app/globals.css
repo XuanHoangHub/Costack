@@ -5,6 +5,7 @@
 @theme {
   --font-sans: var(--font-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", "Charter", "Georgia", "Cambria", "Times New Roman", serif;
   --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
 
   /* Custom slate shades */
@@ -121,45 +122,45 @@
 
 :root {
   color-scheme: light;
-  /* ── ClickUp 3.0 Modern Design Tokens ── */
-  --cu-primary: #2563EB;
-  --cu-primary-hover: #1D4ED8;
-  --cu-primary-light: #EFF6FF;
-  --cu-primary-subtle: rgba(37, 99, 235, 0.08);
-  --cu-accent: #0284C7;
-  --cu-success: #00B884;
-  --cu-warning: #FFB800;
-  --cu-danger: #E5484D;
+  /* ── Apexa Modern Design Tokens ── */
+  --cu-primary: #4F46E5;
+  --cu-primary-hover: #4338CA;
+  --cu-primary-light: #EEF2FF;
+  --cu-primary-subtle: rgba(79, 70, 229, 0.085);
+  --cu-accent: #0891B2;
+  --cu-success: #059669;
+  --cu-warning: #D97706;
+  --cu-danger: #E11D48;
 
-  --cu-bg: #F8FAFC;
-  --cu-bg-subtle: #F1F5F9;
+  --cu-bg: #FFFFFF;
+  --cu-bg-subtle: #FFFFFF;
   --cu-surface: #FFFFFF;
-  --cu-surface-2: #F8FAFC;
-  --cu-surface-3: #E2E8F0;
-  --cu-border: rgba(0, 0, 0, 0.08);
-  --cu-border-strong: rgba(0, 0, 0, 0.14);
+  --cu-surface-2: #FAFAFC;
+  --cu-surface-3: #F4F6F9;
+  --cu-border: rgba(15, 23, 42, 0.08);
+  --cu-border-strong: rgba(15, 23, 42, 0.14);
 
   --cu-text-primary: #0F172A;
   --cu-text-secondary: #475569;
   --cu-text-muted: #94A3B8;
   --cu-text-inverse: #FFFFFF;
 
-  --cu-sidebar-width: 256px;
-  --cu-sidebar-collapsed: 72px;
-  --cu-header-height: 54px;
+  --cu-sidebar-width: 272px;
+  --cu-sidebar-collapsed: 76px;
+  --cu-header-height: 60px;
 
-  --cu-radius-sm: 6px;
-  --cu-radius-md: 8px;
-  --cu-radius-lg: 12px;
-  --cu-radius-xl: 16px;
-  --cu-radius-2xl: 20px;
+  --cu-radius-sm: 8px;
+  --cu-radius-md: 10px;
+  --cu-radius-lg: 14px;
+  --cu-radius-xl: 18px;
+  --cu-radius-2xl: 24px;
   --cu-radius-full: 9999px;
 
-  --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --cu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --cu-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --cu-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
-  --cu-shadow-primary: 0 4px 14px rgba(37, 99, 235, 0.25);
+  --cu-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.035);
+  --cu-shadow-sm: 0 8px 24px -18px rgba(15, 23, 42, 0.32), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --cu-shadow-md: 0 16px 36px -24px rgba(15, 23, 42, 0.38), 0 3px 10px rgba(15, 23, 42, 0.05);
+  --cu-shadow-lg: 0 28px 64px -30px rgba(15, 23, 42, 0.46);
+  --cu-shadow-primary: 0 12px 30px -14px rgba(79, 70, 229, 0.75);
 
   --cu-transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --cu-transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -204,22 +205,22 @@
 }
 
 .dark {
-  --cu-primary: #3B82F6;
-  --cu-primary-hover: #60A5FA;
-  --cu-primary-light: rgba(59, 130, 246, 0.15);
-  --cu-primary-subtle: rgba(59, 130, 246, 0.12);
+  --cu-primary: #818CF8;
+  --cu-primary-hover: #A5B4FC;
+  --cu-primary-light: rgba(129, 140, 248, 0.16);
+  --cu-primary-subtle: rgba(129, 140, 248, 0.12);
 
-  --cu-bg: #080a0f;
-  --cu-bg-subtle: #0c0f16;
-  --cu-surface: #11151e;
-  --cu-surface-2: #171c27;
-  --cu-surface-3: #202634;
+  --cu-bg: #080A10;
+  --cu-bg-subtle: #0B0E15;
+  --cu-surface: #11151E;
+  --cu-surface-2: #171B26;
+  --cu-surface-3: #222838;
   --cu-border: rgba(148, 163, 184, 0.12);
   --cu-border-strong: rgba(148, 163, 184, 0.22);
 
   --cu-text-primary: #FFFFFF;
-  --cu-text-secondary: #E2E8F0;
-  --cu-text-muted: #94A3B8;
+  --cu-text-secondary: #CBD5E1;
+  --cu-text-muted: #7C899D;
 
   --cu-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --cu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -303,6 +304,22 @@ html.theme-switching :where(*::before, *::after) {
   html.theme-switching *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Settings → Interface Depth controls every glass surface consistently. */
+html[data-blur-intensity='soft'] [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: blur(4px) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+html[data-blur-intensity='default'] [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: blur(22px) saturate(1.12) !important;
+  backdrop-filter: blur(22px) saturate(1.12) !important;
 }
 
 .ios27-glass, .liquid-glass {
@@ -622,35 +639,64 @@ html.theme-switching :where(*::before, *::after) {
   }
 }
 
-/* Tiptap Collaboration Cursors */
+/* Tiptap Real-time Collaborative Cursors & Selection */
+@keyframes collaboration-caret-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
 .collaboration-cursor__caret {
   position: relative;
   margin-left: -1px;
   margin-right: -1px;
-  border-left: 2px solid;
-  border-right: 2px solid;
-  border-color: #0d0d0d;
+  border-left: 2.5px solid;
+  border-right: none;
+  border-color: #6366f1;
+  height: 1.25em;
+  display: inline-block;
+  vertical-align: text-bottom;
   word-break: normal;
   pointer-events: none;
+  animation: collaboration-caret-blink 1s ease-in-out infinite;
+  z-index: 40;
 }
 
 .collaboration-cursor__label {
   position: absolute;
-  top: -1.4em;
+  top: -1.55em;
   left: -1px;
-  font-size: 9px;
-  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-family: var(--font-sans), system-ui, sans-serif;
   font-style: normal;
   font-weight: 700;
   line-height: normal;
   user-select: none;
-  color: #fff;
-  padding: 1.5px 5px;
+  color: #ffffff;
+  padding: 2px 6px;
   border-radius: 4px 4px 4px 0px;
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
   pointer-events: none;
   z-index: 50;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ProseMirror-yjs-selection {
+  opacity: 0.7;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+
+.dark .ProseMirror-yjs-selection {
+  mix-blend-mode: screen;
+  opacity: 0.5;
 }
 
 /* Premium Editorial Document Styles (Notion/Craft/Linear Aesthetic) */
@@ -701,16 +747,89 @@ html.theme-switching :where(*::before, *::after) {
   font-size: 1.2rem;
 }
 
-.document-editor ul:not([data-type="taskList"]),
-.document-editor ol {
+.document-editor ul:not([data-type="taskList"]) {
   margin: 0.5rem 0;
   padding-left: 1.5rem;
+  list-style: disc;
 }
 
-.document-editor ul:not([data-type="taskList"]) { list-style: disc; }
-.document-editor ol { list-style: decimal; }
-.document-editor li { margin: 0.25rem 0; }
-.document-editor li::marker { color: #818cf8; }
+.document-editor ul:not([data-type="taskList"]) li {
+  margin: 0.25rem 0;
+}
+
+.document-editor ul:not([data-type="taskList"]) li::marker {
+  color: #818cf8;
+}
+
+/* Modern Numbered List (Ordered List) with sleek circular counter badges */
+.document-editor ol {
+  list-style: none !important;
+  counter-reset: apexa-ordered-counter;
+  margin: 0.65rem 0;
+  padding-left: 0 !important;
+}
+
+.document-editor ol > li {
+  counter-increment: apexa-ordered-counter;
+  position: relative;
+  padding-left: 2.1rem !important;
+  margin: 0.4rem 0;
+  line-height: 1.7;
+}
+
+.document-editor ol > li::before {
+  content: counter(apexa-ordered-counter);
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
+  line-height: 1;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.06);
+}
+
+.dark .document-editor ol > li::before {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Nested Ordered Lists */
+.document-editor ol ol {
+  counter-reset: apexa-nested-counter;
+  margin: 0.35rem 0;
+}
+
+.document-editor ol ol > li {
+  counter-increment: apexa-nested-counter;
+  padding-left: 1.9rem !important;
+}
+
+.document-editor ol ol > li::before {
+  content: counter(apexa-nested-counter, lower-alpha);
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #64748b;
+  font-size: 0.68rem;
+}
+
+.dark .document-editor ol ol > li::before {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+}
 
 .document-editor ul[data-type="taskList"] {
   list-style: none;
@@ -802,33 +921,6 @@ html.theme-switching :where(*::before, *::after) {
 }
 
 .dark .document-editor hr { border-top-color: #334155; }
-
-/* Real-time Collaboration Caret Styling */
-.collaboration-cursor__caret {
-  border-left: 2px solid #000;
-  border-right: 0;
-  margin-left: -1px;
-  margin-right: -1px;
-  position: relative;
-  word-break: normal;
-  pointer-events: none;
-}
-
-.collaboration-cursor__label {
-  border-radius: 4px 4px 4px 0;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  left: -1px;
-  line-height: normal;
-  padding: 2px 6px;
-  position: absolute;
-  top: -1.4em;
-  white-space: nowrap;
-  user-select: none;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
 /* ── iOS 27 Futuristic Aesthetic Utility System ── */
 .ios27-glass {
   background: rgba(255, 255, 255, 0.72);
@@ -975,7 +1067,7 @@ html.theme-switching :where(*::before, *::after) {
   ring-offset: 2px;
 }
 
-/* ── ClickUp Design System Components ── */
+/* ── Apexa Design System Components ── */
 .cu-card {
   background: var(--cu-surface);
   border: 1px solid var(--cu-border);
@@ -1016,11 +1108,11 @@ html.theme-switching :where(*::before, *::after) {
 
 .cu-header {
   height: var(--cu-header-height);
-  background: rgba(255, 255, 255, 0.78);
+  background: #FFFFFF;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 
 .dark .cu-header {
@@ -1032,17 +1124,19 @@ html.theme-switching :where(*::before, *::after) {
 }
 
 .cu-sidebar {
-  background: rgba(248, 250, 252, 0.72);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  background: linear-gradient(180deg, #0e121b 0%, #090b10 50%, #06070b 100%);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 30px -4px rgba(0, 0, 0, 0.5);
 }
 
 .dark .cu-sidebar {
-  background: rgba(10, 12, 17, 0.65);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, #0d1017 0%, #080a0e 50%, #050609 100%);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 36px -4px rgba(0, 0, 0, 0.75);
 }
 
 .cu-search-bar {
@@ -1178,7 +1272,7 @@ html.theme-switching :where(*::before, *::after) {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Mobile bottom nav ClickUp style */
+/* Mobile bottom navigation dock */
 .cu-mobile-nav {
   background: var(--cu-surface);
   border-top: 1px solid var(--cu-border);
@@ -1463,3 +1557,164 @@ html.theme-switching :where(*::before, *::after) {
   100% { left: 200%; }
 }
 
+/* =========================================================================
+   APEXA APPLICATION SHELL — shared product layout and interaction language
+   ========================================================================= */
+
+.apexa-app-shell {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 72% -20%, rgba(99, 102, 241, 0.11), transparent 34rem),
+    var(--cu-bg);
+}
+
+.dark .apexa-app-shell {
+  background:
+    radial-gradient(circle at 70% -18%, rgba(99, 102, 241, 0.13), transparent 32rem),
+    radial-gradient(circle at 100% 100%, rgba(8, 145, 178, 0.06), transparent 28rem),
+    var(--cu-bg);
+}
+
+.apexa-app-header {
+  padding-top: env(safe-area-inset-top);
+}
+
+.apexa-header-content {
+  min-height: var(--cu-header-height);
+}
+
+.apexa-workspace-frame {
+  padding: 8px 10px 10px;
+  gap: 10px;
+}
+
+.apexa-desktop-sidebar,
+.apexa-mobile-drawer {
+  border-radius: 24px;
+}
+
+.apexa-desktop-sidebar {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.apexa-content-shell {
+  border: 1px solid var(--cu-border);
+  border-radius: 22px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+.dark .apexa-content-shell {
+  background: #0B0E15;
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+.apexa-main-canvas {
+  border-radius: inherit;
+}
+
+.apexa-route-canvas {
+  container-type: inline-size;
+}
+
+.apexa-route-scroll {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.apexa-app-shell :where(button, a, input, textarea, select, [role="button"], [role="tab"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.apexa-app-shell :where(button, a, input, textarea, select, [role="button"], [role="tab"]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cu-primary) 82%, white);
+  outline-offset: 2px;
+}
+
+.apexa-app-shell :where(input, textarea, select)::placeholder {
+  color: var(--cu-text-muted);
+  opacity: 0.8;
+}
+
+.apexa-app-shell :where(input, textarea, select) {
+  caret-color: var(--cu-primary);
+}
+
+.apexa-app-shell :where(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.apexa-app-shell :where(thead) {
+  color: var(--cu-text-secondary);
+}
+
+.apexa-app-shell :where(th) {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.apexa-app-shell :where(dialog, [role="dialog"]) {
+  color: var(--cu-text-primary);
+}
+
+.apexa-app-shell[data-density="compact"] {
+  --cu-header-height: 52px;
+}
+
+.apexa-app-shell[data-density="compact"] .apexa-desktop-sidebar {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.apexa-app-shell[data-density="compact"] .apexa-route-scroll:not(:has(.document-editor)) {
+  --apexa-density-space: 0.8;
+}
+
+@media (max-width: 767px) {
+  .apexa-workspace-frame {
+    padding: 0;
+    gap: 0;
+  }
+
+  .apexa-content-shell {
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: none;
+  }
+
+  .apexa-header-content {
+    min-height: 52px;
+  }
+
+  .apexa-app-header nav[aria-label="Cấu trúc điều hướng"] > :not(:last-child) {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  :root {
+    --cu-sidebar-width: 232px;
+    --cu-sidebar-collapsed: 70px;
+  }
+
+  .apexa-workspace-frame {
+    padding-inline: 8px;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apexa-app-shell *,
+  .apexa-app-shell *::before,
+  .apexa-app-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

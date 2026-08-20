@@ -58,8 +58,27 @@ export interface TaskAttachment {
 export interface CustomFieldDefinition {
   id: string;
   name: string;
-  type: 'dropdown' | 'text' | 'date' | 'textarea' | 'number' | 'labels' | 'checkbox' | 'email' | 'phone' | 'money';
-  options?: string[]; // for dropdown or labels
+  type: 'dropdown' | 'text' | 'date' | 'textarea' | 'number' | 'labels' | 'checkbox' | 'email' | 'phone' | 'money' | 'rating' | 'progress' | 'url' | 'member';
+  options?: Array<string | { id: string; label: string; color: string; icon?: string }>;
+  placeholder?: string;
+  description?: string;
+  isRequired?: boolean;
+  isPrivate?: boolean;
+  currencySymbol?: string;
+  currencyPosition?: 'prefix' | 'suffix';
+  numberFormat?: 'normal' | 'percent' | 'currency';
+  numberMin?: number;
+  numberMax?: number;
+  numberPrecision?: number;
+  dateFormat?: string;
+  includeTime?: boolean;
+  defaultToToday?: boolean;
+  ratingMax?: number;
+  ratingIcon?: 'star' | 'heart' | 'flame' | 'thumb';
+  checkboxLabel?: string;
+  progressMax?: number;
+  allowMultiple?: boolean;
+  defaultValue?: unknown;
 }
 
 export interface Space {

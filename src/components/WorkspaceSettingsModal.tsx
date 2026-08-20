@@ -257,18 +257,16 @@ export default function WorkspaceSettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name]);
 
-  if (!isOpen || !workspace) return null;
-
   const activeWSMembers = members.filter(m => Boolean(m.userId && membershipRoles[m.userId]));
   const nonWSMembers = members.filter(m => Boolean(m.userId && !membershipRoles[m.userId]));
 
   // Handle avatar upload to Supabase Storage
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !workspace) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image is too large. Please select an image smaller than 2MB.");
+      triggerToast({ id: generateId(), type: 'info', title: isVietnamese ? 'Ảnh quá lớn' : 'Image too large', message: isVietnamese ? 'Vui lòng chọn ảnh nhỏ hơn 2MB.' : 'Please select an image smaller than 2MB.', duration: 4000 });
       return;
     }
 
@@ -576,6 +574,8 @@ export default function WorkspaceSettingsModal({
     );
     return { ...group, links: matchedLinks };
   }).filter((group: NavGroup) => group.links.length > 0);
+
+  if (!isOpen || !workspace) return null;
 
   return (
     <AnimatePresence>

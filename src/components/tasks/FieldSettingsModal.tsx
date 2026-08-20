@@ -8,9 +8,7 @@ import {
   Trash2, 
   ChevronUp, 
   ChevronDown, 
-  RotateCcw, 
   Check, 
-  Sparkles, 
   Sliders, 
   Tag, 
   Calendar, 
@@ -20,14 +18,17 @@ import {
   DollarSign, 
   BarChart3, 
   Star,
-  AlertOctagon,
-  AlertTriangle,
-  CircleDot,
-  Circle,
-  Flag,
-  Flame,
-  Zap,
-  Bookmark
+  Mail,
+  Phone,
+  Link,
+  FileText,
+  User,
+  HelpCircle,
+  Eye,
+  Bookmark,
+  Heart,
+  ThumbsUp,
+  Flame
 } from 'lucide-react';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { 
@@ -36,12 +37,10 @@ import {
   DEFAULT_STATUSES, 
   DEFAULT_PRIORITIES, 
   OptionConfig,
-  getLocalizedOptionLabel,
   DATE_FORMAT_PRESETS,
   getStoredDateFormat,
   saveDateFormat
 } from '../../utils/fieldConfig';
-import { renderSpaceIcon } from '../EmojiIconPicker';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -53,16 +52,21 @@ function Portal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
 }
 
-const PRIORITY_ICONS = [
-  { id: 'AlertOctagon', label: 'Octagon', icon: AlertOctagon },
-  { id: 'AlertTriangle', label: 'Triangle', icon: AlertTriangle },
-  { id: 'CircleDot', label: 'Circle Dot', icon: CircleDot },
-  { id: 'Circle', label: 'Circle', icon: Circle },
-  { id: 'Flame', label: 'Flame', icon: Flame },
-  { id: 'Zap', label: 'Zap', icon: Zap },
-  { id: 'Flag', label: 'Flag', icon: Flag },
-  { id: 'Star', label: 'Star', icon: Star },
-  { id: 'Bookmark', label: 'Bookmark', icon: Bookmark },
+export const ALL_FIELD_TYPES = [
+  { id: 'text', label: 'Văn bản (Text)', labelEn: 'Text', icon: AlignLeft, color: 'from-blue-500 to-indigo-500', desc: 'Chuỗi ký tự ngắn, tiêu đề, mã hiệu' },
+  { id: 'number', label: 'Con số (Number)', labelEn: 'Number', icon: Hash, color: 'from-indigo-500 to-purple-500', desc: 'Số nguyên, số thập phân, số lượng' },
+  { id: 'date', label: 'Ngày tháng (Date)', labelEn: 'Date', icon: Calendar, color: 'from-purple-500 to-pink-500', desc: 'Ngày hạn, mốc thời gian, lịch trình' },
+  { id: 'textarea', label: 'Văn bản dài (Long Text)', labelEn: 'Long Text', icon: FileText, color: 'from-emerald-500 to-teal-500', desc: 'Mô tả chi tiết, ghi chú nhiều dòng' },
+  { id: 'dropdown', label: 'Menu lựa chọn (Dropdown)', labelEn: 'Dropdown', icon: Tag, color: 'from-amber-500 to-orange-500', desc: 'Chọn 1 giá trị từ danh sách màu sắc' },
+  { id: 'labels', label: 'Nhãn phân loại (Labels)', labelEn: 'Labels', icon: Bookmark, color: 'from-rose-500 to-red-500', desc: 'Gắn nhiều nhãn/thẻ màu trực quan' },
+  { id: 'checkbox', label: 'Hộp kiểm (Checkbox)', labelEn: 'Checkbox', icon: CheckSquare, color: 'from-violet-500 to-purple-500', desc: 'Đánh dấu hoàn tất, có/không' },
+  { id: 'money', label: 'Tiền tệ (Money)', labelEn: 'Money', icon: DollarSign, color: 'from-emerald-500 to-green-600', desc: 'Ngân sách, chi phí (VNĐ, USD, EUR)' },
+  { id: 'rating', label: 'Đánh giá (Rating)', labelEn: 'Rating', icon: Star, color: 'from-amber-400 to-yellow-500', desc: 'Xếp hạng độ ưu tiên, sao/tim' },
+  { id: 'progress', label: 'Tiến độ (Progress)', labelEn: 'Progress', icon: BarChart3, color: 'from-cyan-500 to-blue-500', desc: 'Thanh trượt % hoàn thành (0 - 100%)' },
+  { id: 'email', label: 'Email', labelEn: 'Email', icon: Mail, color: 'from-sky-500 to-blue-600', desc: 'Hòm thư điện tử kèm nút gửi mail' },
+  { id: 'phone', label: 'Số điện thoại (Phone)', labelEn: 'Phone', icon: Phone, color: 'from-teal-500 to-emerald-600', desc: 'Số liên hệ kèm nút gọi nhanh' },
+  { id: 'url', label: 'Đường dẫn (URL / Link)', labelEn: 'URL', icon: Link, color: 'from-blue-500 to-cyan-500', desc: 'Liên kết web, tài liệu Figma/GitHub' },
+  { id: 'member', label: 'Thành viên (Member)', labelEn: 'Member', icon: User, color: 'from-indigo-600 to-violet-600', desc: 'Gán người phụ trách từ nhóm làm việc' }
 ];
 
 export interface FieldSettingsModalProps {
@@ -70,11 +74,52 @@ export interface FieldSettingsModalProps {
     id: string; 
     name: string; 
     type: string; 
-    isStandard: boolean; 
+    isStandard?: boolean; 
+    isNew?: boolean;
     options?: any[];
+    placeholder?: string;
+    description?: string;
+    isRequired?: boolean;
+    currencySymbol?: string;
+    currencyPosition?: 'prefix' | 'suffix';
+    numberFormat?: 'normal' | 'percent' | 'currency';
+    numberMin?: number;
+    numberMax?: number;
+    numberPrecision?: number;
+    dateFormat?: string;
+    includeTime?: boolean;
+    defaultToToday?: boolean;
+    ratingMax?: number;
+    ratingIcon?: 'star' | 'heart' | 'flame' | 'thumb';
+    checkboxLabel?: string;
+    progressMax?: number;
+    allowMultiple?: boolean;
+    defaultValue?: any;
   } | null;
   onClose: () => void;
-  onSave: (updated: { name: string; type: string; options?: any[] }) => void;
+  onSave: (updated: { 
+    name: string; 
+    type: string; 
+    options?: any[];
+    placeholder?: string;
+    description?: string;
+    isRequired?: boolean;
+    currencySymbol?: string;
+    currencyPosition?: 'prefix' | 'suffix';
+    numberFormat?: 'normal' | 'percent' | 'currency';
+    numberMin?: number;
+    numberMax?: number;
+    numberPrecision?: number;
+    dateFormat?: string;
+    includeTime?: boolean;
+    defaultToToday?: boolean;
+    ratingMax?: number;
+    ratingIcon?: 'star' | 'heart' | 'flame' | 'thumb';
+    checkboxLabel?: string;
+    progressMax?: number;
+    allowMultiple?: boolean;
+    defaultValue?: any;
+  }) => void;
 }
 
 export default function FieldSettingsModal({
@@ -82,89 +127,103 @@ export default function FieldSettingsModal({
   onClose,
   onSave
 }: FieldSettingsModalProps) {
-  const { t, locale } = useTranslation();
+  const { locale } = useTranslation();
+  const isVietnamese = locale === 'vi';
+
   const [name, setName] = useState('');
   const [type, setType] = useState('text');
+  const [placeholder, setPlaceholder] = useState('');
+  const [description, setDescription] = useState('');
+  const [isRequired, setIsRequired] = useState(false);
   const [options, setOptions] = useState<OptionConfig[]>([]);
-  const [activeIconPicker, setActiveIconPicker] = useState<string | null>(null);
+  const [currencySymbol, setCurrencySymbol] = useState('₫');
+  const [currencyPosition, setCurrencyPosition] = useState<'prefix' | 'suffix'>('suffix');
+  const [numberFormat, setNumberFormat] = useState<'normal' | 'percent' | 'currency'>('normal');
+  const [numberMin, setNumberMin] = useState<number | undefined>(undefined);
+  const [numberMax, setNumberMax] = useState<number | undefined>(undefined);
+  const [numberPrecision, setNumberPrecision] = useState<number>(0);
   const [selectedDateFormat, setSelectedDateFormat] = useState(getStoredDateFormat());
+  const [includeTime, setIncludeTime] = useState(false);
+  const [defaultToToday, setDefaultToToday] = useState(false);
+  const [ratingMax, setRatingMax] = useState<number>(5);
+  const [ratingIcon, setRatingIcon] = useState<'star' | 'heart' | 'flame' | 'thumb'>('star');
+  const [checkboxLabel, setCheckboxLabel] = useState('');
+  const [checkboxDefault, setCheckboxDefault] = useState(false);
+  const [progressMax, setProgressMax] = useState<number>(100);
+  const [allowMultiple, setAllowMultiple] = useState(false);
+  const [previewValue, setPreviewValue] = useState<any>('');
+  const [validationMessage, setValidationMessage] = useState('');
   const optionsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (config) {
-      setName(config.name);
-      setType(config.type);
-      
+      setValidationMessage('');
+      setName(config.name || '');
+      setType(config.type || 'text');
+      setPlaceholder(config.placeholder || '');
+      setDescription(config.description || '');
+      setIsRequired(!!config.isRequired);
+      setCurrencySymbol(config.currencySymbol || (isVietnamese ? '₫' : '$'));
+      setCurrencyPosition(config.currencyPosition || (isVietnamese ? 'suffix' : 'prefix'));
+      setNumberFormat(config.numberFormat || 'normal');
+      setNumberMin(config.numberMin);
+      setNumberMax(config.numberMax);
+      setNumberPrecision(config.numberPrecision ?? 0);
+      setSelectedDateFormat((config.dateFormat as any) || getStoredDateFormat());
+      setIncludeTime(!!config.includeTime);
+      setDefaultToToday(!!config.defaultToToday);
+      setRatingMax(config.ratingMax || 5);
+      setRatingIcon(config.ratingIcon || 'star');
+      setCheckboxLabel(config.checkboxLabel || '');
+      setCheckboxDefault(!!config.defaultValue);
+      setProgressMax(config.progressMax || 100);
+      setAllowMultiple(!!config.allowMultiple);
+
       if (config.options && config.options.length > 0) {
-        // Normalize options
-        const normalized: OptionConfig[] = config.options.map((opt: any, index: number) => {
-          if (typeof opt === 'string') {
-            const paletteItem = COLOR_PALETTE[index % COLOR_PALETTE.length];
-            return {
-              id: `opt-${Date.now()}-${index}`,
-              label: opt,
-              color: paletteItem.id
-            };
-          }
-          return {
-            id: opt.id || `opt-${Date.now()}-${index}`,
-            label: opt.label || `Option ${index + 1}`,
-            color: opt.color ? opt.color.replace('bg-', '').replace('text-', '').replace('-500', '').replace('-600', '') : COLOR_PALETTE[index % COLOR_PALETTE.length].id,
-            icon: opt.icon
-          };
-        });
-        setOptions(normalized);
+        setOptions(config.options);
       } else if (config.id === 'status') {
         setOptions(DEFAULT_STATUSES);
       } else if (config.id === 'priority') {
         setOptions(DEFAULT_PRIORITIES);
       } else if (config.type === 'dropdown' || config.type === 'labels') {
         setOptions([
-          { id: `opt-1`, label: 'Option 1', color: 'indigo' },
-          { id: `opt-2`, label: 'Option 2', color: 'emerald' },
-          { id: `opt-3`, label: 'Option 3', color: 'amber' }
+          { id: `opt-1`, label: isVietnamese ? 'Kế hoạch' : 'Planning', color: 'blue' },
+          { id: `opt-2`, label: isVietnamese ? 'Đang làm' : 'In Progress', color: 'amber' },
+          { id: `opt-3`, label: isVietnamese ? 'Hoàn thành' : 'Done', color: 'emerald' }
         ]);
       } else {
         setOptions([]);
       }
-    }
-  }, [config]);
 
-  // Handle Escape key to close
+      if (config.type === 'rating') setPreviewValue(3);
+      else if (config.type === 'progress') setPreviewValue(65);
+      else if (config.type === 'checkbox') setPreviewValue(config.defaultValue || false);
+      else if (config.type === 'money') setPreviewValue('250000');
+      else if (config.type === 'number') setPreviewValue('42');
+      else setPreviewValue('');
+    }
+  }, [config, isVietnamese]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
   if (!config) return null;
-
-  const isOptionField = 
-    config.id === 'status' || 
-    config.id === 'priority' || 
-    type === 'dropdown' || 
-    type === 'labels';
-
-  const isDateField = 
-    config.id === 'startDate' || 
-    config.id === 'dueDate' || 
-    type === 'date';
+  const isOptionField = type === 'dropdown' || type === 'labels' || config.id === 'status' || config.id === 'priority';
+  const isDateField = type === 'date';
 
   const handleAddOption = () => {
     const nextColorIndex = options.length % COLOR_PALETTE.length;
     const newOpt: OptionConfig = {
       id: `opt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      label: `${locale === 'vi' ? 'Tùy chọn' : 'Option'} ${options.length + 1}`,
-      color: COLOR_PALETTE[nextColorIndex].id,
-      icon: config.id === 'priority' ? 'Circle' : undefined
+      label: `${isVietnamese ? 'Lựa chọn' : 'Option'} ${options.length + 1}`,
+      color: COLOR_PALETTE[nextColorIndex].id
     };
     setOptions(prev => [...prev, newOpt]);
-    
-    // Auto scroll to bottom
     setTimeout(() => {
       if (optionsContainerRef.current) {
         optionsContainerRef.current.scrollTop = optionsContainerRef.current.scrollHeight;
@@ -180,11 +239,6 @@ export default function FieldSettingsModal({
     setOptions(prev => prev.map(o => o.id === id ? { ...o, color } : o));
   };
 
-  const handleUpdateOptionIcon = (id: string, icon: string) => {
-    setOptions(prev => prev.map(o => o.id === id ? { ...o, icon } : o));
-    setActiveIconPicker(null);
-  };
-
   const handleMoveOption = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= options.length) return;
@@ -197,20 +251,11 @@ export default function FieldSettingsModal({
 
   const handleDeleteOption = (id: string) => {
     if (options.length <= 1) {
-      alert(t('minOptionWarning') || 'Must have at least 1 option in the list');
+      setValidationMessage(isVietnamese ? 'Cần giữ ít nhất một tùy chọn trong danh sách.' : 'Keep at least one option in the list.');
       return;
     }
+    setValidationMessage('');
     setOptions(prev => prev.filter(o => o.id !== id));
-  };
-
-  const handleResetDefaults = () => {
-    if (config.id === 'status') {
-      setName('Status');
-      setOptions(DEFAULT_STATUSES);
-    } else if (config.id === 'priority') {
-      setName('Priority');
-      setOptions(DEFAULT_PRIORITIES);
-    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -218,172 +263,118 @@ export default function FieldSettingsModal({
     if (!name.trim()) return;
 
     if (isDateField) {
-      saveDateFormat(selectedDateFormat);
+      saveDateFormat(selectedDateFormat as any);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('apexa-field-config-changed'));
       }
     }
 
-    const payloadOptions = isOptionField 
-      ? options.map(o => {
-          const colorMeta = getColorOption(o.color);
-          return {
-            id: o.id,
-            label: o.label.trim(),
-            color: colorMeta.id,
-            dot: colorMeta.dot,
-            bg: config.id === 'status' ? colorMeta.statusPill : (config.id === 'priority' ? colorMeta.priorityPill : colorMeta.badge),
-            icon: o.icon
-          };
-        })
-      : undefined;
-
     onSave({
       name: name.trim(),
       type,
-      options: payloadOptions
+      options: isOptionField ? options : undefined,
+      placeholder: placeholder.trim(),
+      description: description.trim(),
+      isRequired,
+      currencySymbol,
+      currencyPosition,
+      numberFormat,
+      numberMin,
+      numberMax,
+      numberPrecision,
+      dateFormat: selectedDateFormat,
+      includeTime,
+      defaultToToday,
+      ratingMax,
+      ratingIcon,
+      checkboxLabel: checkboxLabel.trim(),
+      progressMax,
+      allowMultiple,
+      defaultValue: type === 'checkbox' ? checkboxDefault : undefined
     });
     onClose();
   };
 
+  const currentTypeMeta = ALL_FIELD_TYPES.find(f => f.id === type) || ALL_FIELD_TYPES[0];
+  const CurrentTypeIcon = currentTypeMeta.icon;
+
   return (
     <Portal>
-      <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-        {/* Backdrop */}
+      <div className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4 font-sans select-none">
         <div 
           className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" 
           onClick={onClose} 
         />
         
-        {/* Modal content */}
         <form 
           onSubmit={handleSave} 
-          className="relative w-full max-w-[540px] max-h-[90vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col z-10 font-sans text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-[#0f141e] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
-          {/* Header */}
-          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
-                <Sliders className="w-4 h-4" />
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-2xl bg-gradient-to-br ${currentTypeMeta.color} text-white flex items-center justify-center shadow-md shadow-indigo-500/20`}>
+                <CurrentTypeIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-wide flex items-center gap-2">
-                  <span>{t('fieldSettingsTitle') || 'Cài đặt trường'}:</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">{config.name}</span>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
+                  <span>{config.isNew ? (isVietnamese ? 'Tạo trường tùy chỉnh mới' : 'Create Custom Field') : (isVietnamese ? 'Cài đặt trường' : 'Field Settings')}</span>
+                  {!config.isNew && <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">• {name || config.name}</span>}
                 </h3>
-                <div className="text-[10px] font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[9px]">
-                    {config.isStandard ? (t('systemField') || 'Trường hệ thống') : (t('customField') || 'Trường tùy chỉnh')}
-                  </span>
-                  <span>•</span>
-                  <span className="capitalize font-semibold">{type}</span>
-                </div>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  {isVietnamese ? currentTypeMeta.desc : currentTypeMeta.labelEn}
+                </p>
               </div>
             </div>
 
             <button 
               type="button" 
               onClick={onClose} 
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="p-2 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Body */}
-          <div className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-140px)] custom-scrollbar">
-            {/* Field Name */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
-                <span>{t('fieldName') || 'Tên trường'}</span>
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder={t('fieldName') || 'Nhập tên trường...'}
-                className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-bold text-slate-800 dark:text-slate-100 transition-all text-xs"
-                required
-              />
-            </div>
-
-            {/* Field Data Type (Custom fields only) */}
+          <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(92vh-145px)] custom-scrollbar text-left select-text">
+            {validationMessage && (
+              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+                {validationMessage}
+              </div>
+            )}
             {!config.isStandard && (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{t('dataType') || 'Loại dữ liệu'}</span>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{isVietnamese ? 'Loại trường dữ liệu' : 'Field Type'}</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'text', label: 'Text', icon: AlignLeft },
-                    { id: 'number', label: 'Number', icon: Hash },
-                    { id: 'date', label: 'Date', icon: Calendar },
-                    { id: 'checkbox', label: 'Checkbox', icon: CheckSquare },
-                    { id: 'dropdown', label: 'Dropdown', icon: Tag },
-                    { id: 'labels', label: 'Labels', icon: Tag },
-                    { id: 'money', label: 'Money', icon: DollarSign },
-                    { id: 'progress', label: 'Progress', icon: BarChart3 },
-                    { id: 'rating', label: 'Rating', icon: Star },
-                  ].map(dt => {
-                    const IconComponent = dt.icon;
-                    const isSelected = type === dt.id;
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {ALL_FIELD_TYPES.map(ft => {
+                    const IconComp = ft.icon;
+                    const isSelected = type === ft.id;
                     return (
                       <button
-                        key={dt.id}
+                        key={ft.id}
                         type="button"
                         onClick={() => {
-                          setType(dt.id);
-                          if ((dt.id === 'dropdown' || dt.id === 'labels') && options.length === 0) {
+                          setType(ft.id);
+                          if ((ft.id === 'dropdown' || ft.id === 'labels') && options.length === 0) {
                             setOptions([
-                              { id: `opt-1`, label: 'Option 1', color: 'indigo' },
-                              { id: `opt-2`, label: 'Option 2', color: 'emerald' },
-                              { id: `opt-3`, label: 'Option 3', color: 'amber' }
+                              { id: `opt-1`, label: isVietnamese ? 'Lựa chọn 1' : 'Option 1', color: 'blue' },
+                              { id: `opt-2`, label: isVietnamese ? 'Lựa chọn 2' : 'Option 2', color: 'emerald' },
+                              { id: `opt-3`, label: isVietnamese ? 'Lựa chọn 3' : 'Option 3', color: 'amber' }
                             ]);
                           }
                         }}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                        className={`flex items-center gap-2 p-2.5 rounded-2xl border text-left cursor-pointer transition-all ${
                           isSelected
-                            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs'
-                            : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                            ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-extrabold shadow-sm ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
-                        <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-                        <span className="truncate text-[11px]">{dt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Date format presets (when date field) */}
-            {isDateField && (
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <label className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{t('dateFormat') || 'Định dạng ngày'}</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {DATE_FORMAT_PRESETS.map(preset => {
-                    const isSelected = selectedDateFormat === preset.id;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setSelectedDateFormat(preset.id)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold'
-                            : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                        }`}
-                      >
-                        <div>
-                          <div className="text-[11px] font-bold">{preset.label}</div>
-                          <div className="text-[10px] text-slate-400">{preset.sample}</div>
+                        <div className={`p-1.5 rounded-xl ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'} shrink-0`}>
+                          <IconComp className="w-3.5 h-3.5" />
                         </div>
-                        {isSelected && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                        <span className="truncate text-[11px] font-bold">{isVietnamese ? ft.label.split('(')[0].trim() : ft.labelEn}</span>
                       </button>
                     );
                   })}
@@ -391,49 +382,78 @@ export default function FieldSettingsModal({
               </div>
             )}
 
-            {/* Options List Editor (Status, Priority, Dropdown, Labels) */}
-            {isOptionField && (
-              <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{t('optionsList') || 'Danh sách Options'}</span>
-                    <span className="text-[10px] text-slate-400 lowercase font-normal">({options.length})</span>
-                  </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlignLeft className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{isVietnamese ? 'Tên trường' : 'Field Name'} *</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={isVietnamese ? 'VD: Mức độ ưu tiên, Khách hàng, Ngân sách...' : 'Enter field name...'}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-bold text-slate-800 dark:text-slate-100 transition-all text-xs"
+                  required
+                />
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={handleAddOption}
-                    className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{isVietnamese ? 'Gợi ý nhập liệu (Placeholder)' : 'Placeholder'}</span>
+                </label>
+                <input
+                  type="text"
+                  value={placeholder}
+                  onChange={e => setPlaceholder(e.target.value)}
+                  placeholder={isVietnamese ? 'Gợi ý hiển thị khi ô trống...' : 'Hint shown when empty...'}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 font-medium text-slate-800 dark:text-slate-100 transition-all text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                <Sliders className="w-4 h-4 text-indigo-500" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                  {isVietnamese ? 'Cài đặt riêng cho loại trường' : 'Field Specific Settings'}: <span className="text-indigo-600 dark:text-indigo-400">{currentTypeMeta.label}</span>
+                </span>
+              </div>
+
+              {isOptionField && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                      {isVietnamese ? 'Danh sách các tùy chọn' : 'Options List'} ({options.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddOption}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px] cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isVietnamese ? 'Thêm tùy chọn' : 'Add Option'}</span>
+                    </button>
+                  </div>
+
+                  <div 
+                    ref={optionsContainerRef}
+                    className="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar border border-slate-200/60 dark:border-slate-800 rounded-xl p-2.5 bg-white dark:bg-slate-950/40"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{locale === 'vi' ? 'Thêm Option' : 'Add Option'}</span>
-                  </button>
-                </div>
-
-                <div 
-                  ref={optionsContainerRef}
-                  className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar border border-slate-150 dark:border-slate-800/80 rounded-xl p-3 bg-slate-50/50 dark:bg-slate-950/30"
-                >
-                  {options.map((opt, index) => {
-                    const colorMeta = getColorOption(opt.color);
-                    const localizedLabel = getLocalizedOptionLabel(opt.id, opt.label, locale);
-                    
-                    return (
-                      <div 
-                        key={opt.id} 
-                        className="flex flex-col gap-2 p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700"
-                      >
-                        {/* Top row: reorder, icon, name input, preview pill, delete */}
-                        <div className="flex items-center gap-2">
-                          {/* Reorder Up/Down */}
+                    {options.map((opt, index) => {
+                      const colorMeta = getColorOption(opt.color);
+                      return (
+                        <div 
+                          key={opt.id} 
+                          className="flex items-center gap-2 p-2 bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800 rounded-xl shadow-3xs"
+                        >
                           <div className="flex flex-col gap-0.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => handleMoveOption(index, 'up')}
                               disabled={index === 0}
-                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
-                              title={t('moveUp') || 'Di chuyển lên'}
+                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-20 cursor-pointer"
                             >
                               <ChevronUp className="w-3 h-3" />
                             </button>
@@ -441,148 +461,509 @@ export default function FieldSettingsModal({
                               type="button"
                               onClick={() => handleMoveOption(index, 'down')}
                               disabled={index === options.length - 1}
-                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
-                              title={t('moveDown') || 'Di chuyển xuống'}
+                              className="p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-20 cursor-pointer"
                             >
                               <ChevronDown className="w-3 h-3" />
                             </button>
                           </div>
 
-                          {/* Icon Selector (Priority or icon-enabled) */}
-                          {config.id === 'priority' ? (
-                            <div className="relative shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => setActiveIconPicker(activeIconPicker === opt.id ? null : opt.id)}
-                                className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:border-indigo-500 cursor-pointer transition-colors"
-                                title="Chọn icon"
-                              >
-                                {renderSpaceIcon(opt.icon || 'Circle', 'w-3.5 h-3.5')}
-                              </button>
+                          <div className="relative group/color shrink-0">
+                            <button
+                              type="button"
+                              className={`w-6 h-6 rounded-lg ${colorMeta.badge} border flex items-center justify-center cursor-pointer shadow-3xs hover:scale-105 transition-transform`}
+                              title={isVietnamese ? 'Chọn màu thẻ' : 'Choose color'}
+                            >
+                              <span className={`w-2.5 h-2.5 rounded-full ${colorMeta.dot}`} />
+                            </button>
 
-                              {activeIconPicker === opt.id && (
-                                <div className="absolute top-8 left-0 z-50 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl grid grid-cols-3 gap-1 w-32">
-                                  {PRIORITY_ICONS.map(pi => (
-                                    <button
-                                      key={pi.id}
-                                      type="button"
-                                      onClick={() => handleUpdateOptionIcon(opt.id, pi.id)}
-                                      className={`p-1.5 rounded-lg flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-300 ${opt.icon === pi.id ? 'bg-indigo-50 text-indigo-600 font-bold' : ''}`}
-                                    >
-                                      {renderSpaceIcon(pi.id, 'w-3.5 h-3.5')}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                            <div className="hidden group-hover/color:grid absolute left-0 top-full mt-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 grid-cols-7 gap-1 w-52">
+                              {COLOR_PALETTE.map(cp => (
+                                <button
+                                  key={cp.id}
+                                  type="button"
+                                  onClick={() => handleUpdateOptionColor(opt.id, cp.id)}
+                                  className={`w-6 h-6 rounded-lg ${cp.badge} flex items-center justify-center cursor-pointer hover:scale-110 transition-transform ${opt.color === cp.id ? 'ring-2 ring-indigo-500' : ''}`}
+                                  title={isVietnamese ? cp.nameVi : cp.name}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${cp.dot}`} />
+                                </button>
+                              ))}
                             </div>
-                          ) : (
-                            <span 
-                              className="w-3 h-3 rounded-full shrink-0 shadow-2xs border border-white/40"
-                              style={{ backgroundColor: colorMeta.hex }}
-                            />
-                          )}
+                          </div>
 
-                          {/* Option Text Input */}
                           <input
                             type="text"
                             value={opt.label}
                             onChange={e => handleUpdateOptionLabel(opt.id, e.target.value)}
-                            placeholder={t('optionNamePlaceholder') || 'Tên tùy chọn...'}
-                            className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 rounded-lg outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 font-bold text-slate-800 dark:text-slate-200 text-xs transition-all"
-                            required
+                            className="flex-1 px-2 py-1 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 rounded-lg outline-none focus:border-indigo-500"
+                            placeholder={isVietnamese ? 'Tên lựa chọn...' : 'Option label...'}
                           />
 
-                          {/* Live Preview Pill */}
-                          <div 
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border truncate max-w-[120px] shrink-0 select-none shadow-3xs flex items-center gap-1 ${
-                              config.id === 'status' 
-                                ? colorMeta.statusPill 
-                                : config.id === 'priority' 
-                                  ? `${colorMeta.priorityPill} ${colorMeta.text}` 
-                                  : colorMeta.badge
-                            }`}
-                          >
-                            {opt.icon && renderSpaceIcon(opt.icon, 'w-2.5 h-2.5 shrink-0')}
-                            <span className="truncate">{localizedLabel || opt.label || 'Preview'}</span>
-                          </div>
-
-                          {/* Delete Option */}
                           <button
                             type="button"
                             onClick={() => handleDeleteOption(opt.id)}
-                            disabled={options.length <= 1}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
-                            title={t('deleteOption') || 'Xóa tùy chọn'}
+                            className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer shrink-0"
+                            title={isVietnamese ? 'Xóa tùy chọn' : 'Delete option'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-
-                        {/* Bottom row: Color Swatch Palette */}
-                        <div className="flex items-center gap-1.5 pl-6 pt-1 border-t border-slate-100 dark:border-slate-800/60 overflow-x-auto custom-scrollbar pb-0.5">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0 mr-1">
-                            {t('pickColor') || 'Màu'}:
-                          </span>
-                          {COLOR_PALETTE.map(c => {
-                            const isSelected = opt.color === c.id || opt.color === c.hex;
-                            return (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => handleUpdateOptionColor(opt.id, c.id)}
-                                className={`w-4 h-4 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${
-                                  isSelected 
-                                    ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900 scale-125 shadow-xs' 
-                                    : 'hover:scale-120 opacity-80 hover:opacity-100'
-                                }`}
-                                style={{ backgroundColor: c.hex }}
-                                title={`${locale === 'vi' ? c.nameVi : c.name}`}
-                              >
-                                {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3] drop-shadow-xs" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-            {/* Reset to Defaults (for Standard Fields like Status & Priority) */}
-            <div>
-              {(config.id === 'status' || config.id === 'priority') && (
-                <button
-                  type="button"
-                  onClick={handleResetDefaults}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>{t('resetDefaults') || 'Khôi phục mặc định'}</span>
-                </button>
+              {type === 'money' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Ký hiệu tiền tệ' : 'Currency Symbol'}
+                    </label>
+                    <div className="flex gap-2">
+                      {[
+                        { sym: '₫', label: 'VNĐ (₫)' },
+                        { sym: '$', label: 'USD ($)' },
+                        { sym: '€', label: 'EUR (€)' },
+                        { sym: '¥', label: 'JPY (¥)' },
+                        { sym: '£', label: 'GBP (£)' }
+                      ].map(c => (
+                        <button
+                          key={c.sym}
+                          type="button"
+                          onClick={() => setCurrencySymbol(c.sym)}
+                          className={`px-3 py-1.5 rounded-xl border font-black text-xs cursor-pointer transition-all ${
+                            currencySymbol === c.sym 
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {c.sym}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Vị trí ký hiệu' : 'Symbol Position'}
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrencyPosition('suffix')}
+                        className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          currencyPosition === 'suffix' 
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {isVietnamese ? 'Phía sau (100.000 ₫)' : 'After (100 ₫)'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrencyPosition('prefix')}
+                        className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          currencyPosition === 'prefix' 
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {isVietnamese ? 'Phía trước ($100)' : 'Before ($100)'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {type === 'number' && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                      {isVietnamese ? 'Định dạng số' : 'Format'}
+                    </label>
+                    <select
+                      value={numberFormat}
+                      onChange={e => setNumberFormat(e.target.value as any)}
+                      className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none"
+                    >
+                      <option value="normal">{isVietnamese ? 'Số thuần (1.234)' : 'Standard (1,234)'}</option>
+                      <option value="percent">{isVietnamese ? 'Phần trăm (%)' : 'Percentage (%)'}</option>
+                      <option value="currency">{isVietnamese ? 'Tiền tệ' : 'Currency'}</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                      {isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
+                    </label>
+                    <select
+                      value={numberPrecision}
+                      onChange={e => setNumberPrecision(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none"
+                    >
+                      <option value="0">0 (Số nguyên 100)</option>
+                      <option value="1">1 (100.5)</option>
+                      <option value="2">2 (100.25)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                      {isVietnamese ? 'Giới hạn (Min - Max)' : 'Range'}
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={numberMin ?? ''}
+                        onChange={e => setNumberMin(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={numberMax ?? ''}
+                        onChange={e => setNumberMax(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isDateField && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {DATE_FORMAT_PRESETS.map(preset => {
+                      const isSelected = selectedDateFormat === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setSelectedDateFormat(preset.id)}
+                          className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold'
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          <div className="text-[11px] font-bold">{preset.label}</div>
+                          <div className="text-[10px] text-slate-400">{preset.sample}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-4 pt-1">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeTime}
+                        onChange={e => setIncludeTime(e.target.checked)}
+                        className="rounded text-indigo-600"
+                      />
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {isVietnamese ? 'Bao gồm giờ:phút (Time)' : 'Include Time'}
+                      </span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={defaultToToday}
+                        onChange={e => setDefaultToToday(e.target.checked)}
+                        className="rounded text-indigo-600"
+                      />
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {isVietnamese ? 'Mặc định ngày hôm nay' : 'Default to Today'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {type === 'rating' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Thang điểm đánh giá' : 'Rating Scale'}
+                    </label>
+                    <div className="flex gap-2">
+                      {[5, 10].map(scale => (
+                        <button
+                          key={scale}
+                          type="button"
+                          onClick={() => setRatingMax(scale)}
+                          className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                            ratingMax === scale 
+                              ? 'bg-amber-500 text-white border-amber-500 shadow-xs' 
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {scale} {isVietnamese ? 'mức' : 'stars'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Biểu tượng' : 'Icon Style'}
+                    </label>
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'star', icon: Star, label: 'Sao' },
+                        { id: 'heart', icon: Heart, label: 'Tim' },
+                        { id: 'flame', icon: Flame, label: 'Lửa' },
+                        { id: 'thumb', icon: ThumbsUp, label: 'Like' }
+                      ].map(ic => {
+                        const Icon = ic.icon;
+                        return (
+                          <button
+                            key={ic.id}
+                            type="button"
+                            onClick={() => setRatingIcon(ic.id as any)}
+                            className={`flex-1 py-1.5 rounded-xl border flex items-center justify-center gap-1 text-xs font-bold cursor-pointer transition-all ${
+                              ratingIcon === ic.id 
+                                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-600 dark:text-amber-400' 
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {type === 'checkbox' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Nhãn tùy biến' : 'Custom Label'}
+                    </label>
+                    <input
+                      type="text"
+                      value={checkboxLabel}
+                      onChange={e => setCheckboxLabel(e.target.value)}
+                      placeholder={isVietnamese ? 'VD: Đạt chuẩn / Hoàn tất' : 'e.g. Approved / Verified'}
+                      className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      {isVietnamese ? 'Trạng thái mặc định' : 'Default State'}
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCheckboxDefault(false)}
+                        className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          !checkboxDefault 
+                            ? 'bg-slate-200 dark:bg-slate-700 border-slate-400 text-slate-800 dark:text-white' 
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
+                        }`}
+                      >
+                        {isVietnamese ? 'Chưa chọn (Off)' : 'Unchecked'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCheckboxDefault(true)}
+                        className={`flex-1 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          checkboxDefault 
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
+                        }`}
+                      >
+                        {isVietnamese ? 'Đã chọn (On)' : 'Checked'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {type === 'progress' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    {isVietnamese ? 'Thang đo tối đa' : 'Max Progress Scale'}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="10"
+                      value={progressMax}
+                      onChange={e => setProgressMax(Number(e.target.value))}
+                      className="flex-1 accent-indigo-600 cursor-pointer"
+                    />
+                    <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-indigo-600">
+                      {progressMax}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {type === 'member' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="allowMult"
+                    checked={allowMultiple}
+                    onChange={e => setAllowMultiple(e.target.checked)}
+                    className="rounded text-indigo-600"
+                  />
+                  <label htmlFor="allowMult" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                    {isVietnamese ? 'Cho phép gán nhiều thành viên cùng lúc' : 'Allow multiple assignees'}
+                  </label>
+                </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold transition-colors cursor-pointer"
-              >
-                {t('cancel') || 'Hủy'}
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
-              >
-                <Check className="w-4 h-4" />
-                <span>{t('saveChanges') || 'Lưu thay đổi'}</span>
-              </button>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-blue-50/50 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-slate-900/40 border border-indigo-200/60 dark:border-indigo-900/40 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-sky-400">
+                <span className="flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5" /> {isVietnamese ? 'Xem trước trực tiếp (Live Preview)' : 'Live Interactive Preview'}
+                </span>
+                <span className="font-semibold text-slate-400">{isVietnamese ? 'Hãy thử thao tác' : 'Try interacting'}</span>
+              </div>
+
+              <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3">
+                <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 min-w-[100px] truncate">
+                  {name || (isVietnamese ? 'Tên trường' : 'Field Name')}
+                </span>
+
+                <div className="flex-1 flex justify-end">
+                  {type === 'dropdown' && (
+                    <div className="flex gap-1.5 overflow-x-auto max-w-[280px]">
+                      {options.slice(0, 3).map((opt, i) => {
+                        const cm = getColorOption(opt.color);
+                        return (
+                          <span key={i} className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${cm.badge}`}>
+                            {opt.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {type === 'money' && (
+                    <div className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/30 font-black text-xs text-emerald-700 dark:text-emerald-300">
+                      {currencyPosition === 'prefix' ? `${currencySymbol} 250,000` : `250,000 ${currencySymbol}`}
+                    </div>
+                  )}
+
+                  {type === 'rating' && (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: ratingMax }).map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPreviewValue(i + 1)}
+                          className={`text-base cursor-pointer transition-transform hover:scale-125 ${
+                            i < (previewValue || 3) ? 'text-amber-400' : 'text-slate-200 dark:text-slate-800'
+                          }`}
+                        >
+                          {ratingIcon === 'heart' ? '❤️' : ratingIcon === 'flame' ? '🔥' : ratingIcon === 'thumb' ? '👍' : '★'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {type === 'progress' && (
+                    <div className="flex items-center gap-2 w-44">
+                      <input
+                        type="range"
+                        min="0"
+                        max={progressMax}
+                        value={previewValue || 65}
+                        onChange={e => setPreviewValue(Number(e.target.value))}
+                        className="flex-1 accent-indigo-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 w-10 text-right">
+                        {previewValue || 65}%
+                      </span>
+                    </div>
+                  )}
+
+                  {type === 'checkbox' && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewValue(!previewValue)}
+                      className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition-all ${
+                        previewValue 
+                          ? 'bg-indigo-600 text-white border-indigo-600' 
+                          : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-500'
+                      }`}
+                    >
+                      <Check className={`w-3.5 h-3.5 ${previewValue ? 'opacity-100' : 'opacity-0'}`} />
+                      <span>{checkboxLabel || (previewValue ? (isVietnamese ? 'Hoàn tất' : 'Done') : (isVietnamese ? 'Chưa' : 'Todo'))}</span>
+                    </button>
+                  )}
+
+                  {(type === 'text' || type === 'textarea' || type === 'number' || type === 'email' || type === 'phone' || type === 'url') && (
+                    <input
+                      type={type === 'number' ? 'number' : 'text'}
+                      placeholder={placeholder || (isVietnamese ? 'Nhập giá trị...' : 'Enter value...')}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none max-w-[200px]"
+                    />
+                  )}
+
+                  {type === 'date' && (
+                    <div className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>17/07/2026 {includeTime ? '14:30' : ''}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  {isVietnamese ? 'Bắt buộc nhập dữ liệu' : 'Required Field'}
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {isVietnamese ? 'Yêu cầu điền trường này trước khi hoàn thành công việc' : 'Must be filled before marking completed'}
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isRequired}
+                  onChange={e => setIsRequired(e.target.checked)}
+                  className="sr-only peer" 
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 flex items-center justify-end gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              {isVietnamese ? 'Hủy' : 'Cancel'}
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className={`px-5 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1.5 transition-all shadow-md ${
+                name.trim() 
+                  ? 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-indigo-500/25 cursor-pointer' 
+                  : 'bg-slate-300 dark:bg-slate-800 text-slate-500 pointer-events-none'
+              }`}
+            >
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>{config.isNew ? (isVietnamese ? 'Tạo trường dữ liệu' : 'Create Field') : (isVietnamese ? 'Lưu thay đổi' : 'Save Changes')}</span>
+            </button>
           </div>
         </form>
       </div>
