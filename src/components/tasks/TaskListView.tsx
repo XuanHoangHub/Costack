@@ -542,7 +542,7 @@ const TaskListView = React.memo(function TaskListView({
                                   onClick={() => setInlineAddingStatus(statusItem.id)}
                                   className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                                 >
-                                  <Plus className="w-3 h-3" /> + Tạo công việc mới
+                                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Tạo công việc mới
                                 </button>
                               </div>
                             )}

@@ -193,6 +193,19 @@ async function removePresenceChannel(channel: RealtimeChannel) {
   }
 }
 
+async function removePresenceChannels() {
+  try {
+    const existing = supabase.getChannels().filter(
+      (c) => c.topic === PRESENCE_TOPIC || c.topic === `realtime:${PRESENCE_TOPIC}`
+    );
+    for (const ch of existing) {
+      await removePresenceChannel(ch);
+    }
+  } catch (err) {
+    console.warn('Error clearing presence channels:', err);
+  }
+}
+
 function broadcastPreference(nextPreference: PresencePreference) {
   if (!activeAuthUserId) return;
   storeJson(`${PREFERENCE_STORAGE_PREFIX}${activeAuthUserId}`, nextPreference);
@@ -213,6 +226,7 @@ export async function disconnectUserPresence() {
   channelSubscribed = false;
   lastPublishedStatus = 'offline';
   if (channel) await removePresenceChannel(channel);
+  await removePresenceChannels();
 }
 
 /** Update the account preference and immediately fan it out to every open tab. */
@@ -483,6 +497,7 @@ export function useUserPresence() {
         if (activeChannel === staleChannel) activeChannel = null;
         await removePresenceChannel(staleChannel);
       }
+      await removePresenceChannels();
       if (!effectIsActive) return;
 
       const nextChannel = supabase.channel(PRESENCE_TOPIC, {
@@ -494,26 +509,31 @@ export function useUserPresence() {
       channelSubscribed = false;
       lastPublishedStatus = null;
 
-      nextChannel
-        .on('presence', { event: 'sync' }, () => reconcileMembers(nextChannel))
-        .subscribe(async (status, error) => {
-          if (!effectIsActive || channel !== nextChannel) return;
-          if (status === 'SUBSCRIBED') {
-            channelSubscribed = true;
-            reconnectAttempt = 0;
-            await publishCurrentPresence(true);
-            reconcileMembers(nextChannel);
-            return;
-          }
+      try {
+        nextChannel
+          .on('presence', { event: 'sync' }, () => reconcileMembers(nextChannel))
+          .subscribe(async (status, error) => {
+            if (!effectIsActive || channel !== nextChannel) return;
+            if (status === 'SUBSCRIBED') {
+              channelSubscribed = true;
+              reconnectAttempt = 0;
+              await publishCurrentPresence(true);
+              reconcileMembers(nextChannel);
+              return;
+            }
 
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            channelSubscribed = false;
-            lastPublishedStatus = null;
-            setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
-            if (error) console.warn('Presence channel error:', error.message);
-            scheduleReconnect(connectChannel);
-          }
-        });
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              channelSubscribed = false;
+              lastPublishedStatus = null;
+              setOwnMemberStatus('offline', new Date(lastActivityAt).toISOString());
+              if (error) console.warn('Presence channel error:', error.message);
+              scheduleReconnect(connectChannel);
+            }
+          });
+      } catch (err) {
+        console.warn('Presence channel subscription setup error:', err);
+        scheduleReconnect(connectChannel);
+      }
     };
 
     const start = async () => {
@@ -615,6 +635,7 @@ export function useUserPresence() {
         channelSubscribed = false;
         void removePresenceChannel(closingChannel);
       }
+      void removePresenceChannels();
     };
   }, [appIsOffline, browserIsOffline, currentUserId, setMembers]);
 

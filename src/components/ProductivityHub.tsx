@@ -178,7 +178,7 @@ export default function ProductivityHub({
           }
           
           if (onAddSyncLog) {
-            onAddSyncLog('Bảng năng suất: Đồng bộ thói quen và Pomodoro thành công lên Supabase');
+            onAddSyncLog('Bảng năng suất: Đồng bộ thói quen và Pomodoro thành công');
           }
         } catch (e) {
           console.error('Lỗi đồng bộ năng suất:', e);

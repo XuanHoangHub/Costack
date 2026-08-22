@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Document, SyncLog, Space, TaskStatus, NotificationSettings, BaseApp, Workspace } from '../types';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, getCleanChannel } from '../lib/supabaseClient';
 import { useAppActions } from '@/hooks/useAppActions';
 import { useWorkspaceInvitations } from '@/hooks/useRealtimeSync';
 import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '@/hooks/useUserPresence';
@@ -76,7 +76,6 @@ const BaseHub = dynamic(() => import('../components/BaseHub'), { loading: Compon
 const CRMWorkspace = dynamic(() => import('../components/CRMWorkspace'), { loading: ComponentLoading });
 const InboxView = dynamic(() => import('../components/InboxView'), { loading: ComponentLoading });
 const AnalyticsHub = dynamic(() => import('../components/AnalyticsHub'), { loading: ComponentLoading, ssr: false });
-const GoalsHub = dynamic(() => import('../components/GoalsHub'), { loading: ComponentLoading });
 const KeyboardShortcutsModal = dynamic(() => import('../components/KeyboardShortcutsModal'));
 const AddListModal = dynamic(() => import('../components/AddListModal'));
 const FinanceHub = dynamic(() => import('../components/FinanceHub'), { loading: ComponentLoading });
@@ -89,7 +88,8 @@ import {
   Timer, Bell, Calendar, Settings, Plus, Sliders, Sun, Moon,
   Trash2, Zap, User as UserIcon, ChevronRight, ChevronLeft, RotateCcw, Database, Play, Pause, Clock,
   BarChart3, Target, Menu, Globe, Keyboard, Handshake, Landmark, Boxes,
-  ListPlus, ListTodo, PanelLeftOpen, PanelLeftClose, PanelLeft, CheckSquare, Folder, WifiOff
+  ListPlus, ListTodo, PanelLeftOpen, PanelLeftClose, PanelLeft, CheckSquare, Folder, WifiOff,
+  CalendarClock, CalendarDays, Languages, UnfoldVertical, FoldVertical
 } from 'lucide-react';
 
 import {
@@ -159,7 +159,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
+  'dashboard', 'inbox', 'tasks', 'calendar',
   'crm', 'erp', 'finance', 'base', 'docs', 'whiteboard', 'chat', 'team'
 ];
 
@@ -845,46 +845,47 @@ export default function App() {
 
   // Map tasks helper
   const mapTasksToSpaces = (tasksList: Task[]): Task[] => {
+    const workspaceSpaces = spaces.filter(s => s.workspaceId === activeWorkspaceId);
+    const validSpaceIdSet = new Set(workspaceSpaces.map(s => s.id));
+    const defaultSpace = workspaceSpaces[0];
+    const defaultListId = defaultSpace?.lists?.[0]?.id;
+
     return tasksList.map(t => {
-      if (t.spaceId) {
-        return {
-          ...t,
-          assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
-        };
-      }
-      
       let spaceId = t.spaceId;
       let listId = t.listId;
+
+      const taskWsId = t.workspaceId || activeWorkspaceId;
       
-      if (t.workspaceId === 'w2' || !t.workspaceId) {
-        const title = t.title.toLowerCase();
-        if (title.includes('seo') || title.includes('keyword')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-seo';
-        } else if (title.includes('campaign') || title.includes('kickoff')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-campaign';
-        } else if (title.includes('email') || title.includes('launch')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-email';
-        } else if (title.includes('bug') || title.includes('error') || title.includes('fix') || title.includes('test')) {
-          spaceId = 's-w2-qe';
-          listId = title.includes('test') ? 'l-w2-tests' : 'l-w2-bugs';
-        } else if (title.includes('design') || title.includes('ui') || title.includes('ux') || title.includes('mockup') || title.includes('logo')) {
-          spaceId = 's-w2-design';
-          listId = 'l-w2-mockups';
+      if (taskWsId === activeWorkspaceId) {
+        // If spaceId is missing or points to a non-existent space in this workspace
+        if (!spaceId || !validSpaceIdSet.has(spaceId)) {
+          const title = (t.title || '').toLowerCase();
+          const marketingSpace = workspaceSpaces.find(s => s.id.includes('marketing') || s.name.toLowerCase().includes('marketing'));
+          const productSpace = workspaceSpaces.find(s => s.id.includes('product') || s.name.toLowerCase().includes('product')) || defaultSpace;
+          const personalSpace = workspaceSpaces.find(s => s.id.includes('personal') || s.name.toLowerCase().includes('personal'));
+
+          if ((title.includes('seo') || title.includes('campaign') || title.includes('marketing') || title.includes('email')) && marketingSpace) {
+            spaceId = marketingSpace.id;
+            listId = marketingSpace.lists?.find(l => l.name.toLowerCase().includes('campaign') || l.name.toLowerCase().includes('seo'))?.id || marketingSpace.lists?.[0]?.id;
+          } else if ((title.includes('personal') || title.includes('cá nhân') || title.includes('inbox')) && personalSpace) {
+            spaceId = personalSpace.id;
+            listId = personalSpace.lists?.[0]?.id;
+          } else if (productSpace) {
+            spaceId = productSpace.id;
+            listId = productSpace.lists?.find(l => l.name.toLowerCase().includes('sprint') || l.name.toLowerCase().includes('roadmap'))?.id || productSpace.lists?.[0]?.id;
+          }
         } else {
-          spaceId = 's-w2-product';
-          listId = 'l-w2-sprint1';
+          // spaceId is valid, verify listId exists within this space
+          const currentSpace = workspaceSpaces.find(s => s.id === spaceId);
+          if (currentSpace && currentSpace.lists && currentSpace.lists.length > 0) {
+            const listExists = currentSpace.lists.some(l => l.id === listId);
+            if (!listId || !listExists) {
+              listId = currentSpace.lists[0].id;
+            }
+          }
         }
-      } else if (t.workspaceId === 'w1') {
-        spaceId = 's-w1-personal';
-        listId = 'l-w1-todo';
-      } else if (t.workspaceId === 'w3') {
-        spaceId = 's-w3-prep';
-        listId = 'l-w3-roadmap';
       }
-      
+
       return {
         ...t,
         spaceId,
@@ -1301,7 +1302,6 @@ export default function App() {
       },
       tasks: { label: t('space') || 'Space', icon: PhCheckSquare },
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
-      goals: { label: locale === 'vi' ? 'Mục tiêu & OKR' : 'Goals & OKRs', icon: PhTarget, badge: 'OKR' },
       crm: { label: 'CRM', icon: PhHandshake, badge: locale === 'vi' ? 'Mới' : 'New' },
       erp: { label: 'ERP', icon: PhBuildings, badge: 'Enterprise' },
       finance: { label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', icon: PhBank, badge: 'AMIS' },
@@ -1644,11 +1644,11 @@ export default function App() {
   useEffect(() => {
     if (!currentUser || isOffline) return;
 
-    const sub = supabase.channel('global-chat-notifications')
+    const sub = getCleanChannel('global-chat-notifications')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
+        (payload: any) => {
           const msg = payload.new as any;
           if (!msg) return;
           // Skip own messages and AI messages
@@ -2770,7 +2770,15 @@ export default function App() {
 
         // Set up Realtime Postgres Changes Channels
         if (active) {
-          tasksChannel = supabase.channel('realtime-tasks')
+          const getCleanChannel = (name: string) => {
+            const existing = supabase.getChannels().find(c => c.topic === name || c.topic === `realtime:${name}`);
+            if (existing) {
+              void supabase.removeChannel(existing);
+            }
+            return supabase.channel(name);
+          };
+
+          tasksChannel = getCleanChannel('realtime-tasks')
             .on(
               'postgres_changes',
               {
@@ -2828,7 +2836,7 @@ export default function App() {
             )
             .subscribe();
 
-          docsChannel = supabase.channel('realtime-docs')
+          docsChannel = getCleanChannel('realtime-docs')
             .on(
               'postgres_changes',
               {
@@ -2868,7 +2876,7 @@ export default function App() {
             )
             .subscribe();
 
-          membersChannel = supabase.channel('realtime-members')
+          membersChannel = getCleanChannel('realtime-members')
             .on(
               'postgres_changes',
               {
@@ -2934,7 +2942,7 @@ export default function App() {
             )
             .subscribe();
 
-          workspacesChannel = supabase.channel('realtime-workspaces')
+          workspacesChannel = getCleanChannel('realtime-workspaces')
             .on(
               'postgres_changes',
               {
@@ -2974,7 +2982,7 @@ export default function App() {
             )
             .subscribe();
 
-          spacesChannel = supabase.channel('realtime-spaces')
+          spacesChannel = getCleanChannel('realtime-spaces')
             .on(
               'postgres_changes',
               {
@@ -2988,7 +2996,7 @@ export default function App() {
             )
             .subscribe();
 
-          listsChannel = supabase.channel('realtime-lists')
+          listsChannel = getCleanChannel('realtime-lists')
             .on(
               'postgres_changes',
               {
@@ -3002,7 +3010,7 @@ export default function App() {
             )
             .subscribe();
 
-          baseAppsChannel = supabase.channel('realtime-base-apps')
+          baseAppsChannel = getCleanChannel('realtime-base-apps')
             .on(
               'postgres_changes',
               {
@@ -3016,7 +3024,7 @@ export default function App() {
             )
             .subscribe();
 
-          invitationsChannel = supabase.channel('realtime-workspace-invitations')
+          invitationsChannel = getCleanChannel('realtime-workspace-invitations')
             .on(
               'postgres_changes',
               {
@@ -3129,7 +3137,7 @@ export default function App() {
             setActiveListId(null);
             setAccentPreset(saved.theme as any);
             triggerToast('success', 'Success', `Created new workspace: ${name}`);
-            addSyncLog(`Synchronized new workspace: ${name} to Supabase`);
+            addSyncLog(`Synchronized new workspace: ${name} to Cloud`);
             return;
           } else if (error) {
             console.error('Error saving workspace to database (falling back to offline caching):', error);
@@ -3282,6 +3290,13 @@ export default function App() {
       );
     }
 
+    const workspaceSpaces = spaces.filter(s => s.workspaceId === (t.workspaceId || activeWorkspaceId));
+    const targetSpace = (t.spaceId && workspaceSpaces.find(s => s.id === t.spaceId))
+      || (activeSpaceId && workspaceSpaces.find(s => s.id === activeSpaceId))
+      || workspaceSpaces[0];
+    const targetSpaceId = t.spaceId || targetSpace?.id || undefined;
+    const targetListId = t.listId || (targetSpace?.lists && targetSpace.lists.length > 0 ? (targetSpace.lists.find(l => l.id === activeListId)?.id || targetSpace.lists[0].id) : undefined);
+
     const taskId = `task-${Date.now()}`;
     const newTask: Task = {
       ...t,
@@ -3291,7 +3306,9 @@ export default function App() {
       progress: (t as any).progress !== undefined ? (t as any).progress : 0,
       comments: [],
       attachments: [],
-      workspaceId: t.workspaceId || activeWorkspaceId
+      workspaceId: t.workspaceId || activeWorkspaceId,
+      spaceId: targetSpaceId,
+      listId: targetListId
     };
 
     // Update locally instantly for smooth UI response
@@ -3862,7 +3879,6 @@ export default function App() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
     { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
-    { id: 'goals', label: 'Goals & OKRs', icon: Target, category: 'workspace' },
     { id: 'crm', label: 'CRM', icon: Handshake, category: 'workspace' },
     { id: 'base', label: 'Avaxa Base', icon: Database, category: 'workspace' },
     { id: 'whiteboard', label: 'Mind Whiteboard', icon: Grid, category: 'collaboration' },
@@ -4495,36 +4511,52 @@ export default function App() {
             {/* Interactive Date & Display Options Pill Widget */}
             {(() => {
               const now = new Date();
-              let formattedDate = '';
-              switch (dateFormat) {
-                case 'full':
-                  formattedDate = now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                  break;
-                case 'vi':
-                  formattedDate = now.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
-                  break;
-                case 'numeric':
-                  formattedDate = now.toISOString().split('T')[0];
-                  break;
-                case 'clock':
-                  formattedDate = `${now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • ${currentTimeStr || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                  break;
-                case 'short':
-                default:
-                  formattedDate = now.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                  break;
-              }
+              const localeTag = locale === 'vi' ? 'vi-VN' : 'en-US';
+              const renderDateValue = (fmt: string, ref: Date) => {
+                switch (fmt) {
+                  case 'full':
+                    return ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                  case 'vi':
+                    return ref.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+                  case 'numeric':
+                    return ref.toISOString().split('T')[0];
+                  case 'clock':
+                    return `${ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric' })} • ${currentTimeStr || ref.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                  case 'short':
+                  default:
+                    return ref.toLocaleDateString(localeTag, { weekday: 'short', month: 'short', day: 'numeric' });
+                }
+              };
+              const formattedDate = renderDateValue(dateFormat, now);
+
+              const dateFmtOptions: { id: 'short' | 'clock' | 'full' | 'vi' | 'numeric'; label: string; icon: typeof Calendar; tile: string }[] = [
+                { id: 'short', label: locale === 'vi' ? 'Ngắn gọn' : 'Short', icon: Calendar, tile: 'bg-sky-50 text-sky-600 border-sky-200/70 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/20' },
+                { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime' : 'Live Clock', icon: CalendarClock, tile: 'bg-emerald-50 text-emerald-600 border-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20' },
+                { id: 'full', label: locale === 'vi' ? 'Chi tiết' : 'Full', icon: CalendarDays, tile: 'bg-violet-50 text-violet-600 border-violet-200/70 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20' },
+                { id: 'vi', label: locale === 'vi' ? 'Chuẩn Việt Nam' : 'Vietnamese', icon: Languages, tile: 'bg-amber-50 text-amber-600 border-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20' },
+                { id: 'numeric', label: locale === 'vi' ? 'Số ISO' : 'ISO Numeric', icon: Hash, tile: 'bg-slate-100 text-slate-600 border-slate-200/70 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20' },
+              ];
 
               return (
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setShowDisplayOptionsMenu(!showDisplayOptionsMenu)}
-                    className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 font-sans hidden lg:inline-flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 px-3 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700/80 select-none shadow-3xs transition-all cursor-pointer group active:scale-95"
+                    className={`text-[10.5px] font-black tabular-nums font-sans hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border select-none transition-all cursor-pointer group active:scale-95 ${
+                      showDisplayOptionsMenu
+                        ? 'bg-white dark:bg-slate-800 border-indigo-300/80 dark:border-indigo-500/50 text-indigo-600 dark:text-indigo-300 shadow-md shadow-indigo-500/10'
+                        : 'bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/60 hover:border-indigo-300/70 dark:hover:border-indigo-500/40 hover:shadow-md hover:shadow-indigo-500/10'
+                    }`}
                     title={locale === 'vi' ? 'Tùy chọn hiển thị & Định dạng thời gian' : 'Display Options & Date Format'}
                   >
                     <Calendar className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:rotate-12 transition-transform" />
+                    {dateFormat === 'clock' && (
+                      <span className="relative flex h-1.5 w-1.5 shrink-0" title={locale === 'vi' ? 'Đang cập nhật realtime' : 'Updating live'}>
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      </span>
+                    )}
                     <span>{formattedDate}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform" />
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-all group-hover:text-slate-600 dark:group-hover:text-slate-200 ${showDisplayOptionsMenu ? 'rotate-180 text-indigo-500 group-hover:text-indigo-600 dark:text-indigo-300' : ''}`} />
                   </button>
 
                   {/* Display Options & Date Format Popover Menu */}
@@ -4539,10 +4571,13 @@ export default function App() {
                           transition={{ type: "spring", stiffness: 420, damping: 28 }}
                           className="absolute right-0 top-full mt-2 w-84 sm:w-92 max-w-[92vw] bg-white dark:bg-[#0c0f18] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)] p-5 z-50 text-left space-y-4 font-sans overflow-hidden"
                         >
+                          {/* Ambient gradient decoration */}
+                          <div className="absolute -top-20 -right-12 w-52 h-52 rounded-full bg-gradient-to-br from-indigo-500/15 via-sky-500/10 to-transparent blur-2xl pointer-events-none dark:from-indigo-500/20" />
+
                           {/* Popover Header */}
-                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                          <div className="relative flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-sky-300 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center shadow-3xs shrink-0">
+                              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-500 to-violet-500 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center shrink-0">
                                 <Sliders className="w-4 h-4" />
                               </div>
                               <div>
@@ -4554,47 +4589,69 @@ export default function App() {
                                 </span>
                               </div>
                             </div>
-                            <button 
-                              type="button"
-                              onClick={() => setShowDisplayOptionsMenu(false)} 
-                              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+                                <span className="relative flex h-1 w-1">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
+                                  <span className="relative inline-flex h-1 w-1 rounded-full bg-indigo-500" />
+                                </span>
+                                {currentTimeStr || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowDisplayOptionsMenu(false)}
+                                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
 
-                          {/* Date Format Section */}
-                          <div className="space-y-2">
+                          {/* Date Format Section — with live previews */}
+                          <div className="relative space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider block px-1">
                               {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time Format'}
                             </label>
-                            <div className="p-1 bg-slate-50/80 dark:bg-slate-950/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-1">
-                              {[
-                                { id: 'short', label: locale === 'vi' ? 'Ngắn gọn (Wed, Jul 22)' : 'Short (Wed, Jul 22)', icon: '📅' },
-                                { id: 'clock', label: locale === 'vi' ? 'Đồng hồ Realtime (Wed, Jul 22 • 08:57)' : 'Live Clock (Wed, Jul 22 • 08:57)', icon: '⏰' },
-                                { id: 'full', label: locale === 'vi' ? 'Chi tiết (Wed, Jul 22, 2026)' : 'Full (Wed, Jul 22, 2026)', icon: '📆' },
-                                { id: 'vi', label: locale === 'vi' ? 'Chuẩn Tiếng Việt (T2, 22/07)' : 'Vietnamese Format (T2, 22/07)', icon: '🇻🇳' },
-                                { id: 'numeric', label: locale === 'vi' ? 'Số ISO (2026-07-22)' : 'ISO Numeric (2026-07-22)', icon: '🔢' }
-                              ].map(fmt => {
+                            <div className="p-1 bg-slate-50/80 dark:bg-slate-950/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-0.5">
+                              {dateFmtOptions.map(fmt => {
                                 const isSelected = dateFormat === fmt.id;
+                                const Icon = fmt.icon;
                                 return (
                                   <button
                                     key={fmt.id}
                                     type="button"
-                                    onClick={() => setDateFormat(fmt.id as any)}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-white dark:bg-slate-800/90 text-blue-600 dark:text-sky-300 border border-blue-200/80 dark:border-blue-700/60 shadow-xs font-black'
-                                        : 'text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/60 border border-transparent font-bold'
-                                    }`}
+                                    onClick={() => setDateFormat(fmt.id)}
+                                    className={`group relative w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl text-left transition-all cursor-pointer ${isSelected ? '' : 'hover:bg-white/70 dark:hover:bg-slate-900/60'}`}
                                   >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <span className="text-sm shrink-0">{fmt.icon}</span>
-                                      <span className="truncate">{fmt.label}</span>
-                                    </div>
                                     {isSelected && (
-                                      <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0 stroke-[3] ml-2" />
+                                      <motion.span
+                                        layoutId="apexaDateFormatPill"
+                                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                                        className="absolute inset-0 rounded-xl bg-white dark:bg-slate-800/90 border border-indigo-200/80 dark:border-indigo-500/40 shadow-xs"
+                                      />
                                     )}
+                                    <span className={`relative z-10 w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-all ${fmt.tile} ${isSelected ? 'scale-105 shadow-xs' : 'opacity-75 group-hover:opacity-100'}`}>
+                                      <Icon className="w-3.5 h-3.5" />
+                                    </span>
+                                    <span className="relative z-10 min-w-0 flex-1">
+                                      <span className={`block text-[11px] leading-tight truncate ${isSelected ? 'font-black text-indigo-600 dark:text-indigo-300' : 'font-bold text-slate-700 dark:text-slate-200'}`}>
+                                        {fmt.label}
+                                      </span>
+                                      <span className={`block font-mono text-[9.5px] leading-tight truncate tabular-nums ${isSelected ? 'text-indigo-500/80 dark:text-indigo-300/70' : 'text-slate-400 dark:text-slate-500'}`}>
+                                        {renderDateValue(fmt.id, now)}
+                                      </span>
+                                    </span>
+                                    <span className="relative z-10 w-4 h-4 flex items-center justify-center shrink-0">
+                                      {isSelected && (
+                                        <motion.span
+                                          initial={{ scale: 0, opacity: 0 }}
+                                          animate={{ scale: 1, opacity: 1 }}
+                                          transition={{ type: 'spring', stiffness: 600, damping: 25 }}
+                                        >
+                                          <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300 stroke-[3]" />
+                                        </motion.span>
+                                      )}
+                                    </span>
                                   </button>
                                 );
                               })}
@@ -4602,43 +4659,63 @@ export default function App() {
                           </div>
 
                           {/* UI Density Options */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+                          <div className="relative pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
                             <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider block px-1">
                               {locale === 'vi' ? 'Mật độ hiển thị UI' : 'Interface Density'}
                             </label>
-                            <div className="grid grid-cols-2 gap-1.5 bg-slate-50/80 dark:bg-slate-950/60 p-1 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                              <button
-                                type="button"
-                                onClick={() => setUiDensity('comfortable')}
-                                className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                                  uiDensity === 'comfortable'
-                                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-xs border border-slate-200/60 dark:border-slate-700/60'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                <span>🌿</span>
-                                <span>{locale === 'vi' ? 'Vừa vặn' : 'Comfortable'}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setUiDensity('compact')}
-                                className={`py-2 px-3 rounded-xl text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                                  uiDensity === 'compact'
-                                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-xs border border-slate-200/60 dark:border-slate-700/60'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                <span>⚡</span>
-                                <span>{locale === 'vi' ? 'Tối giản' : 'Compact'}</span>
-                              </button>
+                            <div className="grid grid-cols-2 gap-1 bg-slate-50/80 dark:bg-slate-950/60 p-1 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                              {([
+                                { id: 'comfortable', icon: UnfoldVertical, label: locale === 'vi' ? 'Vừa vặn' : 'Comfortable' },
+                                { id: 'compact', icon: FoldVertical, label: locale === 'vi' ? 'Tối giản' : 'Compact' },
+                              ] as const).map(d => {
+                                const isSelected = uiDensity === d.id;
+                                const Icon = d.icon;
+                                return (
+                                  <button
+                                    key={d.id}
+                                    type="button"
+                                    onClick={() => setUiDensity(d.id)}
+                                    className="relative py-2 px-3 rounded-xl text-center text-xs transition-all cursor-pointer"
+                                  >
+                                    {isSelected && (
+                                      <motion.span
+                                        layoutId="apexaDensityPill"
+                                        transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                                        className="absolute inset-0 rounded-xl bg-white dark:bg-slate-800 shadow-xs border border-indigo-200/80 dark:border-indigo-500/40"
+                                      />
+                                    )}
+                                    <span className={`relative z-10 flex items-center justify-center gap-1.5 font-black ${isSelected ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>
+                                      <Icon className="w-3.5 h-3.5" />
+                                      {d.label}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
+                            <p className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 px-1 leading-tight">
+                              {uiDensity === 'comfortable'
+                                ? (locale === 'vi' ? 'Khoảng cách thoáng, dễ đọc hơn' : 'Roomier spacing, easier to read')
+                                : (locale === 'vi' ? 'Thu gọn khoảng cách, hiển thị nhiều hơn' : 'Tighter spacing, more content visible')}
+                            </p>
                           </div>
 
                           {/* Quick Theme Switch */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-1">
-                            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">
-                              {locale === 'vi' ? 'Chế độ giao diện' : 'Theme Mode'}
-                            </span>
+                          <div className="relative pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between px-1">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-indigo-50 text-indigo-500 border-indigo-200/70 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/20' : 'bg-amber-50 text-amber-500 border-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'}`}>
+                                {isDarkMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+                              </div>
+                              <div>
+                                <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider leading-tight">
+                                  {locale === 'vi' ? 'Chế độ giao diện' : 'Theme Mode'}
+                                </span>
+                                <span className="block text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                                  {isDarkMode
+                                    ? (locale === 'vi' ? 'Đang dùng: Tối' : 'Current: Dark')
+                                    : (locale === 'vi' ? 'Đang dùng: Sáng' : 'Current: Light')}
+                                </span>
+                              </div>
+                            </div>
                             <ThemeSwitch size="sm" />
                           </div>
                         </motion.div>
@@ -5423,7 +5500,7 @@ export default function App() {
 
                   {(activeTab === 'tasks' || activeTab === 'my-tasks') && (
                     <SpacePage
-                      tasks={mapTasksToSpaces(tasks)}
+                      tasks={mapTasksToSpaces(currentWorkspaceTasks)}
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
@@ -5493,13 +5570,16 @@ export default function App() {
 
                   {activeTab === 'calendar' && (
                     <CalendarView
-                      tasks={currentWorkspaceTasks}
+                      tasks={mapTasksToSpaces(currentWorkspaceTasks)}
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
+                      spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
+                      activeSpaceId={activeSpaceId}
+                      activeListId={activeListId}
                     />
                   )}
 
@@ -5510,17 +5590,6 @@ export default function App() {
                       isOffline={isOffline}
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
-                      onAddSyncLog={addSyncLog}
-                      triggerToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === 'goals' && (
-                    <GoalsHub
-                      tasks={currentWorkspaceTasks}
-                      members={currentWorkspaceMembers}
-                      workspaceId={activeWorkspaceId}
-                      currentUser={currentUser}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
                     />

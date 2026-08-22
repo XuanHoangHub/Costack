@@ -297,18 +297,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
-      id: 'goto-goals',
-      name: '/goals',
-      label: isVietnamese ? 'Mục tiêu chiến lược (OKRs)' : 'Open Goals (OKRs)',
-      description: isVietnamese ? 'Theo dõi mục tiêu cốt lõi và kết quả then chốt' : 'Track strategic objectives and key results',
-      icon: Target,
-      badge: 'OKRs',
-      action: () => {
-        onNavigateTab('goals');
-        addSyncLog('Command: Opened Goals');
-      },
-    },
-    {
       id: 'goto-team',
       name: '/team',
       label: isVietnamese ? 'Danh bạ nhân sự Team OS' : 'Open Team OS',

@@ -1,1 +1,1 @@
-export { supabase } from "./lib/supabaseClient";
+export { supabase, getCleanChannel } from "./lib/supabaseClient";

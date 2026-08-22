@@ -6,22 +6,26 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import { yCursorPlugin } from '@tiptap/y-tiptap';
 import { Doc, applyUpdate, encodeStateAsUpdate } from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Bold, Italic, Strikethrough, Code, Sparkles, Image as ImageIcon,
   MessageSquare, User, Send, CheckSquare, List, ListOrdered, Quote, Heading1, Heading2, Heading3,
   Download, FileText, Copy, X, History, Share2, Globe2, LockKeyhole,
   RotateCcw, RotateCw, UserPlus, CheckCircle2, ListTodo, ShieldCheck, Pilcrow, Minus, Wand2, Eye,
-  Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2
+  Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2,
+  Film, Clapperboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMemberStore } from '@/store/memberStore';
 import { callAiApi } from '@/lib/aiClient';
 import { renderSpaceIcon } from './EmojiIconPicker';
+import ScreenplayEditor from './script/ScreenplayEditor';
+import { ApexaAiIcon } from './ApexaAiIcon';
 
 interface DocumentEditorProps {
   documentId: string;
@@ -129,7 +133,7 @@ class SupabaseYjsProvider {
       avatar: userAvatar,
     });
 
-    this.channel = supabase.channel(channelName, {
+    this.channel = getCleanChannel(channelName, {
       config: {
         broadcast: {
           self: false,
@@ -271,6 +275,59 @@ class SupabaseYjsProvider {
   }
 }
 
+// Custom Collaboration Cursor Extension using @tiptap/y-tiptap to avoid pluginKey mismatch
+const CustomCollaborationCursor = Extension.create({
+  name: 'collaborationCursor',
+  addOptions() {
+    return {
+      provider: null as any,
+      user: {
+        name: 'Thành viên',
+        color: '#6366f1',
+        avatar: '',
+      },
+    };
+  },
+  addProseMirrorPlugins() {
+    if (!this.options.provider?.awareness) {
+      return [];
+    }
+    const awareness = this.options.provider.awareness;
+    if (this.options.user) {
+      try {
+        awareness.setLocalStateField('user', this.options.user);
+      } catch (e) {
+        console.warn('Error setting awareness user:', e);
+      }
+    }
+    try {
+      return [
+        yCursorPlugin(awareness, {
+          cursorBuilder: (user: any) => {
+            const cursor = document.createElement('span');
+            cursor.classList.add('collaboration-cursor__caret');
+            cursor.setAttribute('style', `border-left-color: ${user?.color || '#6366f1'}`);
+
+            const label = document.createElement('div');
+            label.classList.add('collaboration-cursor__label');
+            label.setAttribute('style', `background-color: ${user?.color || '#6366f1'}`);
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = user?.name || 'Thành viên';
+            label.appendChild(nameSpan);
+
+            cursor.appendChild(label);
+            return cursor;
+          },
+        }),
+      ];
+    } catch (err) {
+      console.warn('Error initializing yCursorPlugin:', err);
+      return [];
+    }
+  },
+});
+
 // Preset Covers
 const COVERS = [
   'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)',
@@ -382,6 +439,7 @@ export default function DocumentEditor({
   });
 
   const [isLocked, setIsLocked] = useState(false);
+  const [isScreenplayMode, setIsScreenplayMode] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
   const [showPaperSettings, setShowPaperSettings] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -447,7 +505,7 @@ export default function DocumentEditor({
     return getUserCollabColor(authUserId, currentUser?.name);
   }, [authUserId, currentUser?.name]);
 
-  const yDoc = useMemo(() => new Doc(), []);
+  const yDoc = useMemo(() => new Doc(), [documentId]);
 
   const provider = useMemo(() => {
     return new SupabaseYjsProvider(
@@ -517,7 +575,7 @@ export default function DocumentEditor({
       return () => provider.destroy();
     }
 
-    const commentsSub = supabase.channel(`comments-realtime-${documentId}`)
+    const commentsSub = getCleanChannel(`comments-realtime-${documentId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -563,28 +621,12 @@ export default function DocumentEditor({
         Collaboration.configure({
           document: yDoc,
         }),
-        CollaborationCursor.configure({
+        CustomCollaborationCursor.configure({
           provider: provider,
           user: {
             name: currentUser?.name || 'Thành viên',
             color: userColor,
             avatar: currentUser?.avatar || '',
-          },
-          render: (user: any) => {
-            const cursor = document.createElement('span');
-            cursor.classList.add('collaboration-cursor__caret');
-            cursor.setAttribute('style', `border-left-color: ${user.color || '#6366f1'}`);
-
-            const label = document.createElement('div');
-            label.classList.add('collaboration-cursor__label');
-            label.setAttribute('style', `background-color: ${user.color || '#6366f1'}`);
-
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = user.name || 'Thành viên';
-            label.appendChild(nameSpan);
-
-            cursor.appendChild(label);
-            return cursor;
           },
         })
       );
@@ -599,19 +641,29 @@ export default function DocumentEditor({
   }, []);
 
   const updateSlashMenu = useCallback((editorInstance: any) => {
+    if (!editorInstance || !editorInstance.state || !editorInstance.view) {
+      closeSlashMenu();
+      return;
+    }
     const { view, state } = editorInstance;
-    const { selection } = state;
+    const { selection } = state || {};
+    if (!selection || !selection.$from) {
+      closeSlashMenu();
+      return;
+    }
     if (!selection.empty) {
       closeSlashMenu();
       return;
     }
 
-    const textBeforeCursor = selection.$from.parent.textBetween(
-      0,
-      selection.$from.parentOffset,
-      undefined,
-      '\ufffc'
-    );
+    const textBeforeCursor = selection.$from.parent?.textBetween
+      ? selection.$from.parent.textBetween(
+          0,
+          selection.$from.parentOffset,
+          undefined,
+          '\ufffc'
+        )
+      : '';
     const match = textBeforeCursor.match(/(?:^|\s)\/([^/]*)$/);
     if (!match) {
       closeSlashMenu();
@@ -731,8 +783,10 @@ export default function DocumentEditor({
       (editor as any).saveTimeout = setTimeout(saveContent, 1000);
     },
     onSelectionUpdate({ editor }) {
+      if (!editor || !editor.state || !editor.view || !editor.state.doc) return;
       const { view, state } = editor;
-      const { selection } = state;
+      const { selection } = state || {};
+      if (!selection) return;
       const { from, to } = selection;
       
       if (selection.empty) {
@@ -795,21 +849,25 @@ export default function DocumentEditor({
 
   // Extract headings from editor for Table of Contents
   const headings = useMemo(() => {
-    if (!editor) return [];
+    if (!editor || editor.isDestroyed || !editor.state || !editor.state.doc) return [];
     const items: { id: string; text: string; level: number; pos: number }[] = [];
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'heading') {
-        const text = node.textContent.trim();
-        if (text) {
-          items.push({
-            id: `heading-${pos}`,
-            text,
-            level: node.attrs.level,
-            pos
-          });
+    try {
+      editor.state.doc.descendants((node, pos) => {
+        if (node?.type?.name === 'heading') {
+          const text = node.textContent?.trim() || '';
+          if (text) {
+            items.push({
+              id: `heading-${pos}`,
+              text,
+              level: node.attrs?.level || 1,
+              pos
+            });
+          }
         }
-      }
-    });
+      });
+    } catch (e) {
+      console.warn('Error extracting headings:', e);
+    }
     return items;
   }, [editor]);
 
@@ -1048,9 +1106,9 @@ export default function DocumentEditor({
   };
 
   const createTaskFromSelection = () => {
-    if (!editor || !onCreateTask) return;
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
+    if (!editor || !editor.state || !editor.state.doc || !onCreateTask) return;
+    const { from, to } = editor.state.selection || { from: 0, to: 0 };
+    const selectedText = editor.state.doc.textBetween(from, to, ' ')?.trim() || '';
     if (!selectedText) return;
     onCreateTask(
       selectedText.length > 90 ? `${selectedText.slice(0, 87)}…` : selectedText,
@@ -1089,6 +1147,17 @@ export default function DocumentEditor({
   const words = editor.getText().trim().split(/\s+/).filter(Boolean).length;
   const readTime = Math.max(1, Math.ceil(words / 200));
 
+  if (isScreenplayMode) {
+    return (
+      <ScreenplayEditor
+        documentId={documentId}
+        initialTitle={docDetails?.title || 'The Girl & the Fox'}
+        currentUser={currentUser}
+        onBackToDocs={() => setIsScreenplayMode(false)}
+      />
+    );
+  }
+
   return (
     <div 
       style={getPaperBgStyle()}
@@ -1099,10 +1168,10 @@ export default function DocumentEditor({
       
       {/* ── TOP STICKY PRO FORMATTING RIBBON & CONTROLS ── */}
       {!isFocusMode && (
-        <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0b0f17]/95 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/90 px-4 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-2 select-none print:hidden">
+        <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0b0f17]/95 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/90 px-2.5 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-2 select-none print:hidden overflow-x-auto scrollbar-none">
           
           {/* Left Ribbon: Text Styles & Block Types */}
-          <div className="flex items-center gap-1 flex-wrap overflow-x-auto scrollbar-none py-0.5">
+          <div className="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-auto scrollbar-none py-0.5">
             {/* History: Undo / Redo */}
             <div className="flex items-center border-r border-slate-200 dark:border-slate-800 pr-1.5 mr-1 gap-0.5">
               <button
@@ -1294,7 +1363,7 @@ export default function DocumentEditor({
                 disabled={isAiProcessing}
                 className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-xs font-black text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
               >
-                <Wand2 className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} />
+                <ApexaAiIcon className={`w-3.5 h-3.5 ${isAiProcessing ? 'animate-spin' : ''}`} variant="white" />
                 <span className="hidden sm:inline">{isAiProcessing ? 'AI đang viết…' : 'Trợ lý AI'}</span>
                 <ChevronDown className="w-3 h-3 text-white/80" />
               </button>
@@ -1309,7 +1378,8 @@ export default function DocumentEditor({
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
                       className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#0c0f18]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left select-none font-sans"
                     >
-                      <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                      <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center gap-2">
+                        <ApexaAiIcon className="w-4 h-4" variant="gradient" />
                         <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Apexa AI Writer</span>
                       </div>
                       <button 
@@ -1500,6 +1570,17 @@ export default function DocumentEditor({
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Screenplay Editor Mode Button */}
+            <button
+              type="button"
+              onClick={() => setIsScreenplayMode(true)}
+              className="p-1.5 px-2.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 hover:from-pink-500/20 hover:to-rose-500/20 border border-pink-300 dark:border-pink-800/60 text-pink-600 dark:text-pink-400 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Chuyển sang chế độ Kịch bản phim (Screenplay)"
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Kịch bản</span>
+            </button>
 
             {/* Lock / Read-only Mode Toggle */}
             <button
@@ -1862,10 +1943,12 @@ export default function DocumentEditor({
                       <button 
                         type="button"
                         onClick={() => {
-                          const selectionPosition = editor.state.selection.$from.depth > 0
-                            ? editor.state.selection.$from.before()
-                            : 0;
-                          const blockId = editor.state.selection.$from.parent.attrs.id || `block-${selectionPosition}`;
+                          if (!editor || !editor.state || !editor.state.selection) return;
+                          const $from = editor.state.selection.$from;
+                          const selectionPosition = $from && $from.depth > 0
+                            ? $from.before()
+                            : ($from?.pos ?? 0);
+                          const blockId = $from?.parent?.attrs?.id || `block-${selectionPosition}`;
                           setSelectedBlockId(blockId);
                         }}
                         className="px-2 py-1 rounded-lg hover:bg-slate-700 flex items-center gap-1 text-xs font-bold transition-colors text-slate-300 cursor-pointer"

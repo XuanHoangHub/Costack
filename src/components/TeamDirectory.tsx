@@ -15,7 +15,8 @@ import {
   Check, ChevronDown, UserMinus, Plus, Info, LayoutGrid,
   Award, Activity, Star, Phone, Search, X, SlidersHorizontal,
   Briefcase, Calendar, CheckSquare, ClipboardList, Flame, Edit, 
-  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap
+  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap,
+  List, Copy, Crown, ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
@@ -86,6 +87,8 @@ export default function TeamDirectory({
   const { t, locale } = useTranslation();
   // Top-level Team OS sub-tab state
   const [teamOSView, setTeamOSView] = useState<'overview' | 'teams' | 'directory' | 'org_chart' | 'workload' | 'integrations'>('overview');
+  const [directoryViewMode, setDirectoryViewMode] = useState<'grid' | 'table'>('grid');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   // Presence is mounted once at app level; this action updates that shared connection.
   const setCustomStatus = setUserPresenceStatus;
@@ -599,9 +602,9 @@ export default function TeamDirectory({
     <div className="space-y-6">
       
       {/* Team workspace header */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white/90 p-5 md:p-6 shadow-sm backdrop-blur-xs dark:border-slate-800/80 dark:bg-slate-900/90 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/80 p-5 md:p-6 shadow-xs backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3.5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/25">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-lg shadow-blue-500/25">
             <Users className="h-6 w-6" />
           </div>
           <div className="min-w-0 text-left">
@@ -609,29 +612,32 @@ export default function TeamDirectory({
               <h2 className="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white">
                 {locale === 'vi' ? 'Thành viên & Đội ngũ' : 'Members & Teams'}
               </h2>
-              <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/60 px-3 py-1 text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300">
+              <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3 py-1 text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300">
                 {currentWorkspaceName}
               </span>
             </div>
             <p className="mt-1 text-xs font-semibold text-slate-400 flex items-center gap-2">
               <span>{workspaceMembers.length} {locale === 'vi' ? 'thành viên' : 'members'}</span>
               <span className="inline-block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
                 {onlineWorkspaceCount + busyWorkspaceCount} {locale === 'vi' ? 'đang hoạt động' : 'active now'}
               </span>
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Quick enroll button */}
           {activeTab === 'workspace' && membersAvailableToEnroll.length > 0 && (
             <div className="relative">
               <button
                 id="btn_enroll_existing"
                 onClick={() => setShowAddExistingDropdown(!showAddExistingDropdown)}
-                className="py-2.5 px-4 bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all shadow-2xs cursor-pointer select-none"
+                className="py-2.5 px-4 bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all shadow-2xs cursor-pointer select-none"
               >
                 <Plus className="w-4 h-4 text-indigo-500" />
                 <span>{locale === 'vi' ? 'Thêm từ tổ chức' : 'Add from organization'}</span>
@@ -683,7 +689,7 @@ export default function TeamDirectory({
               (window as any).playSystemSound?.('click');
               setShowInviteModal(true);
             }}
-            className="py-2.5 px-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-extrabold rounded-2xl shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+            className="py-2.5 px-4.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-extrabold rounded-2xl shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-103 active:scale-97"
           >
             <UserPlus className="w-4 h-4" />
             <span>{locale === 'vi' ? 'Thêm / Mời thành viên' : 'Add / Invite Staff'}</span>
@@ -692,7 +698,7 @@ export default function TeamDirectory({
       </div>
 
       {/* Primary navigation */}
-      <nav aria-label="Điều hướng đội ngũ" className="flex gap-1.5 overflow-x-auto rounded-3xl border border-slate-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-xs scrollbar-none dark:border-slate-800/80 dark:bg-slate-900/90">
+      <nav aria-label="Điều hướng đội ngũ" className="flex gap-1.5 overflow-x-auto rounded-3xl border border-slate-200/70 bg-white/80 p-1.5 shadow-xs backdrop-blur-md scrollbar-none dark:border-slate-800/80 dark:bg-slate-900/80">
         {[
           { id: 'overview', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
           { id: 'teams', label: locale === 'vi' ? 'Nhóm' : 'Teams', icon: Users },
@@ -709,9 +715,9 @@ export default function TeamDirectory({
               setTeamOSView(tab.id as any);
               (window as any).playSystemSound?.('click');
             }}
-            className={`flex min-w-max flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-3.5 py-2.5 text-xs font-extrabold transition-all cursor-pointer ${
+            className={`flex min-w-max flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-4 py-2.5 text-xs font-extrabold transition-all cursor-pointer ${
               teamOSView === tab.id
-                ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900 scale-102'
+                ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900 scale-101'
                 : 'text-slate-500 hover:bg-slate-100/70 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/70 dark:hover:text-slate-100'
             }`}
           >
@@ -766,24 +772,24 @@ export default function TeamDirectory({
         <div className="space-y-6">
           {/* My Status Selector Card */}
           {me && (
-            <div className="relative p-5 bg-indigo-500/5 dark:bg-indigo-950/10 border border-indigo-500/20 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="relative p-5 bg-indigo-500/5 dark:bg-indigo-950/15 border border-indigo-500/20 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-md">
               <div className="flex items-center gap-3.5">
                 <div className="relative">
                   <SignedImage
                     filePath={me.avatar}
-                    className="w-12 h-12 rounded-full border-2 border-indigo-500/30 object-cover shrink-0 select-none bg-slate-50 dark:bg-slate-900"
+                    className="w-12 h-12 rounded-full border-2 border-indigo-500/30 object-cover shrink-0 select-none bg-slate-50 dark:bg-slate-900 shadow-xs"
                     alt={me.name}
                   />
                   <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[me.status as keyof typeof statusColors]} shrink-0 shadow-xs`} />
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-sm text-slate-855 dark:text-slate-55">Trạng thái của bạn</span>
-                    <span className="text-[10px] font-black bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-650 dark:text-indigo-400 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    <span className="font-extrabold text-sm text-slate-850 dark:text-slate-55">Trạng thái của bạn</span>
+                    <span className="text-[10px] font-black bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-650 dark:text-indigo-400 px-2.5 py-0.5 rounded-lg uppercase tracking-wider border border-indigo-500/20">
                       {statusLabelsEng[me.status as keyof typeof statusLabelsEng]}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-550 dark:text-slate-400 mt-1 flex items-center gap-1.5">
+                  <p className="text-[11.5px] text-slate-550 dark:text-slate-400 mt-1 flex items-center gap-1.5">
                     {me.statusEmoji ? <span className="text-sm">{me.statusEmoji}</span> : null}
                     <span className={me.statusMessage ? "italic text-slate-700 dark:text-slate-300 font-medium" : "text-slate-400 italic"}>
                       {me.statusMessage ? `"${me.statusMessage}"` : "Chưa có lời nhắn trạng thái."}
@@ -795,10 +801,10 @@ export default function TeamDirectory({
               <div className="relative">
                 <button
                   onClick={() => setShowStatusPopover(!showStatusPopover)}
-                  className="py-2 px-4 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs transition-all cursor-pointer select-none"
+                  className="py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-2xl flex items-center gap-1.5 border border-slate-200/80 dark:border-slate-700 shadow-xs transition-all cursor-pointer select-none"
                 >
                   <span>Tùy chỉnh trạng thái</span>
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
 
                 {/* Status Customization Dropdown Popover */}
@@ -810,14 +816,14 @@ export default function TeamDirectory({
                         initial={{ opacity: 0, scale: 0.96, y: 8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                        className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-40 p-4 space-y-4"
+                        className="absolute right-0 mt-2.5 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl z-40 p-4.5 space-y-4 text-left backdrop-blur-xl"
                       >
-                        <div className="text-xs font-black text-slate-855 dark:text-slate-200 pb-2 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider text-left">
+                        <div className="text-xs font-black text-slate-850 dark:text-slate-200 pb-2 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider">
                           Cập nhật trạng thái
                         </div>
 
                         {/* Status radio choices */}
-                        <div className="space-y-2 text-left">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase text-slate-400">Availability</label>
                           <div className="grid grid-cols-2 gap-2">
                             {[
@@ -830,9 +836,9 @@ export default function TeamDirectory({
                                 key={opt.id}
                                 type="button"
                                 onClick={() => setStatusVal(opt.id as any)}
-                                className={`flex items-center gap-2 p-2 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                                className={`flex items-center gap-2 p-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
                                   statusVal === opt.id
-                                    ? 'border-indigo-500 bg-indigo-500/5 text-indigo-650 dark:text-indigo-400 dark:bg-indigo-950/20'
+                                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 dark:bg-indigo-950/30'
                                     : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-805 text-slate-605 dark:text-slate-300'
                                 }`}
                               >
@@ -844,16 +850,16 @@ export default function TeamDirectory({
                         </div>
 
                         {/* Custom message input */}
-                        <div className="space-y-1.5 text-left">
-                          <label className="text-[10px] font-black uppercase text-slate-400 font-sans">Lời nhắn trạng thái</label>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Lời nhắn trạng thái</label>
                           <div className="flex gap-2">
                             <input
                               type="text"
                               maxLength={3}
                               value={statusEmj}
                               onChange={(e) => setStatusEmj(e.target.value)}
-                              placeholder="Available"
-                              className="w-10 px-2 py-2 text-center text-sm rounded-xl border border-slate-250 dark:border-slate-808 bg-white dark:bg-slate-900 outline-none text-slate-800 dark:text-slate-100 font-semibold"
+                              placeholder="⚡"
+                              className="w-12 px-2 py-2 text-center text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 outline-none text-slate-800 dark:text-slate-100 font-bold"
                             />
                             <input
                               type="text"
@@ -861,7 +867,7 @@ export default function TeamDirectory({
                               value={statusMsg}
                               onChange={(e) => setStatusMsg(e.target.value)}
                               placeholder="Bạn đang tập trung vào việc gì?"
-                              className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-250 dark:border-slate-808 bg-white dark:bg-slate-900 outline-none text-slate-800 dark:text-slate-100 placeholder-slate-405 font-semibold focus:border-indigo-500"
+                              className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 font-semibold focus:border-indigo-500"
                             />
                           </div>
                         </div>
@@ -871,7 +877,7 @@ export default function TeamDirectory({
                           <button
                             type="button"
                             onClick={() => setShowStatusPopover(false)}
-                            className="flex-1 py-2 bg-slate-55 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
                           >
                             Hủy
                           </button>
@@ -881,7 +887,7 @@ export default function TeamDirectory({
                               await setCustomStatus(statusVal, statusMsg, statusEmj);
                               setShowStatusPopover(false);
                             }}
-                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-705 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer"
+                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                           >
                             Lưu trạng thái
                           </button>
@@ -895,14 +901,14 @@ export default function TeamDirectory({
           )}
 
           {/* Bento-style Workspace Analytics Widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:-translate-y-0.5 backdrop-blur-md">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Thành viên workspace
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
                     {totalWorkspaceCount} <span className="text-xs font-bold text-slate-500">người</span>
                   </span>
                 </div>
@@ -910,38 +916,38 @@ export default function TeamDirectory({
                   Trong <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
                 </p>
               </div>
-              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-indigo-550 dark:text-indigo-400">
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl text-indigo-600 dark:text-indigo-400 shadow-2xs">
                 <Users className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
+            <div className="p-5 bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:-translate-y-0.5 backdrop-blur-md">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Đang hoạt động
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight flex items-center gap-1.5">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono flex items-center gap-1.5">
                     {onlineWorkspaceCount} <span className="text-xs font-bold text-slate-500">trực tuyến</span>
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block animate-ping"></span>
-                  <span>{busyWorkspaceCount} đang bận hoặc trong cuộc họp</span>
+                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block animate-ping" />
+                  <span>{busyWorkspaceCount} đang bận / họp</span>
                 </p>
               </div>
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-emerald-555 dark:text-emerald-400 font-black">
-                <Activity className="w-6 h-6 animate-pulse" />
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 rounded-2xl text-emerald-600 dark:text-emerald-400 shadow-2xs">
+                <Activity className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl shadow-xs flex items-center justify-between transition-colors">
+            <div className="p-5 bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl shadow-xs flex items-center justify-between transition-all hover:-translate-y-0.5 backdrop-blur-md">
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Toàn tổ chức
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-slate-850 dark:text-slate-50 tracking-tight">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
                     {members.length} <span className="text-xs font-bold text-slate-500">thành viên</span>
                   </span>
                 </div>
@@ -949,7 +955,7 @@ export default function TeamDirectory({
                   Phân bổ trên {workspaces.length} workspace kết nối
                 </p>
               </div>
-              <div className="p-3 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl text-cyan-555 dark:text-cyan-400 font-black">
+              <div className="p-3 bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-100 dark:border-cyan-900/50 rounded-2xl text-cyan-600 dark:text-cyan-400 shadow-2xs">
                 <Award className="w-6 h-6" />
               </div>
             </div>
@@ -963,9 +969,9 @@ export default function TeamDirectory({
                   setActiveTab('workspace');
                   setShowAddExistingDropdown(false);
                 }}
-                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-1.5 ${
+                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
                   activeTab === 'workspace' 
-                    ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400 font-black' 
+                    ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black' 
                     : 'text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-350'
                 }`}
               >
@@ -977,9 +983,9 @@ export default function TeamDirectory({
                   setActiveTab('all');
                   setShowAddExistingDropdown(false);
                 }}
-                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-1.5 ${
+                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
                   activeTab === 'all' 
-                    ? 'text-indigo-655 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400 font-black' 
+                    ? 'text-indigo-655 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black' 
                     : 'text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-350'
                 }`}
               >
@@ -993,10 +999,10 @@ export default function TeamDirectory({
             </div>
           </div>
 
-          {/* 🔍 SEARCH AND ADVANCED FILTERS */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl flex flex-col md:flex-row items-center gap-3">
+          {/* 🔍 SEARCH AND ADVANCED FILTERS WITH VIEW MODE TOGGLE */}
+          <div className="p-4 bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl flex flex-col md:flex-row items-center gap-3 backdrop-blur-md shadow-xs">
             <div className="relative flex-1 w-full">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <Search className="w-4 h-4 text-slate-400" />
               </span>
               <input
@@ -1005,7 +1011,7 @@ export default function TeamDirectory({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm theo tên, email, phòng ban, số điện thoại..."
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white hover:bg-slate-50 focus:bg-white dark:bg-slate-900 dark:hover:bg-slate-850 dark:hover:border-slate-700 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 outline-none transition-all font-semibold"
+                className="w-full pl-9.5 pr-8 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-50 focus:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-950 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 outline-none transition-all font-semibold"
               />
               {searchQuery && (
                 <button
@@ -1021,7 +1027,7 @@ export default function TeamDirectory({
               <select
                 value={filterDept}
                 onChange={(e) => setFilterDept(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
+                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">{t('allDepartments') || 'All departments'}</option>
                 {DEPARTMENTS.map(d => (
@@ -1032,7 +1038,7 @@ export default function TeamDirectory({
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
+                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">{t('allRoles') || 'All roles'}</option>
                 <option value="admin">{t('roleAdminLabel') || 'Admin'}</option>
@@ -1043,7 +1049,7 @@ export default function TeamDirectory({
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-550"
+                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">{t('allStatuses') || 'All statuses'}</option>
                 <option value="online">{t('online') || 'Online'}</option>
@@ -1052,10 +1058,38 @@ export default function TeamDirectory({
                 <option value="offline">{t('offline') || 'Offline'}</option>
               </select>
 
+              {/* View Mode Toggle Button */}
+              <div className="flex items-center rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
+                <button
+                  type="button"
+                  onClick={() => setDirectoryViewMode('grid')}
+                  className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                    directoryViewMode === 'grid' 
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title={locale === 'vi' ? "Chế độ lưới" : "Grid View"}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryViewMode('table')}
+                  className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                    directoryViewMode === 'table' 
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title={locale === 'vi' ? "Chế độ danh sách" : "Table/List View"}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
                 <button
                   onClick={clearAllFilters}
-                  className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/5 rounded-xl border border-rose-500/20 transition-all cursor-pointer"
+                  className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-2xl border border-rose-500/20 transition-all cursor-pointer"
                 >
                   {t('clearFilters') || 'Reset'}
                 </button>
@@ -1063,166 +1097,271 @@ export default function TeamDirectory({
             </div>
           </div>
 
-          {/* Members Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredMembers.map((member) => {
-              const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
-              const totalTaskCount = memberTasks.length;
-              const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
-              const pendingTaskCount = totalTaskCount - completedTaskCount;
-              const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
-              const deptBadge = getDeptBadge(member.department);
-              const isCurrentUser = member.id === 'user';
+          {/* Members Display: GRID VIEW */}
+          {directoryViewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredMembers.map((member) => {
+                const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+                const totalTaskCount = memberTasks.length;
+                const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
+                const pendingTaskCount = totalTaskCount - completedTaskCount;
+                const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
+                const deptBadge = getDeptBadge(member.department);
+                const isCurrentUser = member.id === 'user';
 
-              return (
-                <motion.div
-                  key={member.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="group relative p-5.5 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-slate-200/65 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.015)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:shadow-[0_20px_50px_rgba(99,102,241,0.06)] dark:hover:shadow-[0_20px_50px_rgba(99,102,241,0.12)] hover:border-indigo-500/25 dark:hover:border-indigo-400/25 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between overflow-hidden"
-                >
-                  <div className="absolute -inset-px bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-cyan-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                  <div className="space-y-4 relative z-10">
-                    
-                    {/* Status Pill & Role Badge */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border uppercase tracking-wider select-none shadow-3xs ${roleLabels[member.role].bg}`}>
-                          {roleLabels[member.role].text}
-                        </span>
-                        <div
-                          className="mt-2 p-1 px-2.5 bg-slate-50/80 dark:bg-slate-850 rounded-full border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-1.5 shadow-3xs select-none"
-                        >
+                return (
+                  <motion.div
+                    key={member.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="group relative p-5.5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-xl hover:border-indigo-400/40 dark:hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between overflow-hidden"
+                  >
+                    <div className="absolute -inset-px bg-gradient-to-br from-indigo-500/5 via-cyan-500/5 to-purple-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                    <div className="space-y-4 relative z-10">
+                      
+                      {/* Status Pill & Role Badge */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-lg border uppercase tracking-wider select-none shadow-3xs ${roleLabels[member.role].bg}`}>
+                            {roleLabels[member.role].text}
+                          </span>
+                        </div>
+                        <div className="p-1 px-2.5 bg-slate-50/80 dark:bg-slate-850 rounded-full border border-slate-200/60 dark:border-slate-800/60 flex items-center gap-1.5 shadow-3xs select-none">
                           <div className={`w-1.5 h-1.5 rounded-full ${statusColors[member.status as 'online' | 'busy' | 'away' | 'offline']} shrink-0 shadow-xs`} />
                           <span className="text-[10px] text-slate-550 dark:text-slate-400 font-bold whitespace-nowrap">
                             {statusLabelsEng[member.status as 'online' | 'busy' | 'away' | 'offline']}
                           </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Member Core Info (Avatar, Name, Email) */}
-                    <div className="flex items-center gap-3.5 pt-1.5">
-                      <div className="relative group/avatar cursor-pointer">
-                        <SignedImage 
-                          filePath={member.avatar} 
-                          className="w-14 h-14 rounded-full bg-slate-50 dark:bg-slate-850 border-2 border-slate-200 dark:border-slate-800 group-hover/avatar:border-indigo-500/40 p-0.5 object-cover shrink-0 select-none group-hover/avatar:brightness-90 transition-all duration-300 ring-4 ring-indigo-500/0 group-hover/avatar:ring-indigo-500/10" 
-                          alt={member.name} 
-                        />
-                        <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']} shrink-0`} />
-                        <label className="absolute inset-x-0 bottom-0 bg-black/60 rounded-b-full py-0.5 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
-                          <span className="text-[8px] text-white font-extrabold select-none scale-90">SỬA ẢNH</span>
-                          <input 
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handleAvatarUpload(member, e)}
+                      {/* Member Core Info (Avatar, Name, Email) */}
+                      <div className="flex items-center gap-3.5 pt-1">
+                        <div className="relative group/avatar cursor-pointer shrink-0">
+                          <SignedImage 
+                            filePath={member.avatar} 
+                            className="w-14 h-14 rounded-full bg-slate-50 dark:bg-slate-850 border-2 border-slate-200 dark:border-slate-800 group-hover/avatar:border-indigo-500/40 p-0.5 object-cover shrink-0 select-none group-hover/avatar:brightness-90 transition-all duration-300 ring-4 ring-indigo-500/0 group-hover/avatar:ring-indigo-500/10 shadow-xs" 
+                            alt={member.name} 
                           />
-                        </label>
-                      </div>
-                      <div className="min-w-0 text-left" onClick={() => handleOpenDetail(member)}>
-                        <h4 className="font-extrabold text-slate-850 dark:text-slate-50 text-sm leading-snug truncate group-hover:text-indigo-655 dark:group-hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1">
-                          <span>{member.name}</span>
-                        </h4>
-                        {(() => {
-                          const canViewSensitiveInfo = currentUser?.role === 'admin' || member.id === 'user' || member.id === currentUser?.id || member.email === currentUser?.email;
-                          return (
-                            <>
-                              <span className="text-[10px] text-slate-405 dark:text-slate-500 font-semibold block truncate leading-relaxed">
-                                {canViewSensitiveInfo ? member.email : maskEmail(member.email)}
-                              </span>
-                              {member.phone && (
-                                <span className="text-[9px] text-slate-400 dark:text-slate-450 block truncate font-medium mt-px">
-                                  {canViewSensitiveInfo ? member.phone : maskPhone(member.phone)}
-                                </span>
-                              )}
-                            </>
-                          );
-                        })()}
-                        {member.statusMessage && (
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-1.5 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/40 pt-1">
-                            {member.statusEmoji ? <span className="text-xs">{member.statusEmoji}</span> : null}
-                            <span className="italic">"{member.statusMessage}"</span>
-                          </span>
-                        )}
-                        {member.status === 'offline' && (
-                          <span className="text-[9px] text-slate-400 dark:text-slate-550 font-semibold flex items-center gap-1 mt-1 leading-none">
-                            <Clock className="w-3 h-3 text-slate-350 dark:text-slate-600" />
-                            <span>{formatLastSeen(member.lastSeenAt)}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Department badge indicator */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550">{t('department') || 'Department'}:</span>
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border flex items-center gap-1 shadow-3xs ${deptBadge.class}`}>
-                        {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
-                        <span>{t(deptBadge.label) || deptBadge.label}</span>
-                      </span>
-                    </div>
-
-                    {/* Task workload meter */}
-                    <div className="bg-slate-50/40 dark:bg-slate-950/30 p-3 border border-slate-200/35 dark:border-slate-800/40 rounded-2xl space-y-2.5">
-                      <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-400 dark:text-slate-550 block font-sans">Tiến độ công việc</span>
-                        <span className="text-indigo-600 dark:text-indigo-400">{completedTaskCount}/{totalTaskCount} việc</span>
-                      </div>
-                      
-                      {totalTaskCount > 0 ? (
-                        <div className="space-y-1.5">
-                          <div className="w-full bg-slate-200/50 dark:bg-slate-800/50 h-2 rounded-full overflow-hidden p-0.5">
-                            <div 
-                              className="bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.2)]" 
-                              style={{ width: `${completionPercent}%` }}
+                          <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']} shrink-0`} />
+                          <label className="absolute inset-x-0 bottom-0 bg-black/60 rounded-b-full py-0.5 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
+                            <span className="text-[8px] text-white font-extrabold select-none scale-90">SỬA</span>
+                            <input 
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleAvatarUpload(member, e)}
                             />
-                          </div>
-                          <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-555 font-semibold">
-                            <span>Hoàn thành: {completionPercent}%</span>
-                            <span className="text-amber-600 dark:text-amber-455 font-bold">{pendingTaskCount} đang mở</span>
-                          </div>
+                          </label>
                         </div>
-                      ) : (
-                        <div className="text-[10px] text-slate-400 dark:text-slate-555 italic font-medium py-0.5 text-center">
-                          Chưa được giao công việc
+                        <div className="min-w-0 flex-1 text-left" onClick={() => handleOpenDetail(member)}>
+                          <h4 className="font-extrabold text-slate-900 dark:text-white text-sm leading-snug truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1">
+                            <span>{member.name}</span>
+                          </h4>
+                          {(() => {
+                            const canViewSensitiveInfo = currentUser?.role === 'admin' || member.id === 'user' || member.id === currentUser?.id || member.email === currentUser?.email;
+                            const emailText = canViewSensitiveInfo ? member.email : maskEmail(member.email);
+                            return (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-semibold truncate leading-relaxed">
+                                  {emailText}
+                                </span>
+                                {canViewSensitiveInfo && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(member.email);
+                                      setCopiedId(member.id);
+                                      setTimeout(() => setCopiedId(null), 2000);
+                                    }}
+                                    className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                                    title="Copy email"
+                                  >
+                                    {copiedId === member.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {member.statusMessage && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-1 flex items-center gap-1 border-t border-slate-100 dark:border-slate-800/40 pt-1">
+                              {member.statusEmoji ? <span className="text-xs">{member.statusEmoji}</span> : null}
+                              <span className="italic">"{member.statusMessage}"</span>
+                            </span>
+                          )}
+                          {member.status === 'offline' && !member.statusMessage && (
+                            <span className="text-[9.5px] text-slate-400 dark:text-slate-550 font-semibold flex items-center gap-1 mt-1 leading-none">
+                              <Clock className="w-3 h-3 text-slate-350 dark:text-slate-600" />
+                              <span>{formatLastSeen(member.lastSeenAt)}</span>
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
+                      </div>
 
-                  <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
-                    <span className="text-[10px] text-slate-400 font-medium">Ngày tham gia {member.joinedDate || '2026'}</span>
-                    
-                    <div className="flex items-center gap-1.5">
-                      {!isCurrentUser && onStartChat && (
-                        <button
-                          onClick={() => onStartChat(member.id)}
-                          className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border border-indigo-200/50 dark:border-indigo-800/50 text-[10.5px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-3xs"
-                          title="Nhắn tin trực tiếp"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          <span>Nhắn tin</span>
-                        </button>
-                      )}
-                      {isOwner && !isCurrentUser && activeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
-                        <button
-                          onClick={() => handleRemoveFromWorkspace(member)}
-                          className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
-                          title="Xóa khỏi không gian"
-                        >
-                          <UserMinus className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      {/* Department badge indicator */}
+                      <div className="flex items-center gap-1.5 text-left">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550">{t('department') || 'Department'}:</span>
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-lg border flex items-center gap-1 shadow-3xs ${deptBadge.class}`}>
+                          {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
+                          <span>{t(deptBadge.label) || deptBadge.label}</span>
+                        </span>
+                      </div>
+
+                      {/* Task workload meter */}
+                      <div className="bg-slate-50/70 dark:bg-slate-950/40 p-3.5 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl space-y-2 text-left">
+                        <div className="flex items-center justify-between text-[10.5px] font-bold">
+                          <span className="text-slate-400 dark:text-slate-550 font-sans">Tiến độ công việc</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-mono">{completedTaskCount}/{totalTaskCount} việc</span>
+                        </div>
+                        
+                        {totalTaskCount > 0 ? (
+                          <div className="space-y-1.5">
+                            <div className="w-full bg-slate-200/60 dark:bg-slate-800/60 h-2 rounded-full overflow-hidden p-0.5">
+                              <div 
+                                className="bg-gradient-to-r from-indigo-500 to-cyan-500 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
+                                style={{ width: `${completionPercent}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-[9.5px] text-slate-400 dark:text-slate-500 font-semibold">
+                              <span>Hoàn thành: {completionPercent}%</span>
+                              <span className="text-amber-600 dark:text-amber-400 font-bold">{pendingTaskCount} đang mở</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic font-medium py-0.5 text-center">
+                            Chưa được giao công việc
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+
+                    <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between relative z-10">
+                      <span className="text-[10px] text-slate-400 font-medium">Gia nhập {member.joinedDate || '2026'}</span>
+                      
+                      <div className="flex items-center gap-1.5">
+                        {!isCurrentUser && onStartChat && (
+                          <button
+                            onClick={() => onStartChat(member.id)}
+                            className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border border-indigo-200/50 dark:border-indigo-800/50 text-[10.5px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-3xs"
+                            title="Nhắn tin trực tiếp"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>Nhắn tin</span>
+                          </button>
+                        )}
+                        {isOwner && !isCurrentUser && activeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
+                          <button
+                            onClick={() => handleRemoveFromWorkspace(member)}
+                            className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-500 rounded-xl transition-colors cursor-pointer"
+                            title="Xóa khỏi không gian"
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Members Display: TABLE / COMPACT LIST VIEW */
+            <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200/70 dark:border-slate-800 text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-950/30">
+                      <th className="py-3.5 px-5">Thành viên</th>
+                      <th className="py-3.5 px-4">Phòng ban</th>
+                      <th className="py-3.5 px-4">Vai trò</th>
+                      <th className="py-3.5 px-4">Trạng thái</th>
+                      <th className="py-3.5 px-4">Tiến độ việc</th>
+                      <th className="py-3.5 px-5 text-right">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
+                    {filteredMembers.map((member) => {
+                      const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+                      const totalTaskCount = memberTasks.length;
+                      const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
+                      const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
+                      const deptBadge = getDeptBadge(member.department);
+                      const isCurrentUser = member.id === 'user';
+
+                      return (
+                        <tr key={member.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors group">
+                          <td className="py-3.5 px-5">
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenDetail(member)}>
+                              <div className="relative shrink-0">
+                                <SignedImage filePath={member.avatar} alt={member.name} className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                                <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{member.name}</p>
+                                <p className="truncate text-[10.5px] text-slate-400">{member.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-flex items-center gap-1 ${deptBadge.class}`}>
+                              {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
+                              <span>{t(deptBadge.label) || deptBadge.label}</span>
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${roleLabels[member.role].bg}`}>
+                              {roleLabels[member.role].text}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${statusColors[member.status as 'online' | 'busy' | 'away' | 'offline']}`} />
+                              <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold">{statusLabelsEng[member.status as 'online' | 'busy' | 'away' | 'offline']}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="w-32">
+                              <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
+                                <span>{completedTaskCount}/{totalTaskCount}</span>
+                                <span>{completionPercent}%</span>
+                              </div>
+                              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full" style={{ width: `${completionPercent}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {!isCurrentUser && onStartChat && (
+                                <button
+                                  type="button"
+                                  onClick={() => onStartChat(member.id)}
+                                  className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
+                                  title="Nhắn tin"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDetail(member)}
+                                className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              >
+                                Chi tiết
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {filteredMembers.length === 0 && (
             <div className="p-16 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/20">

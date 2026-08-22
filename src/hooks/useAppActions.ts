@@ -105,7 +105,7 @@ export function useAppActions() {
             useSpaceStore.getState().setActiveSpaceId(null);
             useSpaceStore.getState().setActiveListId(null);
             triggerToast({ id: generateId(), type: 'success', title: 'Success', message: `Created new workspace: ${name}`, duration: 4000 });
-            addSyncLog(`Synchronized new workspace: ${name} to Supabase`);
+            addSyncLog(`Synchronized new workspace: ${name} to Cloud`);
             return;
           }
         }
@@ -142,7 +142,7 @@ export function useAppActions() {
               .update({ name, theme, initial })
               .eq('id', id);
           } else {
-            addSyncLog(`Synchronized workspace update "${name}" to Supabase`);
+            addSyncLog(`Synchronized workspace update "${name}" to Cloud`);
           }
         }
       } catch (err) {
@@ -171,7 +171,7 @@ export function useAppActions() {
           if (error) {
             console.error('Error deleting workspace from database:', error.message);
           } else {
-            addSyncLog(`Synchronized workspace deletion "${targetWS.name}" on Supabase`);
+            addSyncLog(`Synchronized workspace deletion "${targetWS.name}" on Cloud`);
           }
         }
       } catch (err) {
@@ -197,6 +197,15 @@ export function useAppActions() {
       triggerToast({ id: generateId(), type: 'success', title: 'New Task Created', message: `Task "${t.title}" was recorded successfully.`, duration: 4000 });
     }
 
+    const currentActiveSpaceId = useSpaceStore.getState().activeSpaceId;
+    const currentActiveListId = useSpaceStore.getState().activeListId;
+    const workspaceSpaces = spaces.filter(s => s.workspaceId === (t.workspaceId || activeWorkspaceId));
+    const targetSpace = (t.spaceId && workspaceSpaces.find(s => s.id === t.spaceId))
+      || (currentActiveSpaceId && workspaceSpaces.find(s => s.id === currentActiveSpaceId))
+      || workspaceSpaces[0];
+    const targetSpaceId = t.spaceId || targetSpace?.id || undefined;
+    const targetListId = t.listId || (targetSpace?.lists && targetSpace.lists.length > 0 ? (targetSpace.lists.find(l => l.id === currentActiveListId)?.id || targetSpace.lists[0].id) : undefined);
+
     const taskId = `task-${Date.now()}`;
     const newTask: Task = {
       ...t,
@@ -206,7 +215,9 @@ export function useAppActions() {
       progress: 0,
       comments: [],
       attachments: [],
-      workspaceId: t.workspaceId || activeWorkspaceId
+      workspaceId: t.workspaceId || activeWorkspaceId,
+      spaceId: targetSpaceId,
+      listId: targetListId
     };
 
     setTasks(prev => [...prev, newTask]);
@@ -250,15 +261,15 @@ export function useAppActions() {
               const { error: retryError } = await supabase.from('tasks').insert([payload]);
               if (retryError) {
                 console.error('Retry task insert failed:', retryError);
-                triggerToast({ id: generateId(), type: 'info', title: 'Task Save Error (Supabase)', message: `${retryError.message}`, duration: 4000 });
+                triggerToast({ id: generateId(), type: 'info', title: 'Task Save Error', message: `${retryError.message}`, duration: 4000 });
               } else {
                 addSyncLog(`Task saved successfully in compatibility mode (No workspace_id): "${newTask.title}"`);
               }
             } else {
-              triggerToast({ id: generateId(), type: 'info', title: 'Task Save Error (Supabase)', message: `${error.message}`, duration: 4000 });
+              triggerToast({ id: generateId(), type: 'info', title: 'Task Save Error', message: `${error.message}`, duration: 4000 });
             }
           } else {
-            addSyncLog(`Task synchronized successfully to Supabase: "${newTask.title}"`);
+            addSyncLog(`Task synchronized successfully: "${newTask.title}"`);
           }
         }
       } catch (err) {
@@ -442,15 +453,15 @@ export function useAppActions() {
               const { error: retryError } = await supabase.from('docs').insert([payload]);
               if (retryError) {
                 console.error('Retry doc insert failed:', retryError);
-                triggerToast({ id: generateId(), type: 'info', title: 'Document Save Error (Supabase)', message: `${retryError.message}`, duration: 4000 });
+                triggerToast({ id: generateId(), type: 'info', title: 'Document Save Error', message: `${retryError.message}`, duration: 4000 });
               } else {
                 addSyncLog(`Document saved successfully in compatibility mode (No workspace_id): "${newDocObj.title}"`);
               }
             } else {
-              triggerToast({ id: generateId(), type: 'info', title: 'Document Save Error (Supabase)', message: `${error.message}`, duration: 4000 });
+              triggerToast({ id: generateId(), type: 'info', title: 'Document Save Error', message: `${error.message}`, duration: 4000 });
             }
           } else {
-            addSyncLog(`Document synchronized successfully to Supabase: "${newDocObj.title}"`);
+            addSyncLog(`Document synchronized successfully: "${newDocObj.title}"`);
           }
         }
       } catch (err) {
@@ -1141,46 +1152,47 @@ export function useAppActions() {
   }, [handleSaveSpaces, triggerToast, addSyncLog]);
 
   const mapTasksToSpaces = useCallback((tasksList: Task[]): Task[] => {
+    const workspaceSpaces = spaces.filter(s => s.workspaceId === activeWorkspaceId);
+    const validSpaceIdSet = new Set(workspaceSpaces.map(s => s.id));
+    const defaultSpace = workspaceSpaces[0];
+    const defaultListId = defaultSpace?.lists?.[0]?.id;
+
     return tasksList.map(t => {
-      if (t.spaceId) {
-        return {
-          ...t,
-          assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
-        };
-      }
-      
       let spaceId = t.spaceId;
       let listId = t.listId;
+
+      const taskWsId = t.workspaceId || activeWorkspaceId;
       
-      if (t.workspaceId === 'w2' || !t.workspaceId) {
-        const title = t.title.toLowerCase();
-        if (title.includes('seo') || title.includes('keyword')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-seo';
-        } else if (title.includes('campaign') || title.includes('kickoff')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-campaign';
-        } else if (title.includes('email') || title.includes('launch')) {
-          spaceId = 's-w2-marketing';
-          listId = 'l-w2-email';
-        } else if (title.includes('bug') || title.includes('error') || title.includes('fix') || title.includes('test')) {
-          spaceId = 's-w2-qe';
-          listId = title.includes('test') ? 'l-w2-tests' : 'l-w2-bugs';
-        } else if (title.includes('design') || title.includes('ui') || title.includes('ux') || title.includes('mockup') || title.includes('logo')) {
-          spaceId = 's-w2-design';
-          listId = 'l-w2-mockups';
+      if (taskWsId === activeWorkspaceId) {
+        // If spaceId is missing or points to a non-existent space in this workspace
+        if (!spaceId || !validSpaceIdSet.has(spaceId)) {
+          const title = (t.title || '').toLowerCase();
+          const marketingSpace = workspaceSpaces.find(s => s.id.includes('marketing') || s.name.toLowerCase().includes('marketing'));
+          const productSpace = workspaceSpaces.find(s => s.id.includes('product') || s.name.toLowerCase().includes('product')) || defaultSpace;
+          const personalSpace = workspaceSpaces.find(s => s.id.includes('personal') || s.name.toLowerCase().includes('personal'));
+
+          if ((title.includes('seo') || title.includes('campaign') || title.includes('marketing') || title.includes('email')) && marketingSpace) {
+            spaceId = marketingSpace.id;
+            listId = marketingSpace.lists?.find(l => l.name.toLowerCase().includes('campaign') || l.name.toLowerCase().includes('seo'))?.id || marketingSpace.lists?.[0]?.id;
+          } else if ((title.includes('personal') || title.includes('cá nhân') || title.includes('inbox')) && personalSpace) {
+            spaceId = personalSpace.id;
+            listId = personalSpace.lists?.[0]?.id;
+          } else if (productSpace) {
+            spaceId = productSpace.id;
+            listId = productSpace.lists?.find(l => l.name.toLowerCase().includes('sprint') || l.name.toLowerCase().includes('roadmap'))?.id || productSpace.lists?.[0]?.id;
+          }
         } else {
-          spaceId = 's-w2-product';
-          listId = 'l-w2-sprint1';
+          // spaceId is valid, verify listId exists within this space
+          const currentSpace = workspaceSpaces.find(s => s.id === spaceId);
+          if (currentSpace && currentSpace.lists && currentSpace.lists.length > 0) {
+            const listExists = currentSpace.lists.some(l => l.id === listId);
+            if (!listId || !listExists) {
+              listId = currentSpace.lists[0].id;
+            }
+          }
         }
-      } else if (t.workspaceId === 'w1') {
-        spaceId = 's-w1-personal';
-        listId = 'l-w1-todo';
-      } else if (t.workspaceId === 'w3') {
-        spaceId = 's-w3-prep';
-        listId = 'l-w3-roadmap';
       }
-      
+
       return {
         ...t,
         spaceId,
@@ -1188,7 +1200,7 @@ export function useAppActions() {
         assigneeIds: t.assigneeIds || (t.assigneeId ? [t.assigneeId] : [])
       };
     });
-  }, []);
+  }, [spaces, activeWorkspaceId]);
 
   return {
     handleCreateWorkspace,

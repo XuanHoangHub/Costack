@@ -12,12 +12,46 @@ import {
   HelpCircle, ArrowUpRight, Globe, ShieldCheck, Flame, Layers,
   Cpu, Clock, Sliders, Workflow, TrendingUp, CheckCircle2, Lock,
   Share2, Award, Activity, Sparkle, RefreshCw, Eye, ThumbsUp, Moon, Sun,
-  Laptop, Smartphone, Square, Palette, MousePointer, DollarSign
+  Laptop, Smartphone, Square, Palette, MousePointer, DollarSign,
+  MapPin, Phone, Building2
 } from 'lucide-react';
 import ThemeSwitch from '../ThemeSwitch';
 import LanguageDropdown from '../LanguageDropdown';
 import { Button, Badge, SegmentedControl } from '../ui';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { ApexaAiIcon, ApexaAiAvatar } from '../ApexaAiIcon';
+
+const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+);
+
+const XTwitterIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+const LinkedInIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.6a1.64 1.64 0 1 0 1.64 1.63A1.63 1.63 0 0 0 7.83 6.6z" />
+  </svg>
+);
+
+const YouTubeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+  </svg>
+);
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -466,7 +500,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                 {[
                   { id: 'board', label: isVietnamese ? 'Bảng Kanban' : 'Kanban Board', icon: Kanban, badge: 'Sprint' },
                   { id: 'docs', label: isVietnamese ? 'Smart Docs 2.0' : 'Smart Docs 2.0', icon: FileText, badge: 'PRD' },
-                  { id: 'ai', label: 'Apexa Brain AI', icon: Bot, isAi: true, badge: 'Copilot' },
+                  { id: 'ai', label: 'Apexa Brain AI', icon: ApexaAiIcon, isAi: true, badge: 'Copilot' },
                   { id: 'analytics', label: isVietnamese ? 'Phân tích & KPI' : 'Analytics & KPI', icon: BarChart3, badge: '86%' },
                   { id: 'chat', label: isVietnamese ? 'Kênh Chat Nhóm' : 'Team ChatRoom', icon: MessageSquare, badge: 'Live' },
                 ].map(tab => {
@@ -485,7 +519,11 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className={`w-3.5 h-3.5 ${tab.isAi && !isSelected ? 'text-indigo-400 animate-pulse' : ''}`} />
+                        {tab.isAi ? (
+                          <ApexaAiIcon className={`w-4 h-4 ${!isSelected ? 'text-indigo-400 animate-pulse' : ''}`} variant={isSelected ? 'white' : 'gradient'} />
+                        ) : (
+                          <Icon className="w-3.5 h-3.5" />
+                        )}
                         <span>{tab.label}</span>
                       </div>
                       <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded ${
@@ -725,7 +763,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                         {[
                           { text: isVietnamese ? 'Tối ưu độ trễ phản hồi < 12ms trên IndexedDB local cache' : 'Sub-12ms response latency on local IndexedDB storage', done: true },
                           { text: isVietnamese ? 'Hỗ trợ nhúng thẻ Kanban Board thời gian thực vào giữa nội dung bài viết' : 'Live embed dynamic Kanban task cards directly inside Markdown blocks', done: true },
-                          { text: isVietnamese ? 'Tự động đồng bộ 2 chiều với Supabase Realtime Channels khi online' : 'Two-way bidirectional sync via Supabase Realtime Channels on reconnect', done: false },
+                          { text: isVietnamese ? 'Tự động đồng bộ 2 chiều qua Realtime Channels khi online' : 'Two-way bidirectional sync via Realtime Channels on reconnect', done: false },
                         ].map((item, idx) => (
                           <div key={idx} className="flex items-center gap-2 text-xs">
                             <span className={`w-4 h-4 rounded flex items-center justify-center text-white ${item.done ? 'bg-emerald-500' : 'border border-slate-300 dark:border-slate-700'}`}>
@@ -760,9 +798,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                       {aiChatLog.map((msg, i) => (
                         <div key={i} className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
                           {msg.sender === 'bot' && (
-                            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-md">
-                              <Bot className="w-4 h-4" />
-                            </div>
+                            <ApexaAiAvatar size="sm" />
                           )}
                           <div className={`p-3 rounded-2xl max-w-[85%] text-xs font-semibold leading-relaxed whitespace-pre-line ${
                             msg.sender === 'user'
@@ -1205,7 +1241,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       category: 'task'
     },
     {
-      icon: Brain,
+      icon: ApexaAiIcon,
       title: 'Apexa Brain AI Copilot',
       desc: isVietnamese
         ? 'Trợ lý AI tích hợp sâu: tự động phân rã mục tiêu thành subtasks, tóm tắt tài liệu, gợi ý phân bổ KPI và viết báo cáo tiến độ bằng Gemini AI.'
@@ -1462,8 +1498,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         ? 'Apexa OS có thể sử dụng mượt mà khi mất kết nối Internet (Offline) không?'
         : 'Can Apexa OS work seamlessly when offline without internet connectivity?',
       a: isVietnamese
-        ? 'Hoàn toàn có thể! Apexa OS được xây dựng trên kiến trúc Local-First hiện đại. Bạn có thể tạo việc, ghi chép tài liệu, di chuyển cột Kanban ngay cả khi ở trên máy bay hay mất mạng. Toàn bộ dữ liệu sẽ tự động đồng bộ lên Supabase Cloud ngay khi có kết nối trở lại mà không mất mát dữ liệu.'
-        : 'Absolutely! Apexa OS is engineered on a modern Local-First architecture. You can create tasks, draft docs, and organize Kanban boards on airplanes or in offline mode. All modifications seamlessly sync with Supabase Cloud once you are reconnected.'
+        ? 'Hoàn toàn có thể! Apexa OS được xây dựng trên kiến trúc Local-First hiện đại. Bạn có thể tạo việc, ghi chép tài liệu, di chuyển cột Kanban ngay cả khi ở trên máy bay hay mất mạng. Toàn bộ dữ liệu sẽ tự động đồng bộ lên đám mây máy chủ ngay khi có kết nối trở lại mà không mất mát dữ liệu.'
+        : 'Absolutely! Apexa OS is engineered on a modern Local-First architecture. You can create tasks, draft docs, and organize Kanban boards on airplanes or in offline mode. All modifications seamlessly sync with Cloud storage once you are reconnected.'
     },
     {
       q: isVietnamese
@@ -1501,11 +1537,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
 
   useEffect(() => {
     const handleMouse = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
       setMousePos({
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100,
+        x: (e.clientX / window.innerWidth) * 100,
+        y: (e.clientY / window.innerHeight) * 100,
       });
     };
     window.addEventListener('mousemove', handleMouse);
@@ -1595,30 +1629,50 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       
       {/* Dynamic Ambient Mouse Spotlight */}
       <div
-        className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-60"
+        className="fixed inset-0 pointer-events-none z-0 opacity-50 dark:opacity-75 transition-opacity duration-300"
         style={{
-          background: `radial-gradient(700px circle at ${mousePos.x}% ${mousePos.y}%, rgba(37, 99, 235, 0.14), transparent 75%)`
+          background: `radial-gradient(850px circle at ${mousePos.x}% ${mousePos.y}%, rgba(59, 130, 246, 0.16), transparent 70%)`
         }}
       />
       
-      {/* Ambient Radial Blobs */}
+      {/* High-Tech Dotted Matrix Pattern Overlay */}
+      <div 
+        className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-20"
+        style={{
+          backgroundImage: `radial-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px)`,
+          backgroundSize: '24px 24px',
+          maskImage: 'radial-gradient(ellipse 70% 55% at 50% 35%, black 30%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 70% 55% at 50% 35%, black 30%, transparent 100%)'
+        }}
+      />
+
+      {/* Atmospheric Floating Aurora Orbs */}
       <motion.div
         animate={{
-          x: [0, 60, -30, 0],
-          y: [0, -80, 40, 0],
-          scale: [1, 1.15, 0.9, 1],
+          x: [0, 50, -40, 0],
+          y: [0, -60, 30, 0],
+          scale: [1, 1.12, 0.95, 1],
         }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed top-[-12%] left-[-15%] w-[680px] h-[680px] bg-blue-600/10 dark:bg-blue-600/15 rounded-full blur-[140px] pointer-events-none z-0"
+        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        className="fixed top-[-10%] left-[-10%] w-[700px] h-[700px] bg-gradient-to-tr from-blue-600/20 via-indigo-500/15 to-transparent rounded-full blur-[140px] pointer-events-none z-0"
       />
       <motion.div
         animate={{
-          x: [0, -50, 70, 0],
-          y: [0, 60, -50, 0],
-          scale: [1, 0.9, 1.15, 1],
+          x: [0, -40, 50, 0],
+          y: [0, 50, -40, 0],
+          scale: [1, 0.92, 1.1, 1],
         }}
-        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed bottom-[5%] right-[-12%] w-[620px] h-[620px] bg-indigo-600/10 dark:bg-purple-600/15 rounded-full blur-[130px] pointer-events-none z-0"
+        transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
+        className="fixed bottom-[10%] right-[-10%] w-[650px] h-[650px] bg-gradient-to-br from-indigo-600/20 via-sky-500/15 to-transparent rounded-full blur-[130px] pointer-events-none z-0"
+      />
+      <motion.div
+        animate={{
+          x: [0, 30, -30, 0],
+          y: [0, 40, -30, 0],
+          scale: [1, 1.08, 0.92, 1],
+        }}
+        transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+        className="fixed top-[40%] right-[20%] w-[450px] h-[450px] bg-gradient-to-bl from-cyan-500/10 via-teal-500/10 to-transparent rounded-full blur-[120px] pointer-events-none z-0"
       />
 
       {/* TOP NOTIFICATION BANNER */}
@@ -1768,7 +1822,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.1 }}
-          className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-0.035em] text-slate-950 dark:text-white leading-[1.08] font-display max-w-5xl mx-auto"
+          className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-0.035em] text-slate-950 dark:text-white leading-[1.08] font-display max-w-5xl mx-auto text-balance"
         >
           {isVietnamese ? (
             <>
@@ -1794,11 +1848,11 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.2 }}
-          className="text-slate-600 dark:text-slate-300 text-sm sm:text-lg font-normal leading-relaxed max-w-2xl mx-auto mt-6"
+          className="text-slate-600 dark:text-slate-300 text-sm sm:text-lg font-normal leading-relaxed max-w-2xl mx-auto mt-6 text-pretty"
         >
           {isVietnamese
-            ? 'Hợp nhất Kanban, Smart Docs, ChatRoom, Lịch biểu và Trợ lý AI Apexa Brain trên một bề mặt duy nhất. Không độ trễ, không phân mảnh công cụ.'
-            : 'Unify Kanban boards, Smart Docs, ChatRooms, Calendars, and Apexa Brain AI on a single canvas. Zero latency, zero tool sprawl.'}
+            ? 'Hợp nhất Kanban, Smart Docs, ChatRoom, Lịch biểu và Trợ lý AI Apexa Brain trên một không gian làm việc liền mạch. Không phân mảnh công cụ, độ trễ phản hồi tức thì.'
+            : 'Unify Kanban boards, Smart Docs, ChatRooms, Calendars, and Apexa Brain AI on a single continuous canvas. Zero latency, zero tool sprawl.'}
         </motion.p>
 
         {/* CTA Actions */}
@@ -1915,10 +1969,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots-new" dot>{isVietnamese ? 'TÍNH NĂNG ĐỈNH CAO' : 'ALL-IN-ONE POWER'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Mọi công cụ đội ngũ cần trên một giao diện' : 'Every team tool unified on one continuous canvas'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium text-pretty">
               {isVietnamese
                 ? 'Không cần trả phí riêng cho 5 ứng dụng khác nhau. Apexa OS tích hợp hoàn chỉnh và đồng bộ từng byte dữ liệu.'
                 : 'Replace subscriptions for 5 disconnected tools. Apexa OS integrates tasks, docs, chat, and AI in perfect harmony.'}
@@ -1932,8 +1986,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   onClick={() => setActiveCategory(cat.id)}
                   className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
                     activeCategory === cat.id
-                      ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-md'
-                      : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/10'
+                      ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-md scale-105'
+                      : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-white/10 hover:scale-102'
                   }`}
                 >
                   {cat.label}
@@ -1953,11 +2007,11 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
-                  className="shots-glass-card rounded-3xl p-6 flex flex-col justify-between text-left group"
+                  className="shots-glass-card rounded-3xl p-6 flex flex-col justify-between text-left group hover:border-indigo-500/30 transition-all"
                 >
                   <div className="space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <div className={`w-11 h-11 rounded-2xl ${feat.bg} flex items-center justify-center ${feat.iconColor} border border-white/10 group-hover:scale-110 transition-transform`}>
+                      <div className={`w-11 h-11 rounded-2xl ${feat.bg} flex items-center justify-center ${feat.iconColor} border border-white/10 group-hover:scale-110 transition-transform shadow-xs`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <Badge variant={feat.tagVariant} size="sm">
@@ -1965,7 +2019,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                       </Badge>
                     </div>
                     <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">{feat.title}</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{feat.desc}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed text-pretty">{feat.desc}</p>
                   </div>
                   
                   <div className="pt-4 mt-4 border-t border-slate-200/60 dark:border-white/5 flex items-center gap-1.5 text-xs font-black text-blue-600 dark:text-sky-400">
@@ -1986,10 +2040,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots">{isVietnamese ? 'SO SÁNH TOÀN DIỆN' : 'HEAD-TO-HEAD COMPARISON'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Tại sao các đội ngũ chọn Apexa OS?' : 'Why fast-moving teams switch to Apexa OS'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium text-pretty">
               {isVietnamese
                 ? 'Xem xét sự khác biệt khi toàn bộ quy trình làm việc được tối ưu trên kiến trúc Local-First & AI Native.'
                 : 'See the structural advantage of a truly unified, Local-First, AI-Native platform over legacy fragmented tools.'}
@@ -2007,10 +2061,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots-new" dot>{isVietnamese ? 'TÍNH TOÁN HIỆU QUẢ' : 'ROI ESTIMATOR'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Đo lường thời gian & chi phí tiết kiệm' : 'Quantify your time and cost savings'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium text-pretty">
               {isVietnamese
                 ? 'Không chỉ là cảm giác nhanh hơn — Apexa mang lại hiệu quả đầu tư rõ ràng bằng con số thực tế.'
                 : 'Not just a subjective feel—Apexa delivers concrete, measurable productivity returns for your business.'}
@@ -2028,10 +2082,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-14">
             <Badge variant="shots">{isVietnamese ? 'QUY TRÌNH CHUẨN HOÁ' : 'HOW IT WORKS'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Vận hành trơn tru chỉ với 4 bước' : 'Seamless workflow in 4 simple steps'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium text-pretty">
               {isVietnamese
                 ? 'Dễ dàng thiết lập và đồng bộ toàn bộ thành viên chỉ trong 1 buổi làm việc.'
                 : 'Set up departmental spaces and onboard your entire team in minutes.'}
@@ -2042,10 +2096,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
             {workflowSteps.map((step) => {
               const StepIcon = step.icon;
               return (
-                <div key={step.step} className="shots-glass-card rounded-3xl p-6 text-left space-y-4 group">
+                <div key={step.step} className="shots-glass-card rounded-3xl p-6 text-left space-y-4 group hover:border-indigo-500/30 transition-all">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{step.step}</span>
-                    <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-white/10 text-blue-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-white/10 text-blue-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
                       <StepIcon className="w-5 h-5" />
                     </div>
                   </div>
@@ -2053,7 +2107,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                     <span className="text-[9px] font-black uppercase text-blue-600 dark:text-sky-400">{step.badge}</span>
                     <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight mt-1">{step.title}</h3>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{step.desc}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed text-pretty">{step.desc}</p>
                 </div>
               );
             })}
@@ -2068,10 +2122,10 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots-new" dot>{isVietnamese ? 'BẢNG GIÁ MINH BẠCH' : 'TRANSPARENT PRICING'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Đầu tư thông minh, tối ưu ngân sách' : 'Invest smart, maximize team velocity'}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium text-pretty">
               {isVietnamese
                 ? 'Không chi phí ẩn. Nâng cấp hoặc hạ cấp gói bất cứ khi nào theo nhu cầu phát triển.'
                 : 'Zero hidden fees. Upgrade, downgrade, or cancel anytime as your team grows.'}
@@ -2101,7 +2155,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   className={`rounded-3xl p-8 flex flex-col justify-between text-left relative transition-all ${
                     plan.highlight
                       ? 'shots-glass-panel border-2 border-blue-500 shadow-2xl shadow-blue-500/20 scale-105 z-10'
-                      : 'shots-glass-card'
+                      : 'shots-glass-card hover:border-slate-300 dark:hover:border-white/20'
                   }`}
                 >
                   <div className="space-y-5">
@@ -2113,7 +2167,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
 
                     <div>
                       <h3 className="text-xl font-black text-slate-900 dark:text-white">{plan.name}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">{plan.desc}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 text-pretty">{plan.desc}</p>
                     </div>
 
                     <div className="flex items-baseline gap-1">
@@ -2124,7 +2178,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                     <div className="space-y-2.5 pt-4 border-t border-slate-200/60 dark:border-white/10">
                       {plan.features.map((feat, idx) => (
                         <div key={idx} className="flex items-center gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-300">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0 stroke-[2.5]" />
                           <span>{feat}</span>
                         </div>
                       ))}
@@ -2155,12 +2209,12 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots">{isVietnamese ? 'KỊCH BẢN TRIỂN KHAI' : 'DEPLOYMENT SCENARIOS'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Apexa thích ứng theo cách đội ngũ vận hành' : 'Apexa adapts to how your team operates'}
             </h2>
           </div>
 
-          <div className="max-w-4xl mx-auto shots-glass-card rounded-3xl p-8 md:p-12 text-left">
+          <div className="max-w-4xl mx-auto shots-glass-card rounded-3xl p-8 md:p-12 text-left shadow-lg">
             <Quote className="w-10 h-10 text-blue-500/25 mb-4" />
             <AnimatePresence mode="wait">
               <motion.div
@@ -2171,7 +2225,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                 transition={{ duration: 0.3 }}
                 className="space-y-6"
               >
-                <p className="text-base md:text-xl text-slate-900 dark:text-slate-100 font-extrabold leading-relaxed">
+                <p className="text-base md:text-xl text-slate-900 dark:text-slate-100 font-extrabold leading-relaxed text-pretty">
                   {testimonials[activeTestimonial].quote}
                 </p>
 
@@ -2219,14 +2273,14 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
             <Badge variant="shots">{isVietnamese ? 'HỎI ĐÁP' : 'FAQ'}</Badge>
-            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Các câu hỏi thường gặp' : 'Frequently asked questions'}
             </h2>
           </div>
 
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <div key={i} className="shots-glass-card rounded-2xl overflow-hidden">
+              <div key={i} className="shots-glass-card rounded-2xl overflow-hidden hover:border-indigo-500/30 transition-all">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full p-5 text-left text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-4 cursor-pointer"
@@ -2235,7 +2289,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openFaq === i ? 'rotate-180 text-blue-500' : ''}`} />
                 </button>
                 {openFaq === i && (
-                  <div className="px-5 pb-5 text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed border-t border-slate-200/60 dark:border-white/10 pt-3">
+                  <div className="px-5 pb-5 text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed border-t border-slate-200/60 dark:border-white/10 pt-3 text-pretty">
                     {faq.a}
                   </div>
                 )}
@@ -2252,13 +2306,13 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         <FadeInSection>
           <div className="relative rounded-3xl shots-gradient-tahoe p-8 md:p-16 text-center text-white overflow-hidden shadow-2xl">
             <div className="space-y-6 relative z-10 max-w-2xl mx-auto">
-              <Badge variant="shots" size="md" className="bg-white/20 text-white border-white/30">
+              <Badge variant="shots" size="md" className="bg-white/20 text-white border-white/30 backdrop-blur-md">
                 {isVietnamese ? 'BẮT ĐẦU HÀNH TRÌNH MỚI' : 'START YOUR JOURNEY'}
               </Badge>
-              <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight font-display leading-tight">
+              <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight font-display leading-tight text-balance">
                 {isVietnamese ? 'Sẵn sàng kiến tạo văn hóa năng suất đỉnh cao?' : 'Ready to build a peak productivity culture?'}
               </h2>
-              <p className="text-xs sm:text-sm font-medium text-white/90 leading-relaxed">
+              <p className="text-xs sm:text-sm font-medium text-white/90 leading-relaxed text-pretty">
                 {isVietnamese
                   ? 'Đăng ký tài khoản Apexa OS ngay hôm nay để giải phóng 100% tiềm năng làm việc nhóm với sự trợ giúp của AI thế hệ mới.'
                   : 'Get started with Apexa OS today and unleash your team’s full potential with next-gen collaborative AI.'}
@@ -2278,7 +2332,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   size="huge"
                   pill
                   onClick={onSignIn}
-                  className="bg-black/30 border-white/20 text-white"
+                  className="bg-black/30 border-white/20 text-white hover:bg-black/40"
                 >
                   {isVietnamese ? 'Đăng nhập tài khoản' : 'Sign in to Workspace'}
                 </Button>
@@ -2289,14 +2343,16 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       </section>
 
       {/* =========================================================================
-          FOOTER
+          FOOTER (Corporate Modern Dark Layout)
           ========================================================================= */}
-      <footer className="relative z-10 border-t border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-[#07090e] py-14 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 grid grid-cols-1 md:grid-cols-5 gap-8">
+      <footer className="relative z-10 border-t border-slate-800/80 bg-[#181820] text-slate-300 py-16 text-left text-xs font-normal">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 lg:grid-cols-6 gap-10 lg:gap-8">
           
-          <div className="md:col-span-2 space-y-4">
+          {/* ── LEFT COLUMN: Brand, Legal, Offices & Social (2 cols wide on desktop) ── */}
+          <div className="lg:col-span-2 space-y-4 pr-0 lg:pr-4 text-left">
+            {/* Brand Logo & Name */}
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm p-1">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-sm p-1 shadow-md shadow-indigo-500/25">
                 <svg className="w-5 h-5" viewBox="0 0 512 512" fill="none">
                   <path
                     d="M256 84 C264 84 271 89 275 97 L405 375 C409 383 403 394 394 394 L325 394 C317 394 309 389 306 381 L278 322 L234 322 L206 381 C203 389 195 394 187 394 L118 394 C109 394 103 383 107 375 L237 97 C241 89 248 84 256 84 Z M256 182 L226 270 L286 270 Z"
@@ -2304,104 +2360,226 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   />
                 </svg>
               </div>
-              <span className="font-display font-black text-lg tracking-tight text-slate-900 dark:text-white">
+              <span className="font-display font-black text-lg tracking-tight text-white">
                 Apexa OS
               </span>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed max-w-sm">
-              {isVietnamese
-                ? 'Hệ điều hành năng suất AI thế hệ mới kết hợp Kanban, Smart Docs, ChatRoom thời gian thực và kiến trúc Local-First.'
-                : 'Next-generation AI productivity operating system unifying Kanban, Smart Docs, real-time chat, and Local-First sync.'}
-            </p>
-            <div className="flex items-center gap-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full w-fit border border-emerald-200 dark:border-emerald-800/40">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{isVietnamese ? 'Ứng dụng sẵn sàng cho quy trình làm việc thực tế' : 'Ready for real-world workflows'}</span>
+
+            {/* Legal Entity Name */}
+            <h4 className="font-black text-white text-xs uppercase tracking-wider">
+              {isVietnamese ? 'CÔNG TY CỔ PHẦN APEXA OS' : 'APEXA OS CORPORATION'}
+            </h4>
+
+            {/* Legal & Contact Info */}
+            <div className="space-y-2 text-[11.5px] text-slate-400 font-normal leading-relaxed">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'GPKD số 0107938504, đăng ký ngày 27-07-2017, nơi cấp Sở Kế hoạch & Đầu tư TP. Hà Nội' : 'Business License No. 0107938504, issued by DPI Hanoi City'}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'Địa chỉ: Tầng 19, Leadvisors Tower, số 643 Phạm Văn Đồng, Phường Nghĩa Đô, Thành phố Hà Nội, Việt Nam' : 'Address: 19th Fl, Leadvisors Tower, 643 Pham Van Dong, Nghia Do, Hanoi, Vietnam'}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>{isVietnamese ? 'Điện thoại: 1800 6670 / (+84) 24 7300 8866' : 'Hotline: 1800 6670 / (+84) 24 7300 8866'}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                <span>Email: contact@apexa.vn</span>
+              </div>
+            </div>
+
+            {/* Offices List */}
+            <div className="pt-2 space-y-1.5 text-[11px] text-slate-400 font-normal">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 block mb-1">
+                {isVietnamese ? 'VĂN PHÒNG' : 'OFFICES'}
+              </span>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'Hà Nội: Tầng 17, VP2, tòa Sun Square, 21 Lê Đức Thọ, phường Từ Liêm, TP Hà Nội' : 'Hanoi: 17th Fl, Sun Square, 21 Le Duc Tho, Nam Tu Liem, Hanoi'}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'TP Hồ Chí Minh: Tầng 5, Lottery Tower, số 77 Trần Nhân Tôn, phường An Đông, TP Hồ Chí Minh' : 'HCMC: 5th Fl, Lottery Tower, 77 Tran Nhan Ton, Dist 5, HCMC'}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'Mỹ: 838 Walker Road, Suite 21-2 Dover, Delaware 19904, United States' : 'USA: 838 Walker Road, Suite 21-2 Dover, Delaware 19904, USA'}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'Ấn Độ: 804/805, Kesha Kommercial Komplex, Primal Nagar, Mumbai - 400097' : 'India: 804/805, Kesha Kommercial, Malad East, Mumbai - 400097'}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{isVietnamese ? 'Dubai: CWS-1V-792/40, Amber Gem Tower, Ajman, United Arab Emirates' : 'Dubai: CWS-1V-792/40, Amber Gem Tower, Ajman, UAE'}</span>
+              </div>
+            </div>
+
+            {/* Social Icons & Official Certification Seal */}
+            <div className="pt-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { Icon: InstagramIcon, href: "https://instagram.com", label: "Instagram" },
+                  { Icon: FacebookIcon, href: "https://facebook.com", label: "Facebook" },
+                  { Icon: XTwitterIcon, href: "https://twitter.com", label: "X" },
+                  { Icon: LinkedInIcon, href: "https://linkedin.com", label: "LinkedIn" },
+                  { Icon: YouTubeIcon, href: "https://youtube.com", label: "YouTube" }
+                ].map(item => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={item.label}
+                    className="w-8 h-8 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all hover:scale-105"
+                  >
+                    <item.Icon className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
+              
+              {/* Seal: ĐÃ THÔNG BÁO BỘ CÔNG THƯƠNG */}
+              <div className="inline-flex items-center gap-2 bg-[#0060b0] text-white px-2.5 py-1 rounded-md border border-blue-400/40 shadow-xs select-none">
+                <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5 text-[#0060b0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#0060b0" stroke="none" />
+                    <path d="M9 12l2 2 4-4" stroke="#ffffff" strokeWidth="2.5" />
+                  </svg>
+                </div>
+                <div className="flex flex-col text-left leading-none">
+                  <span className="text-[7px] font-black uppercase tracking-wider text-sky-200">ĐÃ THÔNG BÁO</span>
+                  <span className="text-[8.5px] font-black uppercase tracking-tight text-white mt-0.5">BỘ CÔNG THƯƠNG</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div>
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
-              {isVietnamese ? 'Sản phẩm' : 'Product'}
-            </h4>
-            <ul className="space-y-2.5 text-xs">
-              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảng Kanban' : 'Kanban Boards'}</a></li>
-              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Tài liệu thông minh' : 'Smart Docs'}</a></li>
-              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Phòng chat thời gian thực' : 'Real-time Chat'}</a></li>
-              <li><a href="#features" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">Apexa Brain AI</a></li>
-            </ul>
-          </div>
+          {/* ── RIGHT COLUMNS: Navigation Links & Newsletter (4 cols on desktop) ── */}
+          <div className="lg:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-8 text-left">
+            
+            {/* Column 1: Công ty */}
+            <div>
+              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
+                {isVietnamese ? 'Công ty' : 'Company'}
+              </h4>
+              <ul className="space-y-2 text-[11.5px]">
+                <li><a href="#about" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Giới thiệu' : 'About us'}</a></li>
+                <li><a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Khách hàng' : 'Customers'}</a></li>
+                <li><a href="#press" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Báo chí' : 'Press'}</a></li>
+                <li><a href="#partners" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Đối tác' : 'Partners'}</a></li>
+                <li><Link href="/legal/terms" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Điều kiện giao dịch chung' : 'Terms of Service'}</Link></li>
+                <li><Link href="/legal/privacy" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Chính sách bảo mật thông tin' : 'Privacy Policy'}</Link></li>
+                <li><Link href="/legal/security" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Trung tâm bảo mật' : 'Security Center'}</Link></li>
+                <li><a href="#pricing" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Chính sách giá' : 'Pricing Policy'}</a></li>
+                <li><a href="#careers" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tuyển dụng' : 'Careers'}</a></li>
+                <li><a href="#contact" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Liên hệ' : 'Contact'}</a></li>
+                <li><a href="#pricing" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Bảng giá' : 'Pricing'}</a></li>
+              </ul>
+            </div>
 
-          <div>
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
-              {isVietnamese ? 'Giải pháp' : 'Solutions'}
-            </h4>
-            <ul className="space-y-2.5 text-xs">
-              <li><a href="#pricing" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảng giá Pro' : 'Pro Pricing'}</a></li>
-              <li><a href="#pricing" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'SLA doanh nghiệp' : 'Enterprise SLA'}</a></li>
-              <li><a href="#testimonials" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Kịch bản triển khai' : 'Deployment Scenarios'}</a></li>
-              <li><a href="#faq" className="hover:text-blue-600 dark:hover:text-sky-400 transition-colors">{isVietnamese ? 'Bảo mật & Tuân thủ' : 'Security & Compliance'}</a></li>
-            </ul>
-          </div>
+            {/* Column 2: Sản phẩm */}
+            <div>
+              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
+                {isVietnamese ? 'Sản phẩm' : 'Products'}
+              </h4>
+              <ul className="space-y-2 text-[11.5px]">
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Bảng Kanban' : 'Kanban Boards'}</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tài liệu thông minh' : 'Smart Docs'}</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Phòng chat thời gian thực' : 'Real-time Chat'}</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">Apexa Brain AI</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản lý dự án' : 'Project Management'}</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Đồng bộ Local-First' : 'Local-First Sync'}</a></li>
+                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tích hợp & Tự động hóa' : 'Automations'}</a></li>
+              </ul>
+            </div>
 
-          <div className="space-y-3.5">
-            <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3.5">
-              {isVietnamese ? 'Bản tin công nghệ' : 'Newsletter'}
-            </h4>
-            <p className="text-slate-500 dark:text-slate-400 text-xs">
-              {isVietnamese ? 'Nhận cập nhật tính năng mới và cẩm nang năng suất hàng tuần.' : 'Weekly productivity guides and new feature release updates.'}
-            </p>
-            <form onSubmit={handleNewsletterSubmit} className="space-y-2" noValidate>
-              <label htmlFor="landing-newsletter-email" className="sr-only">
-                {isVietnamese ? 'Email nhận bản tin' : 'Newsletter email'}
-              </label>
-              <div className="flex gap-2">
-              <input
-                id="landing-newsletter-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={newsletterEmail}
-                onChange={(event) => {
-                  setNewsletterEmail(event.target.value);
-                  if (newsletterStatus.type !== 'loading') setNewsletterStatus({ type: 'idle', message: '' });
-                }}
-                placeholder={isVietnamese ? 'Nhập email của bạn...' : 'Enter your email...'}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs outline-none text-slate-800 dark:text-white focus:border-blue-500"
-              />
-                <input
-                  type="text"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  autoComplete="off"
-                  value={newsletterCompany}
-                  onChange={(event) => setNewsletterCompany(event.target.value)}
-                  className="absolute -left-[10000px] h-px w-px opacity-0"
-                  name="company"
-                />
-                <Button variant="shots" size="sm" pill type="submit" disabled={newsletterStatus.type === 'loading'}>
-                  {newsletterStatus.type === 'loading' ? (isVietnamese ? 'Đang gửi' : 'Joining') : (isVietnamese ? 'Gửi' : 'Join')}
-                </Button>
-              </div>
-              {newsletterStatus.message && (
-                <p
-                  role={newsletterStatus.type === 'error' ? 'alert' : 'status'}
-                  aria-live="polite"
-                  className={newsletterStatus.type === 'error' ? 'text-[10px] font-bold text-rose-600 dark:text-rose-400' : 'text-[10px] font-bold text-emerald-600 dark:text-emerald-400'}
-                >
-                  {newsletterStatus.message}
-                </p>
-              )}
-            </form>
+            {/* Column 3: Tài nguyên & Giải pháp */}
+            <div>
+              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
+                {isVietnamese ? 'Tài nguyên' : 'Resources'}
+              </h4>
+              <ul className="space-y-2 text-[11.5px]">
+                <li><a href="#blog" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Blog công nghệ' : 'Blog'}</a></li>
+                <li><a href="#faq" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Hướng dẫn sử dụng' : 'User Guides'}</a></li>
+                <li><a href="#community" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Cộng đồng' : 'Community'}</a></li>
+                <li><a href="#developers" className="text-slate-400 hover:text-white transition-colors">Developers & API</a></li>
+                <li><a href="#courses" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Khóa học' : 'Courses'}</a></li>
+              </ul>
+
+              <h4 className="font-black text-white text-xs uppercase tracking-wider mt-5 mb-3.5">
+                {isVietnamese ? 'Giải pháp' : 'Solutions'}
+              </h4>
+              <ul className="space-y-2 text-[11.5px]">
+                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị hợp nhất' : 'Unified OS'}</a></li>
+                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị khách hàng' : 'Customer 360'}</a></li>
+                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị nội bộ' : 'Internal Ops'}</a></li>
+                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Giao tiếp và liên lạc' : 'Communication'}</a></li>
+              </ul>
+            </div>
+
+            {/* Column 4: Bản tin công nghệ */}
+            <div className="space-y-3.5">
+              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
+                {isVietnamese ? 'Bản tin công nghệ' : 'Newsletter'}
+              </h4>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                {isVietnamese ? 'Nhận cập nhật tính năng mới và cẩm nang năng suất hàng tuần.' : 'Weekly productivity guides and new feature release updates.'}
+              </p>
+              <form onSubmit={handleNewsletterSubmit} className="space-y-2" noValidate>
+                <label htmlFor="landing-newsletter-email" className="sr-only">
+                  {isVietnamese ? 'Email nhận bản tin' : 'Newsletter email'}
+                </label>
+                <div className="flex flex-col gap-2">
+                  <input
+                    id="landing-newsletter-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={newsletterEmail}
+                    onChange={(event) => {
+                      setNewsletterEmail(event.target.value);
+                      if (newsletterStatus.type !== 'loading') setNewsletterStatus({ type: 'idle', message: '' });
+                    }}
+                    placeholder={isVietnamese ? 'Nhập email của bạn...' : 'Enter your email...'}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/90 text-xs outline-none text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    autoComplete="off"
+                    value={newsletterCompany}
+                    onChange={(event) => setNewsletterCompany(event.target.value)}
+                    className="absolute -left-[10000px] h-px w-px opacity-0"
+                    name="company"
+                  />
+                  <Button variant="primary" size="sm" pill type="submit" disabled={newsletterStatus.type === 'loading'} className="w-full justify-center">
+                    {newsletterStatus.type === 'loading' ? (isVietnamese ? 'Đang gửi...' : 'Joining...') : (isVietnamese ? 'Đăng ký nhận tin' : 'Subscribe')}
+                  </Button>
+                </div>
+                {newsletterStatus.message && (
+                  <p
+                    role={newsletterStatus.type === 'error' ? 'alert' : 'status'}
+                    aria-live="polite"
+                    className={newsletterStatus.type === 'error' ? 'text-[10px] font-bold text-rose-400' : 'text-[10px] font-bold text-emerald-400'}
+                  >
+                    {newsletterStatus.message}
+                  </p>
+                )}
+              </form>
+            </div>
+
           </div>
 
         </div>
 
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 pt-8 mt-10 border-t border-slate-200/70 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 font-bold">
-          <p>© 2026 Apexa OS Inc. {isVietnamese ? 'Tất cả quyền được bảo lưu.' : 'All rights reserved.'}</p>
-          <div className="flex gap-5">
-            <Link href="/legal/terms" className="hover:text-blue-600 hover:underline dark:hover:text-sky-400">{isVietnamese ? 'Điều khoản dịch vụ' : 'Terms of Service'}</Link>
-            <Link href="/legal/privacy" className="hover:text-blue-600 hover:underline dark:hover:text-sky-400">{isVietnamese ? 'Chính sách quyền riêng tư' : 'Privacy Policy'}</Link>
-            <Link href="/legal/security" className="hover:text-blue-600 hover:underline dark:hover:text-sky-400">{isVietnamese ? 'Trung tâm bảo mật' : 'Security Center'}</Link>
+        {/* ── BOTTOM COPYRIGHT & LANGUAGE BAR ── */}
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-8 mt-12 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11.5px] text-slate-400 font-medium">
+          <p>© 2026 Apexa OS LLC. {isVietnamese ? 'Tất cả quyền được bảo lưu.' : 'All rights reserved.'}</p>
+          <div className="flex items-center gap-3">
+            <LanguageDropdown showLabel={true} size="sm" />
           </div>
         </div>
       </footer>

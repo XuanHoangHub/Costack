@@ -13,6 +13,7 @@ import { createBaseFromTemplate } from '@/lib/baseTemplates';
 import SignedImage from './SignedImage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { callAiApi } from '@/lib/aiClient';
+import { supabase } from '@/lib/supabaseClient';
 
 interface CRMWorkspaceProps {
   bases: BaseApp[];
@@ -983,32 +984,34 @@ function QuotationModal({
     window.print();
   };
 
-  const handlePushToFinance = () => {
+  const handlePushToFinance = async () => {
     try {
-      const wsKey = activeWorkspaceId || 'default';
-      const savedInvoices = localStorage.getItem(`apexa_finance_invoices_${wsKey}`);
-      const list = savedInvoices ? JSON.parse(savedInvoices) : [];
-      
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw authError || new Error('Phiên đăng nhập đã hết hạn');
       const newInvoice = {
-        id: `inv-${Date.now()}`,
-        code: `HD-${Math.floor(10000 + Math.random() * 90000)}`,
-        customer: `${clientName} (${companyName})`,
-        taxCode: '0109887766',
-        amount: subtotal,
-        vatRate: vatPercent,
-        totalAmount: total,
-        issueDate: new Date().toISOString().split('T')[0],
-        dueDate: new Date(Date.now() + 86400000 * 15).toISOString().split('T')[0],
-        status: 'pending',
-        type: 'output',
-        items: items.map(i => ({ description: i.name, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.quantity * i.unitPrice }))
+        workspace_id: activeWorkspaceId,
+        code: `HD-${Date.now().toString().slice(-9)}`,
+        invoice_type: 'out',
+        partner_name: `${clientName} (${companyName})`,
+        tax_code: '',
+        subtotal,
+        vat_rate: vatPercent,
+        vat_amount: vatAmount,
+        total,
+        issue_date: new Date().toISOString().split('T')[0],
+        due_date: new Date(Date.now() + 86400000 * 15).toISOString().split('T')[0],
+        status: 'pending_verification',
+        signed: false,
+        items: items.map(i => ({ description: i.name, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.quantity * i.unitPrice })),
+        created_by: authData.user.id,
       };
-
-      localStorage.setItem(`apexa_finance_invoices_${wsKey}`, JSON.stringify([newInvoice, ...list]));
+      const { error: insertError } = await supabase.from('finance_invoices').insert(newInvoice);
+      if (insertError) throw insertError;
       triggerToast?.('success', 'Đã chuyển thành Hóa đơn Tài chính', `Hóa đơn ${newInvoice.code} đã được tạo trong FinanceHub.`);
       onClose();
     } catch (err) {
       console.error(err);
+      triggerToast?.('info', 'Chưa thể tạo hóa đơn Tài chính', err instanceof Error ? err.message : 'Vui lòng thử lại.');
     }
   };
 

@@ -349,7 +349,7 @@ function DashboardOverview({
   if (isLoading && !isOffline) {
     return (
       <div className="min-h-full w-full bg-transparent p-5 text-slate-800 dark:text-slate-100 md:p-8" role="status" aria-live="polite">
-        <span className="sr-only">{locale === 'vi' ? 'Đang tải dữ liệu Home từ Supabase' : 'Loading Home data from Supabase'}</span>
+        <span className="sr-only">{locale === 'vi' ? 'Đang tải dữ liệu Home' : 'Loading Home data'}</span>
         <div className="space-y-6 animate-pulse">
           <div className="h-44 rounded-3xl bg-slate-100 dark:bg-slate-900" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

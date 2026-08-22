@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatChannel, User, Space, Priority } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import { presenceDotClass, uiStatusToPresence } from '../lib/presence';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -11,7 +11,7 @@ import {
   Hash, Send, Bot, Smile, Users, MessageSquare, Sparkles, Plus, X,
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
   Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
-  Bold, Italic, Code, Quote, Pin, PinOff, CornerUpLeft,
+  Bold, Italic, Code, Quote, Pin, PinOff, CornerUpLeft, Copy,
   Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar,
   BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap, Star, Sliders, Bell, SmilePlus, Image as ImageIcon
 } from 'lucide-react';
@@ -343,6 +343,7 @@ export default function ChatRoom({
   // Typing indicator state
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeoutRef = useRef<any>(null);
+  const lastTypingBroadcastRef = useRef(0);
 
   // Unread badge tracking
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -361,6 +362,25 @@ export default function ChatRoom({
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
+
+  // ── Per-channel draft persistence (bản nháp theo kênh) ──
+  const chatDraftsRef = useRef<Record<string, string>>({});
+  const persistChatDrafts = () => {
+    try { localStorage.setItem('apexa_chat_drafts', JSON.stringify(chatDraftsRef.current)); } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      chatDraftsRef.current = JSON.parse(localStorage.getItem('apexa_chat_drafts') || '{}');
+    } catch { chatDraftsRef.current = {}; }
+  }, []);
+
+  // Restore draft & reset reply context when switching channels
+  useEffect(() => {
+    if (!activeChannelId) return;
+    setInputVal(chatDraftsRef.current[activeChannelId] || '');
+    setReplyingToMessage(null);
+  }, [activeChannelId]);
 
   // Search channels
   const [searchQuery, setSearchQuery] = useState('');
@@ -768,6 +788,16 @@ ${channelMessagesText}`;
       console.error('Error translating message:', err);
     } finally {
       setTranslatingMsgId(null);
+    }
+  };
+
+  // ── Copy Message Handler ──
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      triggerToast?.('success', 'Đã sao chép 📋', 'Nội dung tin nhắn đã được vào clipboard.');
+    } catch {
+      triggerToast?.('error', 'Không sao chép được', 'Trình duyệt đã chặn truy cập clipboard.');
     }
   };
 
@@ -1262,7 +1292,7 @@ ${channelMessagesText}`;
 
     // Set up Supabase Realtime channel subscription
     if (!isOffline) {
-      const sub = supabase.channel(`realtime-chat-${activeChannelId}`)
+      const sub = getCleanChannel(`realtime-chat-${activeChannelId}`)
         .on(
           'postgres_changes',
           {
@@ -1381,6 +1411,13 @@ ${channelMessagesText}`;
     const val = e.target.value;
     setInputVal(val);
 
+    // Persist per-channel draft
+    if (activeChannelId) {
+      if (val.trim()) chatDraftsRef.current[activeChannelId] = val;
+      else delete chatDraftsRef.current[activeChannelId];
+      persistChatDrafts();
+    }
+
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.substring(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -1425,20 +1462,24 @@ ${channelMessagesText}`;
     m.name.toLowerCase().includes(mentionQuery.toLowerCase())
   ).slice(0, 5);
 
-  // Typing indicator broadcast
+  // Typing indicator broadcast (throttled: tối đa 1 broadcast / 2 giây)
   const broadcastTyping = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
+
     if (!isOffline && channelSubscriptionRef.current) {
-      channelSubscriptionRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId: currentUser.id, name: currentUser.name }
-      });
+      const now = Date.now();
+      if (now - lastTypingBroadcastRef.current > 2000) {
+        lastTypingBroadcastRef.current = now;
+        channelSubscriptionRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, name: currentUser.name }
+        });
+      }
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-      // Clear after 3 seconds of no typing
+      lastTypingBroadcastRef.current = 0;
     }, 3000);
   };
 
@@ -2008,6 +2049,7 @@ ${channelMessagesText}`;
         timestamp: timeStr,
         channelId: activeChannelId,
         attachment: attachmentObj,
+        parentId: replyingToMessage?.id,
         deliveryState: isOffline ? 'sending' : 'sent'
       };
 
@@ -2024,13 +2066,18 @@ ${channelMessagesText}`;
           is_ai_response: false,
           workspace_id: workspaceId,
           user_id: userId,
-          attachment: attachmentObj || null
+          attachment: attachmentObj || null,
+          parent_id: replyingToMessage?.id || null
         });
         if (error) throw error;
       }
 
       setMessages(prev => prev.some(message => message.id === msgId) ? prev : [...prev, newMsg]);
       setInputVal('');
+      if (activeChannelId) {
+        delete chatDraftsRef.current[activeChannelId];
+        persistChatDrafts();
+      }
       setSelectedFile(null);
       setReplyingToMessage(null);
       scrollToBottom();
@@ -2359,7 +2406,7 @@ ${channelMessagesText}`;
                           {activeChannelMenuId === c.id && (
                             <>
                               <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveChannelMenuId(null); }} />
-                              <div className="absolute right-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg p-1 z-30 min-w-[100px] text-left">
+                              <div className="absolute right-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg p-1.5 z-30 min-w-[140px] text-left">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -2369,23 +2416,23 @@ ${channelMessagesText}`;
                                     setRenameChannelDesc(c.description || '');
                                     setShowRenameModal(true);
                                   }}
-                                  className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                  className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
                                 >
-                                  <Edit2 className="w-3 h-3 text-slate-450" />
-                                  Rename
+                                  <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                  Đổi tên kênh
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveChannelMenuId(null);
-                                    if (confirm(`Are you sure you want to delete the channel #${c.name}? This action cannot be undone.`)) {
+                                    if (confirm(`Bạn có chắc chắn muốn xóa kênh #${c.name}? Hành động này không thể hoàn tác.`)) {
                                       handleDeleteChannel(c.id, c.name);
                                     }
                                   }}
-                                  className="w-full text-left px-2 py-1.5 text-[10.5px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                                  className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer flex items-center gap-2"
                                 >
-                                  <Trash2 className="w-3 h-3 text-rose-450" />
-                                  Delete
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                  Xóa kênh
                                 </button>
                               </div>
                             </>
@@ -2570,22 +2617,22 @@ ${channelMessagesText}`;
         )}
         
         {/* Chat header */}
-        <header className="relative z-30 flex shrink-0 flex-col border-b border-slate-200/80 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-[#090a0f]/95">
+        <header className="relative z-30 flex shrink-0 flex-col border-b border-slate-200/70 bg-white/80 shadow-xs backdrop-blur-xl dark:border-slate-800/80 dark:bg-[#07080d]/80">
           {/* Top row */}
-          <div className="flex min-h-[66px] items-center justify-between gap-4 px-4 py-2.5 sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-h-[68px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3.5">
               {/* Mobile Back Button to Channels List */}
               <button
                 onClick={() => setIsMobileChatActive(false)}
-                className="mr-0.5 shrink-0 cursor-pointer rounded-xl border border-slate-200/70 bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 md:hidden dark:border-slate-700/80 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="mr-0.5 shrink-0 cursor-pointer rounded-2xl border border-slate-200/70 bg-slate-50 p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 md:hidden dark:border-slate-700/80 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 title="Quay lại danh sách chat"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               {isSelfDm ? (
                 <div className="relative shrink-0 flex">
-                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(ownPresenceStatus, true)}`}></span>
+                  <SignedImage filePath={currentUser.avatar} alt={currentUser.name} className="h-11 w-11 animate-fadeIn rounded-2xl border-2 border-indigo-200/80 dark:border-indigo-800/80 bg-white object-cover shadow-sm dark:bg-slate-800" />
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(ownPresenceStatus, true)}`} />
                 </div>
               ) : isDm && dmMember ? (
                 <div 
@@ -2593,20 +2640,20 @@ ${channelMessagesText}`;
                   className="relative shrink-0 flex cursor-pointer hover:opacity-85 transition-opacity"
                   title={`Xem hồ sơ của ${dmMember.name}`}
                 >
-                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="h-10 w-10 animate-fadeIn rounded-2xl border border-slate-200/70 bg-white object-cover shadow-sm dark:border-slate-700" />
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`}></span>
+                  <SignedImage filePath={dmMember.avatar} alt={dmMember.name} className="h-11 w-11 animate-fadeIn rounded-2xl border-2 border-indigo-200/80 dark:border-indigo-800/80 bg-white object-cover shadow-sm dark:bg-slate-800" />
+                  <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`} />
                 </div>
               ) : (
-                <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-blue-50 to-cyan-100 text-sm font-black text-indigo-600 shadow-sm dark:border-indigo-800/60 dark:from-blue-950/70 dark:to-cyan-950/50 dark:text-indigo-300">
-                  {isSpaceChan ? '📁' : '#'}
+                <div className="flex h-11 w-11 shrink-0 select-none items-center justify-center rounded-2xl border border-indigo-200/70 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-base font-black text-white shadow-md shadow-indigo-500/20">
+                  {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
                 </div>
               )}
               
               <div className="min-w-0 text-left">
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex min-w-0 items-center gap-2">
                   <h2
                     onClick={() => isDm && dmMember && setViewingMemberProfileId(dmMember.id)}
-                    className={`truncate text-[13px] font-extrabold leading-5 text-slate-900 dark:text-slate-100 sm:text-sm ${isDm && dmMember ? 'cursor-pointer transition-colors hover:text-indigo-600 dark:hover:text-indigo-400' : ''}`}
+                    className={`truncate text-sm font-black tracking-tight text-slate-900 dark:text-white sm:text-base ${isDm && dmMember ? 'cursor-pointer transition-colors hover:text-indigo-600 dark:hover:text-indigo-400' : ''}`}
                     title={isDm && dmMember ? `Xem hồ sơ của ${dmMember.name}` : undefined}
                   >
                     {isSelfDm ? currentUser.name : (isDm && dmMember) ? dmMember.name : isSpaceChan ? spaceChanName : (activeChannel?.name || 'chat-room')}
@@ -2615,7 +2662,7 @@ ${channelMessagesText}`;
                   <div className="relative flex items-center">
                     <button 
                       onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-                      className={`text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer transition-colors p-0.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 ${showHeaderMenu ? 'bg-slate-100 dark:bg-slate-800 text-indigo-650 dark:text-indigo-400' : ''}`}
+                      className={`text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition-colors p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 ${showHeaderMenu ? 'bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400' : ''}`}
                       title="Tùy chọn kênh"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
@@ -2623,7 +2670,7 @@ ${channelMessagesText}`;
                     {showHeaderMenu && (
                       <>
                         <div className="fixed inset-0 z-30 cursor-default" onClick={() => setShowHeaderMenu(false)} />
-                        <div className="absolute left-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-35 min-w-[140px] text-left animate-fadeIn">
+                        <div className="absolute left-0 top-7 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-35 min-w-[150px] text-left animate-fadeIn backdrop-blur-xl">
                         <button
                           onClick={() => {
                             setShowHeaderMenu(false);
@@ -2638,9 +2685,9 @@ ${channelMessagesText}`;
                             }
                             setShowRenameModal(true);
                           }}
-                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-2"
                         >
-                          <Edit2 className="w-3 h-3 text-slate-450" />
+                          <Edit2 className="w-3.5 h-3.5 text-slate-400" />
                           Đổi tên kênh
                         </button>
                         <button
@@ -2651,9 +2698,9 @@ ${channelMessagesText}`;
                               handleDeleteChannel(activeChannelId, nameToDelete);
                             }
                           }}
-                          className="w-full text-left px-2.5 py-1.5 text-[10.5px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-955/30 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
                         >
-                          <Trash2 className="w-3 h-3 text-rose-450" />
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                           Xóa kênh
                         </button>
                       </div>
@@ -2664,33 +2711,54 @@ ${channelMessagesText}`;
                 <button 
                   type="button"
                   onClick={() => toggleStarChannel(activeChannelId)}
-                  className={`shrink-0 cursor-pointer rounded-lg p-1 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                    starredChannelIds.includes(activeChannelId) ? 'text-amber-400 fill-amber-400' : 'text-slate-400 hover:text-amber-400'
+                  className={`shrink-0 cursor-pointer rounded-xl p-1.5 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                    starredChannelIds.includes(activeChannelId) ? 'text-amber-400 fill-amber-400 scale-110' : 'text-slate-400 hover:text-amber-400 hover:scale-110'
                   }`}
                   title={starredChannelIds.includes(activeChannelId) ? "Bỏ yêu thích kênh" : "Yêu thích kênh"}
                 >
                   <Star className={`w-4 h-4 ${starredChannelIds.includes(activeChannelId) ? 'fill-amber-400 text-amber-400' : ''}`} />
                 </button>
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   {isDm ? (
-                    <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : dmMember?.status === 'busy' ? 'Đang bận' : dmMember?.status === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-block h-1.5 w-1.5 rounded-full ${presenceDotClass(dmMember?.status || 'offline', false)}`} />
+                      <span>{isSelfDm ? 'Ghi chú cá nhân' : dmMember?.status === 'online' ? 'Đang hoạt động' : dmMember?.status === 'busy' ? 'Đang bận' : dmMember?.status === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
+                    </span>
                   ) : (
                     <>
-                      <span className="shrink-0">{activeChannel?.type === 'group' ? 'Nhóm chat' : activeChannel?.type === 'private' ? 'Kênh riêng tư' : 'Kênh workspace'}</span>
+                      <span className="font-semibold text-slate-600 dark:text-slate-300 shrink-0">{activeChannel?.type === 'group' ? 'Nhóm chat' : activeChannel?.type === 'private' ? 'Kênh riêng tư' : 'Kênh workspace'}</span>
                       <span className="text-slate-300 dark:text-slate-700">•</span>
-                      <span className="max-w-[280px] truncate">{isSpaceChan ? (spaceChanDesc || 'Trao đổi công việc cùng nhóm') : (activeChannel?.description || 'Trao đổi công việc cùng nhóm')}</span>
+                      <span className="max-w-[320px] truncate">{isSpaceChan ? (spaceChanDesc || 'Trao đổi công việc cùng nhóm') : (activeChannel?.description || 'Trao đổi công việc cùng nhóm')}</span>
                     </>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleSummarizeChannel}
+                disabled={isSummarizing}
+                className="flex h-9 px-2.5 cursor-pointer items-center gap-1.5 rounded-2xl border border-amber-200/80 bg-amber-50/60 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 transition-all hover:bg-amber-100 hover:scale-103 disabled:cursor-wait disabled:opacity-50 text-xs font-bold shadow-2xs"
+                title="Tóm tắt cuộc trò chuyện bằng AI"
+              >
+                {isSummarizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 fill-amber-400" />}
+                <span className="hidden sm:inline">AI Tóm tắt</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportChatMarkdown}
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl border border-slate-200/70 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-700/80 dark:bg-slate-850 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-all shadow-2xs hover:scale-105 active:scale-95"
+                title="Xuất lịch sử trò chuyện (Markdown)"
+              >
+                <Download className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 onClick={() => { setActiveSidebarTab('search'); setShowMemberDrawer(true); }}
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-transparent text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl border border-slate-200/70 bg-slate-50/80 hover:bg-slate-100 dark:border-slate-700/80 dark:bg-slate-850 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-all shadow-2xs hover:scale-105 active:scale-95"
                 title="Tìm trong cuộc trò chuyện"
               >
                 <Search className="h-4 w-4" />
@@ -2698,16 +2766,14 @@ ${channelMessagesText}`;
               <button
                 type="button"
                 onClick={() => { setActiveSidebarTab('members'); setShowMemberDrawer(true); }}
-                className="hidden h-8 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 text-[10.5px] font-bold text-slate-600 shadow-xs transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50"
+                className="hidden h-9 cursor-pointer items-center gap-1.5 rounded-2xl border border-slate-200/70 bg-slate-50/80 hover:bg-slate-100 px-3 text-xs font-extrabold text-slate-700 shadow-2xs transition-all hover:scale-103 sm:flex dark:border-slate-700 dark:bg-slate-850 dark:text-slate-200"
                 title="Xem thành viên"
               >
-                <Users className="h-3.5 w-3.5" />
+                <Users className="h-3.5 w-3.5 text-indigo-500" />
                 <span>{members.length}</span>
               </button>
-
             </div>
           </div>
-
         </header>
 
         {/* Pinned Messages Bar */}
@@ -2756,25 +2822,167 @@ ${channelMessagesText}`;
               ))}
             </div>
           )}
+          {/* Self DM Notes View */}
           {isSelfDm && (
-            <div className="flex flex-col items-center justify-center text-center py-10 max-w-md mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 flex items-center justify-center mb-4 text-2xl">
+            <div className="flex flex-col items-center justify-center text-center py-10 max-w-lg mx-auto select-none border-b border-slate-100 dark:border-slate-800/40 mb-6 animate-fadeIn">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-500 to-cyan-500 text-white flex items-center justify-center mb-4 text-2xl shadow-lg shadow-indigo-500/25">
                 🧠
               </div>
-              <h2 className="text-[15px] font-black text-slate-800 dark:text-slate-105 mb-1.5">Đây là không gian cá nhân của bạn</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-semibold">
-                Chỉ có bạn và những ý tưởng tuyệt vời! Soạn tin nhắn, đặt lời nhắc hoặc lưu ý tưởng và tệp để dễ dàng truy cập sau này.
+              <h2 className="text-lg font-black text-slate-900 dark:text-white mb-1.5 tracking-tight">Không gian Ghi chú Cá nhân của bạn</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-medium max-w-md">
+                Chỉ có bạn thấy những tin nhắn này. Thích hợp để lưu nháp, ghi chú việc cần làm, tệp đính kèm và ý tưởng sáng tạo.
               </p>
-              <button type="button" className="flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-850 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition-all w-full cursor-pointer shadow-xs">
-                <span>👤</span> Xem hồ sơ
-              </button>
-              
-              {/* Calendar option card */}
-              <div className="mt-4 w-full p-4 border border-rose-100 bg-rose-50/20 dark:border-rose-955/40 dark:bg-rose-955/10 rounded-2xl flex items-center gap-3 text-left hover:bg-rose-50/40 dark:hover:bg-rose-955/20 transition-all cursor-pointer">
-                <span className="text-2xl">📅</span>
-                <div className="min-w-0">
-                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-150">Xem lịch của bạn</span>
-                  <span className="block text-[10px] text-slate-455 dark:text-slate-400 font-medium mt-0.5">Tạo sự kiện hoặc quản lý lịch trình</span>
+
+              {/* Quick Starters for Self DM */}
+              <div className="w-full space-y-2 mb-6 text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block px-1">Gợi ý bắt đầu</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { label: '📝 Ghi chú việc cần làm hôm nay', prompt: '📝 Danh sách việc cần làm hôm nay:\n- [ ] ' },
+                    { label: '💡 Lưu ý tưởng dự án mới', prompt: '💡 Ý tưởng mới: ' },
+                    { label: '🎯 Đặt mục tiêu cá nhân tuần này', prompt: '🎯 Mục tiêu tuần này:\n1. ' },
+                    { label: '🤖 Nhờ AI lên kế hoạch ngày', prompt: '@apexa-brain Hãy gợi ý lịch làm việc hiệu quả cho hôm nay' }
+                  ].map(s => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => {
+                        setInputVal(s.prompt);
+                        inputRef.current?.focus();
+                      }}
+                      className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all text-left shadow-2xs hover:-translate-y-0.5 cursor-pointer"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Regular Channel / DM Welcome Hub (when channel is empty) */}
+          {!isSelfDm && messages.filter(m => !m.parentId).length === 0 && !isLoadingMessages && (
+            <div className="flex flex-col items-center justify-center text-center py-12 max-w-xl mx-auto select-none animate-fadeIn">
+              {/* Glowing Icon Header */}
+              <div className="relative mb-5">
+                <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-cyan-500/20 rounded-full blur-xl animate-pulse pointer-events-none" />
+                {isDm && dmMember ? (
+                  <div className="relative">
+                    <SignedImage
+                      filePath={dmMember.avatar}
+                      alt={dmMember.name}
+                      className="w-20 h-20 rounded-3xl object-cover border-2 border-white dark:border-slate-800 shadow-xl"
+                    />
+                    <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(dmMember.status, true)}`} />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-600 text-white flex items-center justify-center text-3xl shadow-xl shadow-indigo-500/25 border border-white/20">
+                    {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
+                  </div>
+                )}
+              </div>
+
+              {/* Title and Subtitle */}
+              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                {isDm && dmMember 
+                  ? `Trò chuyện cùng ${dmMember.name}` 
+                  : isSpaceChan 
+                    ? `Chào mừng đến với #${spaceChanName}` 
+                    : `Chào mừng đến với #${activeChannel?.name || 'chat-room'}!`}
+              </h2>
+              <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
+                {isDm && dmMember 
+                  ? `Đây là cuộc trò chuyện trực tiếp giữa bạn và ${dmMember.name} (${dmMember.role || 'Thành viên'}). Bắt đầu nhắn tin để trao đổi công việc!`
+                  : isSpaceChan
+                    ? (spaceChanDesc || 'Kênh trao đổi không gian làm việc. Bắt đầu cuộc trò chuyện cùng các thành viên trong nhóm!')
+                    : (activeChannel?.description || 'Đây là sự khởi đầu của kênh này. Hãy gửi tin nhắn đầu tiên để kết nối và trao đổi cùng đội ngũ!')}
+              </p>
+
+              {/* 1-Click Quick Conversation Starters */}
+              <div className="mt-8 w-full space-y-2.5 text-left">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    Gợi ý mở đầu cuộc trò chuyện
+                  </span>
+                  <span className="text-[10px] text-slate-400 italic">Nhấn 1 chạm để chọn</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {[
+                    { label: '👋 Chào mọi người, chúc một ngày hiệu quả!', text: '👋 Chào mọi người, chúc một ngày làm việc hiệu quả!' },
+                    { label: '🚀 Cập nhật tiến độ dự án hôm nay', text: '🚀 Cập nhật tiến độ: Hôm nay mình đang tập trung vào ' },
+                    { label: '💡 Đề xuất ý tưởng mới cho nhóm', text: '💡 Mình có một ý tưởng muốn trao đổi cùng mọi người: ' },
+                    { label: '🤖 @apexa-brain Tổng quan công việc tuần', text: '@apexa-brain Hãy tổng quan các đầu việc quan trọng tuần này' }
+                  ].map(item => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setInputVal(item.text);
+                        inputRef.current?.focus();
+                      }}
+                      className="group p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all text-left shadow-2xs hover:-translate-y-0.5 cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="truncate">{item.label}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Action Feature Cards */}
+              <div className="mt-6 w-full space-y-2.5 text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block px-1">
+                  Công cụ & Tiện ích nhanh
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPollModal(true)}
+                    className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition-all text-center group cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                  >
+                    <div className="w-9 h-9 mx-auto rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Vote className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Tạo Thăm dò</span>
+                    <span className="block text-[9.5px] text-slate-400 mt-0.5">Lấy ý kiến nhóm</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowChecklistModal(true)}
+                    className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-all text-center group cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                  >
+                    <div className="w-9 h-9 mx-auto rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <CheckSquare className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Checklist</span>
+                    <span className="block text-[9.5px] text-slate-400 mt-0.5">Danh sách việc</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoMeetModal(true)}
+                    className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all text-center group cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                  >
+                    <div className="w-9 h-9 mx-auto rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Video className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Họp Video</span>
+                    <span className="block text-[9.5px] text-slate-400 mt-0.5">Tạo phòng nhanh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-all text-center group cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                  >
+                    <div className="w-9 h-9 mx-auto rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Paperclip className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Gửi Tệp</span>
+                    <span className="block text-[9.5px] text-slate-400 mt-0.5">Đính kèm tài liệu</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2796,23 +3004,42 @@ ${channelMessagesText}`;
 
             return (
               <div key={msg.id}>
+                {/* Channel History Top Anchor */}
+                {idx === 0 && !isSelfDm && (
+                  <div className="pt-2 pb-6 px-2 text-left space-y-2 border-b border-slate-100 dark:border-slate-800/60 mb-4 select-none animate-fadeIn">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-indigo-500/20">
+                      {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">
+                        {isDm && dmMember ? `Cuộc trò chuyện với ${dmMember.name}` : `#${activeChannel?.name || 'chat-room'}`}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                        {isDm && dmMember
+                          ? `Đây là sự khởi đầu của cuộc trò chuyện trực tiếp giữa bạn và ${dmMember.name}.`
+                          : `Đây là sự khởi đầu của kênh #${activeChannel?.name || 'chat-room'}.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Date Separator Pill */}
                 {showDateSep && msgDateLabel && (
                   <div className="flex items-center gap-3 py-3 mb-2">
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                    <span className="px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-full shadow-sm whitespace-nowrap">
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent" />
+                    <span className="px-3.5 py-1 text-[9.5px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-full shadow-2xs whitespace-nowrap">
                       {msgDateLabel}
                     </span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent" />
                   </div>
                 )}
 
               <div 
                 id={`msg-${msg.id}`}
-                className={`flex gap-3 items-start group relative rounded-xl p-3 transition-all ${
+                className={`flex gap-3.5 items-start group relative rounded-2xl p-3.5 transition-all ${
                   msg.isAi 
-                    ? 'bg-gradient-to-r from-indigo-50/20 via-purple-50/10 to-transparent border-l-[3px] border-indigo-505 dark:from-indigo-950/15 dark:via-purple-955/5 dark:to-transparent' 
-                    : 'hover:bg-slate-50/40 dark:hover:bg-slate-800/10'
+                    ? 'bg-gradient-to-r from-indigo-50/40 via-purple-50/20 to-transparent border-l-4 border-indigo-500 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-transparent shadow-2xs' 
+                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-850/50'
                 }`}
               >
                 {/* Sender Avatar */}
@@ -2875,6 +3102,25 @@ ${channelMessagesText}`;
                       </div>
                     )}
                   </div>
+
+                  {/* Quoted reply context (trả lời tin nhắn nào) */}
+                  {msg.parentId && (() => {
+                    const parentMsg = messages.find(x => x.id === msg.parentId);
+                    if (!parentMsg) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleScrollToMessage(parentMsg.id)}
+                        className="mb-1 flex w-full items-center gap-2 rounded-xl border-l-[3px] border-indigo-400 bg-slate-100/80 px-2.5 py-1.5 text-left transition-colors hover:bg-slate-200/70 cursor-pointer dark:border-indigo-500 dark:bg-slate-800/60 dark:hover:bg-slate-700/60"
+                        title="Nhảy tới tin nhắn gốc"
+                      >
+                        <span className="shrink-0 text-[10px] font-black text-indigo-600 dark:text-indigo-400">{parentMsg.senderName}</span>
+                        <span className="truncate text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                          {parentMsg.content || (parentMsg.attachment ? `📎 ${parentMsg.attachment.name}` : 'Tin nhắn')}
+                        </span>
+                      </button>
+                    );
+                  })()}
 
                   {isEditing ? (
                     <div className="space-y-2 mt-1">
@@ -3041,7 +3287,7 @@ ${channelMessagesText}`;
                 </div>
 
                 {/* Actions Popover (Hover menus) */}
-                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-xl backdrop-blur-md p-1 z-20">
+                <div className={`absolute right-2 top-2 transition-all flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-xl backdrop-blur-md p-1 z-20 ${reactionPickerMsgId === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                   {/* Quick Reactions */}
                   {['👍', '❤️', '🎉', '😂'].map(emoji => (
                     <button 
@@ -3052,6 +3298,19 @@ ${channelMessagesText}`;
                       {emoji}
                     </button>
                   ))}
+
+                  {/* Full Reaction Picker Toggle */}
+                  <button 
+                    onClick={() => setReactionPickerMsgId(reactionPickerMsgId === msg.id ? null : msg.id)}
+                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                      reactionPickerMsgId === msg.id
+                        ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400'
+                        : 'text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                    title="Chọn biểu cảm khác"
+                  >
+                    <SmilePlus className="w-3.5 h-3.5" />
+                  </button>
 
                   {/* Translate Message Button */}
                   <button 
@@ -3118,6 +3377,15 @@ ${channelMessagesText}`;
                     </button>
                   )}
 
+                  {/* Copy Message Content */}
+                  <button 
+                    onClick={() => handleCopyMessage(msg.content)}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    title="Sao chép nội dung tin nhắn"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+
                   {/* Edit/Delete for own messages */}
                   {isMe && (
                     <>
@@ -3135,6 +3403,28 @@ ${channelMessagesText}`;
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                    </>
+                  )}
+
+                  {/* Full Reaction Picker Popover */}
+                  {reactionPickerMsgId === msg.id && (
+                    <>
+                      <div className="fixed inset-0 z-30 cursor-default" onClick={() => setReactionPickerMsgId(null)} />
+                      <div className="absolute right-0 top-full mt-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl z-40 w-[232px] animate-fadeIn">
+                        <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider px-1 pb-1.5">Chọn biểu cảm</div>
+                        <div className="grid grid-cols-7 gap-0.5">
+                          {['😀', '😂', '😍', '🥳', '😎', '🤔', '😭', '👍', '🙌', '🤝', '👏', '🙏', '💪', '🔥', '🎉', '🚀', '❤️', '💜', '💡', '🧠', '👀', '💯', '✅', '⚡', '☕', '🏆', '🎯', '🤯'].map(emoji => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => { handleAddReaction(msg.id, emoji); setReactionPickerMsgId(null); }}
+                              className="w-7 h-7 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-center text-sm select-none cursor-pointer transition-all hover:scale-110 active:scale-95"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -3508,6 +3798,17 @@ ${channelMessagesText}`;
 
                             <button
                               type="button"
+                              onClick={() => { setShowPollModal(true); setShowToolsMenu(false); }}
+                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                            >
+                              <div className="w-7 h-7 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                                <Vote className="w-3.5 h-3.5" />
+                              </div>
+                              <span>Tạo Thăm dò</span>
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => { setShowChecklistModal(true); setShowToolsMenu(false); }}
                               className="flex items-center gap-2 p-2 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
                             >
@@ -3818,9 +4119,24 @@ ${channelMessagesText}`;
                     <div className="space-y-2.5">
                       {localSearchQuery.trim() ? (
                         messages.filter(m => m.content.toLowerCase().includes(localSearchQuery.toLowerCase())).map(m => (
-                          <div key={m.id} className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-left hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors">
+                          <div
+                            key={m.id}
+                            onClick={() => {
+                              if (m.parentId) {
+                                const parent = messages.find(x => x.id === m.parentId);
+                                if (parent) {
+                                  handleOpenThread(parent);
+                                  handleScrollToMessage(parent.id);
+                                  return;
+                                }
+                              }
+                              handleScrollToMessage(m.id);
+                            }}
+                            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-left hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:border-indigo-600 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer group/sr"
+                            title="Nhảy tới tin nhắn này"
+                          >
                             <div className="flex justify-between font-bold text-slate-500 dark:text-slate-400 text-[9px] mb-1">
-                              <span>{m.senderName}</span>
+                              <span className="group-hover/sr:text-indigo-600 dark:group-hover/sr:text-indigo-400 transition-colors">{m.senderName}{m.parentId ? ' · trong luồng' : ''}</span>
                               <span>{m.timestamp}</span>
                             </div>
                             <p className="text-slate-700 dark:text-slate-300 font-semibold break-words leading-normal">{m.content}</p>

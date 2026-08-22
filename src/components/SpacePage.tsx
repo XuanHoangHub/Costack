@@ -43,6 +43,7 @@ import DocumentHub from './DocumentHub';
 import TeamDirectory from './TeamDirectory';
 import DashboardOverview from './DashboardOverview';
 import AddFolderModal from './AddFolderModal';
+import { ApexaAiIcon } from './ApexaAiIcon';
 import PromptModal, { PromptModalConfig } from './PromptModal';
 
 type ViewSettingKey = 'pin' | 'private' | 'protect' | 'autosave' | 'default';
@@ -3026,7 +3027,7 @@ export default function SpacePage({
                         className="w-full flex items-start gap-2.5 p-2 rounded-xl bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/5 hover:from-blue-500/15 hover:via-sky-500/15 dark:from-indigo-950/40 dark:via-cyan-950/30 border border-indigo-500/20 text-left cursor-pointer group transition-all mb-1"
                       >
                         <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                          <ApexaAiIcon className="w-4 h-4" variant="gradient" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -3750,6 +3751,9 @@ export default function SpacePage({
             onAddTask={guardedAddTask}
             onUpdateTask={guardedUpdateTask}
             onDeleteTask={guardedDeleteTask}
+            spaces={spaces}
+            activeSpaceId={activeSpaceId}
+            activeListId={activeListId}
           />
         )}
 

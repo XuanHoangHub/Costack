@@ -194,7 +194,7 @@ export const useUiStore = create<UiState>()(
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
       sidebarOrder: [
-        'dashboard', 'inbox', 'tasks', 'my-tasks', 'calendar', 'productivity', 'goals', 'analytics',
+        'dashboard', 'inbox', 'tasks', 'my-tasks', 'calendar', 'productivity', 'analytics',
         'crm', 'base', 'docs', 'whiteboard', 'chat', 'team'
       ],
 

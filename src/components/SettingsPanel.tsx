@@ -19,6 +19,7 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import { supabase } from '@/lib/supabaseClient';
 import type { ThemePreference } from '@/lib/theme';
 import type { NotificationSettings, SyncLog, Task, User, Workspace } from '@/types';
+import { ApexaAiIcon } from './ApexaAiIcon';
 
 export const WORKSPACE_COVERS = [
   { id: 'cover1', name: 'Amethyst Quartz', url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80' },
@@ -153,7 +154,7 @@ export default function SettingsPanel({
       items: [
         { id: 'general', label: t('settingsGeneral') || (isVietnamese ? 'Không gian làm việc' : 'Workspace'), description: t('settingsGeneralDesc') || (isVietnamese ? 'Nhận diện và thương hiệu' : 'Identity and branding'), icon: BriefcaseBusiness },
         { id: 'people', label: t('settingsPeople') || (isVietnamese ? 'Thành viên' : 'Members'), description: t('settingsPeopleDesc') || (isVietnamese ? 'Thành viên và quyền truy cập' : 'Members and access permissions'), icon: UsersRound },
-        { id: 'ai_usage', label: t('settingsAi') || 'Apexa AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: Brain },
+        { id: 'ai_usage', label: t('settingsAi') || 'Apexa AI', description: t('settingsAiDesc') || (isVietnamese ? 'Cấu hình mô hình' : 'AI Copilot & model config'), icon: ApexaAiIcon },
         { id: 'audit_logs', label: t('settingsAuditLogs') || (isVietnamese ? 'Nhật ký hoạt động' : 'Activity Log'), description: t('settingsAuditLogsDesc') || (isVietnamese ? 'Sự kiện trong không gian' : 'Workspace events & history'), icon: FileClock },
         { id: 'data_export', label: t('settingsDataExport') || (isVietnamese ? 'Dữ liệu và lưu trữ' : 'Data & Storage'), description: t('settingsDataExportDesc') || (isVietnamese ? 'Xuất dữ liệu và bộ nhớ đệm' : 'Export data & storage'), icon: Database }
       ]

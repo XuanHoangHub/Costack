@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import PageTreeSidebar from './PageTreeSidebar';
 import DocumentEditor from './DocumentEditor';
-import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ArrowRight, Zap, ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import ScreenplayEditor from './script/ScreenplayEditor';
+import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ArrowRight, Zap, ChevronRight, Film, Edit3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface DocumentHubProps {
   currentUser: any;
@@ -41,6 +42,7 @@ export default function DocumentHub({
   const activeWorkspaceId = storeActiveWorkspaceId || (currentUser as any)?.workspaceId || 'workspace-default';
   const [documents, setDocuments] = useState<any[]>([]);
   const [activeDocId, setActiveDocId] = useState<string>('');
+  const [isScreenplayMode, setIsScreenplayMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -155,7 +157,7 @@ export default function DocumentHub({
   useEffect(() => {
     if (!activeWorkspaceId || isOffline) return;
 
-    const channel = supabase.channel(`documents-realtime-${activeWorkspaceId}`)
+    const channel = getCleanChannel(`documents-realtime-${activeWorkspaceId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -282,6 +284,7 @@ export default function DocumentHub({
   };
 
   const handleDuplicateDoc = async (doc: any) => {
+    if (!doc) return;
     const newDocId = typeof crypto !== 'undefined' && crypto.randomUUID 
       ? crypto.randomUUID() 
       : `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -408,18 +411,43 @@ export default function DocumentHub({
     <div className="flex h-full w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden font-sans select-none text-slate-800 dark:text-slate-100 relative">
       
       {/* Sidebar Navigation */}
-      {isSidebarOpen && (
-        <PageTreeSidebar 
-          documents={documents}
-          activeDocId={activeDocId}
-          onSelectDoc={setActiveDocId}
-          onAddDoc={handleAddDoc}
-          onDuplicateDoc={handleDuplicateDoc}
-          onUpdateDoc={handleUpdateDoc}
-          onDeleteDoc={handleDeleteDoc}
-          workspaceId={activeWorkspaceId || ''}
-        />
-      )}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Mobile Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ x: -288 }}
+              animate={{ x: 0 }}
+              exit={{ x: -288 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed md:relative inset-y-0 left-0 z-50 md:z-auto h-full w-72 shrink-0 shadow-2xl md:shadow-none"
+            >
+              <PageTreeSidebar 
+                documents={documents}
+                activeDocId={activeDocId}
+                onSelectDoc={(id) => {
+                  setActiveDocId(id);
+                  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                    setIsSidebarOpen(false);
+                  }
+                }}
+                onAddDoc={handleAddDoc}
+                onDuplicateDoc={handleDuplicateDoc}
+                onUpdateDoc={handleUpdateDoc}
+                onDeleteDoc={handleDeleteDoc}
+                workspaceId={activeWorkspaceId || ''}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-white dark:bg-slate-900 relative">
@@ -456,24 +484,32 @@ export default function DocumentHub({
           );
         })()}
 
-        {activeDocId ? (
-          <DocumentEditor 
-            key={activeDocId}
-            documentId={activeDocId}
-            initialDocument={documents.find(d => d.id === activeDocId)}
+        {isScreenplayMode ? (
+          <ScreenplayEditor
             currentUser={currentUser}
-            isOffline={isOffline}
-            onCreateTask={(title, description) => onCreateTaskFromDoc?.(title, description, activeDocId)}
-            onDocumentUpdated={(updates) => {
-              setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, ...updates } : d));
-            }}
-            onUpdateTitle={(title) => {
-              setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, title } : d));
-            }}
-            onUpdateCoverAndIcon={(coverUrl, icon) => {
-              setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, cover_url: coverUrl, icon } : d));
-            }}
+            initialTitle={activeDocId ? (documents.find(d => d.id === activeDocId)?.title || 'The Girl & the Fox') : 'The Girl & the Fox'}
+            onBackToDocs={() => setIsScreenplayMode(false)}
           />
+        ) : activeDocId ? (
+          <div className="flex-1 flex flex-col min-w-0 h-full relative">
+            <DocumentEditor 
+              key={activeDocId}
+              documentId={activeDocId}
+              initialDocument={documents.find(d => d.id === activeDocId)}
+              currentUser={currentUser}
+              isOffline={isOffline}
+              onCreateTask={(title, description) => onCreateTaskFromDoc?.(title, description, activeDocId)}
+              onDocumentUpdated={(updates) => {
+                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, ...updates } : d));
+              }}
+              onUpdateTitle={(title) => {
+                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, title } : d));
+              }}
+              onUpdateCoverAndIcon={(coverUrl, icon) => {
+                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, cover_url: coverUrl, icon } : d));
+              }}
+            />
+          </div>
         ) : (
           /* Empty State / Welcome Screen */
           <div className="flex-grow flex flex-col items-center justify-center bg-gradient-to-b from-slate-50/80 via-white to-slate-50/50 dark:from-slate-950/60 dark:via-slate-900 dark:to-slate-950/40 p-6 md:p-12 overflow-y-auto scrollbar-thin">
@@ -500,18 +536,25 @@ export default function DocumentHub({
                   Không gian Soạn thảo & Quản lý Tài liệu
                 </h3>
                 <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                  Soạn thảo tài liệu thông minh, lập kế hoạch dự án, ghi chú cuộc họp và hợp tác theo thời gian thực cùng đội ngũ của bạn.
+                  Soạn thảo tài liệu thông minh, biên kịch kịch bản phim ảnh chuẩn Hollywood, lập kế hoạch dự án và hợp tác theo thời gian thực.
                 </p>
               </div>
 
               {/* Quick Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => handleAddDoc()}
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
                   <span>Tạo tài liệu mới</span>
+                </button>
+                <button
+                  onClick={() => setIsScreenplayMode(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-pink-600 via-rose-600 to-amber-500 hover:from-pink-700 hover:to-amber-600 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
+                >
+                  <Film className="w-4 h-4 stroke-[2.5]" />
+                  <span>Soạn thảo Kịch bản (Screenplay)</span>
                 </button>
               </div>
 

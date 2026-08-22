@@ -5,3 +5,4 @@ export { Badge } from "./Badge";
 export { SegmentedControl } from "./SegmentedControl";
 export { MockupFrame } from "./MockupFrame";
 export { FloatingCommandBar } from "./FloatingCommandBar";
+export { ApexaAiIcon, ApexaAiAvatar } from "../ApexaAiIcon";

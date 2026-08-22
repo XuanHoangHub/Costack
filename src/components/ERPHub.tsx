@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { User } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
 
 interface ERPHubProps {
   activeWorkspaceId: string;
@@ -393,30 +394,33 @@ export default function ERPHub({
     setShowAddOrderModal(false);
   };
 
-  const handlePushOrderToFinance = (order: SalesOrder) => {
+  const handlePushOrderToFinance = async (order: SalesOrder) => {
     try {
-      const savedInvoices = localStorage.getItem(`apexa_finance_invoices_${wsKey}`);
-      const list = savedInvoices ? JSON.parse(savedInvoices) : [];
-      
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw authError || new Error('Phiên đăng nhập đã hết hạn');
       const newInvoice = {
-        id: `inv-so-${Date.now()}`,
+        workspace_id: activeWorkspaceId,
         code: `HD-${order.code.replace('DH-', '')}`,
-        customer: order.customerName,
-        taxCode: '0109988776',
-        amount: order.subtotal,
-        vatRate: order.vatRate,
-        totalAmount: order.totalAmount,
-        issueDate: order.orderDate,
-        dueDate: order.deliveryDate,
-        status: order.paymentStatus === 'paid' ? 'paid' : 'pending',
-        type: 'output',
-        items: order.items.map(i => ({ description: i.name, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.total }))
+        invoice_type: 'out',
+        partner_name: order.customerName,
+        tax_code: '',
+        subtotal: order.subtotal,
+        vat_rate: order.vatRate,
+        vat_amount: order.totalAmount - order.subtotal,
+        total: order.totalAmount,
+        issue_date: order.orderDate,
+        due_date: order.deliveryDate,
+        status: order.paymentStatus === 'paid' ? 'paid' : 'pending_verification',
+        signed: false,
+        items: order.items.map(i => ({ description: i.name, quantity: i.quantity, unitPrice: i.unitPrice, amount: i.total })),
+        created_by: authData.user.id,
       };
-
-      localStorage.setItem(`apexa_finance_invoices_${wsKey}`, JSON.stringify([newInvoice, ...list]));
+      const { error: insertError } = await supabase.from('finance_invoices').insert(newInvoice);
+      if (insertError) throw insertError;
       triggerToast?.('success', 'Đã đồng bộ sang Tài chính', `Hóa đơn ${newInvoice.code} đã được tự động tạo trong FinanceHub.`);
     } catch (err) {
       console.error(err);
+      triggerToast?.('info', 'Chưa thể đồng bộ Tài chính', err instanceof Error ? err.message : 'Vui lòng thử lại.');
     }
   };
 

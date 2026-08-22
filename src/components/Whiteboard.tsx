@@ -9,7 +9,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Square, Circle, Edit2, Move, StickyNote, Grid,
   Trash2, Users, Sparkles, Database, Code, 
@@ -174,7 +174,7 @@ export default function Whiteboard({
       newElements = [
         { id: `k-1-${now}`, type: 'sticky', x: 50, y: 50, width: 140, height: 140, color: '#fef08a', text: 'CẦN LÀM (TO DO)\n\n- Thiết kế UI\n- Viết API docs' },
         { id: `k-2-${now}`, type: 'sticky', x: 220, y: 50, width: 140, height: 140, color: '#bfdbfe', text: 'ĐANG LÀM (IN PROGRESS)\n\n- Tích hợp AI Assistant\n- Review Code' },
-        { id: `k-3-${now}`, type: 'sticky', x: 390, y: 50, width: 140, height: 140, color: '#bbf7d0', text: 'HOÀN THÀNH (DONE)\n\n- Khởi tạo repo\n- Setup Supabase' }
+        { id: `k-3-${now}`, type: 'sticky', x: 390, y: 50, width: 140, height: 140, color: '#bbf7d0', text: 'HOÀN THÀNH (DONE)\n\n- Khởi tạo repo\n- Setup CSDL & Cloud' }
       ];
     } else if (type === 'swot') {
       newElements = [
@@ -699,7 +699,7 @@ export default function Whiteboard({
       loadElements();
       
       try {
-        boardChannel = supabase.channel(`realtime-whiteboard-elements-${whiteboardId}`)
+        boardChannel = getCleanChannel(`realtime-whiteboard-elements-${whiteboardId}`)
           .on('postgres_changes', {
             event: '*', schema: 'public', table: 'whiteboard_elements',
             filter: `whiteboard_id=eq.${whiteboardId}`

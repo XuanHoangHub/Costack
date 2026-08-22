@@ -191,7 +191,7 @@ function ProfilePage({
         const fileExt = file.name.split('.').pop();
         const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-        triggerToast?.('info', locale === 'vi' ? 'Đang đồng bộ ảnh ⚡' : 'Uploading avatar...', locale === 'vi' ? 'Đang tải ảnh đại diện lên đám mây Supabase...' : 'Uploading avatar image to Supabase...');
+        triggerToast?.('info', locale === 'vi' ? 'Đang đồng bộ ảnh ⚡' : 'Uploading avatar...', locale === 'vi' ? 'Đang tải ảnh đại diện lên đám mây...' : 'Uploading avatar image to Cloud...');
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
@@ -371,7 +371,7 @@ function ProfilePage({
           }).eq('id', dbId).eq('user_id', session.user.id);
         }
 
-        addSyncLog('Đã tự động lưu hồ sơ cá nhân lên Supabase');
+        addSyncLog('Đã tự động lưu hồ sơ cá nhân lên đám mây');
       }
     } catch (err) {
       console.error('Lỗi lưu hồ sơ:', err);

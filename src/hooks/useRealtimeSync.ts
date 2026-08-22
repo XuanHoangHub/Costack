@@ -529,7 +529,15 @@ export function useSupabaseSync() {
         setDataLoaded.current = true;
 
         if (active) {
-          tasksChannel = supabase.channel('realtime-tasks')
+          const getCleanChannel = (name: string) => {
+            const existing = supabase.getChannels().find(c => c.topic === name || c.topic === `realtime:${name}`);
+            if (existing) {
+              void supabase.removeChannel(existing);
+            }
+            return supabase.channel(name);
+          };
+
+          tasksChannel = getCleanChannel('realtime-tasks')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -578,7 +586,7 @@ export function useSupabaseSync() {
             })
             .subscribe();
 
-          docsChannel = supabase.channel('realtime-docs')
+          docsChannel = getCleanChannel('realtime-docs')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -610,7 +618,7 @@ export function useSupabaseSync() {
             })
             .subscribe();
 
-          membersChannel = supabase.channel('realtime-members')
+          membersChannel = getCleanChannel('realtime-members')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -671,7 +679,7 @@ export function useSupabaseSync() {
             })
             .subscribe();
 
-          workspacesChannel = supabase.channel('realtime-workspaces')
+          workspacesChannel = getCleanChannel('realtime-workspaces')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, (payload) => {
               const eventType = payload.eventType;
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -703,14 +711,14 @@ export function useSupabaseSync() {
             })
             .subscribe();
 
-          spacesChannel = supabase.channel('realtime-spaces')
+          spacesChannel = getCleanChannel('realtime-spaces')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'spaces' }, () => {
               // Debounce: wait 400ms before re-fetching to let optimistic updates settle
               setTimeout(() => { if (active) fetchSpacesAndLists(); }, 400);
             })
             .subscribe();
 
-          listsChannel = supabase.channel('realtime-lists')
+          listsChannel = getCleanChannel('realtime-lists')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, () => {
               // Debounce: wait 400ms before re-fetching to let optimistic updates settle
               setTimeout(() => { if (active) fetchSpacesAndLists(); }, 400);

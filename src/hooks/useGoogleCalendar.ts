@@ -37,7 +37,7 @@ const fetchEvents = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const fetched = await googleCalendarService.fetchUpcomingEvents(accessToken);
+      const fetched = await googleCalendarService.fetchEvents();
       setEvents(fetched);
       setError(null);
       if (onSuccessRef.current) {
@@ -79,7 +79,7 @@ const fetchEvents = useCallback(async () => {
       if (!accessToken) {
         throw new Error('Google Calendar access token is not available');
       }
-      const newEvent = await googleCalendarService.createEvent(accessToken, eventData);
+      const newEvent = await googleCalendarService.createEvent(eventData);
       setEvents((prev) => [...prev, newEvent]);
       return newEvent;
     },
@@ -91,7 +91,7 @@ const fetchEvents = useCallback(async () => {
       if (!accessToken) {
         throw new Error('Google Calendar access token is not available');
       }
-      await googleCalendarService.deleteEvent(accessToken, eventId);
+      await googleCalendarService.deleteEvent(eventId);
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
       return true;
     },

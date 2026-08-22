@@ -22,6 +22,7 @@ interface ApexaBrainAssistantProps {
 
 import { useTranslation } from '../contexts/TranslationContext';
 import { useUiStore } from '../store/uiStore';
+import { ApexaAiIcon, ApexaAiAvatar } from './ApexaAiIcon';
 
 type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
 
@@ -599,24 +600,23 @@ Based on current information, here is a quick summary:
             if (documents.length > 0 && !selectedDocId) setSelectedDocId(documents[0].id);
             if (tasks.length > 0 && !selectedTaskId) setSelectedTaskId(tasks[0].id);
           }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 flex items-center justify-center text-white shadow-[0_4px_24px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_30px_rgba(236,72,153,0.55)] cursor-pointer relative z-10"
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.94 }}
+          className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 border border-sky-400/40 flex items-center justify-center text-white shadow-[0_8px_32px_rgba(59,130,246,0.35)] hover:shadow-[0_8px_36px_rgba(56,189,248,0.55)] cursor-pointer relative z-10 overflow-hidden group"
           title="Trợ lý AI Apexa"
         >
+          {/* Ambient specular highlight */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 rounded-2xl blur-sm opacity-30 group-hover:opacity-60 transition-opacity -z-10" />
+
           {isOpen ? (
-            <X className="w-5 h-5 shrink-0" />
+            <X className="w-5 h-5 shrink-0 text-white" />
           ) : (
-            <>
-              <Brain className="w-6 h-6 shrink-0" />
-              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-pink-500 border border-white dark:border-slate-900 text-[8px] font-extrabold flex items-center justify-center rounded-full shadow-md text-white">
-                AI
-              </div>
-            </>
+            <ApexaAiIcon className="w-7 h-7 shrink-0 drop-shadow-[0_2px_10px_rgba(56,189,248,0.6)]" variant="gradient" />
           )}
         </motion.button>
         {!isOpen && (
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-600 to-cyan-400 animate-ping opacity-25 -z-0 scale-95 pointer-events-none" />
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 animate-ping opacity-20 -z-0 scale-95 pointer-events-none" />
         )}
       </div>
 
@@ -649,8 +649,8 @@ Based on current information, here is a quick summary:
                 <div className="absolute top-[-30px] right-[10%] w-[100px] h-[100px] bg-pink-500/10 rounded-full blur-[30px] pointer-events-none" />
 
                 <div className="flex items-center gap-3 relative z-10">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-                    <Sparkles className="w-5 h-5 text-indigo-300 animate-pulse" />
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-900 via-slate-850 to-indigo-950 border border-sky-400/30 flex items-center justify-center shadow-[0_0_15px_rgba(56,189,248,0.25)]">
+                    <ApexaAiIcon className="w-5 h-5" variant="gradient" />
                   </div>
                   <div>
                     <h2 className="text-sm font-black tracking-tight flex items-center gap-2 text-white font-display">
@@ -758,7 +758,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="w-full space-y-4 py-4 px-2 m-auto">
                             <div className="flex items-center gap-2 text-indigo-500 font-extrabold text-[10px] uppercase tracking-wider animate-pulse justify-center">
-                              <Bot className="w-4 h-4 animate-bounce" />
+                              <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
                               <span>AI Apexa đang phân tích khối lượng công việc...</span>
                             </div>
                             <div className="space-y-3 max-w-sm mx-auto">
@@ -770,9 +770,7 @@ Based on current information, here is a quick summary:
                         ) : responseText ? (
                           <div className="space-y-4">
                             <div className="flex gap-3 items-start">
-                              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
-                                <Bot className="w-4 h-4" />
-                              </div>
+                              <ApexaAiAvatar size="sm" />
                               <div className="flex-1 space-y-2.5 relative pr-8 bg-slate-50/50 dark:bg-slate-800/20 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
                                 <div className="absolute top-2 right-2 flex gap-1">
                                   <button
@@ -924,7 +922,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
-                              <Bot className="w-4 h-4 animate-bounce" />
+                              <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
                               <span>AI Apexa đang xử lý bằng Gemini...</span>
                             </div>
                             <div className="space-y-3">
@@ -1014,7 +1012,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
-                              <Bot className="w-4 h-4 animate-bounce" />
+                              <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
                               <span>Đang phân tích cấu trúc công việc...</span>
                             </div>
                             <div className="space-y-3">
@@ -1120,7 +1118,7 @@ Based on current information, here is a quick summary:
                         {loading ? (
                           <div className="m-auto w-full space-y-4 py-4 px-2">
                             <div className="flex items-center gap-2 text-indigo-500 font-bold text-[10px] uppercase tracking-wider animate-pulse justify-center">
-                              <Bot className="w-4 h-4 animate-bounce" />
+                              <ApexaAiIcon className="w-4 h-4 animate-bounce" variant="gradient" />
                               <span>AI Apexa đang lập kế hoạch chi tiết...</span>
                             </div>
                             <div className="space-y-3">
@@ -1207,7 +1205,7 @@ Based on current information, here is a quick summary:
               {/* Drawer Footer and credits */}
               <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
-                  <Bot className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                  <ApexaAiIcon className="w-3.5 h-3.5 animate-pulse" variant="gradient" />
                   Công cụ AI Apexa đang hoạt động
                 </span>
                 <span>Vận hành bởi Gemini API</span>
