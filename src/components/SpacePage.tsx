@@ -24,6 +24,7 @@ import {
   Activity, Users, Brain, Map as MapIcon, Pencil, Link as LinkIcon, Droplet, Zap, Copy, Archive, Phone,
   Flag, Lock, Shield, Rocket, BarChart3, Bookmark, ArrowDownAZ, ArrowUpAZ, ArrowUpNarrowWide, ArrowDownWideNarrow, GripVertical, CheckCircle2
 } from 'lucide-react';
+import { Select } from './ui/Select';
 import ShareSettingsModal from './ShareSettingsModal';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, SpacePillSelect, BulkStatusSelect, BulkAssigneeSelect, BulkPrioritySelect } from './tasks/TaskSelects';
@@ -3151,8 +3152,8 @@ export default function SpacePage({
           </div>
         </header>
 
-      {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt views) ── */}
-      {['list', 'board', 'table', 'gantt'].includes(activeView) && (
+      {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt/timeline views) ── */}
+      {['list', 'board', 'table', 'gantt', 'timeline'].includes(activeView) && (
         <div className="shrink-0 bg-white/70 dark:bg-[#07080c]/70 backdrop-blur-xl border-b border-slate-200/30 dark:border-slate-800/40 px-3 sm:px-5 py-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
           {/* Search task input */}
@@ -3465,74 +3466,84 @@ export default function SpacePage({
                   {idx === 0 && <div className="w-8 shrink-0" />}
 
                   {/* Attribute Field Selector */}
-                  <select 
+                  <Select
                     value={cond.field}
-                    onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: e.target.value as any, value: '' } : c))}
-                    className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
-                  >
-                    <option value="title">Tên công việc</option>
-                    <option value="status">Trạng thái</option>
-                    <option value="priority">Mức ưu tiên</option>
-                    <option value="assignee">Người phụ trách</option>
-                  </select>
+                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, field: v, value: '' } : c))}
+                    options={[
+                      { value: 'title', label: 'Tên công việc' },
+                      { value: 'status', label: 'Trạng thái' },
+                      { value: 'priority', label: 'Mức ưu tiên' },
+                      { value: 'assignee', label: 'Người phụ trách' }
+                    ]}
+                    size="sm"
+                    className="w-36"
+                    ariaLabel="Thuộc tính lọc"
+                  />
 
                   {/* Operator Dropdown */}
-                  <select 
+                  <Select
                     value={cond.operator}
-                    onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: e.target.value as any } : c))}
-                    className="px-2 py-1.5 text-[11px] font-bold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300 cursor-pointer"
-                  >
-                    <option value="is">là</option>
-                    <option value="isNot">không phải</option>
-                    <option value="contains">có chứa</option>
-                    <option value="isEmpty">đang trống</option>
-                  </select>
+                    onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, operator: v } : c))}
+                    options={[
+                      { value: 'is', label: 'là' },
+                      { value: 'isNot', label: 'không phải' },
+                      { value: 'contains', label: 'có chứa' },
+                      { value: 'isEmpty', label: 'đang trống' }
+                    ]}
+                    size="sm"
+                    className="w-32"
+                    ariaLabel="Toán tử lọc"
+                  />
 
                   {/* Value Picker */}
                   {cond.operator !== 'isEmpty' && (() => {
                     if (cond.field === 'status') {
                       return (
-                        <select 
+                        <Select
                           value={cond.value}
-                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
-                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
-                        >
-                          <option value="">Chọn trạng thái...</option>
-                          <option value="todo">Cần làm</option>
-                          <option value="inprogress">Đang thực hiện</option>
-                          <option value="review">Đang duyệt</option>
-                          <option value="completed">Hoàn thành</option>
-                        </select>
+                          onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: v } : c))}
+                          options={[
+                            { value: 'todo', label: 'Cần làm' },
+                            { value: 'inprogress', label: 'Đang thực hiện' },
+                            { value: 'review', label: 'Đang duyệt' },
+                            { value: 'completed', label: 'Hoàn thành' }
+                          ]}
+                          size="sm"
+                          className="w-40"
+                          placeholder="Chọn trạng thái..."
+                          ariaLabel="Giá trị trạng thái"
+                        />
                       );
                     }
                     if (cond.field === 'priority') {
                       return (
-                        <select 
+                        <Select
                           value={cond.value}
-                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
-                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
-                        >
-                          <option value="">Chọn mức ưu tiên...</option>
-                          <option value="low">Thấp</option>
-                          <option value="medium">Trung bình</option>
-                          <option value="high">Cao</option>
-                          <option value="urgent">Khẩn cấp</option>
-                        </select>
+                          onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: v } : c))}
+                          options={[
+                            { value: 'low', label: 'Thấp' },
+                            { value: 'medium', label: 'Trung bình' },
+                            { value: 'high', label: 'Cao' },
+                            { value: 'urgent', label: 'Khẩn cấp' }
+                          ]}
+                          size="sm"
+                          className="w-40"
+                          placeholder="Chọn mức ưu tiên..."
+                          ariaLabel="Giá trị mức ưu tiên"
+                        />
                       );
                     }
                     if (cond.field === 'assignee') {
                       return (
-                        <select 
+                        <Select
                           value={cond.value}
-                          onChange={e => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: e.target.value } : c))}
-                          className="px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-slate-205 dark:border-slate-800 bg-white dark:bg-slate-950 outline-none text-slate-700 dark:text-slate-300"
-                        >
-                          <option value="">Chọn thành viên...</option>
-                          <option value="user">Tôi</option>
-                          {members.map(m => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                          ))}
-                        </select>
+                          onChange={v => setFilterConditions(prev => prev.map(c => c.id === cond.id ? { ...c, value: v } : c))}
+                          options={[{ value: 'user', label: 'Tôi' }, ...members.map(m => ({ value: m.id, label: m.name }))]}
+                          size="sm"
+                          className="w-40"
+                          placeholder="Chọn thành viên..."
+                          ariaLabel="Giá trị người phụ trách"
+                        />
                       );
                     }
                     return (
@@ -3726,8 +3737,8 @@ export default function SpacePage({
           />
         )}
 
-        {/* Render Gantt Chart View */}
-        {activeView === 'gantt' && (
+        {/* Render Gantt Chart & Timeline View */}
+        {(activeView === 'gantt' || activeView === 'timeline') && (
           <TaskGanttView 
             filteredTasks={filteredTasks}
             members={members}
@@ -3735,6 +3746,7 @@ export default function SpacePage({
             setSelectedTaskIds={setSelectedTaskIds}
             setSelectedTask={setSelectedTask}
             onUpdateTask={guardedUpdateTask}
+            onAddTask={guardedAddTask}
             onAddSyncLog={onAddSyncLog}
             triggerToast={triggerToast}
           />
@@ -3826,23 +3838,6 @@ export default function SpacePage({
           />
         )}
 
-        {/* Timeline View */}
-        {activeView === 'timeline' && (
-          <div className="bg-white dark:bg-[#07080c]/90 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-4">
-            <h3 className="text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-500" />
-              <span>Chế độ xem dòng thời gian</span>
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed text-left">Trực quan hóa lịch dự án, hạn chót và các cột mốc theo trình tự.</p>
-            <div className="p-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-3 bg-slate-50/30">
-              <Calendar className="w-10 h-10 text-slate-400 animate-pulse" />
-              <div className="space-y-1">
-                <p className="text-xs font-black text-slate-700 dark:text-slate-250">Chưa có mục nào trên dòng thời gian</p>
-                <p className="text-[10px] text-slate-400">Thêm ngày bắt đầu và hạn chót cho công việc để hiển thị trên dòng thời gian.</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Activity Feed View */}
         {activeView === 'activity' && (
@@ -3994,32 +3989,32 @@ export default function SpacePage({
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">
                     Mức độ ưu tiên
                   </label>
-                  <select
+                  <Select<string>
                     value={formTaskPriority}
-                    onChange={(e) => setFormTaskPriority(e.target.value as Priority)}
-                    className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
-                  >
-                    <option value="urgent">Khẩn cấp (Urgent)</option>
-                    <option value="high">Cao (High)</option>
-                    <option value="normal">Bình thường (Normal)</option>
-                    <option value="low">Thấp (Low)</option>
-                  </select>
+                    onChange={v => setFormTaskPriority(v as Priority)}
+                    options={[
+                      { value: 'urgent', label: 'Khẩn cấp (Urgent)' },
+                      { value: 'high', label: 'Cao (High)' },
+                      { value: 'normal', label: 'Bình thường (Normal)' },
+                      { value: 'low', label: 'Thấp (Low)' }
+                    ]}
+                    className="w-full"
+                    ariaLabel="Mức độ ưu tiên"
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">
                     Người phụ trách
                   </label>
-                  <select
+                  <Select
                     value={formTaskAssigneeId}
-                    onChange={(e) => setFormTaskAssigneeId(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
-                  >
-                    <option value="">Chưa chỉ định (Unassigned)</option>
-                    {members.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+                    onChange={v => setFormTaskAssigneeId(v)}
+                    options={[{ value: '', label: 'Chưa chỉ định (Unassigned)' }, ...members.map(m => ({ value: m.id, label: m.name }))]}
+                    className="w-full"
+                    ariaLabel="Người phụ trách"
+                    menuWidth={260}
+                  />
                 </div>
               </div>
 

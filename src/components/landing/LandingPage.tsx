@@ -20,38 +20,7 @@ import LanguageDropdown from '../LanguageDropdown';
 import { Button, Badge, SegmentedControl } from '../ui';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { ApexaAiIcon, ApexaAiAvatar } from '../ApexaAiIcon';
-
-const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-  </svg>
-);
-
-const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-  </svg>
-);
-
-const XTwitterIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-const LinkedInIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.6a1.64 1.64 0 1 0 1.64 1.63A1.63 1.63 0 0 0 7.83 6.6z" />
-  </svg>
-);
-
-const YouTubeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-  </svg>
-);
+import LandingFooter from './LandingFooter';
 
 interface LandingPageProps {
   onSignUp: () => void;
@@ -1212,9 +1181,62 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   const [billingPrices, setBillingPrices] = useState<Partial<Record<'monthly' | 'yearly', PublicBillingPrice>>>({});
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const [newsletterCompany, setNewsletterCompany] = useState('');
-  const [newsletterStatus, setNewsletterStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
+
+  // Dynamic Top Announcement Marquee Items
+  const announcementItems = useMemo(() => [
+    {
+      id: 'os-2',
+      badge: 'SHOTS-GRADE OS 2.0',
+      badgeVariant: 'shots-new' as const,
+      text: isVietnamese
+        ? 'Apexa OS 2.0 chính thức ra mắt: Tích hợp Trợ lý AI Gemini 2.5 Multi-modal & Kiến trúc Local-First siêu tốc!'
+        : 'Apexa OS 2.0 is live: Integrated with Gemini 2.5 Multi-modal AI Copilot & ultra-fast Local-First engine!',
+      cta: isVietnamese ? 'Khám phá ngay' : 'Explore now',
+      action: onSignUp,
+    },
+    {
+      id: 'local-first',
+      badge: '⚡ SPEED <12MS',
+      badgeVariant: 'info' as const,
+      text: isVietnamese
+        ? 'Đồng bộ thời gian thực siêu mượt không độ trễ, lưu trữ Local-First & hoạt động ngoại tuyến 100% không gián đoạn.'
+        : 'Sub-12ms real-time sync with Yjs CRDTs & 100% offline resilience on all platforms.',
+      cta: isVietnamese ? 'Dùng thử miễn phí' : 'Try for free',
+      action: onSignUp,
+    },
+    {
+      id: 'security',
+      badge: '🛡️ ISO 27001 READY',
+      badgeVariant: 'success' as const,
+      text: isVietnamese
+        ? 'Bảo mật cấp Doanh nghiệp: Mã hóa AES 256-bit đa tầng, phân quyền Row-Level Security & Sẵn sàng chuẩn SOC-2 Type II.'
+        : 'Enterprise-grade security: AES 256-bit encryption, Row-Level Security & SOC-2 compliance.',
+      cta: isVietnamese ? 'Xem bảo mật' : 'Learn more',
+      action: () => {
+        if (typeof window !== 'undefined') window.location.href = '/legal/security';
+      },
+    },
+    {
+      id: 'all-in-one',
+      badge: '✨ ALL-IN-ONE OS',
+      badgeVariant: 'primary' as const,
+      text: isVietnamese
+        ? 'Hợp nhất Kanban, Smart Docs 2.0, Chat thời gian thực, CRM và ERP Kế toán trong một giao diện duy nhất.'
+        : 'Unify Kanban, Smart Docs 2.0, Team Chat, CRM, and ERP Finance into one cohesive platform.',
+      cta: isVietnamese ? 'Bắt đầu ngay' : 'Get started',
+      action: onSignUp,
+    },
+    {
+      id: 'free-tier',
+      badge: '🎁 FREE FOREVER',
+      badgeVariant: 'warning' as const,
+      text: isVietnamese
+        ? 'Gói Cá nhân & Nhóm nhỏ hoàn toàn miễn phí trọn đời. Bắt đầu ngay không cần thẻ tín dụng!'
+        : 'Free forever plan for individuals & small squads. Get started with no credit card required!',
+      cta: isVietnamese ? 'Đăng ký miễn phí' : 'Sign up free',
+      action: onSignUp,
+    },
+  ], [isVietnamese, onSignUp]);
 
   // Dynamic Categories
   const categories = useMemo(() => [
@@ -1601,29 +1623,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
 
   const doubledLogos = [...PLATFORM_CAPABILITIES, ...PLATFORM_CAPABILITIES, ...PLATFORM_CAPABILITIES, ...PLATFORM_CAPABILITIES];
 
-  const handleNewsletterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!newsletterEmail.trim() || newsletterStatus.type === 'loading') return;
-    setNewsletterStatus({ type: 'loading', message: isVietnamese ? 'Đang đăng ký…' : 'Subscribing…' });
-
-    try {
-      const response = await fetch('/api/newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newsletterEmail, locale: isVietnamese ? 'vi' : 'en', company: newsletterCompany }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || (isVietnamese ? 'Chưa thể đăng ký lúc này.' : 'Unable to subscribe right now.'));
-      setNewsletterEmail('');
-      setNewsletterStatus({ type: 'success', message: result.message || (isVietnamese ? 'Đăng ký thành công. Cảm ơn bạn!' : 'You are subscribed. Thank you!') });
-    } catch (error) {
-      setNewsletterStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : (isVietnamese ? 'Chưa thể đăng ký lúc này.' : 'Unable to subscribe right now.'),
-      });
-    }
-  };
-
   return (
     <div ref={containerRef} className="relative w-full overflow-hidden bg-[#fafbfc] dark:bg-[#07090e] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
       
@@ -1675,17 +1674,33 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         className="fixed top-[40%] right-[20%] w-[450px] h-[450px] bg-gradient-to-bl from-cyan-500/10 via-teal-500/10 to-transparent rounded-full blur-[120px] pointer-events-none z-0"
       />
 
-      {/* TOP NOTIFICATION BANNER */}
-      <div className="relative z-50 flex select-none items-center justify-center gap-1.5 border-b border-white/10 bg-slate-950 px-3 py-2 text-center text-[9px] font-extrabold text-white sm:gap-2 sm:px-4 sm:text-[11px]">
-        <Badge variant="shots-new" dot size="sm">SHOTS-GRADE OS 2.0</Badge>
-        <span className="text-slate-300">
-          {isVietnamese 
-            ? 'Apexa OS 2.0 đã tích hợp Trợ lý AI Gemini 2.5 & Kiến trúc Local-First siêu tốc!'
-            : 'Apexa OS 2.0 is live with Gemini 2.5 AI Engine & ultra-fast Local-First architecture!'}
-        </span>
-        <button onClick={onSignUp} className="text-sky-400 underline hover:text-sky-300 cursor-pointer inline-flex items-center gap-0.5 ml-1">
-          {isVietnamese ? 'Khám phá ngay' : 'Explore now'} <ArrowRight className="w-3 h-3" />
-        </button>
+      {/* TOP NOTIFICATION MARQUEE BANNER */}
+      <div className="relative z-50 overflow-hidden border-b border-white/10 bg-[#06080d]/95 backdrop-blur-md py-2 select-none group/marquee">
+        {/* Left & Right Smooth Edge Fade Overlays */}
+        <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-20 bg-gradient-to-r from-[#06080d] via-[#06080d]/80 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-20 bg-gradient-to-l from-[#06080d] via-[#06080d]/80 to-transparent z-10 pointer-events-none" />
+
+        {/* Marquee Inner Track */}
+        <div className="animate-marquee flex items-center gap-8 sm:gap-12">
+          {[...announcementItems, ...announcementItems].map((item, index) => (
+            <div key={`${item.id}-${index}`} className="flex items-center gap-2 sm:gap-3 shrink-0 text-[10px] sm:text-[11px] font-extrabold text-white">
+              <Badge variant={item.badgeVariant} dot size="sm" className="shrink-0 font-black">
+                {item.badge}
+              </Badge>
+              <span className="text-slate-200 font-medium">
+                {item.text}
+              </span>
+              <button
+                onClick={item.action}
+                className="text-sky-400 hover:text-sky-300 font-bold underline cursor-pointer inline-flex items-center gap-1 shrink-0 ml-1 transition-colors group-hover/marquee:underline-offset-2"
+              >
+                <span>{item.cta}</span>
+                <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              </button>
+              <span className="text-slate-700 mx-2 text-xs font-light">•</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* FLOATING ISLAND HEADER NAVBAR (SHOTS STYLE) */}
@@ -2343,246 +2358,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       </section>
 
       {/* =========================================================================
-          FOOTER (Corporate Modern Dark Layout)
+          UPGRADED MODERN CORPORATE FOOTER
           ========================================================================= */}
-      <footer className="relative z-10 border-t border-slate-800/80 bg-[#181820] text-slate-300 py-16 text-left text-xs font-normal">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 lg:grid-cols-6 gap-10 lg:gap-8">
-          
-          {/* ── LEFT COLUMN: Brand, Legal, Offices & Social (2 cols wide on desktop) ── */}
-          <div className="lg:col-span-2 space-y-4 pr-0 lg:pr-4 text-left">
-            {/* Brand Logo & Name */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-black text-sm p-1 shadow-md shadow-indigo-500/25">
-                <svg className="w-5 h-5" viewBox="0 0 512 512" fill="none">
-                  <path
-                    d="M256 84 C264 84 271 89 275 97 L405 375 C409 383 403 394 394 394 L325 394 C317 394 309 389 306 381 L278 322 L234 322 L206 381 C203 389 195 394 187 394 L118 394 C109 394 103 383 107 375 L237 97 C241 89 248 84 256 84 Z M256 182 L226 270 L286 270 Z"
-                    fill="#FFFFFF"
-                  />
-                </svg>
-              </div>
-              <span className="font-display font-black text-lg tracking-tight text-white">
-                Apexa OS
-              </span>
-            </div>
-
-            {/* Legal Entity Name */}
-            <h4 className="font-black text-white text-xs uppercase tracking-wider">
-              {isVietnamese ? 'CÔNG TY CỔ PHẦN APEXA OS' : 'APEXA OS CORPORATION'}
-            </h4>
-
-            {/* Legal & Contact Info */}
-            <div className="space-y-2 text-[11.5px] text-slate-400 font-normal leading-relaxed">
-              <div className="flex items-start gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'GPKD số 0107938504, đăng ký ngày 27-07-2017, nơi cấp Sở Kế hoạch & Đầu tư TP. Hà Nội' : 'Business License No. 0107938504, issued by DPI Hanoi City'}</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'Địa chỉ: Tầng 19, Leadvisors Tower, số 643 Phạm Văn Đồng, Phường Nghĩa Đô, Thành phố Hà Nội, Việt Nam' : 'Address: 19th Fl, Leadvisors Tower, 643 Pham Van Dong, Nghia Do, Hanoi, Vietnam'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>{isVietnamese ? 'Điện thoại: 1800 6670 / (+84) 24 7300 8866' : 'Hotline: 1800 6670 / (+84) 24 7300 8866'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>Email: contact@apexa.vn</span>
-              </div>
-            </div>
-
-            {/* Offices List */}
-            <div className="pt-2 space-y-1.5 text-[11px] text-slate-400 font-normal">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 block mb-1">
-                {isVietnamese ? 'VĂN PHÒNG' : 'OFFICES'}
-              </span>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'Hà Nội: Tầng 17, VP2, tòa Sun Square, 21 Lê Đức Thọ, phường Từ Liêm, TP Hà Nội' : 'Hanoi: 17th Fl, Sun Square, 21 Le Duc Tho, Nam Tu Liem, Hanoi'}</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'TP Hồ Chí Minh: Tầng 5, Lottery Tower, số 77 Trần Nhân Tôn, phường An Đông, TP Hồ Chí Minh' : 'HCMC: 5th Fl, Lottery Tower, 77 Tran Nhan Ton, Dist 5, HCMC'}</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'Mỹ: 838 Walker Road, Suite 21-2 Dover, Delaware 19904, United States' : 'USA: 838 Walker Road, Suite 21-2 Dover, Delaware 19904, USA'}</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'Ấn Độ: 804/805, Kesha Kommercial Komplex, Primal Nagar, Mumbai - 400097' : 'India: 804/805, Kesha Kommercial, Malad East, Mumbai - 400097'}</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span>{isVietnamese ? 'Dubai: CWS-1V-792/40, Amber Gem Tower, Ajman, United Arab Emirates' : 'Dubai: CWS-1V-792/40, Amber Gem Tower, Ajman, UAE'}</span>
-              </div>
-            </div>
-
-            {/* Social Icons & Official Certification Seal */}
-            <div className="pt-3 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                {[
-                  { Icon: InstagramIcon, href: "https://instagram.com", label: "Instagram" },
-                  { Icon: FacebookIcon, href: "https://facebook.com", label: "Facebook" },
-                  { Icon: XTwitterIcon, href: "https://twitter.com", label: "X" },
-                  { Icon: LinkedInIcon, href: "https://linkedin.com", label: "LinkedIn" },
-                  { Icon: YouTubeIcon, href: "https://youtube.com", label: "YouTube" }
-                ].map(item => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={item.label}
-                    className="w-8 h-8 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all hover:scale-105"
-                  >
-                    <item.Icon className="w-4 h-4" />
-                  </a>
-                ))}
-              </div>
-              
-              {/* Seal: ĐÃ THÔNG BÁO BỘ CÔNG THƯƠNG */}
-              <div className="inline-flex items-center gap-2 bg-[#0060b0] text-white px-2.5 py-1 rounded-md border border-blue-400/40 shadow-xs select-none">
-                <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-[#0060b0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#0060b0" stroke="none" />
-                    <path d="M9 12l2 2 4-4" stroke="#ffffff" strokeWidth="2.5" />
-                  </svg>
-                </div>
-                <div className="flex flex-col text-left leading-none">
-                  <span className="text-[7px] font-black uppercase tracking-wider text-sky-200">ĐÃ THÔNG BÁO</span>
-                  <span className="text-[8.5px] font-black uppercase tracking-tight text-white mt-0.5">BỘ CÔNG THƯƠNG</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── RIGHT COLUMNS: Navigation Links & Newsletter (4 cols on desktop) ── */}
-          <div className="lg:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-8 text-left">
-            
-            {/* Column 1: Công ty */}
-            <div>
-              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
-                {isVietnamese ? 'Công ty' : 'Company'}
-              </h4>
-              <ul className="space-y-2 text-[11.5px]">
-                <li><a href="#about" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Giới thiệu' : 'About us'}</a></li>
-                <li><a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Khách hàng' : 'Customers'}</a></li>
-                <li><a href="#press" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Báo chí' : 'Press'}</a></li>
-                <li><a href="#partners" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Đối tác' : 'Partners'}</a></li>
-                <li><Link href="/legal/terms" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Điều kiện giao dịch chung' : 'Terms of Service'}</Link></li>
-                <li><Link href="/legal/privacy" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Chính sách bảo mật thông tin' : 'Privacy Policy'}</Link></li>
-                <li><Link href="/legal/security" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Trung tâm bảo mật' : 'Security Center'}</Link></li>
-                <li><a href="#pricing" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Chính sách giá' : 'Pricing Policy'}</a></li>
-                <li><a href="#careers" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tuyển dụng' : 'Careers'}</a></li>
-                <li><a href="#contact" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Liên hệ' : 'Contact'}</a></li>
-                <li><a href="#pricing" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Bảng giá' : 'Pricing'}</a></li>
-              </ul>
-            </div>
-
-            {/* Column 2: Sản phẩm */}
-            <div>
-              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
-                {isVietnamese ? 'Sản phẩm' : 'Products'}
-              </h4>
-              <ul className="space-y-2 text-[11.5px]">
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Bảng Kanban' : 'Kanban Boards'}</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tài liệu thông minh' : 'Smart Docs'}</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Phòng chat thời gian thực' : 'Real-time Chat'}</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">Apexa Brain AI</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản lý dự án' : 'Project Management'}</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Đồng bộ Local-First' : 'Local-First Sync'}</a></li>
-                <li><a href="#features" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Tích hợp & Tự động hóa' : 'Automations'}</a></li>
-              </ul>
-            </div>
-
-            {/* Column 3: Tài nguyên & Giải pháp */}
-            <div>
-              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
-                {isVietnamese ? 'Tài nguyên' : 'Resources'}
-              </h4>
-              <ul className="space-y-2 text-[11.5px]">
-                <li><a href="#blog" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Blog công nghệ' : 'Blog'}</a></li>
-                <li><a href="#faq" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Hướng dẫn sử dụng' : 'User Guides'}</a></li>
-                <li><a href="#community" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Cộng đồng' : 'Community'}</a></li>
-                <li><a href="#developers" className="text-slate-400 hover:text-white transition-colors">Developers & API</a></li>
-                <li><a href="#courses" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Khóa học' : 'Courses'}</a></li>
-              </ul>
-
-              <h4 className="font-black text-white text-xs uppercase tracking-wider mt-5 mb-3.5">
-                {isVietnamese ? 'Giải pháp' : 'Solutions'}
-              </h4>
-              <ul className="space-y-2 text-[11.5px]">
-                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị hợp nhất' : 'Unified OS'}</a></li>
-                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị khách hàng' : 'Customer 360'}</a></li>
-                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Quản trị nội bộ' : 'Internal Ops'}</a></li>
-                <li><a href="#solutions" className="text-slate-400 hover:text-white transition-colors">{isVietnamese ? 'Giao tiếp và liên lạc' : 'Communication'}</a></li>
-              </ul>
-            </div>
-
-            {/* Column 4: Bản tin công nghệ */}
-            <div className="space-y-3.5">
-              <h4 className="font-black text-white text-xs uppercase tracking-wider mb-3.5">
-                {isVietnamese ? 'Bản tin công nghệ' : 'Newsletter'}
-              </h4>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                {isVietnamese ? 'Nhận cập nhật tính năng mới và cẩm nang năng suất hàng tuần.' : 'Weekly productivity guides and new feature release updates.'}
-              </p>
-              <form onSubmit={handleNewsletterSubmit} className="space-y-2" noValidate>
-                <label htmlFor="landing-newsletter-email" className="sr-only">
-                  {isVietnamese ? 'Email nhận bản tin' : 'Newsletter email'}
-                </label>
-                <div className="flex flex-col gap-2">
-                  <input
-                    id="landing-newsletter-email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={newsletterEmail}
-                    onChange={(event) => {
-                      setNewsletterEmail(event.target.value);
-                      if (newsletterStatus.type !== 'loading') setNewsletterStatus({ type: 'idle', message: '' });
-                    }}
-                    placeholder={isVietnamese ? 'Nhập email của bạn...' : 'Enter your email...'}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/90 text-xs outline-none text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <input
-                    type="text"
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    autoComplete="off"
-                    value={newsletterCompany}
-                    onChange={(event) => setNewsletterCompany(event.target.value)}
-                    className="absolute -left-[10000px] h-px w-px opacity-0"
-                    name="company"
-                  />
-                  <Button variant="primary" size="sm" pill type="submit" disabled={newsletterStatus.type === 'loading'} className="w-full justify-center">
-                    {newsletterStatus.type === 'loading' ? (isVietnamese ? 'Đang gửi...' : 'Joining...') : (isVietnamese ? 'Đăng ký nhận tin' : 'Subscribe')}
-                  </Button>
-                </div>
-                {newsletterStatus.message && (
-                  <p
-                    role={newsletterStatus.type === 'error' ? 'alert' : 'status'}
-                    aria-live="polite"
-                    className={newsletterStatus.type === 'error' ? 'text-[10px] font-bold text-rose-400' : 'text-[10px] font-bold text-emerald-400'}
-                  >
-                    {newsletterStatus.message}
-                  </p>
-                )}
-              </form>
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ── BOTTOM COPYRIGHT & LANGUAGE BAR ── */}
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-8 mt-12 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11.5px] text-slate-400 font-medium">
-          <p>© 2026 Apexa OS LLC. {isVietnamese ? 'Tất cả quyền được bảo lưu.' : 'All rights reserved.'}</p>
-          <div className="flex items-center gap-3">
-            <LanguageDropdown showLabel={true} size="sm" />
-          </div>
-        </div>
-      </footer>
+      <LandingFooter onSignUp={onSignUp} onSignIn={onSignIn} />
 
     </div>
   );

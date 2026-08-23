@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Space, Task, User } from '../types';
 import Whiteboard from './Whiteboard';
 import { 
   Plus, Search, Pencil, Trash2, Check, X, LayoutGrid,
-  Sparkles, ChevronRight
+  Sparkles, ChevronRight, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 
 interface WhiteboardHubProps {
@@ -41,6 +41,7 @@ export default function WhiteboardHub({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
 
   // Create modal form states
   const [newWbName, setNewWbName] = useState('');
@@ -84,6 +85,12 @@ export default function WhiteboardHub({
     return allWhiteboards.find(wb => wb.id === activeWhiteboardId) || null;
   }, [allWhiteboards, activeWhiteboardId]);
 
+  useEffect(() => {
+    if (!activeWhiteboardId && allWhiteboards.length > 0) {
+      setActiveWhiteboardId(allWhiteboards[0].id);
+    }
+  }, [activeWhiteboardId, allWhiteboards]);
+
   // Create whiteboard
   const handleCreate = () => {
     if (!newWbName.trim() || !newWbSpaceId) return;
@@ -99,6 +106,7 @@ export default function WhiteboardHub({
     });
     onSaveSpaces(updated);
     setActiveWhiteboardId(newWbId);
+    setIsSidebarExpanded(false);
     setShowCreateModal(false);
     setNewWbName('');
     setNewWbSpaceId('');
@@ -134,34 +142,43 @@ export default function WhiteboardHub({
   };
 
   return (
-    <div className="w-full h-[calc(100vh-140px)] flex flex-col md:flex-row gap-0 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-[0_4px_24px_rgba(0,0,0,0.015)] overflow-hidden">
+    <div className="w-full h-[calc(100dvh-140px)] min-h-[620px] flex flex-col md:flex-row gap-0 bg-white dark:bg-slate-900 rounded-[22px] border border-slate-200/80 dark:border-slate-800 shadow-[0_14px_40px_rgba(15,23,42,0.08)] overflow-hidden">
 
       {/* Left Column: Whiteboard List Sidebar */}
-      <div className={`w-72 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950 flex flex-col shrink-0 select-none ${
+      <div className={`${isSidebarExpanded ? 'w-[250px]' : 'w-[68px]'} border-r border-slate-200/80 dark:border-slate-800/80 bg-[#f7f7f9] dark:bg-slate-950 flex flex-col shrink-0 select-none transition-[width] duration-200 ${
         activeWb ? 'hidden md:flex' : 'flex'
       }`}>
 
         {/* Header */}
-        <div className="p-4 border-b border-slate-200/40 dark:border-slate-800/80 space-y-3">
+        <div className={`${isSidebarExpanded ? 'p-4' : 'p-3'} border-b border-slate-200/70 dark:border-slate-800/80 space-y-3`}>
           <div className="flex items-center justify-between">
-            <div>
+            <div className={isSidebarExpanded ? 'block' : 'hidden'}>
               <h2 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Whiteboards</h2>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">Động não và vẽ lưu đồ trực quan</span>
             </div>
-            <button
-              onClick={() => {
-                setNewWbSpaceId(workspaceSpaces[0]?.id || '');
-                setShowCreateModal(true);
-              }}
-              className="p-1.5 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded-lg cursor-pointer transition-colors shadow-3xs hover:bg-indigo-100"
-              title="Tạo bảng trắng"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            <div className={`flex ${isSidebarExpanded ? 'gap-1' : 'w-full flex-col gap-2'}`}>
+              <button
+                onClick={() => setIsSidebarExpanded((value) => !value)}
+                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors"
+                title={isSidebarExpanded ? 'Thu gọn danh sách' : 'Mở danh sách bảng'}
+              >
+                {isSidebarExpanded ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => {
+                  setNewWbSpaceId(workspaceSpaces[0]?.id || '');
+                  setShowCreateModal(true);
+                }}
+                className="p-1.5 bg-indigo-600 text-white rounded-lg cursor-pointer transition-colors shadow-sm hover:bg-indigo-700"
+                title="Tạo bảng trắng"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-xl px-2.5 py-1.5 shadow-3xs">
+          <div className={`${isSidebarExpanded ? 'flex' : 'hidden'} items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-xl px-2.5 py-2 shadow-sm`}>
             <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <input
               type="text"
@@ -174,7 +191,7 @@ export default function WhiteboardHub({
         </div>
 
         {/* Whiteboard List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
+        <div className={`flex-1 overflow-y-auto ${isSidebarExpanded ? 'p-3' : 'p-2'} space-y-2 custom-scrollbar`}>
           {filteredWhiteboards.map(wb => {
             const isActive = activeWhiteboardId === wb.id;
             const isRenaming = renamingId === wb.id;
@@ -185,9 +202,11 @@ export default function WhiteboardHub({
                 onClick={() => {
                   if (!isRenaming) {
                     setActiveWhiteboardId(wb.id);
+                    setIsSidebarExpanded(false);
                   }
                 }}
-                className={`group p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                title={!isSidebarExpanded ? wb.name : undefined}
+                className={`group ${isSidebarExpanded ? 'p-2.5' : 'p-2 justify-center'} rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                   isActive
                     ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900/30 shadow-xs'
                     : 'bg-white dark:bg-slate-900/40 border-slate-150/40 dark:border-slate-800/40 hover:bg-slate-50/80 hover:border-slate-200'
@@ -199,7 +218,7 @@ export default function WhiteboardHub({
                   }`}>
                     {wb.spaceEmoji}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className={`${isSidebarExpanded ? 'block' : 'hidden'} min-w-0 flex-1`}>
                     {isRenaming ? (
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                         <input
@@ -231,7 +250,7 @@ export default function WhiteboardHub({
                 </div>
 
                 {/* Hover actions */}
-                {!isRenaming && (
+                {!isRenaming && isSidebarExpanded && (
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => {
@@ -257,7 +276,7 @@ export default function WhiteboardHub({
           })}
 
           {/* Empty state */}
-          {filteredWhiteboards.length === 0 && (
+          {filteredWhiteboards.length === 0 && isSidebarExpanded && (
             <div className="flex flex-col items-center justify-center py-14 text-center space-y-2.5">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/40 flex items-center justify-center text-slate-400 shadow-3xs">
                 <LayoutGrid className="w-5 h-5" />
@@ -271,7 +290,7 @@ export default function WhiteboardHub({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200/40 dark:border-slate-800/80 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+        <div className={`${isSidebarExpanded ? 'block' : 'hidden'} p-3 border-t border-slate-200/40 dark:border-slate-800/80 text-[10px] text-slate-400 dark:text-slate-500 font-mono`}>
           {allWhiteboards.length} whiteboard{allWhiteboards.length !== 1 ? 's' : ''} total
         </div>
       </div>
@@ -281,7 +300,7 @@ export default function WhiteboardHub({
         {activeWb ? (
           <div className="w-full h-full flex flex-col min-h-0">
             {/* Canvas Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/40 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/40 select-none shrink-0">
+            <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-b border-slate-200/40 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/40 select-none shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{activeWb.spaceEmoji}</span>
                 <div>
@@ -312,6 +331,8 @@ export default function WhiteboardHub({
                 tasks={tasks}
                 currentUser={currentUser}
                 onUpgradePremium={onUpgradePremium}
+                boardName={activeWb.name}
+                spaceName={activeWb.spaceName}
               />
             </div>
           </div>

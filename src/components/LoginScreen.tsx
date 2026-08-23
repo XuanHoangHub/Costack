@@ -121,10 +121,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const copy = isVietnamese ? {
     signin: 'Đăng nhập', signup: 'Đăng ký', free: 'Miễn phí', email: 'Địa chỉ email',
     password: 'Mật khẩu', confirmPassword: 'Xác nhận mật khẩu', fullName: 'Họ và tên',
-    emailPlaceholder: 'ten@congty.com', namePlaceholder: 'Ví dụ: Nguyễn Minh Anh',
+    emailPlaceholder: 'name@company.com', namePlaceholder: 'Ví dụ: Nguyễn Minh Anh',
     passwordPlaceholder: 'Nhập mật khẩu', createPasswordPlaceholder: 'Tạo mật khẩu mạnh',
     confirmPasswordPlaceholder: 'Nhập lại mật khẩu', showPassword: 'Hiển thị mật khẩu',
-    hidePassword: 'Ẩn mật khẩu', forgotPassword: 'Quên mật khẩu?', remember: 'Duy trì đăng nhập trong 30 ngày',
+    hidePassword: 'Ẩn mật khẩu', forgotPassword: 'Quên mật khẩu?',
+    remember: 'Ghi nhớ đăng nhập trên thiết bị này',
+    rememberSubtitle: 'Duy trì phiên làm việc an toàn trong 30 ngày',
     submitSignin: 'Đăng nhập', submitSignup: 'Tạo tài khoản', processing: 'Đang xử lý…',
     terms: 'Tôi đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư của Apexa.',
     continueWith: 'Hoặc tiếp tục với', resetSubmit: 'Gửi liên kết đặt lại mật khẩu',
@@ -139,7 +141,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     emailPlaceholder: 'name@company.com', namePlaceholder: 'e.g. Alex Johnson',
     passwordPlaceholder: 'Enter your password', createPasswordPlaceholder: 'Create a strong password',
     confirmPasswordPlaceholder: 'Re-enter your password', showPassword: 'Show password',
-    hidePassword: 'Hide password', forgotPassword: 'Forgot password?', remember: 'Keep me signed in for 30 days',
+    hidePassword: 'Hide password', forgotPassword: 'Forgot password?',
+    remember: 'Stay signed in on this device',
+    rememberSubtitle: 'Keep session securely active for 30 days',
     submitSignin: 'Sign in', submitSignup: 'Create account', processing: 'Processing…',
     terms: 'I agree to Apexa’s Terms of Use and Privacy Policy.',
     continueWith: 'Or continue with', resetSubmit: 'Send reset link',
@@ -672,8 +676,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     <Zap className="h-5 w-5 fill-current" />
                   </div>
                   <div>
-                    <div className="text-sm font-black tracking-tight">Apexa</div>
-                    <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-indigo-200/70">Hệ điều hành năng suất</div>
+                    <div className="text-sm font-black tracking-tight">Apexa OS</div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-indigo-200/70">{isVietnamese ? 'Hệ điều hành Năng suất & AI' : 'AI Productivity Operating System'}</div>
                   </div>
                 </div>
 
@@ -681,26 +685,26 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <div className="space-y-3">
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-100 backdrop-blur-md">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.9)]" />
-                      {isVietnamese ? 'Không gian làm việc đang trực tuyến' : 'Workspace is online'}
+                      {isVietnamese ? 'Không gian làm việc AI · Trực tuyến' : 'AI Workspace Engine · Online'}
                     </span>
                     <h3 className="max-w-xs text-[32px] font-black leading-[1.08] tracking-[-0.04em]">
                       {isVietnamese ? (
-                        <>Một nơi để đội ngũ <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">làm việc tốt nhất.</span></>
+                        <>Không gian làm việc thông minh cho <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">đội ngũ hiện đại.</span></>
                       ) : (
-                        <>One place for your team to <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">do its best work.</span></>
+                        <>The intelligent workspace for <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">high-velocity teams.</span></>
                       )}
                     </h3>
                     <p className="max-w-sm text-xs font-medium leading-6 text-slate-300/80">
                       {isVietnamese
-                        ? 'Công việc, tài liệu và nhịp cộng tác được kết nối trong một không gian thông minh duy nhất.'
-                        : 'Tasks, documents, and team collaboration—all connected in one intelligent workspace.'}
+                        ? 'Quản lý dự án, tài liệu số, giao tiếp thời gian thực và tự động hóa AI — tất cả hợp nhất trong một không gian làm việc liền mạch.'
+                        : 'Manage projects, collaborative docs, real-time team chat, and AI automations—all unified within one seamless workspace.'}
                     </p>
                   </div>
 
                   <div className="rounded-[24px] border border-white/10 bg-white/[0.07] p-4 shadow-2xl backdrop-blur-xl">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{isVietnamese ? 'Nhịp làm việc hôm nay' : 'Today’s workflow'}</div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{isVietnamese ? 'Hiệu suất vận hành Sprint' : 'Sprint Performance Hub'}</div>
                         <div className="mt-1 text-sm font-extrabold">{isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}</div>
                       </div>
                       <div className="flex -space-x-2">
@@ -711,9 +715,9 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        ['12', isVietnamese ? 'Đang thực hiện' : 'In progress'],
-                        ['86%', isVietnamese ? 'Tiến độ' : 'Progress'],
-                        [isVietnamese ? '4,8 giờ' : '4.8h', isVietnamese ? 'Tập trung' : 'Focus time']
+                        ['96%', isVietnamese ? 'Mục tiêu đạt' : 'Goal progress'],
+                        ['18/20', isVietnamese ? 'Hoàn thành' : 'Tasks done'],
+                        ['+38%', isVietnamese ? 'Tốc độ nhóm' : 'Velocity boost']
                       ].map(([value, label]) => (
                         <div key={label} className="rounded-2xl border border-white/8 bg-black/15 px-3 py-3">
                           <div className="text-base font-black tracking-tight">{value}</div>
@@ -723,14 +727,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     </div>
                     <div className="mt-3 flex items-center gap-2 rounded-2xl bg-emerald-400/10 px-3 py-2.5 text-[10px] font-bold text-emerald-200">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      {isVietnamese ? 'Mọi thay đổi đã được đồng bộ' : 'Every change is synced'}
+                      {isVietnamese ? 'Đồng bộ Local-First & Trợ lý AI sẵn sàng' : 'Local-First sync & AI Copilot active'}
                     </div>
                   </div>
                 </div>
 
                 <div className="relative z-10 flex items-center justify-between text-[9px] font-bold text-slate-500">
-                  <span>© 2026 Apexa OS</span>
-                  <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-emerald-400" /> {isVietnamese ? 'Bảo mật cấp doanh nghiệp' : 'Enterprise-grade security'}</span>
+                  <span>© {new Date().getFullYear()} Apexa OS</span>
+                  <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-emerald-400" /> {isVietnamese ? 'Bảo mật cấp doanh nghiệp · Mã hóa E2E' : 'Enterprise-grade security · E2E Encrypted'}</span>
                 </div>
               </aside>
 
@@ -759,9 +763,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="mb-2 hidden items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-600 lg:flex dark:text-indigo-400">
-                    <span className="h-px w-6 bg-indigo-500" /> {copy.securePortal}
-                  </div>
                   <h2 id="auth-dialog-title" className="text-2xl font-black text-slate-900 sm:text-[28px] dark:text-white tracking-[-0.035em] leading-tight">
                     {mfaPendingUser ? (isVietnamese ? 'Xác minh danh tính' : 'Verify your identity') : isForgot ? copy.forgotTitle : isSignUp ? copy.signupTitle : copy.signinTitle}
                   </h2>
@@ -1111,18 +1112,58 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     </div>
                   )}
 
-                  {/* Remember Me Toggle for Sign In */}
+                  {/* Remember Me Animated Toggle Switch for Sign In */}
                   {!isSignUp && (
-                    <label className="group flex cursor-pointer select-none items-center gap-2.5 py-0.5 text-xs font-bold text-slate-600 dark:text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(event) => setRememberMe(event.target.checked)}
-                        disabled={loading}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span>{copy.remember}</span>
-                    </label>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => !loading && setRememberMe(!rememberMe)}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!loading) setRememberMe(!rememberMe);
+                        }
+                      }}
+                      className="group flex cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-800/80 dark:bg-slate-950/50 dark:hover:border-slate-700 dark:hover:bg-slate-950/80"
+                    >
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                          rememberMe
+                            ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-400/15 dark:text-blue-400'
+                            : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                        }`}>
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold leading-tight text-slate-800 dark:text-slate-200">
+                            {copy.remember}
+                          </p>
+                          <p className="mt-0.5 text-[10.5px] font-medium leading-tight text-slate-500 dark:text-slate-400">
+                            {copy.rememberSubtitle}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Animated Switch Button */}
+                      <div
+                        role="switch"
+                        aria-checked={rememberMe}
+                        aria-label={copy.remember}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${
+                          rememberMe
+                            ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 shadow-sm shadow-blue-500/30'
+                            : 'bg-slate-200 dark:bg-slate-800'
+                        }`}
+                      >
+                        <motion.span
+                          layout
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform ${
+                            rememberMe ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
+                    </div>
                   )}
 
                   {/* Error and Success Notifications */}

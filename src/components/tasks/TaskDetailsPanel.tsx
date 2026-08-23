@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
 import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
+import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
 import { supabase } from '../../lib/supabaseClient';
@@ -1296,17 +1297,18 @@ export default function TaskDetailsPanel({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <select value={task.recurrence?.frequency || 'none'}
-                      onChange={e => {
-                        const freq = e.target.value as 'none' | 'daily' | 'weekly' | 'monthly';
-                        onUpdateTask({ ...task, recurrence: { frequency: freq, interval: task.recurrence?.interval || 1 } });
+                    <Select value={task.recurrence?.frequency || 'none'}
+                      onChange={v => {
+                        onUpdateTask({ ...task, recurrence: { frequency: v, interval: task.recurrence?.interval || 1 } });
                       }}
-                      className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 outline-none text-slate-700 dark:text-slate-305 font-medium cursor-pointer">
-                      <option value="none">Không có</option>
-                      <option value="daily">Hằng ngày</option>
-                      <option value="weekly">Hằng tuần</option>
-                      <option value="monthly">Hằng tháng</option>
-                    </select>
+                      size="sm"
+                      ariaLabel="Tần suất lặp lại"
+                      options={[
+                        { value: 'none', label: 'Không có' },
+                        { value: 'daily', label: 'Hằng ngày' },
+                        { value: 'weekly', label: 'Hằng tuần' },
+                        { value: 'monthly', label: 'Hằng tháng' },
+                      ]} />
                     {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
                       <input type="number" min={1} value={task.recurrence.interval}
                         onChange={e => { const val = parseInt(e.target.value) || 1; onUpdateTask({ ...task, recurrence: { ...task.recurrence!, interval: val } }); }}

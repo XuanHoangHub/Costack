@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Space, Workspace, SubTask } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
+import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
 import { callAiApi, generateSubtasksWithAi } from '@/lib/aiClient';
@@ -386,39 +387,29 @@ export default function TaskModal({
 
               {/* Space Selector Pill */}
               <div className="flex items-center gap-1.5 text-xs">
-                <select
+                <Select
                   value={spaceId}
-                  onChange={e => {
-                    const nextSpaceId = e.target.value;
-                    const nextSpace = spaces.find(space => space.id === nextSpaceId);
-                    setSpaceId(nextSpaceId);
+                  onChange={v => {
+                    const nextSpace = spaces.find(space => space.id === v);
+                    setSpaceId(v);
                     setListId(nextSpace?.lists?.[0]?.id || null);
                   }}
-                  className="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer hover:border-indigo-400 transition-colors"
-                >
-                  {spaces.map(sp => (
-                    <option key={sp.id} value={sp.id}>
-                      {sp.emoji ? `${sp.emoji} ` : '📁 '} {sp.name}
-                    </option>
-                  ))}
-                </select>
+                  size="sm"
+                  ariaLabel={isVietnamese ? 'Không gian' : 'Space'}
+                  options={spaces.map(sp => ({ value: sp.id, label: `${sp.emoji ? `${sp.emoji} ` : '📁 '} ${sp.name}` }))}
+                />
 
                 {/* List selector within selected space if available */}
                 {selectedSpace?.lists && selectedSpace.lists.length > 0 && (
                   <>
                     <span className="text-slate-400 font-bold">/</span>
-                    <select
+                    <Select
                       value={listId || ''}
-                      onChange={e => setListId(e.target.value || null)}
-                      className="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer hover:border-indigo-400 transition-colors"
-                    >
-                      <option value="">{isVietnamese ? '📋 Tất cả danh sách' : '📋 All Lists'}</option>
-                      {selectedSpace.lists.map(lst => (
-                        <option key={lst.id} value={lst.id}>
-                          {lst.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={v => setListId(v || null)}
+                      size="sm"
+                      ariaLabel={isVietnamese ? 'Danh sách' : 'List'}
+                      options={[{ value: '', label: isVietnamese ? '📋 Tất cả danh sách' : '📋 All Lists' }, ...selectedSpace.lists.map(lst => ({ value: lst.id, label: lst.name }))]}
+                    />
                   </>
                 )}
               </div>
@@ -672,16 +663,19 @@ export default function TaskModal({
                   {isVietnamese ? 'Lặp lại công việc' : 'Task recurrence'}
                 </label>
                 <div className="grid grid-cols-[1fr_88px] gap-2">
-                  <select
+                  <Select
                     value={recurrenceFrequency}
-                    onChange={event => setRecurrenceFrequency(event.target.value as typeof recurrenceFrequency)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                  >
-                    <option value="none">{isVietnamese ? 'Không lặp lại' : 'Does not repeat'}</option>
-                    <option value="daily">{isVietnamese ? 'Hàng ngày' : 'Daily'}</option>
-                    <option value="weekly">{isVietnamese ? 'Hàng tuần' : 'Weekly'}</option>
-                    <option value="monthly">{isVietnamese ? 'Hàng tháng' : 'Monthly'}</option>
-                  </select>
+                    onChange={v => setRecurrenceFrequency(v)}
+                    className="w-full"
+                    size="sm"
+                    ariaLabel={isVietnamese ? 'Tần suất lặp lại' : 'Recurrence frequency'}
+                    options={[
+                      { value: 'none', label: isVietnamese ? 'Không lặp lại' : 'Does not repeat' },
+                      { value: 'daily', label: isVietnamese ? 'Hàng ngày' : 'Daily' },
+                      { value: 'weekly', label: isVietnamese ? 'Hàng tuần' : 'Weekly' },
+                      { value: 'monthly', label: isVietnamese ? 'Hàng tháng' : 'Monthly' },
+                    ]}
+                  />
                   <input
                     type="number"
                     min="1"

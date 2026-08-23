@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useMemberStore } from '@/store/memberStore';
 import { callAiApi } from '@/lib/aiClient';
 import { renderSpaceIcon } from './EmojiIconPicker';
+import { Select } from './ui/Select';
 import ScreenplayEditor from './script/ScreenplayEditor';
 import { ApexaAiIcon } from './ApexaAiIcon';
 
@@ -2150,15 +2151,28 @@ export default function DocumentEditor({
               </button>
 
               <div className="flex gap-2">
-                <select value={selectedCollaboratorId} onChange={event => setSelectedCollaboratorId(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
-                  <option value="">Chọn thành viên...</option>
-                  {members.filter(member => resolveAuthUserId(member) && resolveAuthUserId(member) !== authUserId).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}
-                </select>
-                <select value={shareRole} onChange={event => setShareRole(event.target.value as typeof shareRole)} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none">
-                  <option value="editor">Chỉnh sửa</option>
-                  <option value="commenter">Bình luận</option>
-                  <option value="viewer">Chỉ xem</option>
-                </select>
+                <Select
+                  value={selectedCollaboratorId}
+                  onChange={v => setSelectedCollaboratorId(v)}
+                  options={members.filter(member => resolveAuthUserId(member) && resolveAuthUserId(member) !== authUserId).map(member => ({ value: member.id, label: member.name }))}
+                  className="min-w-0 flex-1"
+                  size="sm"
+                  placeholder="Chọn thành viên..."
+                  ariaLabel="Thành viên chia sẻ"
+                  menuWidth={280}
+                />
+                <Select
+                  value={shareRole}
+                  onChange={v => setShareRole(v)}
+                  options={[
+                    { value: 'editor', label: 'Chỉnh sửa' },
+                    { value: 'commenter', label: 'Bình luận' },
+                    { value: 'viewer', label: 'Chỉ xem' }
+                  ]}
+                  className="w-32"
+                  size="sm"
+                  ariaLabel="Quyền chia sẻ"
+                />
                 <button type="button" onClick={addCollaborator} disabled={!selectedCollaboratorId} className="px-3.5 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-40 font-bold text-xs flex items-center gap-1 cursor-pointer hover:bg-indigo-700 transition-colors">
                   <UserPlus className="w-3.5 h-3.5" /> Thêm
                 </button>

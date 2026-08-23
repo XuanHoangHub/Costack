@@ -12,10 +12,12 @@ import { WhiteboardTool, WhiteboardElement, User, TeamMemberCursor, Task } from 
 import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Square, Circle, Edit2, Move, StickyNote, Grid,
-  Trash2, Users, Sparkles, Database, Code, 
+  Trash2, Sparkles, Database, Code, 
   Copy, Sliders, Type, Plus, Info, MousePointer, 
   Hand, ZoomIn, ZoomOut, Maximize2, Download, ArrowUpRight,
-  Brain, Loader2, Bot, Globe, Check, Layout, FileJson, Image as ImageIcon, Layers, X
+  Brain, Loader2, Bot, Globe, Check, Layout, FileJson, Image as ImageIcon, Layers, X,
+  Cloud, PanelLeftClose, PanelLeftOpen, Share2, Expand, Minimize2, Undo2, Redo2,
+  Upload, Keyboard, CheckCircle2
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 
@@ -30,6 +32,8 @@ interface WhiteboardProps {
   tasks?: Task[];
   currentUser?: any;
   onUpgradePremium?: () => void;
+  boardName?: string;
+  spaceName?: string;
 }
 
 // Helper function to safely derive transparent/light fill styles from hex color codes
@@ -42,6 +46,9 @@ const getFillStyle = (hex: string, alpha: number = 0.08) => {
   }
   return hex;
 };
+
+const cloneWhiteboardElements = (items: WhiteboardElement[]): WhiteboardElement[] =>
+  JSON.parse(JSON.stringify(items));
 
 // Advanced Multi-line Text Wrapper for HTML5 Canvas elements
 const wrapText = (
@@ -122,10 +129,16 @@ export default function Whiteboard({
   onAddTask,
   tasks = [],
   currentUser,
-  onUpgradePremium
+  onUpgradePremium,
+  boardName = 'Bảng trắng Demo',
+  spaceName = 'Không gian làm việc'
 }: WhiteboardProps) {
   const { t, locale } = useTranslation();
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [canvasRevision, setCanvasRevision] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [saveState, setSaveState] = useState<'saving' | 'saved'>('saved');
   
   // Custom tools state (extend with Hand tool support)
   const [activeTool, setActiveTool] = useState<WhiteboardTool | 'hand'>('select');
@@ -135,6 +148,10 @@ export default function Whiteboard({
   // Board Templates & Canvas background states
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [bgStyle, setBgStyle] = useState<'grid' | 'dots' | 'dark' | 'plain'>('grid');
+  const [showLibrary, setShowLibrary] = useState(true);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // JSON Export / Import
@@ -157,12 +174,25 @@ export default function Whiteboard({
       try {
         const parsed = JSON.parse(ev.target?.result as string);
         if (Array.isArray(parsed)) {
+          recordHistory();
           setElements(parsed);
+          setSelectedElementId(null);
           onAddSyncLog("Đã nhập dữ liệu JSON vào bảng trắng");
         }
       } catch (err) {}
     };
     reader.readAsText(file);
+  };
+
+  const handleCopyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareCopied(true);
+      onAddSyncLog('Whiteboard: Đã sao chép liên kết chia sẻ');
+      window.setTimeout(() => setShareCopied(false), 1800);
+    } catch {
+      onAddSyncLog('Whiteboard: Không thể sao chép liên kết chia sẻ');
+    }
   };
 
   // Preset Board Templates loader
@@ -200,6 +230,7 @@ export default function Whiteboard({
       ];
     }
 
+    recordHistory();
     setElements(prev => [...prev, ...newElements]);
     setShowTemplateModal(false);
     onAddSyncLog(`Loaded Whiteboard Template: ${type.toUpperCase()}`);
@@ -227,6 +258,12 @@ export default function Whiteboard({
 
   // Elements state
   const [elements, setElements] = useState<WhiteboardElement[]>([]);
+  const elementsRef = useRef<WhiteboardElement[]>([]);
+  const historyRef = useRef<{ past: WhiteboardElement[][]; future: WhiteboardElement[][] }>({ past: [], future: [] });
+  const historyGroupRef = useRef<{ key: string; at: number } | null>(null);
+  const dragSnapshotRef = useRef<WhiteboardElement[] | null>(null);
+  const clipboardElementRef = useRef<WhiteboardElement | null>(null);
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
 
   // AI Analyst Sidepanel states
   const [showAiAnalyst, setShowAiAnalyst] = useState(false);
@@ -237,6 +274,10 @@ export default function Whiteboard({
   const [aiGeneratedTasks, setAiGeneratedTasks] = useState<any[]>([]);
   const [tasksAdded, setTasksAdded] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
 
   const getWhiteboardBase64 = (): string | null => {
     if (elements.length === 0) return null;
@@ -558,12 +599,27 @@ export default function Whiteboard({
   // Load elements based on whiteboardId
   useEffect(() => {
     if (!whiteboardId) return;
+    historyRef.current = { past: [], future: [] };
+    historyGroupRef.current = null;
+    setHistoryState({ canUndo: false, canRedo: false });
+    setSelectedElementId(null);
     try {
       const saved = localStorage.getItem(`apexa_whiteboard_${whiteboardId}`);
       if (saved) {
-        setElements(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setElements(Array.isArray(parsed) ? parsed : []);
       } else {
         setElements([]);
+      }
+
+      const savedView = localStorage.getItem(`apexa_whiteboard_view_${whiteboardId}`);
+      if (savedView) {
+        const parsedView = JSON.parse(savedView);
+        if (typeof parsedView.zoom === 'number') setZoom(Math.max(0.15, Math.min(4, parsedView.zoom)));
+        if (parsedView.pan && typeof parsedView.pan.x === 'number' && typeof parsedView.pan.y === 'number') {
+          setPan({ x: parsedView.pan.x, y: parsedView.pan.y });
+        }
+        if (['grid', 'dots', 'dark', 'plain'].includes(parsedView.bgStyle)) setBgStyle(parsedView.bgStyle);
       }
     } catch (e) {
       setElements([]);
@@ -573,10 +629,23 @@ export default function Whiteboard({
   // Save elements when they change
   useEffect(() => {
     if (!whiteboardId) return;
+    setSaveState('saving');
     try {
       localStorage.setItem(`apexa_whiteboard_${whiteboardId}`, JSON.stringify(elements));
     } catch (e) {}
+    const timer = window.setTimeout(() => setSaveState('saved'), 260);
+    return () => window.clearTimeout(timer);
   }, [elements, whiteboardId]);
+
+  useEffect(() => {
+    if (!whiteboardId) return;
+    try {
+      localStorage.setItem(
+        `apexa_whiteboard_view_${whiteboardId}`,
+        JSON.stringify({ zoom, pan, bgStyle })
+      );
+    } catch (e) {}
+  }, [bgStyle, pan, whiteboardId, zoom]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [pencilPoints, setPencilPoints] = useState<{ x: number; y: number }[]>([]);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -585,6 +654,7 @@ export default function Whiteboard({
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [didMoveElem, setDidMoveElem] = useState(false);
+  const [isDraggingElement, setIsDraggingElement] = useState(false);
 
   // Multiplayer simulation state
   const [enableSim, setEnableSim] = useState(false);
@@ -621,6 +691,14 @@ export default function Whiteboard({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === editorRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Connect custom Wheel Event to handle Zoom & Pan relative to pointer coords
@@ -774,24 +852,190 @@ export default function Whiteboard({
     } catch (err) {}
   };
 
+  const recordHistory = (snapshot = elementsRef.current, groupKey?: string) => {
+    const now = Date.now();
+    if (
+      groupKey &&
+      historyGroupRef.current?.key === groupKey &&
+      now - historyGroupRef.current.at < 650
+    ) {
+      historyGroupRef.current.at = now;
+      return;
+    }
+
+    const cloned = cloneWhiteboardElements(snapshot);
+    const last = historyRef.current.past.at(-1);
+    if (!last || JSON.stringify(last) !== JSON.stringify(cloned)) {
+      historyRef.current.past = [...historyRef.current.past.slice(-49), cloned];
+    }
+    historyRef.current.future = [];
+    historyGroupRef.current = groupKey ? { key: groupKey, at: now } : null;
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: false,
+    });
+  };
+
+  const syncSnapshotToSupabase = (next: WhiteboardElement[], current: WhiteboardElement[]) => {
+    const nextIds = new Set(next.map((element) => element.id));
+    current.forEach((element) => {
+      if (!nextIds.has(element.id)) deleteFromSupabase(element.id);
+    });
+    next.forEach((element) => saveToSupabase(element));
+  };
+
+  const handleUndo = () => {
+    const previous = historyRef.current.past.at(-1);
+    if (!previous) return;
+    const current = cloneWhiteboardElements(elementsRef.current);
+    historyRef.current.past = historyRef.current.past.slice(0, -1);
+    historyRef.current.future = [current, ...historyRef.current.future].slice(0, 50);
+    historyGroupRef.current = null;
+    const next = cloneWhiteboardElements(previous);
+    elementsRef.current = next;
+    setElements(next);
+    setSelectedElementId(null);
+    syncSnapshotToSupabase(next, current);
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: historyRef.current.future.length > 0,
+    });
+    onAddSyncLog('Whiteboard: Undo');
+  };
+
+  const handleRedo = () => {
+    const nextSnapshot = historyRef.current.future[0];
+    if (!nextSnapshot) return;
+    const current = cloneWhiteboardElements(elementsRef.current);
+    historyRef.current.future = historyRef.current.future.slice(1);
+    historyRef.current.past = [...historyRef.current.past.slice(-49), current];
+    historyGroupRef.current = null;
+    const next = cloneWhiteboardElements(nextSnapshot);
+    elementsRef.current = next;
+    setElements(next);
+    setSelectedElementId(null);
+    syncSnapshotToSupabase(next, current);
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: historyRef.current.future.length > 0,
+    });
+    onAddSyncLog('Whiteboard: Redo');
+  };
+
+  const handleCopySelected = () => {
+    const selected = elementsRef.current.find((element) => element.id === selectedElementId);
+    if (!selected) return;
+    clipboardElementRef.current = cloneWhiteboardElements([selected])[0];
+    onAddSyncLog('Whiteboard: Copied selected element');
+  };
+
+  const handlePasteSelected = () => {
+    const copied = clipboardElementRef.current;
+    if (!copied) return;
+    recordHistory();
+    const pasted: WhiteboardElement = {
+      ...cloneWhiteboardElements([copied])[0],
+      id: `el-${Date.now()}`,
+      x: copied.x + 28,
+      y: copied.y + 28
+    };
+    const next = [...elementsRef.current, pasted];
+    elementsRef.current = next;
+    setElements(next);
+    setSelectedElementId(pasted.id);
+    clipboardElementRef.current = pasted;
+    saveToSupabase(pasted);
+    onAddSyncLog('Whiteboard: Pasted element');
+  };
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement === editorRef.current) {
+        await document.exitFullscreen();
+      } else {
+        await editorRef.current?.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn('Fullscreen is unavailable:', error);
+    }
+  };
+
+  const handleFitToContent = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || elementsRef.current.length === 0) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    elementsRef.current.forEach((element) => {
+      if (element.type === 'pencil' && Array.isArray(element.points)) {
+        element.points.forEach((point) => {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+        });
+      } else if (element.type !== 'line' || !element.points || Array.isArray(element.points)) {
+        const width = element.width || 120;
+        const height = element.type === 'sticky' && (element.height || 80) === 80 ? width : (element.height || 80);
+        minX = Math.min(minX, element.x);
+        minY = Math.min(minY, element.y);
+        maxX = Math.max(maxX, element.x + width);
+        maxY = Math.max(maxY, element.y + height);
+      }
+    });
+
+    if (!Number.isFinite(minX)) return;
+    const contentWidth = Math.max(1, maxX - minX);
+    const contentHeight = Math.max(1, maxY - minY);
+    const padding = 120;
+    const nextZoom = Math.max(0.15, Math.min(2, Math.min(
+      (canvas.width - padding) / contentWidth,
+      (canvas.height - padding) / contentHeight
+    )));
+    setZoom(nextZoom);
+    setPan({
+      x: (canvas.width - contentWidth * nextZoom) / 2 - minX * nextZoom,
+      y: (canvas.height - contentHeight * nextZoom) / 2 - minY * nextZoom
+    });
+    onAddSyncLog('Whiteboard: Fit content to viewport');
+  };
+
+  const { canUndo, canRedo } = historyState;
+
   const activeSelectedElement = elements.find(el => el.id === selectedElementId);
 
-  // Initialize Canvas layout and responsiveness
+  // Keep the bitmap in sync with the actual editor viewport. A ResizeObserver
+  // matters because opening a side panel changes width without resizing the window.
   useEffect(() => {
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!canvas || !parent) return;
+
+    const resizeObserver = new ResizeObserver(() => updateCanvasDimensions());
+    resizeObserver.observe(parent);
     updateCanvasDimensions();
-    window.addEventListener('resize', updateCanvasDimensions);
-    return () => window.removeEventListener('resize', updateCanvasDimensions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elements]);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const updateCanvasDimensions = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const parent = canvas.parentElement;
     if (parent) {
-      canvas.width = parent.clientWidth;
-      canvas.height = 550;
-      drawAllElements();
+      const nextWidth = Math.max(1, parent.clientWidth);
+      const nextHeight = Math.max(1, parent.clientHeight);
+      if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+        canvas.width = nextWidth;
+        canvas.height = nextHeight;
+        setCanvasRevision((revision) => revision + 1);
+      }
     }
   };
 
@@ -799,7 +1043,7 @@ export default function Whiteboard({
   useEffect(() => {
     drawAllElements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elements, brushColor, activeTool, simCursors, selectedElementId, zoom, pan, connectionStart, connectionEnd]);
+  }, [elements, brushColor, activeTool, simCursors, selectedElementId, zoom, pan, connectionStart, connectionEnd, bgStyle, canvasRevision]);
 
   const drawAllElements = () => {
     const canvas = canvasRef.current;
@@ -807,8 +1051,10 @@ export default function Whiteboard({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear previous view
+    // Clear and paint the selected infinite-canvas background.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = bgStyle === 'dark' ? '#111827' : '#fbfbfd';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     
@@ -817,7 +1063,8 @@ export default function Whiteboard({
     ctx.scale(zoom, zoom);
 
     // Infinite Grid pattern styling
-    ctx.strokeStyle = '#f1f5f9';
+    ctx.strokeStyle = bgStyle === 'dark' ? 'rgba(148, 163, 184, 0.16)' : '#e9eaf0';
+    ctx.fillStyle = bgStyle === 'dark' ? 'rgba(148, 163, 184, 0.34)' : '#d7d9e1';
     ctx.lineWidth = 0.8 / zoom;
     const gridSize = 25;
     
@@ -830,17 +1077,27 @@ export default function Whiteboard({
     const startGridX = Math.floor(minX / gridSize) * gridSize;
     const startGridY = Math.floor(minY / gridSize) * gridSize;
 
-    for (let x = startGridX; x < maxX; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, minY);
-      ctx.lineTo(x, maxY);
-      ctx.stroke();
-    }
-    for (let y = startGridY; y < maxY; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(minX, y);
-      ctx.lineTo(maxX, y);
-      ctx.stroke();
+    if (bgStyle === 'grid' || bgStyle === 'dark') {
+      for (let x = startGridX; x < maxX; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, minY);
+        ctx.lineTo(x, maxY);
+        ctx.stroke();
+      }
+      for (let y = startGridY; y < maxY; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(minX, y);
+        ctx.lineTo(maxX, y);
+        ctx.stroke();
+      }
+    } else if (bgStyle === 'dots') {
+      for (let x = startGridX; x < maxX; x += gridSize) {
+        for (let y = startGridY; y < maxY; y += gridSize) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.15 / zoom, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
 
     // Render defined elements
@@ -1176,8 +1433,12 @@ export default function Whiteboard({
       if (found) {
         setSelectedElementId(found.id);
         setDragOffset({ x: modelX - found.x, y: modelY - found.y });
+        setIsDraggingElement(true);
+        dragSnapshotRef.current = cloneWhiteboardElements(elementsRef.current);
       } else {
         setSelectedElementId(null);
+        setIsDraggingElement(false);
+        dragSnapshotRef.current = null;
       }
       return;
     }
@@ -1217,18 +1478,22 @@ export default function Whiteboard({
     }
 
     // 3. Selection movement drag logic
-    if (activeTool === 'select' && selectedElementId && !isDrawing) {
+    if (activeTool === 'select' && selectedElementId && isDraggingElement) {
       setDidMoveElem(true);
-      setElements(prev => prev.map(el => {
-        if (el.id === selectedElementId) {
-          return {
-            ...el,
-            x: modelX - dragOffset.x,
-            y: modelY - dragOffset.y
-          };
-        }
-        return el;
-      }));
+      setElements(prev => {
+        const next = prev.map(el => {
+          if (el.id === selectedElementId) {
+            return {
+              ...el,
+              x: modelX - dragOffset.x,
+              y: modelY - dragOffset.y
+            };
+          }
+          return el;
+        });
+        elementsRef.current = next;
+        return next;
+      });
       return;
     }
 
@@ -1337,6 +1602,7 @@ export default function Whiteboard({
           }
         };
 
+        recordHistory();
         setElements(prev => [...prev, newConnection]);
         saveToSupabase(newConnection);
         onAddSyncLog(`Whiteboard: Linked process chart with arrow connector`);
@@ -1348,12 +1614,15 @@ export default function Whiteboard({
     }
 
     if (activeTool === 'select') {
-      if (selectedElementId && didMoveElem) {
+      if (selectedElementId && didMoveElem && isDraggingElement) {
+        if (dragSnapshotRef.current) recordHistory(dragSnapshotRef.current);
         setDidMoveElem(false);
-        const movedEl = elements.find(el => el.id === selectedElementId);
+        const movedEl = elementsRef.current.find(el => el.id === selectedElementId);
         if (movedEl) saveToSupabase(movedEl);
         onAddSyncLog(`Moved flowchart object position`);
       }
+      setIsDraggingElement(false);
+      dragSnapshotRef.current = null;
       return;
     }
 
@@ -1420,6 +1689,7 @@ export default function Whiteboard({
 
     if (newElement) {
       const updatedElements = [...elements, newElement];
+      recordHistory();
       setElements(updatedElements);
       setSelectedElementId(id);
       setActiveTool('select');
@@ -1504,6 +1774,7 @@ export default function Whiteboard({
       lineWidth: 2
     };
 
+    recordHistory();
     setElements(prev => [...prev, newElement]);
     saveToSupabase(newElement);
     setSelectedElementId(id);
@@ -1536,6 +1807,7 @@ export default function Whiteboard({
       lineWidth: 2
     };
 
+    recordHistory();
     setElements(prev => [...prev, newElement]);
     saveToSupabase(newElement);
     setSelectedElementId(id);
@@ -1552,6 +1824,7 @@ export default function Whiteboard({
       x: el.x + 24,
       y: el.y + 24
     };
+    recordHistory();
     setElements(prev => [...prev, cloned]);
     saveToSupabase(cloned);
     setSelectedElementId(id);
@@ -1561,8 +1834,16 @@ export default function Whiteboard({
   // Delete an existing element
   const handleDeleteElement = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setElements(prev => prev.filter(el => el.id !== id));
-    deleteFromSupabase(id);
+    recordHistory();
+    const removedIds = new Set<string>([id]);
+    elementsRef.current.forEach((element) => {
+      if (element.type === 'line' && element.points && !Array.isArray(element.points)) {
+        const connection = element.points as Record<string, unknown>;
+        if (connection.fromId === id || connection.toId === id) removedIds.add(element.id);
+      }
+    });
+    setElements(prev => prev.filter(el => !removedIds.has(el.id)));
+    removedIds.forEach((removedId) => deleteFromSupabase(removedId));
     if (selectedElementId === id) {
       setSelectedElementId(null);
     }
@@ -1572,6 +1853,7 @@ export default function Whiteboard({
   // Update properties of the actively selected elements
   const updateSelectedElementProps = (props: Partial<WhiteboardElement>) => {
     if (!selectedElementId) return;
+    recordHistory(elementsRef.current, `property-${selectedElementId}`);
     setElements(prev => prev.map(el => {
       if (el.id === selectedElementId) {
         const updated = {
@@ -1882,27 +2164,128 @@ export default function Whiteboard({
   }, [enableSim]);
 
   const handleClearBoard = () => {
+    const current = cloneWhiteboardElements(elementsRef.current);
+    if (current.length === 0) {
+      setShowClearConfirm(false);
+      return;
+    }
+    recordHistory(current);
+    elementsRef.current = [];
     setElements([]);
     setSelectedElementId(null);
+    current.forEach((element) => deleteFromSupabase(element.id));
+    setShowClearConfirm(false);
     onAddSyncLog("Đã xóa toàn bộ nội dung bảng trắng chính");
   };
+
+  useEffect(() => {
+    const handleEditorShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
+      if (isTyping) return;
+
+      const command = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (command && key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) handleRedo();
+        else handleUndo();
+        return;
+      }
+      if (command && key === 'y') {
+        event.preventDefault();
+        handleRedo();
+        return;
+      }
+      if (command && key === 'c') {
+        event.preventDefault();
+        handleCopySelected();
+        return;
+      }
+      if (command && key === 'v') {
+        event.preventDefault();
+        handlePasteSelected();
+        return;
+      }
+      if (command && key === 'd') {
+        const selected = elementsRef.current.find((element) => element.id === selectedElementId);
+        if (selected) {
+          event.preventDefault();
+          handleCloneElement(selected);
+        }
+        return;
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (selectedElementId) {
+          event.preventDefault();
+          handleDeleteElement(selectedElementId);
+        }
+        return;
+      }
+      if (event.key === 'Escape') {
+        setActiveTool('select');
+        setSelectedElementId(null);
+        setShowShortcutHelp(false);
+        return;
+      }
+      if (event.key === '0') {
+        event.preventDefault();
+        handleFitToContent();
+        return;
+      }
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        setZoom((value) => Math.min(4, value + 0.15));
+        return;
+      }
+      if (event.key === '-') {
+        event.preventDefault();
+        setZoom((value) => Math.max(0.15, value - 0.15));
+        return;
+      }
+      if (event.shiftKey && key === 'f') {
+        event.preventDefault();
+        handleToggleFullscreen();
+        return;
+      }
+
+      const toolShortcuts: Record<string, WhiteboardTool | 'hand'> = {
+        v: 'select',
+        h: 'hand',
+        n: 'sticky',
+        p: 'pencil',
+        r: 'rectangle',
+        o: 'circle',
+        l: 'line'
+      };
+      const shortcutTool = toolShortcuts[key];
+      if (shortcutTool && !command && !event.altKey) {
+        setActiveTool(shortcutTool);
+        if (shortcutTool !== 'select') setSelectedElementId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEditorShortcut);
+    return () => window.removeEventListener('keydown', handleEditorShortcut);
+  });
 
   // Determine standard cursor based on active tools and dragging state
   const getCanvasCursor = () => {
     if (activeTool === 'hand' || isSpacePressed) {
       return isPanning ? 'grabbing' : 'grab';
     }
-    return 'crosshair';
+    return activeTool === 'select' ? 'default' : 'crosshair';
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="relative h-full min-h-0 flex overflow-hidden bg-[#f3f4f7] dark:bg-slate-950">
       
       {/* 1. SIDEBAR: BRAINSTORM WIDGETS & MODIFIERS PANEL */}
-      <div className="lg:col-span-1 space-y-4">
+      <aside className={`${showLibrary ? 'flex' : 'hidden'} w-[248px] shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200/80 bg-white/95 p-3 dark:border-slate-800 dark:bg-slate-950 max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:shadow-2xl`}>
         
         {/* Active Selection / Config Editor Panel */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700/70 p-4.5 rounded-3xl shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/70 p-3.5 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
           <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
             <Sliders className="w-4 h-4 text-indigo-600" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
@@ -2031,7 +2414,7 @@ export default function Whiteboard({
         </div>
 
         {/* DRAGGABLE STICKY NOTES SPOOLER */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700/70 p-4.5 rounded-3xl shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/70 p-3.5 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
             <StickyNote className="w-4 h-4 text-amber-500" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
@@ -2058,7 +2441,7 @@ export default function Whiteboard({
                 onDragStart={(e) => handleDragStartFromSidebar(e, 'sticky', st.color, st.text)}
                 onClick={() => handleSpawnWidget('sticky', st.color, st.text)}
                 style={{ backgroundColor: st.color }}
-                className="p-3 rounded-2xl border border-slate-200/40 dark:border-slate-700/40 cursor-grab hover:scale-103 active:cursor-grabbing hover:shadow-md transition-all text-center select-none"
+                className="p-2.5 rounded-xl border border-black/5 cursor-grab hover:-translate-y-0.5 active:cursor-grabbing hover:shadow-md transition-all text-center select-none"
               >
                 <span className="text-[11px] font-extrabold text-[#1E293B] block truncate">{st.label}</span>
                 <span className="text-[8px] text-slate-400 dark:text-slate-500 font-semibold block mt-1 uppercase">Kéo hoặc nhấp</span>
@@ -2068,7 +2451,7 @@ export default function Whiteboard({
         </div>
 
         {/* DRAGGABLE DIAGRAM FLOWCHART ELEMENTS */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700/70 p-4.5 rounded-3xl shadow-sm space-y-3.5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/70 p-3.5 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
             <Grid className="w-4 h-4 text-cyan-600" />
             <h3 className="font-display font-extrabold text-slate-800 dark:text-slate-50 text-[13px] uppercase">
@@ -2113,31 +2496,42 @@ export default function Whiteboard({
           </div>
         </div>
 
-      </div>
+      </aside>
 
       {/* 2. MAIN COMPONENT: INTERACTIVE WHITEBOARD CANVA ARENA */}
-      <div className={`${showAiAnalyst ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl overflow-hidden shadow-sm space-y-4 p-5 flex flex-col justify-between relative transition-all duration-300`}>
+      <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#fbfbfd] dark:bg-slate-900">
         
         {/* Title & Multiplayer actions header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-          <div>
-            <h2 className="text-base md:text-lg font-bold font-display text-slate-800 dark:text-slate-50 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-500" />
-              Bảng động não và lưu đồ (phong cách Miro)
-            </h2>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Không gian thiết kế vô hạn. Cuộn để thu phóng, nhấn chuột giữa hoặc giữ phím cách để di chuyển bảng.
-            </p>
+        <div className="z-30 flex h-[66px] shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setShowLibrary((value) => !value)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              title={showLibrary ? 'Ẩn thư viện' : 'Mở thư viện'}
+            >
+              {showLibrary ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                <span className="truncate">{spaceName}</span>
+                <span>/</span>
+                <span>Whiteboards</span>
+              </div>
+              <h2 className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{boardName}</h2>
+            </div>
+            <div className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700 sm:flex dark:bg-emerald-950/30 dark:text-emerald-400">
+              <Cloud className="h-3 w-3" /> Đã lưu
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             <button
               id="btn_multiplayer_sim"
               onClick={() => {
                 setEnableSim(!enableSim);
                 onAddSyncLog(enableSim ? "Đã tắt mô phỏng thiết kế cộng tác" : "Đã bật mô phỏng thiết kế nhiều người");
               }}
-              className={`py-2 px-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`hidden lg:flex py-2 px-3 text-[11px] font-bold rounded-xl transition-all cursor-pointer items-center gap-1.5 ${
                 enableSim 
                   ? 'bg-pink-100 text-pink-700 border border-pink-200' 
                   : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
@@ -2149,7 +2543,7 @@ export default function Whiteboard({
 
             <button
               onClick={() => setShowTemplateModal(true)}
-              className="py-2 px-3 text-xs font-extrabold rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-900/60"
+              className="py-2 px-3 text-[11px] font-extrabold rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-900/60"
               title="Chọn mẫu sơ đồ"
             >
               <Layout className="w-3.5 h-3.5" />
@@ -2163,6 +2557,15 @@ export default function Whiteboard({
               title="Phân tích bảng trắng bằng AI"
             >
               <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
+            </button>
+
+            <button
+              onClick={handleCopyShareLink}
+              className="hidden sm:flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-indigo-700"
+              title="Sao chép liên kết chia sẻ"
+            >
+              {shareCopied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+              {shareCopied ? 'Đã sao chép' : 'Chia sẻ'}
             </button>
 
             <button
@@ -2198,16 +2601,18 @@ export default function Whiteboard({
             >
               <Trash2 className="w-4.5 h-4.5" />
             </button>
+
           </div>
         </div>
 
         {/* Interactive control settings toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/80 rounded-2xl select-none">
+        <div className="absolute left-1/2 top-[78px] z-30 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-[0_8px_30px_rgba(15,23,42,0.12)] backdrop-blur-xl select-none dark:border-slate-700 dark:bg-slate-900/95">
           {/* Drawing brush selection and selectors */}
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-0.5">
             {[
               { id: 'select', icon: MousePointer, label: 'Select & Drag' },
               { id: 'hand', icon: Hand, label: 'Pan Canvas' },
+              { id: 'sticky', icon: StickyNote, label: 'Sticky Note' },
               { id: 'pencil', icon: Edit2, label: 'Free Draw' },
               { id: 'rectangle', icon: Square, label: 'Rectangle' },
               { id: 'circle', icon: Circle, label: 'Circle' },
@@ -2222,7 +2627,7 @@ export default function Whiteboard({
                     setSelectedElementId(null); // Deselect when moving to drawing tools
                   }
                 }}
-                className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+                className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold ${
                   activeTool === tool.id 
                     ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60'
@@ -2230,14 +2635,14 @@ export default function Whiteboard({
                 title={tool.label}
               >
                 <tool.icon className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">{tool.label}</span>
+                <span className="hidden 2xl:inline">{tool.label}</span>
               </button>
             ))}
           </div>
 
           {/* Color pickers selection */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200/45 dark:border-slate-700/45">
+          <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1 rounded-xl">
               {['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#1e293b'].map((hexColor) => (
                 <button
                   key={hexColor}
@@ -2251,8 +2656,7 @@ export default function Whiteboard({
             </div>
 
             {activeTool === 'pencil' && (
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span>Kích thước:</span>
+              <div className="hidden xl:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <input 
                   type="range" 
                   min="2" 
@@ -2271,8 +2675,8 @@ export default function Whiteboard({
         <div 
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleCanvasDrop}
-          className="relative w-full rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 overflow-hidden"
-          style={{ height: '550px', cursor: getCanvasCursor() }}
+          className="relative min-h-0 flex-1 overflow-hidden bg-[#fbfbfd]"
+          style={{ cursor: getCanvasCursor() }}
         >
           <canvas
             ref={canvasRef}
@@ -2375,10 +2779,35 @@ export default function Whiteboard({
             </button>
           </div>
 
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
+            {([
+              { id: 'grid', label: 'Lưới' },
+              { id: 'dots', label: 'Chấm' },
+              { id: 'plain', label: 'Trơn' },
+              { id: 'dark', label: 'Tối' }
+            ] as const).map((background) => (
+              <button
+                key={background.id}
+                onClick={() => setBgStyle(background.id)}
+                className={`rounded-xl px-2 py-1.5 text-[9px] font-bold transition ${
+                  bgStyle === background.id
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                }`}
+                title={`Nền ${background.label.toLowerCase()}`}
+              >
+                {background.label}
+              </button>
+            ))}
+            <span className="ml-1 border-l border-slate-200 pl-2 text-[9px] font-mono text-slate-400 dark:border-slate-700">
+              {elements.length} đối tượng
+            </span>
+          </div>
+
           {elements.length === 0 && (
-            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center p-8 bg-slate-50/30 dark:bg-slate-950/30">
+            <div className={`absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center p-8 ${bgStyle === 'dark' ? 'bg-slate-950/10' : 'bg-slate-50/10'}`}>
               <Grid className="w-12 h-12 text-slate-300 stroke-[1.1] mb-3 animate-pulse" />
-              <h4 className="font-display font-extrabold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">
+              <h4 className={`font-display font-extrabold text-xs uppercase tracking-wider ${bgStyle === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
                 Bảng trống — Sẵn sàng sáng tạo
               </h4>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-sm mt-1 leading-normal font-medium">
@@ -2388,17 +2817,7 @@ export default function Whiteboard({
           )}
         </div>
 
-        {/* Status markers */}
-        <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-1">
-          <span>
-            Đối tượng: <span className="text-slate-700 dark:text-slate-200 font-bold">{elements.length} elements</span>
-          </span>
-          <span className="hidden sm:inline">
-            💡 Mẹo: Nhấp đúp vào hình để sửa chữ. Kéo nút tròn nhỏ để nối mũi tên sang hình khác.
-          </span>
-        </div>
-
-      </div>
+      </section>
 
       {/* 3. AI ANALYST SIDEPANEL */}
       <AnimatePresence>
@@ -2407,7 +2826,7 @@ export default function Whiteboard({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-5 flex flex-col justify-between relative shadow-sm space-y-4 text-left"
+            className="absolute inset-y-[66px] right-0 z-40 flex w-[340px] max-w-[calc(100%-24px)] flex-col justify-between space-y-4 border-l border-slate-200/80 bg-white p-5 text-left shadow-[-12px_0_36px_rgba(15,23,42,0.1)] dark:border-slate-700 dark:bg-slate-900"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-55 flex items-center gap-1.5">

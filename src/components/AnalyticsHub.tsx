@@ -462,13 +462,13 @@ export default function AnalyticsHub({
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={8} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                  <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax, 4)]} tickCount={5} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Area type="monotone" dataKey="Đã tạo" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityCreated)" name={locale === 'vi' ? 'Đã tạo' : 'Created'} />
-                  <Area type="monotone" dataKey="Hoàn thành" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#velocityDone)" name={locale === 'vi' ? 'Hoàn thành' : 'Completed'} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontWeight: 700, paddingTop: 15 }} />
+                  <Area type="monotone" dataKey="Đã tạo" stroke="#6366f1" strokeWidth={3} dot={{ r: 3, fill: '#6366f1', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#velocityCreated)" name={locale === 'vi' ? 'Đã tạo' : 'Created'} />
+                  <Area type="monotone" dataKey="Hoàn thành" stroke="#10b981" strokeWidth={3} dot={{ r: 3, fill: '#10b981', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#velocityDone)" name={locale === 'vi' ? 'Hoàn thành' : 'Completed'} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontWeight: 700, paddingTop: 15 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -487,21 +487,22 @@ export default function AnalyticsHub({
             </div>
 
             <div className="flex items-center justify-center py-6 relative">
-              <div className="w-[160px] h-[160px]">
+              <div className="w-[170px] h-[170px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={statusChartData.length > 0 ? statusChartData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={68}
+                      innerRadius={54}
+                      outerRadius={76}
                       paddingAngle={4}
+                      cornerRadius={6}
                       dataKey="value"
                       isAnimationActive={false}
                     >
                       {(statusChartData.length > 0 ? statusChartData : [{ name: locale === 'vi' ? 'Trống' : 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
                       ))}
                     </Pie>
                   </PieChart>
@@ -509,24 +510,38 @@ export default function AnalyticsHub({
               </div>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-2">
                 <span className="text-3xl font-black text-slate-800 dark:text-slate-100 leading-none">{stats.total}</span>
-                <span className="text-[9px] text-slate-450 dark:text-slate-500 uppercase tracking-widest font-black mt-1">
+                <span className="text-[8.5px] text-slate-450 dark:text-slate-500 uppercase tracking-widest font-black mt-1">
                   {locale === 'vi' ? 'Tổng Task' : 'Total Tasks'}
                 </span>
               </div>
             </div>
 
             <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-4">
-              {statusChartData.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs font-bold">
-                  <span className="flex items-center gap-2 text-slate-550 dark:text-slate-400">
-                    <span className="w-2.5 h-2.5 rounded-full block" style={{ backgroundColor: item.color }} />
-                    <span>{item.name}</span>
-                  </span>
-                  <span className="text-slate-800 dark:text-slate-200 font-mono font-extrabold">
-                    {item.value} ({Math.round((item.value / stats.total) * 100)}%)
-                  </span>
-                </div>
-              ))}
+              {statusChartData.map((item, idx) => {
+                const percentage = stats.total > 0 ? Math.round((item.value / stats.total) * 100) : 0;
+                return (
+                  <div key={idx} className="space-y-1 p-1 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <span className="w-2.5 h-2.5 rounded-full block shadow-xs shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="truncate">{item.name}</span>
+                      </span>
+                      <span className="text-slate-800 dark:text-slate-200 font-mono font-black text-xs shrink-0">
+                        {item.value} <span className="text-slate-400 dark:text-slate-500 font-medium text-[10.5px]">({percentage}%)</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800/80 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          backgroundColor: item.color,
+                          width: `${percentage}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

@@ -26,6 +26,7 @@ import { useThemeSync } from '@/hooks/useThemeSync';
 import { resolveAppRole } from '@/lib/authRole';
 
 import { NavItem } from '@/components/ui';
+import { Select } from '@/components/ui/Select';
 import LoginScreen from '../components/LoginScreen';
 import EmojiIconPicker from '../components/EmojiIconPicker';
 import DocumentHub from '../components/DocumentHub';
@@ -1172,7 +1173,7 @@ export default function App() {
   const notificationsMenuRef = useRef<HTMLDivElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
-  const statusButtonRef = useRef<HTMLDivElement>(null);
+  const statusButtonRef = useRef<HTMLButtonElement>(null);
 
   // Global Click-outside & Escape dismissal for Header Popovers (works everywhere on screen)
   useEffect(() => {
@@ -4038,9 +4039,11 @@ export default function App() {
             <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </button>
           
-          <div 
+          <button
+            type="button"
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer max-w-[130px] select-none shadow-3xs"
+            aria-expanded={showWorkspaceMenu}
+            className="apexa-mobile-workspace flex max-w-[130px] cursor-pointer select-none items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/70 px-2.5 py-1 shadow-3xs dark:border-slate-700/80 dark:bg-slate-800/60"
           >
             <div 
               className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
@@ -4060,11 +4063,11 @@ export default function App() {
             <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11px] truncate">
               {currentWorkspace?.name || 'Avaxa'}
             </span>
-          </div>
+          </button>
         </div>
 
         {/* Left header switcher section (desktop) */}
-        <div className={`hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-slate-200/60 dark:border-white/[0.08] ${
+        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-slate-200/60 dark:border-white/[0.08] ${
           isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-3 py-2 justify-between'
         }`}>
           <div className="flex items-center gap-1.5 relative flex-1 min-w-0 justify-between">
@@ -4111,8 +4114,9 @@ export default function App() {
                 {/* Compact Switcher Pill Button */}
                 <button
                   type="button" 
-                  className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-100/60 dark:bg-white/[0.05] border border-slate-200/70 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.09] hover:border-slate-300/80 dark:hover:border-white/[0.15] transition-all duration-200 cursor-pointer select-none group shadow-2xs min-w-0 text-left"
+                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/70 bg-slate-100/60 px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-slate-300/80 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.05] dark:hover:border-white/[0.15] dark:hover:bg-white/[0.09]"
                   onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
+                  aria-expanded={showWorkspaceMenu}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div 
@@ -4137,14 +4141,6 @@ export default function App() {
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
                 </button>
 
-                {/* Calendar Shortcut Button */}
-                <button 
-                  onClick={() => setActiveTab('calendar')} 
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/40 dark:hover:border-slate-700/40" 
-                  title="Lịch"
-                >
-                  <Calendar className="w-4 h-4" />
-                </button>
               </>
             )}
 
@@ -4300,7 +4296,7 @@ export default function App() {
 
         {/* Right side Header section */}
         <div className="apexa-header-content flex min-w-0 flex-1 items-center justify-between px-3 py-2 sm:px-5">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="apexa-header-context flex min-w-0 items-center gap-2">
             {/* Modern Breadcrumb Navigation */}
             {(() => {
               const selectedSpace = spaces.find(space => space.id === activeSpaceId);
@@ -4312,7 +4308,7 @@ export default function App() {
               const activeItem = sidebarItems.find(i => i.id === activeTab);
 
               return (
-                <nav aria-label="Cấu trúc điều hướng" className="flex min-w-0 items-center gap-1.5 text-xs select-none">
+                <nav aria-label="Cấu trúc điều hướng" className="apexa-breadcrumbs flex min-w-0 items-center gap-1.5 text-xs select-none">
                   {/* Root: Workspace Item (Text-only link, elegant & no duplicate logo) */}
                   <button
                     type="button"
@@ -4430,7 +4426,7 @@ export default function App() {
                         )}
                       </>
                     ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
+                      <div className="apexa-breadcrumb-current flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
                         {activeTab === 'my-tasks' ? (
                           <>
                             <CheckSquare className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
@@ -4446,7 +4442,7 @@ export default function App() {
                     )
                   ) : (
                     activeItem && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
+                      <div className="apexa-breadcrumb-current flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 dark:bg-white/[0.08] text-slate-900 dark:text-zinc-100 border border-slate-200/70 dark:border-white/[0.08] font-semibold text-[13px] shadow-2xs">
                         {activeItem.icon && <activeItem.icon className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
                         <span className="capitalize">{activeItem.label}</span>
                       </div>
@@ -4462,47 +4458,40 @@ export default function App() {
                 setIsSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
-              className="sm:hidden p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 rounded-xl transition-colors cursor-pointer ml-1"
+              className="apexa-header-icon-button ml-1 cursor-pointer rounded-xl p-1.5 text-slate-500 transition-colors hover:bg-slate-100/50 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 lg:hidden"
               title="Tìm kiếm toàn cục"
+              aria-label="Tìm kiếm toàn cục"
             >
               <Search className="w-4 h-4" />
             </button>
           </div>
 
           {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
-          <div className="relative max-w-md w-64 md:w-80 lg:w-96 mx-4 hidden sm:block">
-            {(() => {
-              const currentTheme = currentWorkspace?.theme || 'indigo';
-              const ringColor = currentTheme === 'ocean' ? 'hover:border-sky-500/40 dark:hover:border-sky-500/50' :
-                                currentTheme === 'forest' ? 'hover:border-emerald-500/40 dark:hover:border-emerald-500/50' :
-                                currentTheme === 'sunset' ? 'hover:border-rose-500/40 dark:hover:border-rose-500/50' :
-                                'hover:border-indigo-500/40 dark:hover:border-indigo-500/50';
-              return (
-                <button
-                  onClick={() => {
-                    setIsSearchOpen(true);
-                    setTimeout(() => searchInputRef.current?.focus(), 80);
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-1.5 cu-search-bar text-[var(--cu-text-muted)] hover:text-[var(--cu-text-secondary)] cursor-pointer outline-none text-[12px] font-medium shadow-none`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Search className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
-                    <span className="truncate font-semibold tracking-tight">Tìm công việc, tài liệu, không gian...</span>
-                  </div>
-                  <div className="flex items-center gap-0.5 font-mono text-[9px] font-extrabold bg-slate-100/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 shadow-3xs shrink-0 select-none">
-                    <span>⌘</span>
-                    <span>K</span>
-                  </div>
-                </button>
-              );
-            })()}
+          <div className="apexa-search-slot relative mx-4 hidden w-64 max-w-md lg:block lg:w-80 2xl:w-[28rem]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className="apexa-search-trigger cu-search-bar flex w-full cursor-pointer items-center justify-between px-4 py-1.5 text-[12px] font-medium text-[var(--cu-text-muted)] outline-none hover:text-[var(--cu-text-secondary)]"
+              aria-label="Tìm công việc, tài liệu hoặc không gian"
+            >
+              <span className="flex min-w-0 items-center gap-2 truncate">
+                <Search className="h-3.5 w-3.5 shrink-0 text-slate-450 dark:text-slate-500" />
+                <span className="truncate font-semibold tracking-tight">Tìm công việc, tài liệu, không gian...</span>
+              </span>
+              <kbd className="apexa-search-shortcut flex shrink-0 select-none items-center gap-0.5 rounded-md border border-slate-200/50 bg-slate-100/80 px-1.5 py-0.5 font-mono text-[9px] font-extrabold text-slate-500 shadow-3xs dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-slate-400">
+                <span>⌘</span><span>K</span>
+              </kbd>
+            </button>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="apexa-header-actions flex shrink-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setShowKeyboardShortcuts(true)}
-              className="hidden sm:flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-400 transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700/80 dark:bg-slate-800/60 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300"
+              className="apexa-header-icon-button hidden h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-400 transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700/80 dark:bg-slate-800/60 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300 xl:flex"
               title={locale === 'vi' ? 'Phím tắt (?)' : 'Keyboard shortcuts (?)'}
               aria-label={locale === 'vi' ? 'Mở bảng phím tắt' : 'Open keyboard shortcuts'}
             >
@@ -4541,7 +4530,7 @@ export default function App() {
                 <div className="relative">
                   <button
                     onClick={() => setShowDisplayOptionsMenu(!showDisplayOptionsMenu)}
-                    className={`text-[10.5px] font-black tabular-nums font-sans hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border select-none transition-all cursor-pointer group active:scale-95 ${
+                    className={`apexa-header-date-button text-[10.5px] font-black tabular-nums font-sans hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border select-none transition-all cursor-pointer group active:scale-95 ${
                       showDisplayOptionsMenu
                         ? 'bg-white dark:bg-slate-800 border-indigo-300/80 dark:border-indigo-500/50 text-indigo-600 dark:text-indigo-300 shadow-md shadow-indigo-500/10'
                         : 'bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/60 hover:border-indigo-300/70 dark:hover:border-indigo-500/40 hover:shadow-md hover:shadow-indigo-500/10'
@@ -4732,7 +4721,7 @@ export default function App() {
                 whileHover={{ scale: 1.02, y: -0.5 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowPremiumModal(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10.5px] font-black text-white shadow-md transition-all cursor-pointer relative overflow-hidden group"
+                className="apexa-premium-button relative hidden cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl px-3 py-1.5 text-[10.5px] font-black text-white shadow-md transition-all 2xl:flex"
                 style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
               >
                 <Sparkles className="w-3.5 h-3.5 animate-pulse" />
@@ -4742,18 +4731,20 @@ export default function App() {
             )}
 
             {/* Language Selector Dropdown */}
-            <LanguageDropdown size="md" />
+            <LanguageDropdown size="md" className="apexa-header-language" />
 
             {/* Quick 1-Click Dark Mode Toggle Switch */}
-            <ThemeSwitch size="md" />
+            <ThemeSwitch size="md" className="apexa-header-theme" />
 
             {/* 🔔 Notification Center Dropdown & Badge Manager */}
-            <div className="relative">
+            <div className="apexa-header-notifications relative">
               <button 
                 ref={notificationsButtonRef}
                 onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors border border-transparent hover:border-slate-200/50 dark:hover:border-slate-700/50 relative cursor-pointer"
+                className="apexa-header-icon-button relative cursor-pointer rounded-xl border border-transparent p-2 text-slate-400 transition-colors hover:border-slate-200/50 hover:bg-slate-100/80 hover:text-slate-700 dark:hover:border-slate-700/50 dark:hover:bg-slate-800/80 dark:hover:text-slate-200"
                 title="Cài đặt thông báo"
+                aria-label="Mở trung tâm thông báo"
+                aria-expanded={showNotificationsMenu}
               >
                 <Bell className="w-4.5 h-4.5" />
                 {unreadNotificationsCount > 0 && (
@@ -4933,10 +4924,13 @@ export default function App() {
 
             {/* Interactive Connected User Badge and Status Switcher */}
             <div className="relative font-sans text-left">
-              <div 
+              <button
+                type="button"
                 ref={statusButtonRef}
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className={`cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border rounded-2xl transition-all select-none shadow-3xs ${
+                aria-expanded={showStatusMenu}
+                aria-label={`Tài khoản ${currentUser.name} — ${accountPresenceLabel}`}
+                className={`apexa-profile-trigger cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border rounded-2xl transition-all select-none shadow-3xs ${
                   currentUser.isPremium ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-slate-200/60 dark:border-slate-800/60'
                 }`}
               >
@@ -4969,45 +4963,43 @@ export default function App() {
                 </div>
 
                 <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-250 shrink-0 relative z-10" />
-              </div>
+              </button>
               
               {/* Dropdown status content menu */}
               <AnimatePresence>
                 {showStatusMenu && (
                   <motion.div
                     ref={statusMenuRef}
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2.5 w-60 p-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-[100] space-y-1 text-left origin-top-right font-sans"
+                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 mt-2 w-[250px] p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 z-[100] text-left origin-top-right font-sans"
                   >
-                      {/* User Info Header with Role */}
-                      <div className="px-3 py-2.5 mb-1 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 flex flex-col rounded-xl">
-                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">{currentUser.name}</span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{currentUser.email}</span>
-                        <span className="text-[9.5px] text-indigo-700 dark:text-indigo-300 font-bold uppercase mt-2 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/50 dark:border-indigo-800/50 w-max px-2 py-0.5 rounded-md">
-                          {currentUser.role === 'admin' ? 'Quản trị viên' : 'Kỹ sư thiết kế'}
+                    {/* User Info Header with Role */}
+                    <div className="p-2.5 mb-1 bg-slate-50/90 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          {currentUser.name}
+                        </span>
+                        <span className="shrink-0 text-[8.5px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/50 px-1.5 py-0.5 rounded-md">
+                          {currentUser.role === 'admin' ? (locale === 'vi' ? 'Quản trị' : 'Admin') : (locale === 'vi' ? 'Kỹ sư thiết kế' : 'Designer')}
                         </span>
                       </div>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
+                        {currentUser.email}
+                      </p>
+                    </div>
 
-                      {/* Trạng thái section header */}
-                      <div className="px-2 pt-2 pb-1 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Trạng thái làm việc
-                      </div>
+                    {/* Status section */}
+                    <div className="px-2 pt-1 pb-1 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                      {locale === 'vi' ? 'Trạng thái hoạt động' : 'Status'}
+                    </div>
 
-                      <div className="mx-1 mb-1.5 flex items-start gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-2.5 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/25">
-                        <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${presenceDotClass(accountPresenceStatus)}`} />
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-extrabold text-slate-700 dark:text-slate-200">{accountPresenceLabel}</p>
-                          <p className="mt-0.5 text-[9px] font-medium leading-3.5 text-slate-500 dark:text-slate-400">
-                            Tự động tạm vắng sau 2 phút và ngoại tuyến sau 15 phút không hoạt động.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Status options */}
+                    {/* Status 2x2 Grid */}
+                    <div className="grid grid-cols-2 gap-1 p-0.5 mb-0.5">
                       <button
+                        type="button"
                         onClick={() => {
                           void setUserPresenceStatus('online');
                           setShowStatusMenu(false);
@@ -5020,40 +5012,36 @@ export default function App() {
                           }
                           (window as any).playSystemSound?.('toggle');
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                           presencePreference === 'online'
-                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50 shadow-3xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                          <span>Tự động</span>
-                        </div>
-                        {presencePreference === 'online' && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 font-bold" />}
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-xs" />
+                        <span className="truncate">{locale === 'vi' ? 'Tự động' : 'Online'}</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           void setUserPresenceStatus('busy');
                           setShowStatusMenu(false);
                           addSyncLog("Changed status: Focused");
                           (window as any).playSystemSound?.('toggle');
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                           presencePreference === 'focused'
-                            ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 font-bold'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50 shadow-3xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm" />
-                          <span>Đang tập trung</span>
-                        </div>
-                        {presencePreference === 'focused' && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 font-bold" />}
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 shadow-xs" />
+                        <span className="truncate">{locale === 'vi' ? 'Tập trung' : 'Focus'}</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           void setUserPresenceStatus('away');
                           setShowStatusMenu(false);
@@ -5066,20 +5054,18 @@ export default function App() {
                           }
                           (window as any).playSystemSound?.('toggle');
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                           presencePreference === 'away'
-                            ? 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-bold'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 shadow-3xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm" />
-                          <span>Vắng mặt</span>
-                        </div>
-                        {presencePreference === 'away' && <Check className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 font-bold" />}
+                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-xs" />
+                        <span className="truncate">{locale === 'vi' ? 'Vắng mặt' : 'Away'}</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           void setUserPresenceStatus('offline');
                           setShowStatusMenu(false);
@@ -5090,64 +5076,70 @@ export default function App() {
                           addSyncLog('Changed status: Appear offline');
                           (window as any).playSystemSound?.('toggle');
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                           presencePreference === 'offline'
-                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300/70 dark:border-slate-700 shadow-3xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex h-3 w-3 items-center justify-center text-slate-400"><WifiOff className="h-3 w-3" /></span>
-                          <span>Ẩn trạng thái</span>
-                        </div>
-                        {presencePreference === 'offline' && <Check className="w-3.5 h-3.5 text-slate-500 font-bold" />}
+                        <WifiOff className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{locale === 'vi' ? 'Ẩn trạng thái' : 'Invisible'}</span>
                       </button>
+                    </div>
 
-                      {/* Divider */}
-                      <div className="border-t border-slate-100 dark:border-slate-800 my-1.5" />
+                    {/* Divider */}
+                    <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 
-                      {/* Quick access system controls inside profile */}
-                      <div className="px-2.5 pt-1.5 pb-1 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                        Ứng dụng của tôi
-                      </div>
-
+                    {/* Quick Access Menu Items */}
+                    <div className="space-y-0.5">
                       <button
+                        type="button"
                         onClick={() => {
                           setActiveTab('profile');
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                       >
-                        <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span>Hồ sơ cá nhân</span>
+                        <UserIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                        <span>{locale === 'vi' ? 'Hồ sơ cá nhân' : 'Profile'}</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           setActiveTab('settings');
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                       >
-                        <Settings className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <span>Cài đặt hệ thống</span>
+                        <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                        <span>{locale === 'vi' ? 'Cài đặt hệ thống' : 'Settings'}</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => {
                           setShowPremiumModal(true);
                           setShowStatusMenu(false);
                           (window as any).playSystemSound?.('click');
                         }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-450 hover:bg-amber-50 dark:hover:bg-amber-955/20 transition-colors cursor-pointer border border-dashed border-amber-200 dark:border-amber-800/40 my-1 bg-amber-500/5"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/8 hover:bg-amber-500/15 border border-amber-500/20 transition-all cursor-pointer group"
                       >
-                        <Sparkles className="w-4 h-4 text-amber-500 animate-pulse animate-duration-1000" />
-                        <span>{currentUser.isPremium ? 'Đã kích hoạt Pro' : 'Nâng cấp Premium Pro'}</span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 group-hover:rotate-12 transition-transform" />
+                          <span className="truncate">{currentUser.isPremium ? (locale === 'vi' ? 'Đã kích hoạt Pro' : 'Pro Active') : (locale === 'vi' ? 'Nâng cấp Premium Pro' : 'Upgrade Pro')}</span>
+                        </div>
+                        {!currentUser.isPremium && (
+                          <span className="text-[8.5px] font-black uppercase bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.2 rounded-md shadow-xs">PRO</span>
+                        )}
                       </button>
 
+                      <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
                       <button
+                        type="button"
                         onClick={async () => {
                           setShowStatusMenu(false);
                           addSyncLog('Signed out of account');
@@ -5159,12 +5151,13 @@ export default function App() {
                           updateCurrentUser(null);
                           localStorage.removeItem('avaxa_session');
                         }}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4 text-rose-500" />
-                        <span>Đăng xuất</span>
+                        <LogOut className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>{locale === 'vi' ? 'Đăng xuất' : 'Sign out'}</span>
                       </button>
-                    </motion.div>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -5462,6 +5455,13 @@ export default function App() {
                       syncLogs={syncLogs}
                       isOffline={isOffline}
                       onNavigate={setActiveTab}
+                      onOpenTask={(taskId) => {
+                        const task = currentWorkspaceTasks.find((item) => item.id === taskId);
+                        setActiveTab('tasks');
+                        if (task?.spaceId) setActiveSpaceId(task.spaceId);
+                        if (task?.listId) setActiveListId(task.listId);
+                        setInitialSelectedTaskId(taskId);
+                      }}
                       onToggleOffline={handleToggleOffline}
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
@@ -6208,13 +6208,19 @@ export default function App() {
                   </div>
                   <div className="space-y-1 text-left">
                     <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">{t('themeColor') || 'Màu chủ đề'}</label>
-                    <select value={editSpaceColor} onChange={e => setEditSpaceColor(e.target.value)} className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold cursor-pointer">
-                      <option value="indigo">Tím chàm</option>
-                      <option value="rose">Hồng phấn</option>
-                      <option value="sky">Xanh da trời</option>
-                      <option value="emerald">Xanh ngọc</option>
-                      <option value="sunset">Hoàng hôn</option>
-                    </select>
+                    <Select
+                      value={editSpaceColor}
+                      onChange={v => setEditSpaceColor(v)}
+                      options={[
+                        { value: 'indigo', label: 'Tím chàm' },
+                        { value: 'rose', label: 'Hồng phấn' },
+                        { value: 'sky', label: 'Xanh da trời' },
+                        { value: 'emerald', label: 'Xanh ngọc' },
+                        { value: 'sunset', label: 'Hoàng hôn' }
+                      ]}
+                      className="w-full"
+                      ariaLabel="Màu chủ đề"
+                    />
                   </div>
                 </div>
 

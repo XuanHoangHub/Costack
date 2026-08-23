@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Workspace } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker } from './TaskSelects';
+import { Select } from '../ui/Select';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
 
 const DraggableCast = Draggable as typeof Draggable;
@@ -133,6 +134,8 @@ const TaskListView = React.memo(function TaskListView({
   const [inlineEditTitle, setInlineEditTitle] = useState('');
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [expandedSubtaskTaskIds, setExpandedSubtaskTaskIds] = useState<string[]>([]);
+  const [bulkStatusValue, setBulkStatusValue] = useState<TaskStatus | undefined>(undefined);
+  const [bulkPriorityValue, setBulkPriorityValue] = useState<Priority | undefined>(undefined);
   
   const toggleSubtaskExpand = (taskId: string) => {
     setExpandedSubtaskTaskIds(prev => 
@@ -1075,33 +1078,37 @@ const TaskListView = React.memo(function TaskListView({
               {/* Bulk Status */}
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-slate-400 font-semibold">Trạng thái:</span>
-                <select
-                  onChange={(e) => { if (e.target.value) handleBulkSetStatus(e.target.value as TaskStatus); }}
-                  className="bg-slate-800 border border-slate-700 rounded-xl px-2 py-1 text-[11px] font-bold text-slate-200 outline-none cursor-pointer"
-                  defaultValue=""
-                >
-                  <option value="" disabled>-- Chọn --</option>
-                  <option value="todo">CẦN LÀM</option>
-                  <option value="inprogress">ĐANG THỰC HIỆN</option>
-                  <option value="review">CHỜ DUYỆT</option>
-                  <option value="completed">HOÀN THÀNH</option>
-                </select>
+                <Select
+                  value={bulkStatusValue}
+                  onChange={v => { setBulkStatusValue(v); handleBulkSetStatus(v); }}
+                  size="sm"
+                  placeholder="-- Chọn --"
+                  ariaLabel="Trạng thái hàng loạt"
+                  options={[
+                    { value: 'todo', label: 'CẦN LÀM' },
+                    { value: 'inprogress', label: 'ĐANG THỰC HIỆN' },
+                    { value: 'review', label: 'CHỜ DUYỆT' },
+                    { value: 'completed', label: 'HOÀN THÀNH' },
+                  ]}
+                />
               </div>
 
               {/* Bulk Priority */}
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-slate-400 font-semibold">Ưu tiên:</span>
-                <select
-                  onChange={(e) => { if (e.target.value) handleBulkSetPriority(e.target.value as Priority); }}
-                  className="bg-slate-800 border border-slate-700 rounded-xl px-2 py-1 text-[11px] font-bold text-slate-200 outline-none cursor-pointer"
-                  defaultValue=""
-                >
-                  <option value="" disabled>-- Chọn --</option>
-                  <option value="urgent">Khẩn cấp</option>
-                  <option value="high">Cao</option>
-                  <option value="medium">Trung bình</option>
-                  <option value="low">Thấp</option>
-                </select>
+                <Select
+                  value={bulkPriorityValue}
+                  onChange={v => { setBulkPriorityValue(v); handleBulkSetPriority(v); }}
+                  size="sm"
+                  placeholder="-- Chọn --"
+                  ariaLabel="Ưu tiên hàng loạt"
+                  options={[
+                    { value: 'urgent', label: 'Khẩn cấp' },
+                    { value: 'high', label: 'Cao' },
+                    { value: 'medium', label: 'Trung bình' },
+                    { value: 'low', label: 'Thấp' },
+                  ]}
+                />
               </div>
 
               {/* Bulk Delete */}

@@ -30,6 +30,7 @@ import { useTranslation } from '../../contexts/TranslationContext';
 import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
 import { motion } from 'motion/react';
 import { useUiStore } from '../../store/uiStore';
+import { Select } from '../ui/Select';
 
 // Simple Portal wrapper
 function Portal({ children }: { children: React.ReactNode }) {
@@ -1275,36 +1276,39 @@ export default function TaskBoardView({
             {/* Group By selector */}
             <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
-              <select
+              <Select
                 value={boardGroupBy}
-                onChange={(e) => {
-                  const val = e.target.value as any;
-                  setBoardGroupBy(val);
-                  if (boardSwimlaneBy === val) {
+                onChange={(v) => {
+                  setBoardGroupBy(v);
+                  if (boardSwimlaneBy === v) {
                     setBoardSwimlaneBy('none');
                   }
                 }}
-                className="bg-transparent font-bold outline-none cursor-pointer pr-1 text-slate-700 dark:text-slate-300 border-none"
-              >
-                <option value="status">Trạng thái</option>
-                <option value="priority">Ưu tiên</option>
-                <option value="assignee">Người phụ trách</option>
-              </select>
+                size="sm"
+                ariaLabel="Nhóm theo"
+                options={[
+                  { value: 'status', label: 'Trạng thái' },
+                  { value: 'priority', label: 'Ưu tiên' },
+                  { value: 'assignee', label: 'Người phụ trách' },
+                ]}
+              />
             </div>
 
             {/* Swimlane selector */}
             <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
-              <select
+              <Select
                 value={boardSwimlaneBy}
-                onChange={(e) => setBoardSwimlaneBy(e.target.value as any)}
-                className="bg-transparent font-bold outline-none cursor-pointer pr-1 text-slate-700 dark:text-slate-300 border-none"
-              >
-                <option value="none">Không</option>
-                {boardGroupBy !== 'status' && <option value="status">Trạng thái</option>}
-                {boardGroupBy !== 'priority' && <option value="priority">Ưu tiên</option>}
-                {boardGroupBy !== 'assignee' && <option value="assignee">Người phụ trách</option>}
-              </select>
+                onChange={(v) => setBoardSwimlaneBy(v)}
+                size="sm"
+                ariaLabel="Làn công việc"
+                options={[
+                  { value: 'none', label: 'Không' },
+                  ...(boardGroupBy !== 'status' ? [{ value: 'status' as const, label: 'Trạng thái' }] : []),
+                  ...(boardGroupBy !== 'priority' ? [{ value: 'priority' as const, label: 'Ưu tiên' }] : []),
+                  ...(boardGroupBy !== 'assignee' ? [{ value: 'assignee' as const, label: 'Người phụ trách' }] : []),
+                ]}
+              />
             </div>
           </div>
 

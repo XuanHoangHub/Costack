@@ -14,6 +14,7 @@ import {
 import SignedImage from './SignedImage';
 import TeamDirectory from './TeamDirectory';
 import LanguageDropdown from './LanguageDropdown';
+import { Select } from './ui/Select';
 import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -71,7 +72,6 @@ interface SettingsPanelProps {
 }
 
 const inputClass = 'w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-950 px-3 text-sm font-semibold text-slate-850 dark:text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 placeholder:text-slate-400';
-const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
 function Toggle({ checked, onChange, disabled = false, label }: { checked: boolean; onChange: (value: boolean) => void; disabled?: boolean; label: string }) {
   return (
@@ -820,26 +820,26 @@ export default function SettingsPanel({
                   </div>
                   <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
                     <SettingRow title={t('interfaceDepth') || (isVietnamese ? 'Độ sâu giao diện' : 'Interface Depth')} description={isVietnamese ? 'Điều chỉnh độ mờ kính và mức phân tách bề mặt.' : 'Adjust glassmorphism blur and surface elevation.'}>
-                      <select value={blurIntensity} onChange={event => setBlurIntensity(event.target.value as BlurIntensity)} className={`${selectClass} w-40`}>
-                        <option value="soft">{t('depthSoft') || (isVietnamese ? 'Nhẹ' : 'Soft')}</option>
-                        <option value="default">{t('depthBalanced') || (isVietnamese ? 'Cân bằng' : 'Balanced')}</option>
-                        <option value="immersive">{t('depthImmersive') || (isVietnamese ? 'Nổi bật' : 'Immersive')}</option>
-                      </select>
+                      <Select value={blurIntensity} onChange={v => setBlurIntensity(v as BlurIntensity)} className="w-40" ariaLabel={isVietnamese ? 'Độ sâu giao diện' : 'Interface Depth'} options={[
+                        { value: 'soft', label: t('depthSoft') || (isVietnamese ? 'Nhẹ' : 'Soft') },
+                        { value: 'default', label: t('depthBalanced') || (isVietnamese ? 'Cân bằng' : 'Balanced') },
+                        { value: 'immersive', label: t('depthImmersive') || (isVietnamese ? 'Nổi bật' : 'Immersive') },
+                      ]} />
                     </SettingRow>
                     <SettingRow title={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} description={isVietnamese ? 'Thu gọn khoảng cách để hiển thị nhiều dữ liệu hơn.' : 'Adjust spacing to show more information on screen.'}>
-                      <select value={uiDensity} onChange={event => setUiDensity(event.target.value as 'comfortable' | 'compact')} className={`${selectClass} w-40`}>
-                        <option value="comfortable">{isVietnamese ? 'Thoải mái' : 'Comfortable'}</option>
-                        <option value="compact">{isVietnamese ? 'Thu gọn' : 'Compact'}</option>
-                      </select>
+                      <Select value={uiDensity} onChange={v => setUiDensity(v as 'comfortable' | 'compact')} className="w-40" ariaLabel={isVietnamese ? 'Mật độ giao diện' : 'Interface Density'} options={[
+                        { value: 'comfortable', label: isVietnamese ? 'Thoải mái' : 'Comfortable' },
+                        { value: 'compact', label: isVietnamese ? 'Thu gọn' : 'Compact' },
+                      ]} />
                     </SettingRow>
                     <SettingRow title={isVietnamese ? 'Định dạng ngày giờ' : 'Date & Time Format'} description={isVietnamese ? 'Áp dụng thống nhất trong task, lịch và báo cáo.' : 'Used consistently across tasks, calendars and reports.'}>
-                      <select value={dateFormat} onChange={event => setDateFormat(event.target.value as typeof dateFormat)} className={`${selectClass} w-44`}>
-                        <option value="short">20/08/2026</option>
-                        <option value="full">20 tháng 8, 2026</option>
-                        <option value="vi">Thứ Năm, 20/08</option>
-                        <option value="numeric">2026-08-20</option>
-                        <option value="clock">20/08 · 14:30</option>
-                      </select>
+                      <Select value={dateFormat} onChange={v => setDateFormat(v as typeof dateFormat)} className="w-44" ariaLabel={isVietnamese ? 'Định dạng ngày giờ' : 'Date & Time Format'} options={[
+                        { value: 'short', label: '20/08/2026' },
+                        { value: 'full', label: '20 tháng 8, 2026' },
+                        { value: 'vi', label: 'Thứ Năm, 20/08' },
+                        { value: 'numeric', label: '2026-08-20' },
+                        { value: 'clock', label: '20/08 · 14:30' },
+                      ]} />
                     </SettingRow>
                     <SettingRow title={t('uiSounds') || (isVietnamese ? 'Âm thanh giao diện' : 'Interface Sounds')} description={t('uiSoundsDesc') || (isVietnamese ? 'Phát âm thanh phản hồi nhẹ cho các thao tác quan trọng.' : 'Play subtle audio feedback for key interactions.')} last>
                       <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
@@ -915,20 +915,20 @@ export default function SettingsPanel({
                     <Toggle checked={!!notificationSettings.dndAllowUrgent} onChange={value => setNotificationSettings(previous => ({ ...previous, dndAllowUrgent: value }))} label="Allow urgent alerts" />
                   </SettingRow>
                   <SettingRow title={t('alertFrequency') || (isVietnamese ? 'Tần suất cảnh báo' : 'Alert Frequency')} description={t('alertFrequencyDesc') || (isVietnamese ? 'Gom nhóm thông báo để giảm gián đoạn.' : 'Group notifications to minimize disruptions.')}>
-                    <select value={notificationSettings.frequencyLimit} onChange={event => setNotificationSettings(previous => ({ ...previous, frequencyLimit: event.target.value as NotificationSettings['frequencyLimit'] }))} className={`${selectClass} w-44`}>
-                      <option value="all">{t('freqAll') || (isVietnamese ? 'Mọi cập nhật' : 'All updates')}</option>
-                      <option value="throttled">{t('freqThrottled') || (isVietnamese ? 'Nhóm thông minh' : 'Smart throttling')}</option>
-                      <option value="minimal">{t('freqMinimal') || (isVietnamese ? 'Tối thiểu' : 'Minimal only')}</option>
-                    </select>
+                    <Select value={notificationSettings.frequencyLimit} onChange={v => setNotificationSettings(previous => ({ ...previous, frequencyLimit: v as NotificationSettings['frequencyLimit'] }))} className="w-44" ariaLabel={t('alertFrequency') || 'Alert Frequency'} options={[
+                      { value: 'all', label: t('freqAll') || (isVietnamese ? 'Mọi cập nhật' : 'All updates') },
+                      { value: 'throttled', label: t('freqThrottled') || (isVietnamese ? 'Nhóm thông minh' : 'Smart throttling') },
+                      { value: 'minimal', label: t('freqMinimal') || (isVietnamese ? 'Tối thiểu' : 'Minimal only') },
+                    ]} />
                   </SettingRow>
                   <SettingRow title={isVietnamese ? 'Thời gian hiển thị' : 'Display Duration'} description={isVietnamese ? 'Khoảng thời gian toast xuất hiện trước khi tự đóng.' : 'How long each toast remains visible.'} last>
                     <div className="flex items-center gap-2">
-                      <select value={notificationSettings.toastDuration} onChange={event => setNotificationSettings(previous => ({ ...previous, toastDuration: Number(event.target.value) }))} className={`${selectClass} w-32`}>
-                        <option value={2500}>2.5 giây</option>
-                        <option value={4000}>4 giây</option>
-                        <option value={6000}>6 giây</option>
-                        <option value={10000}>10 giây</option>
-                      </select>
+                      <Select<number> value={notificationSettings.toastDuration} onChange={v => setNotificationSettings(previous => ({ ...previous, toastDuration: v }))} className="w-32" ariaLabel={isVietnamese ? 'Thời gian hiển thị' : 'Display Duration'} options={[
+                        { value: 2500, label: '2.5 giây' },
+                        { value: 4000, label: '4 giây' },
+                        { value: 6000, label: '6 giây' },
+                        { value: 10000, label: '10 giây' },
+                      ]} />
                       <button type="button" onClick={() => triggerToast?.('deadline', isVietnamese ? 'Thông báo thử nghiệm' : 'Test notification', isVietnamese ? 'Các thiết lập âm thanh, thời lượng và tập trung đang hoạt động.' : 'Sound, duration and focus settings are working.')} className="h-10 rounded-xl border border-slate-200 px-3 text-[10px] font-extrabold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
                         {isVietnamese ? 'Gửi thử' : 'Send test'}
                       </button>
@@ -994,13 +994,13 @@ export default function SettingsPanel({
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className="space-y-1.5">
                         <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('aiModelLabel') || (isVietnamese ? 'Mô hình AI' : 'AI Model')}</span>
-                        <select value={aiModel} onChange={event => setAiModel(event.target.value)} className={selectClass}>
-                          <option value="gemini-2.5-flash">Gemini 2.5 Flash ({isVietnamese ? 'Khuyên dùng · Nhanh & Mạnh mẽ' : 'Recommended · Fast & Powerful'})</option>
-                          <option value="gemini-2.5-pro">Gemini 2.5 Pro ({isVietnamese ? 'Tư duy & Phân tích chuyên sâu' : 'Deep reasoning & analysis'})</option>
-                          <option value="gemini-2.0-flash">Gemini 2.0 Flash ({isVietnamese ? 'Tối ưu tốc độ phản hồi' : 'Low latency speed'})</option>
-                          <option value="gemini-1.5-flash">Gemini 1.5 Flash ({isVietnamese ? 'Tiêu chuẩn ổn định' : 'Standard Stable'})</option>
-                          <option value="gemini-1.5-pro">Gemini 1.5 Pro ({isVietnamese ? 'Đa nhiệm văn bản dài' : 'Long context windows'})</option>
-                        </select>
+                        <Select value={aiModel} onChange={setAiModel} className="w-full" menuWidth={320} ariaLabel={t('aiModelLabel') || 'AI Model'} options={[
+                          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: isVietnamese ? 'Khuyên dùng · Nhanh & Mạnh mẽ' : 'Recommended · Fast & Powerful' },
+                          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: isVietnamese ? 'Tư duy & Phân tích chuyên sâu' : 'Deep reasoning & analysis' },
+                          { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: isVietnamese ? 'Tối ưu tốc độ phản hồi' : 'Low latency speed' },
+                          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: isVietnamese ? 'Tiêu chuẩn ổn định' : 'Standard Stable' },
+                          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: isVietnamese ? 'Đa nhiệm văn bản dài' : 'Long context windows' },
+                        ]} />
                       </label>
                       <label className="space-y-1.5">
                         <span className="flex justify-between text-[11px] font-bold text-slate-600 dark:text-slate-300">

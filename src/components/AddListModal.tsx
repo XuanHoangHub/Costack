@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Space } from '@/types';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { Select } from './ui/Select';
 
 interface AddListModalProps {
   isOpen: boolean;
@@ -200,18 +201,16 @@ export default function AddListModal({
                 <Folder className="w-3 h-3 text-slate-400" />
                 <span>{locale === 'vi' ? 'Vị trí lưu' : 'Location / Folder'}</span>
               </label>
-              <select
+              <Select
                 value={selectedFolderId}
-                onChange={e => setSelectedFolderId(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/90 dark:bg-slate-850/80 text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer shadow-3xs"
-              >
-                <option value="root">📁 {locale === 'vi' ? `Thư mục gốc (${targetSpace.name})` : `Root Space (${targetSpace.name})`}</option>
-                {targetSpace.folders.map(f => (
-                  <option key={f.id} value={f.id}>
-                    📂 {f.name}
-                  </option>
-                ))}
-              </select>
+                onChange={v => setSelectedFolderId(v)}
+                className="w-full"
+                ariaLabel={locale === 'vi' ? 'Vị trí lưu' : 'Location / Folder'}
+                options={[
+                  { value: 'root', label: `📁 ${locale === 'vi' ? `Thư mục gốc (${targetSpace.name})` : `Root Space (${targetSpace.name})` }` },
+                  ...targetSpace.folders.map(f => ({ value: f.id, label: `📂 ${f.name}` })),
+                ]}
+              />
             </div>
           )}
 

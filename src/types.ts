@@ -139,6 +139,7 @@ export interface Task {
   commentsCount: number;
   tags?: string[];
   isPinned?: boolean;
+  isMilestone?: boolean;
   workspaceId?: string;
   parentId?: string;
   spaceId?: string; // Workspace Space link

@@ -41,6 +41,7 @@ import {
   getStoredDateFormat,
   saveDateFormat
 } from '../../utils/fieldConfig';
+import { Select } from '../ui/Select';
 
 function Portal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -582,30 +583,36 @@ export default function FieldSettingsModal({
                     <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                       {isVietnamese ? 'Định dạng số' : 'Format'}
                     </label>
-                    <select
+                    <Select
                       value={numberFormat}
-                      onChange={e => setNumberFormat(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none"
-                    >
-                      <option value="normal">{isVietnamese ? 'Số thuần (1.234)' : 'Standard (1,234)'}</option>
-                      <option value="percent">{isVietnamese ? 'Phần trăm (%)' : 'Percentage (%)'}</option>
-                      <option value="currency">{isVietnamese ? 'Tiền tệ' : 'Currency'}</option>
-                    </select>
+                      onChange={v => setNumberFormat(v)}
+                      className="w-full"
+                      size="sm"
+                      ariaLabel={isVietnamese ? 'Định dạng số' : 'Format'}
+                      options={[
+                        { value: 'normal', label: isVietnamese ? 'Số thuần (1.234)' : 'Standard (1,234)' },
+                        { value: 'percent', label: isVietnamese ? 'Phần trăm (%)' : 'Percentage (%)' },
+                        { value: 'currency', label: isVietnamese ? 'Tiền tệ' : 'Currency' },
+                      ]}
+                    />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                       {isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
                     </label>
-                    <select
+                    <Select<number>
                       value={numberPrecision}
-                      onChange={e => setNumberPrecision(Number(e.target.value))}
-                      className="w-full px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none"
-                    >
-                      <option value="0">0 (Số nguyên 100)</option>
-                      <option value="1">1 (100.5)</option>
-                      <option value="2">2 (100.25)</option>
-                    </select>
+                      onChange={v => setNumberPrecision(v)}
+                      className="w-full"
+                      size="sm"
+                      ariaLabel={isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
+                      options={[
+                        { value: 0, label: '0 (Số nguyên 100)' },
+                        { value: 1, label: '1 (100.5)' },
+                        { value: 2, label: '2 (100.25)' },
+                      ]}
+                    />
                   </div>
 
                   <div className="space-y-1">

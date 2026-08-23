@@ -3,18 +3,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  AlertCircle, ArrowDownRight, ArrowUpRight, BarChart3, Bot, CheckCircle2,
-  CircleDollarSign, Clock3, CreditCard, Download, FileText, Landmark,
-  LayoutDashboard, LoaderCircle, Plus, ReceiptText, RefreshCw, Search,
-  Send, Settings2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp,
-  WalletCards, X,
+  Activity, AlertCircle, ArrowDownRight, ArrowUpRight, BarChart2, BarChart3, Bot,
+  CheckCircle2, CircleDollarSign, Clock3, CreditCard, Download, FileText, Landmark,
+  Layers, LayoutDashboard, LoaderCircle, PieChart as PieChartIcon, Plus, ReceiptText,
+  RefreshCw, Search, Send, Settings2, ShieldCheck, Sparkles, Target, TrendingDown,
+  TrendingUp, Wallet, WalletCards, X,
 } from "lucide-react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart,
+  Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { callAiApi } from "@/lib/aiClient";
 import { getCleanChannel, supabase } from "@/lib/supabaseClient";
@@ -66,6 +68,20 @@ const INPUT = "h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(-
 const LABEL = "mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]";
 const today = () => new Date().toISOString().slice(0, 10);
 const numberValue = (value: unknown) => Number(value || 0);
+
+const CHART_COLORS = [
+  "#6366f1", // Indigo
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#ec4899", // Pink
+  "#8b5cf6", // Violet
+  "#06b6d4", // Cyan
+  "#f97316", // Orange
+  "#14b8a6", // Teal
+  "#3b82f6", // Blue
+  "#64748b", // Slate
+];
+
 const dueStatus = (date: string): DebtRecord["status"] => {
   const days = Math.ceil((new Date(`${date}T00:00:00`).getTime() - new Date(`${today()}T00:00:00`).getTime()) / 86_400_000);
   return days < 0 ? "overdue" : days <= 7 ? "due_soon" : "normal";
@@ -83,7 +99,7 @@ const tabs: Array<{ id: FinanceTab; label: string; icon: React.ElementType }> = 
   { id: "invoices", label: "Hóa đơn", icon: ReceiptText },
   { id: "debts", label: "Công nợ", icon: Clock3 },
   { id: "budgets", label: "Ngân sách", icon: Target },
-  { id: "reports", label: "Báo cáo", icon: BarChart3 },
+  { id: "reports", label: "Báo cáo & Biểu đồ", icon: BarChart3 },
   { id: "ai-agent", label: "AI tài chính", icon: Sparkles },
 ];
 
@@ -111,6 +127,11 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   const [transactionType, setTransactionType] = useState<"income" | "expense">("income");
   const [paymentTarget, setPaymentTarget] = useState<PaymentTarget | null>(null);
   const [paymentForm, setPaymentForm] = useState({ amount: "", date: today(), method: "bank_transfer" as PaymentRecord["method"], reference: "", note: "" });
+
+  // Biểu đồ settings
+  const [overviewChartType, setOverviewChartType] = useState<"area" | "bar" | "line">("area");
+  const [overviewPeriod, setOverviewPeriod] = useState<"6m" | "12m" | "all">("6m");
+  const [reportsChartTab, setReportsChartTab] = useState<"pl" | "expense" | "income" | "budget" | "debt">("pl");
 
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE);
   const [accountForm, setAccountForm] = useState({ bank: "", number: "", branch: "", type: "Tài khoản thanh toán", balance: "" });
@@ -164,7 +185,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
           date: r.issue_date,
           dueDate: r.due_date,
           status: r.status as Invoice["status"],
-          signed: r.signed
+          signed: r.signed,
         };
       }));
       setDebts((dr.data || []).map(r => ({ id: r.id, partnerName: r.partner_name, type: r.debt_type as DebtRecord["type"], totalAmount: numberValue(r.total_amount), paidAmount: numberValue(r.paid_amount), remainingAmount: numberValue(r.total_amount) - numberValue(r.paid_amount), dueDate: r.due_date, status: dueStatus(r.due_date) })));
@@ -210,14 +231,115 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     return { income, expense, net: income - expense, cash, receivable, payable, budget, spent, overdue };
   }, [accounts, budgets, debts, transactions]);
 
-  const chartData = useMemo(() => {
+  // Biểu đồ chuỗi thời gian (Monthly cash flow & P&L)
+  const monthlyChartData = useMemo(() => {
     const groups = new Map<string, { month: string; income: number; expense: number }>();
     transactions.filter(t => t.status === "approved").forEach(t => {
-      const month = t.date.slice(0, 7); const row = groups.get(month) || { month, income: 0, expense: 0 };
-      row[t.type] += t.amount; groups.set(month, row);
+      const month = t.date.slice(0, 7);
+      const row = groups.get(month) || { month, income: 0, expense: 0 };
+      row[t.type] += t.amount;
+      groups.set(month, row);
     });
-    return [...groups.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-6).map(r => ({ ...r, label: new Date(`${r.month}-01T00:00:00`).toLocaleDateString("vi-VN", { month: "short", year: "2-digit" }) }));
-  }, [transactions]);
+    const sorted = [...groups.values()].sort((a, b) => a.month.localeCompare(b.month));
+    const sliceCount = overviewPeriod === "6m" ? 6 : overviewPeriod === "12m" ? 12 : sorted.length;
+    return sorted.slice(-sliceCount).map(r => {
+      const net = r.income - r.expense;
+      return {
+        ...r,
+        net,
+        label: new Date(`${r.month}-01T00:00:00`).toLocaleDateString("vi-VN", { month: "short", year: "2-digit" }),
+        profitMargin: r.income > 0 ? ((net / r.income) * 100).toFixed(1) : "0",
+      };
+    });
+  }, [overviewPeriod, transactions]);
+
+  // Cơ cấu chi phí theo danh mục (Pie/Donut chart)
+  const expenseBreakdown = useMemo(() => {
+    const map = new Map<string, { amount: number; count: number }>();
+    transactions.filter(t => t.type === "expense" && t.status === "approved").forEach(t => {
+      const current = map.get(t.category) || { amount: 0, count: 0 };
+      map.set(t.category, { amount: current.amount + t.amount, count: current.count + 1 });
+    });
+    const total = metrics.expense || 1;
+    return [...map.entries()]
+      .sort((a, b) => b[1].amount - a[1].amount)
+      .map(([name, data], idx) => ({
+        name,
+        value: data.amount,
+        count: data.count,
+        percent: ((data.amount / total) * 100).toFixed(1),
+        color: CHART_COLORS[idx % CHART_COLORS.length],
+      }));
+  }, [metrics.expense, transactions]);
+
+  // Cơ cấu nguồn thu theo danh mục (Pie/Donut chart)
+  const incomeBreakdown = useMemo(() => {
+    const map = new Map<string, { amount: number; count: number }>();
+    transactions.filter(t => t.type === "income" && t.status === "approved").forEach(t => {
+      const current = map.get(t.category) || { amount: 0, count: 0 };
+      map.set(t.category, { amount: current.amount + t.amount, count: current.count + 1 });
+    });
+    const total = metrics.income || 1;
+    return [...map.entries()]
+      .sort((a, b) => b[1].amount - a[1].amount)
+      .map(([name, data], idx) => ({
+        name,
+        value: data.amount,
+        count: data.count,
+        percent: ((data.amount / total) * 100).toFixed(1),
+        color: CHART_COLORS[idx % CHART_COLORS.length],
+      }));
+  }, [metrics.income, transactions]);
+
+  // Phân bổ số dư tài khoản ngân hàng & tiền mặt
+  const accountDistribution = useMemo(() => {
+    const total = metrics.cash || 1;
+    return accounts.map((acc, idx) => ({
+      name: acc.bank,
+      number: acc.number,
+      value: Math.max(0, acc.balance),
+      balance: acc.balance,
+      percent: ((Math.max(0, acc.balance) / total) * 100).toFixed(1),
+      color: CHART_COLORS[idx % CHART_COLORS.length],
+    }));
+  }, [accounts, metrics.cash]);
+
+  // Biểu đồ so sánh Ngân sách vs Thực chi
+  const budgetComparisonData = useMemo(() => {
+    return budgets.map(b => {
+      const ratio = b.allocatedAmount > 0 ? (b.spentAmount / b.allocatedAmount) * 100 : 0;
+      return {
+        name: `${b.department} · ${b.category}`,
+        department: b.department,
+        category: b.category,
+        allocated: b.allocatedAmount,
+        spent: b.spentAmount,
+        remaining: Math.max(0, b.allocatedAmount - b.spentAmount),
+        ratio: ratio.toFixed(0),
+        status: b.status,
+      };
+    });
+  }, [budgets]);
+
+  // Biểu đồ tuổi nợ (Debt Aging Analysis)
+  const debtAgingData = useMemo(() => {
+    const buckets: Record<string, { label: string; receivable: number; payable: number }> = {
+      current: { label: "Trong hạn", receivable: 0, payable: 0 },
+      "1-30": { label: "1-30 ngày", receivable: 0, payable: 0 },
+      "31-60": { label: "31-60 ngày", receivable: 0, payable: 0 },
+      "over-60": { label: "> 60 ngày", receivable: 0, payable: 0 },
+    };
+    debts.forEach(d => {
+      const daysLate = Math.max(0, Math.floor((new Date(`${today()}T00:00:00`).getTime() - new Date(`${d.dueDate}T00:00:00`).getTime()) / 86_400_000));
+      const key = daysLate === 0 ? "current" : daysLate <= 30 ? "1-30" : daysLate <= 60 ? "31-60" : "over-60";
+      if (buckets[key]) {
+        if (d.type === "receivable") buckets[key].receivable += d.remainingAmount;
+        else buckets[key].payable += d.remainingAmount;
+      }
+    });
+    return Object.values(buckets);
+  }, [debts]);
+
   const filteredTransactions = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("vi");
     const now = new Date();
@@ -354,6 +476,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     const link = document.createElement("a"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     link.href = url; link.download = `apexa-finance-${section}-${workspaceId}-${today()}.csv`; link.click(); URL.revokeObjectURL(url);
   };
+
   const sendAi = async () => {
     const question = aiInput.trim(); if (!question || aiLoading) return;
     setAiMessages(m => [...m, { sender: "user", text: question }]); setAiInput(""); setAiLoading(true);
@@ -402,21 +525,70 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       </nav>
 
       <main className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
+        {/* TAB 1: TỔNG QUAN */}
         {activeTab === "overview" && <div className="mx-auto max-w-[1500px] space-y-4">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metricCards.map(card => { const Icon = card.icon; return <Card key={card.label} padding="md"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">{card.label}</p><p className="mt-2 truncate text-xl font-black tracking-tight text-[var(--cu-text-primary)]">{formatMoney(card.value)}</p><p className="mt-1 text-[11px] font-medium text-[var(--cu-text-tertiary)]">{card.helper}</p></div><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.iconClass}`}><Icon className="h-4 w-4" /></div></div></Card>; })}</section>
-          <Card padding="none" className="overflow-hidden"><SectionHeader title="Dự báo thanh khoản 30 ngày" subtitle="Tính từ số dư hiện tại và các khoản công nợ đến hạn; không dùng dữ liệu giả" aside={<Badge variant={forecast.projectedCash >= 0 ? "success" : "danger"}>{forecast.projectedCash >= 0 ? "Dòng tiền an toàn" : "Cần bổ sung thanh khoản"}</Badge>} /><div className="grid divide-y divide-[var(--cu-border)] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5"><ForecastMetric label="Dự kiến thu" value={formatMoney(forecast.inflow)} tone="text-emerald-500" /><ForecastMetric label="Dự kiến chi" value={formatMoney(forecast.outflow)} tone="text-rose-500" /><ForecastMetric label="Số dư dự kiến" value={formatMoney(forecast.projectedCash)} tone={forecast.projectedCash >= 0 ? "text-indigo-500" : "text-amber-500"} /><ForecastMetric label="Khả năng trả nợ" value={forecast.liquidityCoverage === null ? "Không có nợ phải trả" : `${forecast.liquidityCoverage.toFixed(2)}×`} tone={forecast.liquidityCoverage === null || forecast.liquidityCoverage >= 1 ? "text-emerald-500" : "text-amber-500"} /><ForecastMetric label="Dùng ngân sách" value={forecast.budgetUsage === null ? "Chưa lập ngân sách" : `${forecast.budgetUsage.toFixed(1)}%`} tone={forecast.budgetUsage !== null && forecast.budgetUsage > 100 ? "text-rose-500" : "text-[var(--cu-text-primary)]"} /></div></Card>
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
-            <Card padding="none" className="min-h-[340px] overflow-hidden"><SectionHeader title="Dòng tiền thực tế" subtitle="Tổng hợp từ giao dịch đã duyệt" aside={<Badge variant="info">6 kỳ gần nhất</Badge>} />{chartData.length ? <div className="h-[270px] px-2 pb-3 pt-5"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}><defs><linearGradient id="financeIncome" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.28} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient><linearGradient id="financeExpense" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" /><XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} /><YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} /><Tooltip formatter={value => formatMoney(Number(value))} contentStyle={{ borderRadius: 14, border: "1px solid var(--cu-border)", background: "var(--cu-surface)", fontSize: 12 }} /><Area type="monotone" dataKey="income" name="Thu" stroke="#10b981" strokeWidth={2.5} fill="url(#financeIncome)" /><Area type="monotone" dataKey="expense" name="Chi" stroke="#f43f5e" strokeWidth={2.5} fill="url(#financeExpense)" /></AreaChart></ResponsiveContainer></div> : <EmptyState icon={BarChart3} title="Chưa có biểu đồ dòng tiền" description="Ghi nhận khoản thu hoặc chi đầu tiên để xem xu hướng thực tế." />}</Card>
-            <Card padding="none" className="overflow-hidden"><SectionHeader title="Thanh khoản & nghĩa vụ" subtitle="Số dư công nợ hiện tại" /><div className="divide-y divide-[var(--cu-border)]"><MetricRow icon={ArrowDownRight} label="Phải thu" value={formatMoney(metrics.receivable)} className="bg-emerald-500/10 text-emerald-500" /><MetricRow icon={ArrowUpRight} label="Phải trả" value={formatMoney(metrics.payable)} className="bg-rose-500/10 text-rose-500" /><MetricRow icon={AlertCircle} label="Quá hạn" value={formatMoney(metrics.overdue)} className="bg-amber-500/10 text-amber-500" /><MetricRow icon={Target} label="Ngân sách còn lại" value={formatMoney(metrics.budget - metrics.spent)} className="bg-indigo-500/10 text-indigo-500" /></div></Card>
+          
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Dự báo thanh khoản 30 ngày" subtitle="Tính từ số dư hiện tại và các khoản công nợ đến hạn; không dùng dữ liệu giả" aside={<Badge variant={forecast.projectedCash >= 0 ? "success" : "danger"}>{forecast.projectedCash >= 0 ? "Dòng tiền an toàn" : "Cần bổ sung thanh khoản"}</Badge>} />
+            <div className="grid divide-y divide-[var(--cu-border)] sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-5">
+              <ForecastMetric label="Dự kiến thu" value={formatMoney(forecast.inflow)} tone="text-emerald-500" />
+              <ForecastMetric label="Dự kiến chi" value={formatMoney(forecast.outflow)} tone="text-rose-500" />
+              <ForecastMetric label="Số dư dự kiến" value={formatMoney(forecast.projectedCash)} tone={forecast.projectedCash >= 0 ? "text-indigo-500" : "text-amber-500"} />
+              <ForecastMetric label="Khả năng trả nợ" value={forecast.liquidityCoverage === null ? "Không có nợ phải trả" : `${forecast.liquidityCoverage.toFixed(2)}×`} tone={forecast.liquidityCoverage === null || forecast.liquidityCoverage >= 1 ? "text-emerald-500" : "text-amber-500"} />
+              <ForecastMetric label="Dùng ngân sách" value={forecast.budgetUsage === null ? "Chưa lập ngân sách" : `${forecast.budgetUsage.toFixed(1)}%`} tone={forecast.budgetUsage !== null && forecast.budgetUsage > 100 ? "text-rose-500" : "text-[var(--cu-text-primary)]"} />
+            </div>
+          </Card>
+
+          {/* DÒNG TIỀN TỔNG QUAN & PHÂN BỔ TÀI SẢN */}
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.75fr)]">
+            <OverviewCashflowCard
+              chartData={monthlyChartData}
+              chartType={overviewChartType}
+              setChartType={setOverviewChartType}
+              period={overviewPeriod}
+              setPeriod={setOverviewPeriod}
+              formatMoney={formatMoney}
+              compactMoney={compactMoney}
+            />
+            <AccountDistributionCard
+              accounts={accountDistribution}
+              totalCash={metrics.cash}
+              formatMoney={formatMoney}
+              onAddAccount={() => setModal("account")}
+            />
           </section>
+
+          {/* CÂN ĐỐI NGHĨA VỤ & CÔNG NỢ */}
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card padding="md" className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><ArrowDownRight className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải thu</p><p className="mt-0.5 truncate text-base font-black text-emerald-500">{formatMoney(metrics.receivable)}</p></div>
+            </Card>
+            <Card padding="md" className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500"><ArrowUpRight className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải trả</p><p className="mt-0.5 truncate text-base font-black text-rose-500">{formatMoney(metrics.payable)}</p></div>
+            </Card>
+            <Card padding="md" className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500"><AlertCircle className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn</p><p className="mt-0.5 truncate text-base font-black text-amber-500">{formatMoney(metrics.overdue)}</p></div>
+            </Card>
+            <Card padding="md" className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500"><Target className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Ngân sách còn lại</p><p className="mt-0.5 truncate text-base font-black text-indigo-500">{formatMoney(Math.max(0, metrics.budget - metrics.spent))}</p></div>
+            </Card>
+          </section>
+
           {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Apexa không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("account")}>Thêm tài khoản đầu tiên</Button>} /></Card>}
         </div>}
 
+        {/* TAB 2: SỔ THU CHI */}
         {activeTab === "cashbook" && <div className="mx-auto max-w-[1500px] space-y-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{accounts.map(a => <Card key={a.id} padding="md"><div className="flex items-start justify-between"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500"><CreditCard className="h-4 w-4" /></div><Badge variant="success">Đang dùng</Badge></div><p className="mt-4 truncate text-sm font-black text-[var(--cu-text-primary)]">{a.bank}</p><p className="mt-0.5 truncate text-[11px] text-[var(--cu-text-tertiary)]">{a.number} · {a.branch || a.type}</p><p className="mt-3 text-lg font-black tracking-tight text-[var(--cu-text-primary)]">{formatMoney(a.balance)}</p></Card>)}<button onClick={() => setModal("account")} className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cu-border-strong)] bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] transition hover:border-indigo-500 hover:text-indigo-500"><Plus className="h-5 w-5" /><span className="mt-2 text-xs font-bold">Thêm tài khoản</span></button></div>
-          <Card padding="none" className="overflow-hidden"><SectionHeader title="Sổ thu chi" subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ`} aside={<div className="flex flex-wrap items-center justify-end gap-2"><select aria-label="Lọc loại giao dịch" value={transactionFilter} onChange={event => setTransactionFilter(event.target.value as typeof transactionFilter)} className={`${INPUT} w-32`}><option value="all">Tất cả loại</option><option value="income">Khoản thu</option><option value="expense">Khoản chi</option></select><select aria-label="Lọc thời gian giao dịch" value={transactionPeriod} onChange={event => setTransactionPeriod(event.target.value as typeof transactionPeriod)} className={`${INPUT} w-32`}><option value="all">Mọi thời gian</option><option value="30d">30 ngày</option><option value="90d">90 ngày</option><option value="year">Năm nay</option></select><div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} /></div><Button size="sm" onClick={() => { setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" })); setModal("transaction"); }} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button></div>} />{filteredTransactions.length ? <TransactionTable rows={filteredTransactions} formatMoney={formatMoney} /> : <EmptyState icon={CircleDollarSign} title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"} description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."} action={!transactions.length ? <Button size="sm" onClick={() => setModal("transaction")}>Ghi giao dịch</Button> : undefined} />}</Card>
+          <Card padding="none" className="overflow-hidden"><SectionHeader title="Sổ thu chi" subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ`} aside={<div className="flex flex-wrap items-center justify-end gap-2"><Select ariaLabel="Lọc loại giao dịch" value={transactionFilter} onChange={v => setTransactionFilter(v as typeof transactionFilter)} className="w-32" options={[{ value: "all", label: "Tất cả loại" }, { value: "income", label: "Khoản thu" }, { value: "expense", label: "Khoản chi" }]} /><Select ariaLabel="Lọc thời gian giao dịch" value={transactionPeriod} onChange={v => setTransactionPeriod(v as typeof transactionPeriod)} className="w-32" options={[{ value: "all", label: "Mọi thời gian" }, { value: "30d", label: "30 ngày" }, { value: "90d", label: "90 ngày" }, { value: "year", label: "Năm nay" }]} /><div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} /></div><Button size="sm" onClick={() => { setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" })); setModal("transaction"); }} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button></div>} />{filteredTransactions.length ? <TransactionTable rows={filteredTransactions} formatMoney={formatMoney} /> : <EmptyState icon={CircleDollarSign} title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"} description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."} action={!transactions.length ? <Button size="sm" onClick={() => setModal("transaction")}>Ghi giao dịch</Button> : undefined} />} </Card>
         </div>}
 
+        {/* TAB 3: HÓA ĐƠN */}
         {activeTab === "invoices" && <DataList title="Hóa đơn" subtitle={`${invoices.length} hóa đơn · theo dõi xác thực và thanh toán`} action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("invoice")}>Tạo hóa đơn</Button>} empty={!invoices.length} emptyIcon={ReceiptText} emptyText="Chưa có hóa đơn trong workspace.">{invoices.map(invoice => {
           const overdue = isInvoiceOverdue(invoice);
           const badge = invoice.status === "paid" ? "Đã thanh toán" : invoice.status === "partially_paid" ? "Thanh toán một phần" : overdue ? "Quá hạn" : invoice.status === "valid" ? "Đã xác thực" : invoice.status === "cancelled" ? "Đã hủy" : "Chờ kiểm tra";
@@ -424,11 +596,86 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
           const action = invoice.status === "pending_verification" ? <Button variant="ghost" size="sm" disabled={saving} onClick={() => void verifyInvoice(invoice)}>Xác thực</Button> : invoice.remainingAmount > 0 && invoice.status !== "cancelled" ? <Button variant="ghost" size="sm" disabled={saving} onClick={() => openPayment({ kind: "invoice", record: invoice })}>Ghi thanh toán</Button> : undefined;
           return <PaymentProgressRow key={invoice.id} icon={FileText} title={invoice.code} subtitle={`${invoice.partnerName} · MST ${invoice.taxCode || "—"}`} dueLabel={invoice.dueDate ? `Hạn ${new Date(`${invoice.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}` : `Ngày ${new Date(`${invoice.date}T00:00:00`).toLocaleDateString("vi-VN")}`} total={invoice.total} paid={invoice.paidAmount} badge={badge} badgeVariant={badgeVariant} stages={["Kiểm tra", "Xác thực", "Thanh toán"]} currentStage={invoice.status === "paid" ? 2 : invoice.status === "pending_verification" ? 0 : 1} action={action} formatMoney={formatMoney} />;
         })}</DataList>}
-        {activeTab === "debts" && <DataList title="Công nợ phải thu / trả" subtitle={`${formatMoney(metrics.receivable)} phải thu · ${formatMoney(metrics.payable)} phải trả`} action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("debt")}>Thêm công nợ</Button>} empty={!debts.length} emptyIcon={Clock3} emptyText="Chưa có khoản công nợ nào.">{debts.map(debt => <PaymentProgressRow key={debt.id} icon={debt.type === "receivable" ? ArrowDownRight : ArrowUpRight} title={debt.partnerName} subtitle={debt.type === "receivable" ? "Công nợ phải thu" : "Công nợ phải trả"} dueLabel={`Hạn ${new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}`} total={debt.totalAmount} paid={debt.paidAmount} badge={debt.remainingAmount <= 0 ? "Đã tất toán" : debt.status === "overdue" ? "Quá hạn" : debt.status === "due_soon" ? "Sắp đến hạn" : paymentStage(debt.totalAmount, debt.paidAmount)} badgeVariant={debt.remainingAmount <= 0 ? "success" : debt.status === "overdue" ? "danger" : debt.status === "due_soon" || debt.paidAmount > 0 ? "warning" : "success"} stages={["Chưa thanh toán", "Một phần", "Tất toán"]} currentStage={debt.remainingAmount <= 0 ? 2 : debt.paidAmount > 0 ? 1 : 0} action={debt.remainingAmount > 0 ? <Button variant="ghost" size="sm" disabled={saving} onClick={() => openPayment({ kind: "debt", record: debt })}>Ghi thanh toán</Button> : undefined} formatMoney={formatMoney} />)}</DataList>}
 
-        {activeTab === "budgets" && <div className="mx-auto max-w-[1200px] space-y-4"><div className="flex items-end justify-between"><div><h2 className="text-lg font-black text-[var(--cu-text-primary)]">Ngân sách</h2><p className="mt-1 text-xs text-[var(--cu-text-tertiary)]">{formatMoney(metrics.spent)} / {formatMoney(metrics.budget)} đã sử dụng</p></div><Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("budget")}>Tạo ngân sách</Button></div>{budgets.length ? <div className="grid gap-3 lg:grid-cols-2">{budgets.map(b => <BudgetCard key={b.id} budget={b} formatMoney={formatMoney} />)}</div> : <Card padding="none"><EmptyState icon={Target} title="Chưa có ngân sách" description="Tạo hạn mức đầu tiên để theo dõi mức sử dụng thực tế." /></Card>}</div>}
+        {/* TAB 4: CÔNG NỢ */}
+        {activeTab === "debts" && <div className="mx-auto max-w-[1300px] space-y-4">
+          {debts.length > 0 && (
+            <Card padding="none" className="overflow-hidden">
+              <SectionHeader title="Phân tích cơ cấu & tuổi nợ" subtitle="Đối chiếu phải thu, phải trả theo các kỳ hạn" />
+              <div className="grid gap-6 p-5 lg:grid-cols-[1fr_320px]">
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={debtAgingData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cu-text-tertiary)" }} />
+                      <YAxis axisLine={false} tickLine={false} width={60} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                      <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                      <Bar dataKey="receivable" name="Phải thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                      <Bar dataKey="payable" name="Phải trả" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col justify-center gap-3 rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]/40 p-4">
+                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải thu:</span><span className="text-xs font-black text-emerald-500">{formatMoney(metrics.receivable)}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Tổng nợ phải trả:</span><span className="text-xs font-black text-rose-500">{formatMoney(metrics.payable)}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn:</span><span className="text-xs font-black text-amber-500">{formatMoney(metrics.overdue)}</span></div>
+                  <div className="mt-2 border-t border-[var(--cu-border)] pt-2 text-[11px] text-[var(--cu-text-tertiary)]">Tỷ lệ Phải thu / Phải trả: <strong className="text-[var(--cu-text-primary)]">{metrics.payable > 0 ? (metrics.receivable / metrics.payable).toFixed(2) + "×" : "An toàn"}</strong></div>
+                </div>
+              </div>
+            </Card>
+          )}
+          <DataList title="Danh sách công nợ" subtitle={`${formatMoney(metrics.receivable)} phải thu · ${formatMoney(metrics.payable)} phải trả`} action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("debt")}>Thêm công nợ</Button>} empty={!debts.length} emptyIcon={Clock3} emptyText="Chưa có khoản công nợ nào.">{debts.map(debt => <PaymentProgressRow key={debt.id} icon={debt.type === "receivable" ? ArrowDownRight : ArrowUpRight} title={debt.partnerName} subtitle={debt.type === "receivable" ? "Công nợ phải thu" : "Công nợ phải trả"} dueLabel={`Hạn ${new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("vi-VN")}`} total={debt.totalAmount} paid={debt.paidAmount} badge={debt.remainingAmount <= 0 ? "Đã tất toán" : debt.status === "overdue" ? "Quá hạn" : debt.status === "due_soon" ? "Sắp đến hạn" : paymentStage(debt.totalAmount, debt.paidAmount)} badgeVariant={debt.remainingAmount <= 0 ? "success" : debt.status === "overdue" ? "danger" : debt.status === "due_soon" || debt.paidAmount > 0 ? "warning" : "success"} stages={["Chưa thanh toán", "Một phần", "Tất toán"]} currentStage={debt.remainingAmount <= 0 ? 2 : debt.paidAmount > 0 ? 1 : 0} action={debt.remainingAmount > 0 ? <Button variant="ghost" size="sm" disabled={saving} onClick={() => openPayment({ kind: "debt", record: debt })}>Ghi thanh toán</Button> : undefined} formatMoney={formatMoney} />)}</DataList>
+        </div>}
 
-        {activeTab === "reports" && <Reports metrics={metrics} transactions={transactions} formatMoney={formatMoney} />}
+        {/* TAB 5: NGÂN SÁCH */}
+        {activeTab === "budgets" && <div className="mx-auto max-w-[1300px] space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-[var(--cu-text-primary)]">Ngân sách phòng ban</h2>
+              <p className="mt-1 text-xs text-[var(--cu-text-tertiary)]">{formatMoney(metrics.spent)} / {formatMoney(metrics.budget)} đã sử dụng ({metrics.budget > 0 ? ((metrics.spent / metrics.budget) * 100).toFixed(1) : 0}%)</p>
+            </div>
+            <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("budget")}>Tạo ngân sách</Button>
+          </div>
+
+          {budgets.length > 0 && (
+            <Card padding="none" className="overflow-hidden">
+              <SectionHeader title="Biểu đồ phân bổ & tỷ lệ thực chi" subtitle="So sánh hạn mức được cấp và thực tế giải ngân" />
+              <div className="h-[260px] p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={budgetComparisonData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                    <YAxis axisLine={false} tickLine={false} width={60} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                    <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                    <Bar dataKey="allocated" name="Hạn mức" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="spent" name="Đã chi" fill="#ec4899" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
+
+          {budgets.length ? <div className="grid gap-3 lg:grid-cols-2">{budgets.map(b => <BudgetCard key={b.id} budget={b} formatMoney={formatMoney} />)}</div> : <Card padding="none"><EmptyState icon={Target} title="Chưa có ngân sách" description="Tạo hạn mức đầu tiên để theo dõi mức sử dụng thực tế." /></Card>}
+        </div>}
+
+        {/* TAB 6: BÁO CÁO & BIỂU ĐỒ CHUYÊN SÂU */}
+        {activeTab === "reports" && (
+          <ReportsAnalyticsDashboard
+            metrics={metrics}
+            transactions={transactions}
+            monthlyData={monthlyChartData}
+            expenseBreakdown={expenseBreakdown}
+            incomeBreakdown={incomeBreakdown}
+            budgetComparison={budgetComparisonData}
+            debtAgingData={debtAgingData}
+            formatMoney={formatMoney}
+            compactMoney={compactMoney}
+            activeSubTab={reportsChartTab}
+            setActiveSubTab={setReportsChartTab}
+          />
+        )}
+
+        {/* TAB 7: AI TÀI CHÍNH */}
         {activeTab === "ai-agent" && <AiPanel messages={aiMessages} input={aiInput} setInput={setAiInput} loading={aiLoading} onSend={() => void sendAi()} />}
       </main>
 
@@ -437,14 +684,528 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   );
 }
 
+// -------------------------------------------------------------
+// COMPONENT BIỂU ĐỒ DÒNG TIỀN TỔNG QUAN (Overview Cashflow Card)
+// -------------------------------------------------------------
+function OverviewCashflowCard({
+  chartData,
+  chartType,
+  setChartType,
+  period,
+  setPeriod,
+  formatMoney,
+  compactMoney,
+}: {
+  chartData: Array<{ month: string; label: string; income: number; expense: number; net: number; profitMargin: string }>;
+  chartType: "area" | "bar" | "line";
+  setChartType: (t: "area" | "bar" | "line") => void;
+  period: "6m" | "12m" | "all";
+  setPeriod: (p: "6m" | "12m" | "all") => void;
+  formatMoney: (amount: number) => string;
+  compactMoney: (amount: number) => string;
+}) {
+  return (
+    <Card padding="none" className="min-h-[360px] overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cu-border)] px-5 py-4">
+        <div>
+          <h2 className="text-sm font-black text-[var(--cu-text-primary)]">Dòng tiền & Lợi nhuận</h2>
+          <p className="mt-0.5 text-[11px] text-[var(--cu-text-tertiary)]">Tổng hợp theo chu kỳ giao dịch đã duyệt</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Chuyển loại biểu đồ */}
+          <div className="flex rounded-xl bg-[var(--cu-surface-2)] p-1 text-xs">
+            <button
+              onClick={() => setChartType("area")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "area" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+            >
+              Vùng
+            </button>
+            <button
+              onClick={() => setChartType("bar")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "bar" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+            >
+              Cột
+            </button>
+            <button
+              onClick={() => setChartType("line")}
+              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${chartType === "line" ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"}`}
+            >
+              Đường
+            </button>
+          </div>
+
+          {/* Chuyển kỳ thời gian */}
+          <Select
+            ariaLabel="Kỳ thời gian"
+            value={period}
+            onChange={v => setPeriod(v as typeof period)}
+            className="w-32 text-xs"
+            options={[
+              { value: "6m", label: "6 kỳ gần nhất" },
+              { value: "12m", label: "12 kỳ gần nhất" },
+              { value: "all", label: "Tất cả các kỳ" },
+            ]}
+          />
+        </div>
+      </div>
+
+      {chartData.length ? (
+        <div className="h-[280px] px-3 pb-3 pt-5">
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === "area" ? (
+              <AreaChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="flowIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.28} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="flowExpense" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="flowNet" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                <Area type="monotone" dataKey="income" name="Thu" stroke="#10b981" strokeWidth={2.5} fill="url(#flowIncome)" />
+                <Area type="monotone" dataKey="expense" name="Chi" stroke="#f43f5e" strokeWidth={2.5} fill="url(#flowExpense)" />
+                <Area type="monotone" dataKey="net" name="Ròng" stroke="#6366f1" strokeWidth={2} fill="url(#flowNet)" strokeDasharray="3 3" />
+              </AreaChart>
+            ) : chartType === "bar" ? (
+              <BarChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                <Bar dataKey="income" name="Thu" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="expense" name="Chi" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="net" name="Ròng" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={20} />
+              </BarChart>
+            ) : (
+              <LineChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--cu-border)" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <YAxis axisLine={false} tickLine={false} width={62} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                <Line type="monotone" dataKey="income" name="Thu" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="expense" name="Chi" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="net" name="Ròng" stroke="#6366f1" strokeWidth={2.5} strokeDasharray="4 4" dot={{ r: 3 }} />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <EmptyState icon={BarChart3} title="Chưa có biểu đồ dòng tiền" description="Ghi nhận khoản thu hoặc chi đầu tiên để xem xu hướng thực tế." />
+      )}
+    </Card>
+  );
+}
+
+// -------------------------------------------------------------
+// COMPONENT PHÂN BỔ TÀI KHOẢN NGÂN HÀNG (Account Distribution Donut)
+// -------------------------------------------------------------
+function AccountDistributionCard({
+  accounts,
+  totalCash,
+  formatMoney,
+  onAddAccount,
+}: {
+  accounts: Array<{ name: string; number: string; balance: number; value: number; percent: string; color: string }>;
+  totalCash: number;
+  formatMoney: (amount: number) => string;
+  onAddAccount: () => void;
+}) {
+  const hasAccounts = accounts.length > 0;
+  return (
+    <Card padding="none" className="flex flex-col overflow-hidden">
+      <SectionHeader title="Cơ cấu tài sản & Quỹ" subtitle="Tỷ trọng số dư các tài khoản" />
+      {hasAccounts ? (
+        <div className="flex min-h-[280px] flex-col justify-between p-4">
+          <div className="relative h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={accounts}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={78}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {accounts.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--cu-surface)" strokeWidth={2} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomPieTooltip formatMoney={formatMoney} />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cu-text-tertiary)]">Tổng tiền</span>
+              <span className="max-w-[120px] truncate text-xs font-black text-[var(--cu-text-primary)]">{formatMoney(totalCash)}</span>
+            </div>
+          </div>
+
+          <div className="max-h-32 space-y-1.5 overflow-y-auto divide-y divide-[var(--cu-border)] border-t border-[var(--cu-border)] pt-2.5">
+            {accounts.map(acc => (
+              <div key={acc.number} className="flex items-center justify-between pt-1.5 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: acc.color }} />
+                  <span className="truncate font-semibold text-[var(--cu-text-primary)]">{acc.name} ({acc.number.slice(-4)})</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-bold text-[var(--cu-text-secondary)]">{formatMoney(acc.balance)}</span>
+                  <span className="text-[10px] font-bold text-[var(--cu-text-tertiary)]">({acc.percent}%)</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyState
+          icon={Wallet}
+          title="Chưa có tài khoản"
+          description="Thêm tài khoản để phân tích tỷ trọng tài sản."
+          action={<Button size="sm" onClick={onAddAccount} leftIcon={<Plus className="h-3.5 w-3.5" />}>Thêm tài khoản</Button>}
+        />
+      )}
+    </Card>
+  );
+}
+
+// -------------------------------------------------------------
+// TRUNG TÂM BÁO CÁO & PHÂN TÍCH TÀI CHÍNH (Reports Dashboard)
+// -------------------------------------------------------------
+function ReportsAnalyticsDashboard({
+  metrics,
+  transactions,
+  monthlyData,
+  expenseBreakdown,
+  incomeBreakdown,
+  budgetComparison,
+  debtAgingData,
+  formatMoney,
+  compactMoney,
+  activeSubTab,
+  setActiveSubTab,
+}: {
+  metrics: { income: number; expense: number; net: number; cash: number; receivable: number; payable: number; budget: number; spent: number };
+  transactions: Transaction[];
+  monthlyData: Array<{ month: string; label: string; income: number; expense: number; net: number; profitMargin: string }>;
+  expenseBreakdown: Array<{ name: string; value: number; count: number; percent: string; color: string }>;
+  incomeBreakdown: Array<{ name: string; value: number; count: number; percent: string; color: string }>;
+  budgetComparison: Array<{ name: string; department: string; category: string; allocated: number; spent: number; remaining: number; ratio: string; status: string }>;
+  debtAgingData: Array<{ label: string; receivable: number; payable: number }>;
+  formatMoney: (amount: number) => string;
+  compactMoney: (amount: number) => string;
+  activeSubTab: "pl" | "expense" | "income" | "budget" | "debt";
+  setActiveSubTab: (tab: "pl" | "expense" | "income" | "budget" | "debt") => void;
+}) {
+  const subTabs: Array<{ id: typeof activeSubTab; label: string; icon: React.ElementType }> = [
+    { id: "pl", label: "Kết quả Thu chi (P&L)", icon: Activity },
+    { id: "expense", label: "Cơ cấu Chi phí", icon: PieChartIcon },
+    { id: "income", label: "Cơ cấu Doanh thu", icon: TrendingUp },
+    { id: "budget", label: "Ngân sách vs Thực tế", icon: Target },
+    { id: "debt", label: "Cơ cấu Công nợ & Tuổi nợ", icon: Clock3 },
+  ];
+
+  return (
+    <div className="mx-auto max-w-[1500px] space-y-4">
+      {/* Thanh điều hướng phân hệ báo cáo */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-2">
+        <div className="flex flex-wrap gap-1">
+          {subTabs.map(tab => {
+            const Icon = tab.icon;
+            const active = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition ${active ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-[var(--cu-text-primary)]"}`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-3 text-xs font-bold text-[var(--cu-text-tertiary)]">
+          Lợi nhuận ròng: <span className={`font-black ${metrics.net >= 0 ? "text-emerald-500" : "text-rose-500"}`}>{formatMoney(metrics.net)}</span>
+        </div>
+      </div>
+
+      {/* 1. KẾT QUẢ THU CHI (P&L Trend) */}
+      {activeSubTab === "pl" && (
+        <div className="space-y-4">
+          <section className="grid gap-3 sm:grid-cols-3">
+            <Card padding="md">
+              <p className="text-[11px] font-bold uppercase text-[var(--cu-text-tertiary)]">Tổng doanh thu kỳ</p>
+              <p className="mt-2 text-xl font-black text-emerald-500">{formatMoney(metrics.income)}</p>
+            </Card>
+            <Card padding="md">
+              <p className="text-[11px] font-bold uppercase text-[var(--cu-text-tertiary)]">Tổng chi phí kỳ</p>
+              <p className="mt-2 text-xl font-black text-rose-500">{formatMoney(metrics.expense)}</p>
+            </Card>
+            <Card padding="md">
+              <p className="text-[11px] font-bold uppercase text-[var(--cu-text-tertiary)]">Biên lợi nhuận ròng</p>
+              <p className={`mt-2 text-xl font-black ${metrics.net >= 0 ? "text-indigo-500" : "text-amber-500"}`}>
+                {metrics.income > 0 ? ((metrics.net / metrics.income) * 100).toFixed(1) + "%" : "0%"}
+              </p>
+            </Card>
+          </section>
+
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Biểu đồ Kết quả Hoạt động (Doanh thu - Chi phí - Lợi nhuận ròng)" subtitle="Cột đôi so sánh Thu vs Chi và đường Lợi nhuận ròng qua các kỳ" />
+            {monthlyData.length ? (
+              <div className="h-[340px] p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={monthlyData} margin={{ top: 12, right: 16, left: -4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cu-text-tertiary)" }} />
+                    <YAxis axisLine={false} tickLine={false} width={64} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                    <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                    <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
+                    <Bar dataKey="income" name="Doanh thu (Thu)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="expense" name="Chi phí (Chi)" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                    <Line type="monotone" dataKey="net" name="Lợi nhuận ròng" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <EmptyState icon={BarChart3} title="Chưa có dữ liệu P&L" description="Cần ghi nhận giao dịch thu chi để dựng biểu đồ kết quả kinh doanh." />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* 2. CƠ CẤU CHI PHÍ (Expense Breakdown) */}
+      {activeSubTab === "expense" && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Biểu đồ Cơ cấu Chi phí theo Hạng mục" subtitle={`Tổng chi phí: ${formatMoney(metrics.expense)}`} />
+            {expenseBreakdown.length ? (
+              <div className="h-[360px] p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={expenseBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={65}
+                      outerRadius={120}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} (${percent}%)`}
+                    >
+                      {expenseBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--cu-surface)" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip formatMoney={formatMoney} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <EmptyState icon={PieChartIcon} title="Chưa có chi phí" description="Ghi nhận khoản chi để xem phân tích danh mục chi tiêu." />
+            )}
+          </Card>
+
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Chi tiết Nhóm Chi phí" subtitle="Sắp xếp theo số tiền lớn nhất" />
+            {expenseBreakdown.length ? (
+              <div className="divide-y divide-[var(--cu-border)] overflow-y-auto max-h-[380px]">
+                {expenseBreakdown.map((item, index) => (
+                  <div key={item.name} className="flex items-center gap-3 px-4 py-3 text-xs">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white" style={{ backgroundColor: item.color }}>
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-[var(--cu-text-primary)]">{item.name}</p>
+                      <p className="text-[10px] text-[var(--cu-text-tertiary)]">{item.count} giao dịch</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-black text-rose-500">{formatMoney(item.value)}</p>
+                      <p className="text-[10px] font-bold text-[var(--cu-text-tertiary)]">{item.percent}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState icon={PieChartIcon} title="Chưa có dữ liệu" description="Danh mục chi phí sẽ hiển thị tại đây." />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* 3. CƠ CẤU DOANH THU (Income Breakdown) */}
+      {activeSubTab === "income" && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Biểu đồ Nguồn Doanh thu theo Hạng mục" subtitle={`Tổng doanh thu: ${formatMoney(metrics.income)}`} />
+            {incomeBreakdown.length ? (
+              <div className="h-[360px] p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={incomeBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={65}
+                      outerRadius={120}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} (${percent}%)`}
+                    >
+                      {incomeBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="var(--cu-surface)" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomPieTooltip formatMoney={formatMoney} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <EmptyState icon={TrendingUp} title="Chưa có doanh thu" description="Ghi nhận khoản thu để xem phân tích nguồn thu nhập." />
+            )}
+          </Card>
+
+          <Card padding="none" className="overflow-hidden">
+            <SectionHeader title="Chi tiết Nguồn thu" subtitle="Sắp xếp theo số tiền lớn nhất" />
+            {incomeBreakdown.length ? (
+              <div className="divide-y divide-[var(--cu-border)] overflow-y-auto max-h-[380px]">
+                {incomeBreakdown.map((item, index) => (
+                  <div key={item.name} className="flex items-center gap-3 px-4 py-3 text-xs">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-black text-white" style={{ backgroundColor: item.color }}>
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-[var(--cu-text-primary)]">{item.name}</p>
+                      <p className="text-[10px] text-[var(--cu-text-tertiary)]">{item.count} giao dịch</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-black text-emerald-500">{formatMoney(item.value)}</p>
+                      <p className="text-[10px] font-bold text-[var(--cu-text-tertiary)]">{item.percent}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState icon={TrendingUp} title="Chưa có dữ liệu" description="Danh mục doanh thu sẽ hiển thị tại đây." />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* 4. NGÂN SÁCH VS THỰC TẾ (Budget vs Actual) */}
+      {activeSubTab === "budget" && (
+        <Card padding="none" className="overflow-hidden">
+          <SectionHeader title="So sánh Hạn mức Ngân sách vs Thực chi" subtitle="Theo dõi mức độ sử dụng ngân sách các phòng ban" />
+          {budgetComparison.length ? (
+            <div className="h-[360px] p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={budgetComparison} margin={{ top: 12, right: 16, left: -4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                  <YAxis axisLine={false} tickLine={false} width={64} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                  <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                  <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
+                  <Bar dataKey="allocated" name="Hạn mức cấp" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="spent" name="Thực tế đã chi" fill="#ec4899" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState icon={Target} title="Chưa có ngân sách" description="Tạo ngân sách đầu tiên để xem phân tích so sánh hạn mức." />
+          )}
+        </Card>
+      )}
+
+      {/* 5. CƠ CẤU & TUỔI NỢ (Debt Aging & Structure) */}
+      {activeSubTab === "debt" && (
+        <Card padding="none" className="overflow-hidden">
+          <SectionHeader title="Biểu đồ Phân tích Cơ cấu Tuổi nợ (Debt Aging)" subtitle="So sánh nợ phải thu và nợ phải trả theo từng nhóm ngày quá hạn" />
+          {debtAgingData.some(d => d.receivable > 0 || d.payable > 0) ? (
+            <div className="h-[360px] p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={debtAgingData} margin={{ top: 12, right: 16, left: -4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cu-border)" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cu-text-tertiary)" }} />
+                  <YAxis axisLine={false} tickLine={false} width={64} tickFormatter={compactMoney} tick={{ fontSize: 10, fill: "var(--cu-text-tertiary)" }} />
+                  <Tooltip content={<CustomFinanceTooltip formatMoney={formatMoney} />} />
+                  <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
+                  <Bar dataKey="receivable" name="Nợ phải thu (Receivable)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="payable" name="Nợ phải trả (Payable)" fill="#f43f5e" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState icon={Clock3} title="Không có công nợ" description="Tạo công nợ phải thu hoặc phải trả để theo dõi biểu đồ tuổi nợ." />
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// CUSTOM TOOLTIPS (Theme-aware Recharts Tooltips)
+// -------------------------------------------------------------
+function CustomFinanceTooltip({ active, payload, label, formatMoney }: any) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)]/95 p-3 shadow-xl backdrop-blur-md text-xs">
+      <p className="font-black text-[var(--cu-text-primary)] border-b border-[var(--cu-border)] pb-1.5 mb-2">{label}</p>
+      <div className="space-y-1.5">
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+              <span className="font-semibold text-[var(--cu-text-secondary)]">{entry.name}:</span>
+            </div>
+            <span className="font-black text-[var(--cu-text-primary)]">{formatMoney(Number(entry.value))}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CustomPieTooltip({ active, payload, formatMoney }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0];
+  return (
+    <div className="rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)]/95 p-3 shadow-xl backdrop-blur-md text-xs">
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: data.payload.color || data.fill }} />
+        <span className="font-black text-[var(--cu-text-primary)]">{data.name}</span>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-4 text-[11px]">
+        <span className="text-[var(--cu-text-tertiary)]">Số tiền:</span>
+        <span className="font-black text-[var(--cu-text-primary)]">{formatMoney(Number(data.value))}</span>
+      </div>
+      {data.payload.percent && (
+        <div className="mt-1 flex items-center justify-between gap-4 text-[11px]">
+          <span className="text-[var(--cu-text-tertiary)]">Tỷ trọng:</span>
+          <span className="font-bold text-indigo-500">{data.payload.percent}%</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// HELPER UI COMPONENTS
+// -------------------------------------------------------------
 function EmptyState({ icon: Icon, title, description, action }: { icon: React.ElementType; title: string; description: string; action?: React.ReactNode }) {
   return <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500"><Icon className="h-5 w-5" /></div><h3 className="text-sm font-extrabold text-[var(--cu-text-primary)]">{title}</h3><p className="mt-1.5 max-w-sm text-xs leading-5 text-[var(--cu-text-tertiary)]">{description}</p>{action && <div className="mt-4">{action}</div>}</div>;
 }
 function SectionHeader({ title, subtitle, aside }: { title: string; subtitle?: string; aside?: React.ReactNode }) {
   return <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cu-border)] px-5 py-4"><div><h2 className="text-sm font-black text-[var(--cu-text-primary)]">{title}</h2>{subtitle && <p className="mt-0.5 text-[11px] text-[var(--cu-text-tertiary)]">{subtitle}</p>}</div>{aside}</div>;
-}
-function MetricRow({ icon: Icon, label, value, className }: { icon: React.ElementType; label: string; value: string; className: string }) {
-  return <div className="flex items-center gap-3 px-5 py-3.5"><div className={`flex h-9 w-9 items-center justify-center rounded-xl ${className}`}><Icon className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold text-[var(--cu-text-tertiary)]">{label}</p><p className="mt-0.5 truncate text-sm font-black text-[var(--cu-text-primary)]">{value}</p></div></div>;
 }
 function ForecastMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
   return <div className="min-w-0 px-5 py-4"><p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">{label}</p><p className={`mt-1.5 truncate text-sm font-black ${tone}`} title={value}>{value}</p></div>;
@@ -453,7 +1214,7 @@ function TransactionTable({ rows, formatMoney }: { rows: Transaction[]; formatMo
   return <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left"><thead><tr className="border-b border-[var(--cu-border)] bg-[var(--cu-surface-2)]/60 text-[10px] font-black uppercase tracking-wider text-[var(--cu-text-tertiary)]"><th className="px-5 py-3">Chứng từ</th><th className="px-4 py-3">Hạng mục</th><th className="px-4 py-3">Đối tác</th><th className="px-4 py-3">Tài khoản</th><th className="px-4 py-3">Ngày</th><th className="px-5 py-3 text-right">Số tiền</th></tr></thead><tbody className="divide-y divide-[var(--cu-border)]">{rows.map(t => <tr key={t.id} className="hover:bg-[var(--cu-surface-2)]/50"><td className="px-5 py-3"><div className="flex items-center gap-2"><div className={`flex h-7 w-7 items-center justify-center rounded-lg ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>{t.type === "income" ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}</div><div><p className="text-xs font-black text-[var(--cu-text-primary)]">{t.code}</p><p className="text-[10px] text-[var(--cu-text-tertiary)]">{t.status === "approved" ? "Đã duyệt" : t.status}</p></div></div></td><td className="max-w-60 px-4 py-3"><p className="truncate text-xs font-semibold text-[var(--cu-text-primary)]">{t.category}</p><p className="truncate text-[10px] text-[var(--cu-text-tertiary)]">{t.note || "Không có ghi chú"}</p></td><td className="max-w-44 px-4 py-3 text-xs text-[var(--cu-text-secondary)]"><p className="truncate">{t.partner || "—"}</p></td><td className="max-w-48 px-4 py-3 text-xs text-[var(--cu-text-secondary)]"><p className="truncate">{t.account}</p></td><td className="px-4 py-3 text-xs text-[var(--cu-text-secondary)]">{new Date(`${t.date}T00:00:00`).toLocaleDateString("vi-VN")}</td><td className={`px-5 py-3 text-right text-sm font-black ${t.type === "income" ? "text-emerald-500" : "text-rose-500"}`}>{t.type === "income" ? "+" : "−"}{formatMoney(t.amount)}</td></tr>)}</tbody></table></div>;
 }
 function DataList({ title, subtitle, action, empty, emptyIcon, emptyText, children }: { title: string; subtitle: string; action: React.ReactNode; empty: boolean; emptyIcon: React.ElementType; emptyText: string; children: React.ReactNode }) {
-  return <Card padding="none" className="mx-auto max-w-[1200px] overflow-hidden"><SectionHeader title={title} subtitle={subtitle} aside={action} />{empty ? <EmptyState icon={emptyIcon} title={emptyText} description="Dữ liệu mới sẽ được lưu trực tiếp và đồng bộ theo workspace." /> : <div className="divide-y divide-[var(--cu-border)]">{children}</div>}</Card>;
+  return <Card padding="none" className="mx-auto max-w-[1300px] overflow-hidden"><SectionHeader title={title} subtitle={subtitle} aside={action} />{empty ? <EmptyState icon={emptyIcon} title={emptyText} description="Dữ liệu mới sẽ được lưu trực tiếp và đồng bộ theo workspace." /> : <div className="divide-y divide-[var(--cu-border)]">{children}</div>}</Card>;
 }
 function PaymentProgressRow({ icon: Icon, title, subtitle, dueLabel, total, paid, badge, badgeVariant, stages, currentStage, action, formatMoney }: { icon: React.ElementType; title: string; subtitle: string; dueLabel: string; total: number; paid: number; badge: string; badgeVariant: "success" | "warning" | "danger"; stages: string[]; currentStage: number; action?: React.ReactNode; formatMoney: (amount: number) => string }) {
   const progress = paymentProgress(total, paid);
@@ -467,11 +1228,6 @@ function BudgetCard({ budget, formatMoney }: { budget: BudgetCategory; formatMon
   const ratio = budget.allocatedAmount ? budget.spentAmount / budget.allocatedAmount * 100 : 0;
   return <Card padding="md"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-indigo-500">{budget.department}</p><h3 className="mt-1 text-sm font-black text-[var(--cu-text-primary)]">{budget.category}</h3><p className="mt-1 text-[11px] text-[var(--cu-text-tertiary)]">{budget.period} · {budget.manager || "Chưa có quản lý"}</p></div><Badge variant={ratio > 100 ? "danger" : ratio >= 80 ? "warning" : "success"}>{ratio.toFixed(0)}%</Badge></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[var(--cu-surface-2)]"><div className={`h-full rounded-full ${ratio > 100 ? "bg-rose-500" : ratio >= 80 ? "bg-amber-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(ratio, 100)}%` }} /></div><div className="mt-2 flex justify-between text-[11px] font-semibold text-[var(--cu-text-tertiary)]"><span>{formatMoney(budget.spentAmount)} đã chi</span><span>{formatMoney(budget.allocatedAmount)}</span></div></Card>;
 }
-function Reports({ metrics, transactions, formatMoney }: { metrics: { income: number; expense: number; net: number }; transactions: Transaction[]; formatMoney: (amount: number) => string }) {
-  const categories = useMemo(() => { const map = new Map<string, number>(); transactions.filter(t => t.type === "expense" && t.status === "approved").forEach(t => map.set(t.category, (map.get(t.category) || 0) + t.amount)); return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5); }, [transactions]);
-  return <div className="mx-auto grid max-w-[1200px] gap-4 lg:grid-cols-[1fr_360px]"><Card padding="none" className="overflow-hidden"><SectionHeader title="Báo cáo kết quả thu chi" subtitle="Tính từ toàn bộ giao dịch đã duyệt" /><div className="divide-y divide-[var(--cu-border)]"><ReportRow label="Tổng thu" value={formatMoney(metrics.income)} className="text-emerald-500" /><ReportRow label="Tổng chi" value={formatMoney(-metrics.expense)} className="text-rose-500" /><ReportRow label="Kết quả ròng" value={formatMoney(metrics.net)} className={metrics.net >= 0 ? "text-indigo-500" : "text-amber-500"} /></div></Card><Card padding="none" className="overflow-hidden"><SectionHeader title="Top nhóm chi phí" />{categories.length ? <div className="divide-y divide-[var(--cu-border)]">{categories.map(([name, amount], index) => <div key={name} className="flex items-center gap-3 px-5 py-3.5"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-500/10 text-[10px] font-black text-rose-500">{index + 1}</span><p className="min-w-0 flex-1 truncate text-xs font-bold text-[var(--cu-text-secondary)]">{name}</p><span className="text-xs font-black text-[var(--cu-text-primary)]">{formatMoney(amount)}</span></div>)}</div> : <EmptyState icon={BarChart3} title="Chưa có chi phí" description="Báo cáo sẽ xuất hiện khi có dữ liệu giao dịch." />}</Card></div>;
-}
-function ReportRow({ label, value, className }: { label: string; value: string; className: string }) { return <div className="flex items-center justify-between px-5 py-4"><span className="text-sm font-bold text-[var(--cu-text-secondary)]">{label}</span><span className={`text-base font-black ${className}`}>{value}</span></div>; }
 function AiPanel({ messages, input, setInput, loading, onSend }: { messages: Array<{ sender: "user" | "ai"; text: string }>; input: string; setInput: (value: string) => void; loading: boolean; onSend: () => void }) {
   return <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-sm"><div className="flex items-center gap-3 border-b border-[var(--cu-border)] px-5 py-4"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white"><Bot className="h-5 w-5" /></div><div><h2 className="text-sm font-black text-[var(--cu-text-primary)]">AI phân tích tài chính</h2><p className="text-[11px] text-[var(--cu-text-tertiary)]">Chỉ nhận ngữ cảnh số liệu hiện có</p></div><Badge className="ml-auto" variant="success"><ShieldCheck className="h-3 w-3" /> Dữ liệu thật</Badge></div><div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">{messages.length ? messages.map((m, i) => <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${m.sender === "user" ? "bg-indigo-500 text-white" : "bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)]"}`}>{m.text}</div></div>) : <EmptyState icon={Sparkles} title="Hỏi về dữ liệu tài chính hiện tại" description="Ví dụ: Nhóm chi phí nào đang lớn nhất? Thanh khoản có đủ trả công nợ không?" />}{loading && <div className="flex items-center gap-2 text-xs font-bold text-indigo-500"><LoaderCircle className="h-4 w-4 animate-spin" />Đang phân tích…</div>}</div><div className="flex gap-2 border-t border-[var(--cu-border)] p-4"><input className={INPUT} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onSend(); }} placeholder="Đặt câu hỏi về số liệu hiện tại…" /><Button aria-label="Gửi" onClick={onSend} disabled={!input.trim() || loading}><Send className="h-4 w-4" /></Button></div></div>;
 }
@@ -483,15 +1239,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function SaveActions({ saving, label = "Lưu thông tin" }: { saving: boolean; label?: string }) { return <div className="flex justify-end border-t border-[var(--cu-border)] pt-4"><Button type="submit" loading={saving} leftIcon={<CheckCircle2 className="h-4 w-4" />}>{label}</Button></div>; }
 
 type ProfileFormState = FinanceProfile;
-function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormState; setForm: React.Dispatch<React.SetStateAction<ProfileFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><Field label="Tên hồ sơ"><input className={INPUT} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Loại hình"><select className={INPUT} value={form.entityType} onChange={e => setForm(f => ({ ...f, entityType: e.target.value as EntityType }))}><option value="business">Doanh nghiệp</option><option value="organization">Tổ chức</option><option value="individual">Cá nhân</option></select></Field><Field label="Tiền tệ"><select className={INPUT} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value as Currency }))}><option>VND</option><option>USD</option><option>EUR</option></select></Field></div><SaveActions saving={saving} /></form>; }
+function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormState; setForm: React.Dispatch<React.SetStateAction<ProfileFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><Field label="Tên hồ sơ"><input className={INPUT} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Loại hình"><Select className="w-full" ariaLabel="Loại hình" value={form.entityType} onChange={v => setForm(f => ({ ...f, entityType: v as EntityType }))} options={[{ value: "business", label: "Doanh nghiệp" }, { value: "organization", label: "Tổ chức" }, { value: "individual", label: "Cá nhân" }]} /></Field><Field label="Tiền tệ"><Select className="w-full" ariaLabel="Tiền tệ" value={form.currency} onChange={v => setForm(f => ({ ...f, currency: v as Currency }))} options={[{ value: "VND", label: "VND" }, { value: "USD", label: "USD" }, { value: "EUR", label: "EUR" }]} /></Field></div><SaveActions saving={saving} /></form>; }
 type AccountFormState = { bank: string; number: string; branch: string; type: string; balance: string };
 function AccountForm({ form, setForm, saving, onSubmit }: { form: AccountFormState; setForm: React.Dispatch<React.SetStateAction<AccountFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Tên ngân hàng / quỹ"><input className={INPUT} value={form.bank} onChange={e => setForm(f => ({ ...f, bank: e.target.value }))} required /></Field><Field label="Số tài khoản"><input className={INPUT} value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required /></Field><Field label="Chi nhánh"><input className={INPUT} value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))} /></Field><Field label="Số dư mở sổ"><input className={INPUT} type="number" step="0.01" value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} required /></Field></div><Field label="Loại tài khoản"><input className={INPUT} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></Field><SaveActions saving={saving} /></form>; }
 type TxFormState = { accountId: string; date: string; category: string; amount: string; partner: string; note: string };
-function TransactionForm({ form, setForm, type, setType, accounts, saving, onSubmit, onNeedAccount }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; saving: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản"><select className={INPUT} value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} required><option value="">Chọn tài khoản</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.bank} · {a.number}</option>)}</select></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><Field label="Hạng mục"><input className={INPUT} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required /></Field><Field label="Số tiền"><input className={INPUT} type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label="Đối tác / Người nhận"><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field><SaveActions saving={saving} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>; }
+function TransactionForm({ form, setForm, type, setType, accounts, saving, onSubmit, onNeedAccount }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; saving: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={320} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ${a.number}` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><Field label="Hạng mục"><input className={INPUT} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required /></Field><Field label="Số tiền"><input className={INPUT} type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label="Đối tác / Người nhận"><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field><SaveActions saving={saving} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>; }
 type InvoiceFormState = { type: "out" | "in"; partnerName: string; taxCode: string; subtotal: string; vatRate: string; date: string; dueDate: string };
-function InvoiceForm({ form, setForm, saving, onSubmit }: { form: InvoiceFormState; setForm: React.Dispatch<React.SetStateAction<InvoiceFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại hóa đơn"><select className={INPUT} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as "out" | "in" }))}><option value="out">Bán ra</option><option value="in">Mua vào</option></select></Field><Field label="Ngày hóa đơn"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field></div><Field label="Khách hàng / Nhà cung cấp"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Mã số thuế"><input className={INPUT} value={form.taxCode} onChange={e => setForm(f => ({ ...f, taxCode: e.target.value }))} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field><Field label="Tiền trước thuế"><input className={INPUT} type="number" min="0" step="0.01" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))} required /></Field><Field label="VAT (%)"><input className={INPUT} type="number" min="0" max="100" step="0.1" value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }
+function InvoiceForm({ form, setForm, saving, onSubmit }: { form: InvoiceFormState; setForm: React.Dispatch<React.SetStateAction<InvoiceFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại hóa đơn"><Select className="w-full" ariaLabel="Loại hóa đơn" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as "out" | "in" }))} options={[{ value: "out", label: "Bán ra" }, { value: "in", label: "Mua vào" }]} /></Field><Field label="Ngày hóa đơn"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field></div><Field label="Khách hàng / Nhà cung cấp"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Mã số thuế"><input className={INPUT} value={form.taxCode} onChange={e => setForm(f => ({ ...f, taxCode: e.target.value }))} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field><Field label="Tiền trước thuế"><input className={INPUT} type="number" min="0" step="0.01" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))} required /></Field><Field label="VAT (%)"><input className={INPUT} type="number" min="0" max="100" step="0.1" value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }
 type DebtFormState = { type: "receivable" | "payable"; partnerName: string; totalAmount: string; paidAmount: string; dueDate: string; phone: string; email: string };
-function DebtForm({ form, setForm, saving, onSubmit }: { form: DebtFormState; setForm: React.Dispatch<React.SetStateAction<DebtFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại công nợ"><select className={INPUT} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as DebtFormState["type"] }))}><option value="receivable">Phải thu</option><option value="payable">Phải trả</option></select></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field></div><Field label="Đối tác"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Tổng công nợ"><input className={INPUT} type="number" min="0" step="0.01" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} required /></Field><Field label="Đã thanh toán"><input className={INPUT} type="number" min="0" step="0.01" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} /></Field><Field label="Điện thoại"><input className={INPUT} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></Field><Field label="Email"><input className={INPUT} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }
+function DebtForm({ form, setForm, saving, onSubmit }: { form: DebtFormState; setForm: React.Dispatch<React.SetStateAction<DebtFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại công nợ"><Select className="w-full" ariaLabel="Loại công nợ" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as DebtFormState["type"] }))} options={[{ value: "receivable", label: "Phải thu" }, { value: "payable", label: "Phải trả" }]} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field></div><Field label="Đối tác"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Tổng công nợ"><input className={INPUT} type="number" min="0" step="0.01" value={form.totalAmount} onChange={e => setForm(f => ({ ...f, totalAmount: e.target.value }))} required /></Field><Field label="Đã thanh toán"><input className={INPUT} type="number" min="0" step="0.01" value={form.paidAmount} onChange={e => setForm(f => ({ ...f, paidAmount: e.target.value }))} /></Field><Field label="Điện thoại"><input className={INPUT} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></Field><Field label="Email"><input className={INPUT} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }
 type BudgetFormState = { department: string; category: string; allocatedAmount: string; spentAmount: string; period: string; manager: string };
 function BudgetForm({ form, setForm, saving, onSubmit }: { form: BudgetFormState; setForm: React.Dispatch<React.SetStateAction<BudgetFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Bộ phận"><input className={INPUT} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} required /></Field><Field label="Kỳ ngân sách"><input className={INPUT} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value }))} placeholder="2026-08" /></Field></div><Field label="Hạng mục"><input className={INPUT} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Hạn mức"><input className={INPUT} type="number" min="0" step="0.01" value={form.allocatedAmount} onChange={e => setForm(f => ({ ...f, allocatedAmount: e.target.value }))} required /></Field><Field label="Đã sử dụng"><input className={INPUT} type="number" min="0" step="0.01" value={form.spentAmount} onChange={e => setForm(f => ({ ...f, spentAmount: e.target.value }))} /></Field></div><Field label="Người phụ trách"><input className={INPUT} value={form.manager} onChange={e => setForm(f => ({ ...f, manager: e.target.value }))} /></Field><SaveActions saving={saving} /></form>; }
 type PaymentFormState = { amount: string; date: string; method: PaymentRecord["method"]; reference: string; note: string };
@@ -503,7 +1259,7 @@ function PaymentForm({ target, form, setForm, payments, formatMoney, saving, onS
   const title = target.kind === "debt" ? target.record.partnerName : `${target.record.code} · ${target.record.partnerName}`;
   const methodLabel = (method: PaymentRecord["method"]) => ({ bank_transfer: "Chuyển khoản", cash: "Tiền mặt", card: "Thẻ", other: "Khác" })[method];
   const setQuickAmount = (ratio: number) => setForm(current => ({ ...current, amount: String(Math.round(remaining * ratio * 100) / 100) }));
-  return <form onSubmit={onSubmit} className="space-y-5"><div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-black text-[var(--cu-text-primary)]">{title}</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500">{target.kind === "debt" ? "Công nợ" : "Hóa đơn"} · {paymentStage(total, paid)}</p></div><span className="text-sm font-black text-amber-500">{formatMoney(remaining)} còn lại</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--cu-surface)]"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${paymentProgress(total, paid)}%` }} /></div><div className="mt-2 flex justify-between text-[10px] font-semibold text-[var(--cu-text-tertiary)]"><span>Đã trả {formatMoney(paid)}</span><span>Tổng {formatMoney(total)}</span></div></div><div><span className={LABEL}>Số tiền thanh toán</span><div className="grid grid-cols-[1fr_auto] gap-2"><input autoFocus className={INPUT} type="number" min="0.01" max={remaining} step="0.01" value={form.amount} onChange={event => setForm(current => ({ ...current, amount: event.target.value }))} placeholder="Nhập số tiền" required /><div className="flex gap-1"><button type="button" onClick={() => setQuickAmount(.25)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">25%</button><button type="button" onClick={() => setQuickAmount(.5)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">50%</button><button type="button" onClick={() => setQuickAmount(1)} className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-2.5 text-[10px] font-black text-indigo-500">Tất toán</button></div></div></div><div className="grid grid-cols-2 gap-3"><Field label="Ngày thanh toán"><input className={INPUT} type="date" value={form.date} onChange={event => setForm(current => ({ ...current, date: event.target.value }))} required /></Field><Field label="Phương thức"><select className={INPUT} value={form.method} onChange={event => setForm(current => ({ ...current, method: event.target.value as PaymentRecord["method"] }))}><option value="bank_transfer">Chuyển khoản</option><option value="cash">Tiền mặt</option><option value="card">Thẻ</option><option value="other">Khác</option></select></Field></div><Field label="Mã tham chiếu / giao dịch"><input className={INPUT} value={form.reference} onChange={event => setForm(current => ({ ...current, reference: event.target.value }))} placeholder="Không bắt buộc" /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={event => setForm(current => ({ ...current, note: event.target.value }))} placeholder="Nội dung đối soát…" /></Field>{payments.length > 0 && <div><p className={LABEL}>Lịch sử thanh toán</p><div className="max-h-40 divide-y divide-[var(--cu-border)] overflow-y-auto rounded-2xl border border-[var(--cu-border)]">{payments.map(payment => <div key={payment.id} className="flex items-center gap-3 px-3.5 py-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500"><CheckCircle2 className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="text-[11px] font-black text-[var(--cu-text-primary)]">{new Date(`${payment.date}T00:00:00`).toLocaleDateString("vi-VN")} · {methodLabel(payment.method)}</p><p className="truncate text-[10px] text-[var(--cu-text-tertiary)]">{payment.reference || payment.note || "Không có mã tham chiếu"}</p></div><span className="text-xs font-black text-emerald-500">{formatMoney(payment.amount)}</span></div>)}</div></div>}<p className="rounded-xl bg-amber-500/10 px-3 py-2 text-[10px] leading-4 text-amber-600 dark:text-amber-400">Thanh toán sẽ cập nhật tiến độ và lưu lịch sử đối soát. Sổ thu chi chỉ thay đổi khi bạn ghi một giao dịch tương ứng.</p><SaveActions saving={saving} label="Ghi nhận thanh toán" /></form>;
+  return <form onSubmit={onSubmit} className="space-y-5"><div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-black text-[var(--cu-text-primary)]">{title}</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500">{target.kind === "debt" ? "Công nợ" : "Hóa đơn"} · {paymentStage(total, paid)}</p></div><span className="text-sm font-black text-amber-500">{formatMoney(remaining)} còn lại</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--cu-surface)]"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${paymentProgress(total, paid)}%` }} /></div><div className="mt-2 flex justify-between text-[10px] font-semibold text-[var(--cu-text-tertiary)]"><span>Đã trả {formatMoney(paid)}</span><span>Tổng {formatMoney(total)}</span></div></div><div><span className={LABEL}>Số tiền thanh toán</span><div className="grid grid-cols-[1fr_auto] gap-2"><input autoFocus className={INPUT} type="number" min="0.01" max={remaining} step="0.01" value={form.amount} onChange={event => setForm(current => ({ ...current, amount: event.target.value }))} placeholder="Nhập số tiền" required /><div className="flex gap-1"><button type="button" onClick={() => setQuickAmount(.25)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">25%</button><button type="button" onClick={() => setQuickAmount(.5)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">50%</button><button type="button" onClick={() => setQuickAmount(1)} className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-2.5 text-[10px] font-black text-indigo-500">Tất toán</button></div></div></div><div className="grid grid-cols-2 gap-3"><Field label="Ngày thanh toán"><input className={INPUT} type="date" value={form.date} onChange={event => setForm(current => ({ ...current, date: event.target.value }))} required /></Field><Field label="Phương thức"><Select className="w-full" ariaLabel="Phương thức" value={form.method} onChange={v => setForm(current => ({ ...current, method: v as PaymentRecord["method"] }))} options={[{ value: "bank_transfer", label: "Chuyển khoản" }, { value: "cash", label: "Tiền mặt" }, { value: "card", label: "Thẻ" }, { value: "other", label: "Khác" }]} /></Field></div><Field label="Mã tham chiếu / giao dịch"><input className={INPUT} value={form.reference} onChange={event => setForm(current => ({ ...current, reference: event.target.value }))} placeholder="Không bắt buộc" /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={event => setForm(current => ({ ...current, note: event.target.value }))} placeholder="Nội dung đối soát…" /></Field>{payments.length > 0 && <div><p className={LABEL}>Lịch sử thanh toán</p><div className="max-h-40 divide-y divide-[var(--cu-border)] overflow-y-auto rounded-2xl border border-[var(--cu-border)]">{payments.map(payment => <div key={payment.id} className="flex items-center gap-3 px-3.5 py-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500"><CheckCircle2 className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="text-[11px] font-black text-[var(--cu-text-primary)]">{new Date(`${payment.date}T00:00:00`).toLocaleDateString("vi-VN")} · {methodLabel(payment.method)}</p><p className="truncate text-[10px] text-[var(--cu-text-tertiary)]">{payment.reference || payment.note || "Không có mã tham chiếu"}</p></div><span className="text-xs font-black text-emerald-500">{formatMoney(payment.amount)}</span></div>)}</div></div>}<p className="rounded-xl bg-amber-500/10 px-3 py-2 text-[10px] leading-4 text-amber-600 dark:text-amber-400">Thanh toán sẽ cập nhật tiến độ và lưu lịch sử đối soát. Sổ thu chi chỉ thay đổi khi bạn ghi một giao dịch tương ứng.</p><SaveActions saving={saving} label="Ghi nhận thanh toán" /></form>;
 }
 function modalTitle(modal: Exclude<ModalType, null>) { return { profile: "Thiết lập hồ sơ", account: "Thêm tài khoản", transaction: "Ghi nhận thu / chi", invoice: "Tạo hóa đơn", debt: "Thêm công nợ", budget: "Tạo ngân sách", payment: "Ghi nhận thanh toán" }[modal]; }
 

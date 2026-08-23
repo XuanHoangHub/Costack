@@ -11,6 +11,7 @@ import {
 import { useTranslation } from '@/contexts/TranslationContext';
 import { User } from '@/types';
 import { supabase } from '@/lib/supabaseClient';
+import { Select } from '@/components/ui/Select';
 
 interface ERPHubProps {
   activeWorkspaceId: string;
@@ -1399,20 +1400,18 @@ function StockVoucherModal({ products, onClose, onSave }: { products: ProductIte
 
           <label className="space-y-1 block">
             <span className="text-[9px] font-black uppercase text-slate-400">Chọn sản phẩm</span>
-            <select
+            <Select
               value={selectedProductId}
-              onChange={e => {
-                const pid = e.target.value;
+              onChange={pid => {
                 setSelectedProductId(pid);
                 const p = products.find(prod => prod.id === pid);
                 if (p) setUnitPrice(type === 'in' ? p.costPrice : p.sellingPrice);
               }}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold outline-none dark:bg-slate-950 dark:text-white"
-            >
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.sku}) — Tồn: {p.stockQty} {p.unit}</option>
-              ))}
-            </select>
+              className="w-full"
+              ariaLabel="Chọn sản phẩm"
+              menuWidth={320}
+              options={products.map(p => ({ value: p.id, label: `${p.name} (${p.sku}) — Tồn: ${p.stockQty} ${p.unit}` }))}
+            />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1508,11 +1507,7 @@ function AddSalesOrderModal({ products, onClose, onSave }: { products: ProductIt
 
           <label className="space-y-1 block">
             <span className="text-[9px] font-black uppercase text-slate-400">Sản phẩm xuất bán</span>
-            <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold outline-none dark:bg-slate-950 dark:text-white">
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.sku}) — {money.format(p.sellingPrice)}</option>
-              ))}
-            </select>
+            <Select value={selectedProductId} onChange={v => setSelectedProductId(v)} className="w-full" ariaLabel="Sản phẩm xuất bán" menuWidth={320} options={products.map(p => ({ value: p.id, label: `${p.name} (${p.sku}) — ${money.format(p.sellingPrice)}` }))} />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1670,16 +1665,12 @@ function AddPOModal({ vendors, products, onClose, onSave }: { vendors: Vendor[];
         <div className="space-y-3 text-xs">
           <label className="space-y-1 block">
             <span className="text-[9px] font-black uppercase text-slate-400">Nhà cung cấp</span>
-            <select value={vendorId} onChange={e => setVendorId(e.target.value)} className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold outline-none dark:bg-slate-950 dark:text-white">
-              {vendors.map(v => <option key={v.id} value={v.id}>{v.name} ({v.code})</option>)}
-            </select>
+            <Select value={vendorId} onChange={v => setVendorId(v)} className="w-full" ariaLabel="Nhà cung cấp" menuWidth={320} options={vendors.map(v => ({ value: v.id, label: `${v.name} (${v.code})` }))} />
           </label>
 
           <label className="space-y-1 block">
             <span className="text-[9px] font-black uppercase text-slate-400">Sản phẩm cần mua</span>
-            <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold outline-none dark:bg-slate-950 dark:text-white">
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.sku}) — Giá vốn: {money.format(p.costPrice)}</option>)}
-            </select>
+            <Select value={selectedProductId} onChange={v => setSelectedProductId(v)} className="w-full" ariaLabel="Sản phẩm cần mua" menuWidth={320} options={products.map(p => ({ value: p.id, label: `${p.name} (${p.sku}) — Giá vốn: ${money.format(p.costPrice)}` }))} />
           </label>
 
           <label className="space-y-1 block">

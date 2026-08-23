@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Task, User, SyncLog, Document } from '../types';
 import { 
   CheckCircle2, TrendingUp,
   Activity, FileText, Bot, Clock, Sparkles, AlertCircle,
-  PieChart as PieIcon, ListTodo, Flame, Zap, X, Database, WifiOff, ArrowUpRight, Calendar
+  PieChart as PieIcon, ListTodo, Flame, Zap, X, Database, WifiOff, ArrowUpRight, Calendar,
+  UserRound, UsersRound, Pin, ArrowRight
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -14,6 +15,9 @@ import {
 } from 'recharts';
 import { useTranslation } from '../contexts/TranslationContext';
 import { callAiApi } from '@/lib/aiClient';
+import { SegmentedControl } from '@/components/ui';
+
+type DashboardScope = 'workspace' | 'mine';
 
 interface DashboardOverviewProps {
   tasks: Task[];
@@ -22,6 +26,7 @@ interface DashboardOverviewProps {
   syncLogs: SyncLog[];
   isOffline: boolean;
   onNavigate: (tab: string) => void;
+  onOpenTask?: (taskId: string) => void;
   onToggleOffline: () => void;
   currentUser: any;
   onUpgradePremium?: () => void;
@@ -66,6 +71,7 @@ function DashboardOverview({
   syncLogs = [],
   isOffline,
   onNavigate,
+  onOpenTask,
   onToggleOffline,
   currentUser,
   onUpgradePremium,
@@ -81,6 +87,39 @@ function DashboardOverview({
   const [reportText, setReportText] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [reportError, setReportError] = useState<string>('');
+  const [dashboardScope, setDashboardScope] = useState<DashboardScope>('workspace');
+
+  useEffect(() => {
+    try {
+      const savedScope = localStorage.getItem('apexa_dashboard_scope');
+      if (savedScope === 'workspace' || savedScope === 'mine') setDashboardScope(savedScope);
+    } catch (e) {}
+  }, []);
+
+  const currentUserIds = useMemo(() => new Set(
+    [currentUser?.id, currentUser?.userId].filter(Boolean) as string[]
+  ), [currentUser?.id, currentUser?.userId]);
+
+  const isAssignedToCurrentUser = useCallback((task: Task) => {
+    if (currentUserIds.size === 0) return false;
+    if (task.assigneeId && currentUserIds.has(task.assigneeId)) return true;
+    return task.assigneeIds?.some((assigneeId) => currentUserIds.has(assigneeId)) || false;
+  }, [currentUserIds]);
+
+  const personalTaskCount = useMemo(
+    () => tasks.filter(isAssignedToCurrentUser).length,
+    [isAssignedToCurrentUser, tasks]
+  );
+
+  const scopedTasks = useMemo(
+    () => dashboardScope === 'mine' ? tasks.filter(isAssignedToCurrentUser) : tasks,
+    [dashboardScope, isAssignedToCurrentUser, tasks]
+  );
+
+  const handleScopeChange = (scope: DashboardScope) => {
+    setDashboardScope(scope);
+    try { localStorage.setItem('apexa_dashboard_scope', scope); } catch (e) {}
+  };
 
   // Daily morning briefing notification state
   const [showBriefing, setShowBriefing] = useState<boolean>(() => {
@@ -96,7 +135,7 @@ function DashboardOverview({
     const dueSoon: Task[] = [];
     const overdue: Task[] = [];
 
-    tasks.forEach((task) => {
+    scopedTasks.forEach((task) => {
       if (task.status === 'completed') return;
       const dueDate = parseTaskDate(task.dueDate, true);
       if (!dueDate) return;
@@ -105,7 +144,7 @@ function DashboardOverview({
     });
 
     return { briefingTasks: dueSoon, overdueTasks: overdue };
-  }, [tasks]);
+  }, [scopedTasks]);
 
   const handleGenerateReport = async () => {
     if (!currentUser?.isPremium) {
@@ -115,7 +154,7 @@ function DashboardOverview({
     setIsGenerating(true);
     setReportError('');
     try {
-      const response = await callAiApi('/api/ai/productivity-report', { tasks, members });
+      const response = await callAiApi('/api/ai/productivity-report', { tasks: scopedTasks, members });
       const data = await response.json();
       if (data.success) {
         setReportText(data.text);
@@ -208,16 +247,16 @@ function DashboardOverview({
   };
 
   const metrics = useMemo(() => {
-    const completed = tasks.filter((task) => task.status === 'completed').length;
-    const inProgress = tasks.filter((task) => task.status === 'inprogress').length;
-    const review = tasks.filter((task) => task.status === 'review').length;
-    const todo = tasks.filter((task) => task.status === 'todo').length;
-    const totalEstimated = tasks.reduce((sum, task) => sum + Number(task.hoursEstimate || 0), 0);
-    const totalLogged = tasks.reduce((sum, task) => sum + Number(task.hoursLogged || 0), 0);
+    const completed = scopedTasks.filter((task) => task.status === 'completed').length;
+    const inProgress = scopedTasks.filter((task) => task.status === 'inprogress').length;
+    const review = scopedTasks.filter((task) => task.status === 'review').length;
+    const todo = scopedTasks.filter((task) => task.status === 'todo').length;
+    const totalEstimated = scopedTasks.reduce((sum, task) => sum + Number(task.hoursEstimate || 0), 0);
+    const totalLogged = scopedTasks.reduce((sum, task) => sum + Number(task.hoursLogged || 0), 0);
     const workspaceMemberIds = new Set(members.map((member) => member.id));
     const assignedMemberIds = new Set<string>();
 
-    tasks.forEach((task) => {
+    scopedTasks.forEach((task) => {
       if (task.assigneeId && workspaceMemberIds.has(task.assigneeId)) assignedMemberIds.add(task.assigneeId);
       task.assigneeIds?.forEach((memberId) => {
         if (workspaceMemberIds.has(memberId)) assignedMemberIds.add(memberId);
@@ -225,7 +264,7 @@ function DashboardOverview({
     });
 
     return {
-      total: tasks.length,
+      total: scopedTasks.length,
       completed,
       inProgress,
       review,
@@ -234,7 +273,7 @@ function DashboardOverview({
       totalLogged,
       assignedMemberCount: assignedMemberIds.size,
     };
-  }, [members, tasks]);
+  }, [members, scopedTasks]);
 
   const totalTasks = metrics.total;
   const completedTasks = metrics.completed;
@@ -258,18 +297,18 @@ function DashboardOverview({
       const dateKey = getLocalDateKey(targetDate);
       return {
         name,
-        created: tasks.filter((task) => {
+        created: scopedTasks.filter((task) => {
           const createdAt = parseTaskDate(task.createdAt);
           return createdAt ? getLocalDateKey(createdAt) === dateKey : false;
         }).length,
-        completed: tasks.filter((task) => {
+        completed: scopedTasks.filter((task) => {
           if (task.status !== 'completed' || !task.completedAt) return false;
           const completedAt = parseTaskDate(task.completedAt);
           return completedAt ? getLocalDateKey(completedAt) === dateKey : false;
         }).length,
       };
     });
-  }, [locale, tasks]);
+  }, [locale, scopedTasks]);
 
   const velocityData = useMemo(() => {
     const now = new Date();
@@ -279,17 +318,17 @@ function DashboardOverview({
       const dateKey = getLocalDateKey(date);
       return {
         date: `${date.getDate()}/${date.getMonth() + 1}`,
-        completed: tasks.filter((task) => {
+        completed: scopedTasks.filter((task) => {
           if (task.status !== 'completed' || !task.completedAt) return false;
           const completedAt = parseTaskDate(task.completedAt);
           return completedAt ? getLocalDateKey(completedAt) === dateKey : false;
         }).length,
       };
     });
-  }, [tasks]);
+  }, [scopedTasks]);
 
   const memberEffortData = useMemo(() => members.map((member) => {
-    const memberTasks = tasks.filter((task) => (
+    const memberTasks = scopedTasks.filter((task) => (
       task.assigneeId === member.id || task.assigneeIds?.includes(member.id)
     ));
     return {
@@ -297,7 +336,7 @@ function DashboardOverview({
       estimated: memberTasks.reduce((sum, task) => sum + Number(task.hoursEstimate || 0), 0),
       logged: memberTasks.reduce((sum, task) => sum + Number(task.hoursLogged || 0), 0),
     };
-  }).filter((item) => item.estimated > 0 || item.logged > 0), [members, tasks]);
+  }).filter((item) => item.estimated > 0 || item.logged > 0), [members, scopedTasks]);
 
   const statusData = useMemo(() => [
     { name: locale === 'vi' ? 'Cần làm' : 'To do', value: todoTasks, color: '#6366f1' },
@@ -306,21 +345,35 @@ function DashboardOverview({
     { name: locale === 'vi' ? 'Đã hoàn thành' : 'Completed', value: completedTasks, color: '#10b981' },
   ].filter((item) => item.value > 0), [completedTasks, inProgressTasks, locale, reviewTasks, todoTasks]);
 
+  const weeklySummary = useMemo(() => {
+    const totalCreated = weeklyData.reduce((sum, item) => sum + item.created, 0);
+    const totalCompleted = weeklyData.reduce((sum, item) => sum + item.completed, 0);
+    return { totalCreated, totalCompleted };
+  }, [weeklyData]);
+
   const CustomChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-slate-900/90 border border-slate-700/80 p-2.5 rounded-2xl shadow-xl space-y-1 backdrop-blur-md z-50 text-left">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{label}</p>
-          <div className="space-y-0.5">
-            {payload.map((item: any, idx: number) => (
-              <p key={idx} className="text-xs font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }} />
-                <span className="text-slate-300">{item.name}:</span>
-                <span className="text-white font-black font-mono">
-                  {item.value} {item.name.includes('Giờ') || item.name.toLowerCase().includes('hour') ? 'h' : (locale === 'vi' ? 'việc' : 'tasks')}
-                </span>
-              </p>
-            ))}
+        <div className="bg-slate-950/95 dark:bg-slate-900/95 border border-slate-700/80 p-3 rounded-2xl shadow-2xl space-y-1.5 backdrop-blur-xl z-50 text-left min-w-[150px]">
+          <div className="flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
+            <Calendar className="w-3 h-3 text-indigo-400" />
+            <p className="text-[10.5px] font-black text-slate-300 uppercase tracking-wider">{label}</p>
+          </div>
+          <div className="space-y-1.5 pt-0.5">
+            {payload.map((item: any, idx: number) => {
+              const isHours = item.name?.includes('Giờ') || item.name?.toLowerCase().includes('hour');
+              return (
+                <div key={idx} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                    <span className="w-2 h-2 rounded-full shrink-0 shadow-xs" style={{ backgroundColor: item.color || item.fill }} />
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  <span className="text-white font-mono font-black text-xs px-1.5 py-0.2 rounded bg-white/10 shrink-0">
+                    {item.value} {isHours ? 'h' : (locale === 'vi' ? 'việc' : 'tasks')}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -328,7 +381,7 @@ function DashboardOverview({
     return null;
   };
 
-  const urgentTasks = useMemo(() => tasks
+  const urgentTasks = useMemo(() => scopedTasks
     .filter((task) => task.status !== 'completed' && (task.priority === 'urgent' || task.priority === 'high'))
     .sort((first, second) => {
       const firstDue = parseTaskDate(first.dueDate, true)?.getTime() ?? Number.POSITIVE_INFINITY;
@@ -336,7 +389,31 @@ function DashboardOverview({
       if (firstDue !== secondDue) return firstDue - secondDue;
       return first.priority === 'urgent' ? -1 : 1;
     })
-    .slice(0, 5), [tasks]);
+    .slice(0, 5), [scopedTasks]);
+
+  const focusTasks = useMemo(() => {
+    const nowTime = Date.now();
+    return scopedTasks
+      .filter((task) => task.status !== 'completed')
+      .map((task) => {
+        const dueTime = parseTaskDate(task.dueDate, true)?.getTime();
+        let score = task.status === 'inprogress' ? 22 : task.status === 'review' ? 15 : 0;
+        if (task.isPinned) score += 18;
+        if (task.priority === 'urgent') score += 42;
+        else if (task.priority === 'high') score += 28;
+        else if (task.priority === 'medium') score += 12;
+        if (dueTime) {
+          const hoursUntilDue = (dueTime - nowTime) / (60 * 60 * 1000);
+          if (hoursUntilDue < 0) score += 100;
+          else if (hoursUntilDue <= 24) score += 72;
+          else if (hoursUntilDue <= 72) score += 38;
+        }
+        return { task, score, dueTime };
+      })
+      .sort((first, second) => second.score - first.score || (first.dueTime ?? Number.POSITIVE_INFINITY) - (second.dueTime ?? Number.POSITIVE_INFINITY))
+      .slice(0, 3)
+      .map(({ task }) => task);
+  }, [scopedTasks]);
 
   const onlineMembersCount = useMemo(() => members.filter((member) => member.status === 'online').length, [members]);
   const now = new Date();
@@ -440,13 +517,40 @@ function DashboardOverview({
           </h1>
           <p className="max-w-2xl text-sm font-medium leading-relaxed text-slate-500 dark:text-zinc-400 sm:text-[14.5px]">
             {locale === 'vi'
-              ? `Tổng quan trực tiếp của ${workspaceName || 'không gian làm việc hiện tại'}, được tính từ dữ liệu đã lưu.`
-              : `Live overview for ${workspaceName || 'the current workspace'}, calculated from stored data.`}
+              ? dashboardScope === 'mine'
+                ? `Không gian ưu tiên cá nhân của bạn trong ${workspaceName || 'workspace hiện tại'}.`
+                : `Tổng quan trực tiếp của ${workspaceName || 'không gian làm việc hiện tại'}, được tính từ dữ liệu đã lưu.`
+              : dashboardScope === 'mine'
+                ? `Your personal priority view in ${workspaceName || 'the current workspace'}.`
+                : `Live overview for ${workspaceName || 'the current workspace'}, calculated from stored data.`}
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="relative z-10 flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row md:shrink-0">
+        <div className="relative z-10 flex w-full flex-col gap-2.5 sm:w-auto md:shrink-0">
+          <SegmentedControl<DashboardScope>
+            value={dashboardScope}
+            onChange={handleScopeChange}
+            size="sm"
+            fullWidth
+            layoutIdPrefix="dashboard-scope"
+            className="bg-white/75 dark:bg-slate-950/55"
+            options={[
+              {
+                id: 'mine',
+                label: locale === 'vi' ? 'Của tôi' : 'My work',
+                icon: UserRound,
+                badge: personalTaskCount,
+                disabled: currentUserIds.size === 0,
+              },
+              {
+                id: 'workspace',
+                label: locale === 'vi' ? 'Workspace' : 'Workspace',
+                icon: UsersRound,
+                badge: tasks.length,
+              },
+            ]}
+          />
           <motion.button
             onClick={() => onNavigate('tasks')}
             whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.01 }}
@@ -459,6 +563,113 @@ function DashboardOverview({
           </motion.button>
         </div>
       </motion.div>
+
+      {/* ── Priority command queue ── */}
+      <motion.section
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.04, type: 'spring', stiffness: 150, damping: 22 }}
+        className="relative overflow-hidden rounded-[26px] border border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/70 p-4 shadow-[0_20px_55px_-40px_rgba(79,70,229,0.65)] dark:border-indigo-900/55 dark:from-indigo-950/25 dark:via-[#0d0f18] dark:to-sky-950/20 sm:p-5"
+      >
+        <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl dark:bg-indigo-500/10" />
+        <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 sm:items-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-indigo-200/80 bg-white/80 text-indigo-600 shadow-sm dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300">
+              <Zap className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black tracking-tight text-slate-950 dark:text-white sm:text-base">
+                {locale === 'vi' ? 'Hàng ưu tiên tiếp theo' : 'Your next priority queue'}
+              </h2>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                {locale === 'vi'
+                  ? 'Tự động xếp theo hạn chót, độ ưu tiên, trạng thái và công việc đã ghim.'
+                  : 'Automatically ranked by due date, priority, status and pinned work.'}
+              </p>
+            </div>
+          </div>
+          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-indigo-200/70 bg-white/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-indigo-600 dark:border-indigo-800/70 dark:bg-slate-950/50 dark:text-indigo-300">
+            <ListTodo className="h-3.5 w-3.5" />
+            {focusTasks.length} / {scopedTasks.filter((task) => task.status !== 'completed').length} {locale === 'vi' ? 'việc đang mở' : 'open'}
+          </div>
+        </div>
+
+        {focusTasks.length > 0 ? (
+          <div className="relative grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {focusTasks.map((task, index) => {
+              const dueDate = parseTaskDate(task.dueDate, true);
+              const isOverdue = Boolean(dueDate && dueDate.getTime() < Date.now());
+              const dueLabel = dueDate
+                ? isOverdue
+                  ? (locale === 'vi' ? 'Quá hạn' : 'Overdue')
+                  : dueDate.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' })
+                : (locale === 'vi' ? 'Chưa có hạn' : 'No due date');
+              const priorityLabel = task.priority === 'urgent'
+                ? (locale === 'vi' ? 'Khẩn cấp' : 'Urgent')
+                : task.priority === 'high'
+                  ? (locale === 'vi' ? 'Cao' : 'High')
+                  : task.priority === 'medium'
+                    ? (locale === 'vi' ? 'Trung bình' : 'Medium')
+                    : (locale === 'vi' ? 'Thấp' : 'Low');
+
+              return (
+                <motion.button
+                  key={task.id}
+                  type="button"
+                  onClick={() => onOpenTask ? onOpenTask(task.id) : onNavigate('tasks')}
+                  whileHover={prefersReducedMotion ? undefined : { y: -3 }}
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
+                  className="group flex min-h-[136px] flex-col rounded-[20px] border border-white/90 bg-white/85 p-4 text-left shadow-[0_14px_35px_-28px_rgba(15,23,42,0.7)] transition-colors hover:border-indigo-300 hover:bg-white dark:border-slate-800/90 dark:bg-slate-950/60 dark:hover:border-indigo-800 dark:hover:bg-slate-950/85"
+                >
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-[10px] font-black tabular-nums text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">0{index + 1}</span>
+                      <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wider ${
+                        task.priority === 'urgent'
+                          ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/45 dark:text-rose-300'
+                          : task.priority === 'high'
+                            ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/45 dark:text-amber-300'
+                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+                      }`}>{priorityLabel}</span>
+                    </div>
+                    {task.isPinned && <Pin className="h-3.5 w-3.5 rotate-45 text-indigo-400" />}
+                  </div>
+                  <p className="mt-3 line-clamp-2 flex-1 text-sm font-extrabold leading-snug text-slate-850 transition-colors group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-300">
+                    {task.title}
+                  </p>
+                  <div className="mt-3 flex w-full items-center justify-between gap-3 border-t border-slate-100 pt-3 text-[10px] font-bold dark:border-slate-800/80">
+                    <span className={`inline-flex items-center gap-1.5 ${isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                      <Calendar className="h-3.5 w-3.5" />
+                      {dueLabel}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-300">
+                      {locale === 'vi' ? 'Mở công việc' : 'Open task'}
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="relative flex flex-col items-center justify-center rounded-[20px] border border-dashed border-emerald-300/70 bg-emerald-50/65 px-5 py-8 text-center dark:border-emerald-900/70 dark:bg-emerald-950/20">
+            <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+            <p className="mt-2 text-sm font-black text-slate-800 dark:text-slate-100">
+              {locale === 'vi' ? 'Hàng ưu tiên đang trống' : 'Your priority queue is clear'}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {dashboardScope === 'mine'
+                ? (locale === 'vi' ? 'Bạn chưa được giao công việc đang mở nào trong workspace này.' : 'No open tasks are assigned to you in this workspace.')
+                : (locale === 'vi' ? 'Không còn công việc đang mở cần xử lý.' : 'There are no open tasks left to handle.')}
+            </p>
+            {dashboardScope === 'mine' && (
+              <button type="button" onClick={() => handleScopeChange('workspace')} className="mt-3 text-xs font-black text-indigo-600 hover:text-indigo-700 dark:text-indigo-300 dark:hover:text-indigo-200">
+                {locale === 'vi' ? 'Xem toàn workspace' : 'View the whole workspace'}
+              </button>
+            )}
+          </div>
+        )}
+      </motion.section>
 
       {/* ── 4 Hero KPI Cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -577,66 +788,79 @@ function DashboardOverview({
             transition={{ delay: 0.12, type: 'spring', stiffness: 140, damping: 22 }}
             className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0d0f18]/95 sm:p-6 lg:col-span-8"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <div>
                 <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                    <TrendingUp className="w-3.5 h-3.5" />
+                  <div className="w-7 h-7 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4" />
                   </div>
-                  <span>{t('dashboardWeeklyProgress') || 'Phân tích hiệu năng năng suất'}</span>
+                  <span>{t('dashboardWeeklyProgress') || 'Tiến độ tuần'}</span>
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">{locale === 'vi' ? 'Số công việc được tạo và hoàn thành theo thời điểm đã lưu' : 'Tasks created and completed using their stored timestamps'}</p>
               </div>
 
-              {/* Selector Tabs */}
-              <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shrink-0">
-                <button
-                  onClick={() => setActiveMetricTab('progress')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'progress' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
-                >
-                  {locale === 'vi' ? 'Tuần này' : 'This week'}
-                </button>
-                {memberEffortData.length > 0 && (
+              {/* Header Right: Badges & Selector Tabs */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/50 text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-xs" />
+                    {locale === 'vi' ? 'Đã xong' : 'Done'}: <span className="font-mono font-black">{weeklySummary.totalCompleted}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/50 text-[11px] font-bold text-purple-700 dark:text-purple-300">
+                    <span className="w-2 h-2 rounded-full bg-purple-500 shadow-xs" />
+                    {locale === 'vi' ? 'Tạo mới' : 'Created'}: <span className="font-mono font-black">{weeklySummary.totalCreated}</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shrink-0">
                   <button
-                    onClick={() => setActiveMetricTab('priority')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'priority' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                    onClick={() => setActiveMetricTab('progress')}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'progress' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
-                    {locale === 'vi' ? 'Nỗ lực thành viên' : 'Member Effort'}
+                    {locale === 'vi' ? 'Tuần này' : 'This week'}
                   </button>
-                )}
+                  {memberEffortData.length > 0 && (
+                    <button
+                      onClick={() => setActiveMetricTab('priority')}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'priority' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                    >
+                      {locale === 'vi' ? 'Nỗ lực' : 'Effort'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Chart Container */}
-            <div className="h-[240px] w-full pt-5 sm:h-[280px] sm:pt-6">
+            <div className="h-[240px] w-full pt-4 sm:h-[280px] sm:pt-5">
               <ResponsiveContainer width="100%" height="100%">
                 {activeMetricTab === 'progress' ? (
-                  <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <AreaChart data={weeklyData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="weeklyDone" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35}/>
+                        <stop offset="90%" stopColor="#6366f1" stopOpacity={0.0}/>
                       </linearGradient>
                       <linearGradient id="weeklyCreated" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.12}/>
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0.0}/>
+                        <stop offset="0%" stopColor="#a855f7" stopOpacity={0.25}/>
+                        <stop offset="90%" stopColor="#a855f7" stopOpacity={0.0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax, 4)]} tickCount={5} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
                     <Tooltip content={<CustomChartTooltip />} />
-                    <Area name={t('dashboardCompleted') || 'Đã hoàn thành'} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#weeklyDone)" />
-                    <Area name={t('dashboardCreated') || 'Đã tạo mới'} type="monotone" dataKey="created" stroke="#a855f7" strokeWidth={2} strokeDasharray="4 4" fillOpacity={1} fill="url(#weeklyCreated)" />
+                    <Area name={t('dashboardCompleted') || (locale === 'vi' ? 'Đã xong' : 'Completed')} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={3} dot={{ r: 3.5, fill: '#6366f1', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6.5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#weeklyDone)" />
+                    <Area name={t('dashboardCreated') || (locale === 'vi' ? 'Đã tạo mới' : 'Created')} type="monotone" dataKey="created" stroke="#a855f7" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 3.5, fill: '#a855f7', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6.5, fill: '#a855f7', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#weeklyCreated)" />
                   </AreaChart>
                 ) : (
-                  <BarChart data={memberEffortData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
+                  <BarChart data={memberEffortData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
                     <Tooltip content={<CustomChartTooltip />} />
-                    <Bar name={locale === 'vi' ? 'Kế hoạch (giờ)' : 'Estimated (h)'} dataKey="estimated" fill="#818cf8" radius={[4, 4, 0, 0]} />
-                    <Bar name={locale === 'vi' ? 'Thực tế (giờ)' : 'Logged (h)'} dataKey="logged" fill="#34d399" radius={[4, 4, 0, 0]} />
+                    <Bar name={locale === 'vi' ? 'Kế hoạch (giờ)' : 'Estimated (h)'} dataKey="estimated" fill="#818cf8" radius={[6, 6, 0, 0]} />
+                    <Bar name={locale === 'vi' ? 'Thực tế (giờ)' : 'Logged (h)'} dataKey="logged" fill="#34d399" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
@@ -651,31 +875,37 @@ function DashboardOverview({
             className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0d0f18]/95 sm:p-6 lg:col-span-4"
           >
             <div>
-              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
-                <div className="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <PieIcon className="w-3.5 h-3.5" />
-                </div>
-                <span>{t('dashboardTaskStatusBreakdown') || 'Phân bổ trạng thái'}</span>
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <PieIcon className="w-4 h-4" />
+                  </div>
+                  <span>{t('dashboardTaskStatusBreakdown') || 'Phân tích trạng thái công việc'}</span>
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  {completionPercentage}% {locale === 'vi' ? 'hoàn tất' : 'done'}
+                </span>
+              </div>
             </div>
 
             <div className="relative my-4 flex justify-center items-center">
-              <div className="w-[170px] h-[170px]">
+              <div className="w-[180px] h-[180px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={statusData.length > 0 ? statusData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]}
                       cx="50%"
                       cy="50%"
-                      innerRadius={54}
-                      outerRadius={72}
+                      innerRadius={56}
+                      outerRadius={78}
                       paddingAngle={4}
+                      cornerRadius={6}
                       dataKey="value"
                       isAnimationActive={!prefersReducedMotion}
                       animationDuration={800}
                     >
                       {(statusData.length > 0 ? statusData : [{ name: 'Empty', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
                       ))}
                     </Pie>
                   </PieChart>
@@ -683,20 +913,39 @@ function DashboardOverview({
               </div>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tight">{totalTasks}</span>
-                <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-1">TỔNG CÔNG VIỆC</span>
+                <span className="text-[8.5px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black mt-1">
+                  {t('dashboardTotalTasks') || 'TỔNG CÔNG VIỆC'}
+                </span>
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-4">
-              {statusData.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs font-bold">
-                  <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <span className="w-2.5 h-2.5 rounded-full block" style={{ backgroundColor: item.color }} />
-                    <span>{item.name}</span>
-                  </span>
-                  <span className="text-slate-900 dark:text-white font-mono font-extrabold">{item.value} ({Math.round((item.value / totalTasks) * 100)}%)</span>
-                </div>
-              ))}
+            {/* Rich Progress Breakdown Legend */}
+            <div className="space-y-2 border-t border-slate-100 dark:border-slate-800/80 pt-3.5">
+              {statusData.map((item, idx) => {
+                const percentage = totalTasks > 0 ? Math.round((item.value / totalTasks) * 100) : 0;
+                return (
+                  <div key={idx} className="space-y-1 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <span className="w-2.5 h-2.5 rounded-full block shadow-xs shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="truncate">{item.name}</span>
+                      </span>
+                      <span className="text-slate-900 dark:text-white font-mono font-black text-xs shrink-0">
+                        {item.value} <span className="text-slate-400 dark:text-slate-500 font-medium text-[10.5px]">({percentage}%)</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800/80 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          backgroundColor: item.color,
+                          width: `${percentage}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </motion.section>
 
@@ -716,8 +965,8 @@ function DashboardOverview({
           >
             <div>
               <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
-                <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <TrendingUp className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4" />
                 </div>
                 <span>{locale === 'vi' ? 'Công việc hoàn thành trong 30 ngày' : 'Tasks completed in the last 30 days'}</span>
               </h3>
@@ -726,18 +975,18 @@ function DashboardOverview({
 
             <div className="h-[220px] w-full pt-2 sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={velocityData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <AreaChart data={velocityData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="velTasks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} />
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                  <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax, 4)]} tickCount={5} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
                   <Tooltip content={<CustomChartTooltip />} />
-                  <Area name={t('dashboardVelocityTasks') || 'Công việc đã hoàn thành'} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#velTasks)" />
+                  <Area name={t('dashboardVelocityTasks') || (locale === 'vi' ? 'Công việc đã hoàn thành' : 'Completed tasks')} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={3} dot={{ r: 3, fill: '#6366f1', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#velTasks)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
