@@ -384,7 +384,7 @@ export default function CRMWorkspace({
       {/* View: Overview */}
       {view === 'overview' && (
         <>
-          <section className="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {[
               { label: isVietnamese ? 'Giá trị Pipeline' : 'Pipeline Value', value: money.format(pipelineValue), note: isVietnamese ? `${activeDeals.length} cơ hội đang mở` : `${activeDeals.length} open deals`, icon: CircleDollarSign, style: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' },
               { label: isVietnamese ? 'Doanh thu Đã Chốt' : 'Won Revenue', value: money.format(wonValue), note: isVietnamese ? `${wonDeals.length} hợp đồng thành công` : `${wonDeals.length} deals won`, icon: CheckCircle2, style: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
@@ -806,7 +806,7 @@ export default function CRMWorkspace({
       {showNewDeal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="absolute inset-0 cursor-pointer" onClick={() => setShowNewDeal(false)} />
-          <form onSubmit={addDeal} className="relative z-10 w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <form onSubmit={addDeal} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,576px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm cơ hội bán hàng mới</h3>
@@ -861,7 +861,7 @@ export default function CRMWorkspace({
       {showNewCompany && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="absolute inset-0 cursor-pointer" onClick={() => setShowNewCompany(false)} />
-          <form onSubmit={addCompany} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+          <form onSubmit={addCompany} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm doanh nghiệp đối tác</h3>
@@ -1018,7 +1018,7 @@ function QuotationModal({
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,768px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-8 shadow-2xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar">
         
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-200/80 dark:border-slate-800 pb-6">
@@ -1394,7 +1394,7 @@ function ContactDrawer({
   return (
     <>
       <button aria-label="Đóng hồ sơ" onClick={onClose} className="fixed inset-0 z-[90] bg-slate-950/40 backdrop-blur-[2px]" />
-      <aside className="fixed inset-y-0 right-0 z-[95] w-full max-w-md overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar space-y-6">
+      <aside className="fixed inset-y-0 right-0 z-[95] w-[min(95vw,448px)] overflow-y-auto border-l border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 custom-scrollbar space-y-6">
         
         {/* Header */}
         <div className="flex items-start justify-between">

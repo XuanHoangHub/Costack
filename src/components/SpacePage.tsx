@@ -39,7 +39,6 @@ import TaskModal from './tasks/TaskModal';
 import FieldSettingsModal, { ALL_FIELD_TYPES } from './tasks/FieldSettingsModal';
 import CalendarView from './CalendarView';
 import Whiteboard from './Whiteboard';
-import ChatRoom from './ChatRoom';
 import DocumentHub from './DocumentHub';
 import TeamDirectory from './TeamDirectory';
 import DashboardOverview from './DashboardOverview';
@@ -104,14 +103,12 @@ const createViewTab = (id: string, label: string, viewId: string, settings?: Par
 
 const getDefaultViewTabs = (hasActiveList: boolean): SpaceViewTab[] => hasActiveList
   ? [
-      createViewTab('tab-channel', 'Trao đổi', 'channel'),
       createViewTab('tab-table', 'Bảng dữ liệu', 'table', { default: true }),
       createViewTab('tab-list', 'Danh sách', 'list'),
       createViewTab('tab-board', 'Bảng', 'board'),
       createViewTab('tab-gantt', 'Gantt', 'gantt'),
     ]
   : [
-      createViewTab('tab-channel', 'Trao đổi', 'channel'),
       createViewTab('tab-overview', 'Tổng quan', 'overview', { default: true }),
       createViewTab('tab-list', 'Danh sách', 'list'),
       createViewTab('tab-board', 'Bảng', 'board'),
@@ -591,10 +588,6 @@ export default function SpacePage({
   const [spacesAddDropdownOpen, setSpacesAddDropdownOpen] = useState(false);
   const [showSpacesSearch, setShowSpacesSearch] = useState(false);
   const [spacesSearchQuery, setSpacesSearchQuery] = useState('');
-  const [showAddChannelModal, setShowAddChannelModal] = useState(false);
-  const [newChanName, setNewChanName] = useState('');
-  const [newChanDesc, setNewChanDesc] = useState('');
-  const [newChanScope, setNewChanScope] = useState<'space' | 'folder' | 'list'>('space');
   const [showHiddenSpaces, setShowHiddenSpaces] = useState(false);
   const [showArchivedToggle, setShowArchivedToggle] = useState(false);
   const [expandedSpaceIds, setExpandedSpaceIds] = useState<Record<string, boolean>>({});
@@ -1117,7 +1110,7 @@ export default function SpacePage({
         const parsed = JSON.parse(stored) as { tabs?: Array<Omit<SpaceViewTab, 'icon'>>; activeTabId?: string };
         const restoredTabs = Array.isArray(parsed.tabs)
           ? parsed.tabs
-              .filter(tab => tab?.id && tab?.label && tab?.viewId && VIEW_ICON_MAP[tab.viewId])
+              .filter(tab => tab?.id && tab?.label && tab?.viewId && tab.viewId !== 'channel' && tab.id !== 'tab-channel' && VIEW_ICON_MAP[tab.viewId])
               .map(tab => createViewTab(tab.id, tab.label, tab.viewId, tab.settings))
           : [];
         if (restoredTabs.length > 0) {
@@ -1232,9 +1225,6 @@ export default function SpacePage({
         guardedUpdateTask({ ...task, status: newStatus });
       }
     });
-    if (triggerToast) {
-      triggerToast('success', 'Bulk Status Updated', `Updated status for ${selectedTaskIds.length} tasks.`);
-    }
     setTimeout(() => {
       setUndoAction(null);
     }, 5000);
@@ -2900,7 +2890,7 @@ export default function SpacePage({
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
               {/* View Switcher Tabs (Segmented Glass Pill Controls) */}
-              <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-[#0d0e15] p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto scrollbar-none max-w-fit shrink-0 shadow-3xs">
+              <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-[#0c0f18]/90 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none max-w-fit shrink-0 shadow-3xs backdrop-blur-md">
                 {[...staticTabs].sort((a, b) => Number(b.settings.pin) - Number(a.settings.pin)).map(tab => {
                   const TabIcon = tab.icon;
                   const isActive = activeTabId === tab.id;
@@ -2916,10 +2906,10 @@ export default function SpacePage({
                         setActiveTabId(tab.id);
                         setActiveView(tab.viewId);
                       }}
-                      className={`relative flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                         isActive
-                          ? 'bg-white dark:bg-indigo-600/25 text-indigo-650 dark:text-indigo-300 shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/40'
+                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-300 shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50'
                       }`}
                     >
                       <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
@@ -3053,19 +3043,6 @@ export default function SpacePage({
                         </div>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => { setShowQuickTools(false); setActiveTabId('tab-channel'); setActiveView('channel'); triggerToast?.('info', 'Phòng trao đổi', 'Đã chuyển tới kênh trao đổi & gọi thoại của Space.'); }}
-                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all text-left cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                          <Phone className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[11.5px] font-bold text-slate-700 dark:text-slate-200 block group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Cuộc gọi thoại & Channel</span>
-                          <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block leading-tight mt-0.5">Họp trực tuyến nhanh trong không gian</span>
-                        </div>
-                      </button>
 
                       <div className="border-t border-slate-200/60 dark:border-slate-800/80 my-1.5" />
                       
@@ -3154,17 +3131,17 @@ export default function SpacePage({
 
       {/* ── Filter / Sorter Bar (Only visible in list/board/table/gantt/timeline views) ── */}
       {['list', 'board', 'table', 'gantt', 'timeline'].includes(activeView) && (
-        <div className="shrink-0 bg-white/70 dark:bg-[#07080c]/70 backdrop-blur-xl border-b border-slate-200/30 dark:border-slate-800/40 px-3 sm:px-5 py-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="shrink-0 bg-white/80 dark:bg-[#07080c]/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 px-3 sm:px-5 py-2.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
           {/* Search task input */}
-          <div className="flex items-center gap-2 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-1.5 flex-1 w-full md:max-w-sm transition-all focus-within:border-indigo-500/80 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/15 shadow-3xs">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3.5 py-1.5 flex-1 w-full md:max-w-sm transition-all focus-within:border-indigo-500/80 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/15 shadow-3xs">
             <Search className="w-4 h-4 text-slate-400 shrink-0" />
             <input 
               type="text" 
               placeholder="Tìm công việc..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-[11px] font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
+              className="w-full bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">✕</button>
@@ -3175,10 +3152,10 @@ export default function SpacePage({
             {/* Filter Drawer Toggle */}
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-3 py-1.5 border rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs ${
                 showFilters || activeFilterCount > 0
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-650 dark:bg-indigo-950/20 dark:border-indigo-905'
-                  : 'bg-white border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50'
+                  ? 'bg-indigo-50/90 border-indigo-300 text-indigo-600 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-400 font-black'
+                  : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
@@ -3642,20 +3619,6 @@ export default function SpacePage({
           />
         )}
 
-        {/* Render `# Channel` Chat room */}
-        {activeView === 'channel' && (
-          <ChatRoom
-            members={members}
-            currentUser={currentUser}
-            isOffline={isOffline}
-            onAddSyncLog={onAddSyncLog}
-            triggerToast={triggerToast}
-            workspaceId={activeWorkspaceId || ''}
-            spaces={spaces}
-            forcedChannelId={activeListId ? `${activeWorkspaceId}:list-${activeSpaceId}-${activeListId}` : activeFolderId ? `${activeWorkspaceId}:folder-${activeSpaceId}-${activeFolderId}` : `${activeWorkspaceId}:space-${activeSpaceId}-general`}
-            forcedChannelName={activeListId ? (activeSpace.lists?.find(l => l.id === activeListId)?.name || 'List') : activeFolderId ? (activeSpace.folders?.find(f => f.id === activeFolderId)?.name || 'Folder') : 'general'}
-          />
-        )}
 
         {/* Render Task List View */}
         {activeView === 'list' && (
@@ -4794,162 +4757,6 @@ export default function SpacePage({
         </Portal>
       )}
 
-      {/* ── Add Channel Dialog Modal ── */}
-      {showAddChannelModal && (
-        <Portal>
-          <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-55">
-            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowAddChannelModal(false)} />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="relative z-10 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-6 font-sans select-none"
-            >
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Hash className="w-5 h-5 text-indigo-500" />
-                  <h3 className="text-sm font-extrabold text-slate-850 dark:text-slate-100">Tạo phòng chat trao đổi</h3>
-                </div>
-                <button 
-                  onClick={() => setShowAddChannelModal(false)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="py-4 space-y-4 text-left">
-                {/* Channel Scope Selection */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Phạm vi trò chuyện</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setNewChanScope('space')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        newChanScope === 'space'
-                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-655 dark:text-indigo-400'
-                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <Rocket className="w-3.5 h-3.5" /> Không gian
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!activeFolderId}
-                      onClick={() => setNewChanScope('folder')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        !activeFolderId ? 'opacity-40 cursor-not-allowed' : ''
-                      } ${
-                        newChanScope === 'folder'
-                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-655 dark:text-indigo-400'
-                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <Folder className="w-3.5 h-3.5" /> Thư mục
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!activeListId}
-                      onClick={() => setNewChanScope('list')}
-                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        !activeListId ? 'opacity-40 cursor-not-allowed' : ''
-                      } ${
-                        newChanScope === 'list'
-                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-655 dark:text-indigo-400'
-                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <List className="w-3.5 h-3.5" /> Danh sách
-                    </button>
-                  </div>
-                </div>
-
-                {/* Channel Name */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Tên phòng chat (kebab-case)</label>
-                  <input
-                    type="text"
-                    value={newChanName}
-                    onChange={e => setNewChanName(e.target.value)}
-                    placeholder="ví-dụ: marketing-sprint-1"
-                    className="w-full text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-
-                {/* Channel Description */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Mô tả phòng chat</label>
-                  <textarea
-                    value={newChanDesc}
-                    onChange={e => setNewChanDesc(e.target.value)}
-                    placeholder="Mục đích của phòng chat này..."
-                    rows={3}
-                    className="w-full text-xs font-semibold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 transition-colors resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-805">
-                <button
-                  type="button"
-                  onClick={() => setShowAddChannelModal(false)}
-                  className="py-2 px-4 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newChanName.trim()) return;
-                    const cleanedName = newChanName.trim().toLowerCase().replace(/\s+/g, '-');
-                    
-                    let chanId = '';
-                    if (newChanScope === 'folder') {
-                      chanId = `folder-${activeFolderId}`;
-                    } else if (newChanScope === 'list') {
-                      chanId = `list-${activeListId}`;
-                    } else {
-                      chanId = `space-chan-${Date.now()}`;
-                    }
-
-                    const newChanObj = {
-                      id: chanId,
-                      name: cleanedName,
-                      description: newChanDesc.trim() || 'Work chat room',
-                      type: 'public'
-                    };
-
-                    const updatedSpaces = spaces.map(s => {
-                      if (s.id === activeSpace.id) {
-                        const existing = s.channels || [];
-                        // Check if channel already exists
-                        if (existing.some(c => c.id === chanId)) {
-                          return s;
-                        }
-                        return { ...s, channels: [...existing, newChanObj] };
-                      }
-                      return s;
-                    });
-
-                    if (onSaveSpaces) {
-                      onSaveSpaces(updatedSpaces);
-                    }
-
-                    onAddSyncLog(`Created work chat room "#${cleanedName}" for ${newChanScope.toUpperCase()}`);
-                    if (triggerToast) {
-                      triggerToast('success', 'Chat Room Created', `Connected "#${cleanedName}" to active Space/Folder/List`);
-                    }
-                    setShowAddChannelModal(false);
-                  }}
-                  className="py-2 px-4 rounded-xl text-xs font-black bg-indigo-650 hover:bg-indigo-750 text-white cursor-pointer shadow-md active:scale-95 transition-all"
-                >
-                  Tạo phòng
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        </Portal>
-      )}
 
       {activeSpaceSettings && (() => {
         const space = spaces.find(s => s.id === activeSpaceSettings.id);

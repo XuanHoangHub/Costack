@@ -17,7 +17,7 @@ import {
   Hand, ZoomIn, ZoomOut, Maximize2, Download, ArrowUpRight,
   Brain, Loader2, Bot, Globe, Check, Layout, FileJson, Image as ImageIcon, Layers, X,
   Cloud, PanelLeftClose, PanelLeftOpen, Share2, Expand, Minimize2, Undo2, Redo2,
-  Upload, Keyboard, CheckCircle2
+  Upload, Keyboard, CheckCircle2, ArrowLeft, FolderKanban, Edit3
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 
@@ -26,7 +26,8 @@ interface WhiteboardProps {
   isOffline: boolean;
   onAddSyncLog: (action: string) => void;
   whiteboardId?: string;
-  spaceId?: string;
+  projectId?: string;
+  projectName?: string;
   workspaceId?: string;
   onAddTask?: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => void;
   tasks?: Task[];
@@ -34,6 +35,9 @@ interface WhiteboardProps {
   onUpgradePremium?: () => void;
   boardName?: string;
   spaceName?: string;
+  spaceId?: string;
+  onBackToDashboard?: () => void;
+  onRenameBoard?: (name: string) => void;
 }
 
 // Helper function to safely derive transparent/light fill styles from hex color codes
@@ -124,6 +128,8 @@ export default function Whiteboard({
   isOffline, 
   onAddSyncLog, 
   whiteboardId,
+  projectId,
+  projectName,
   spaceId,
   workspaceId,
   onAddTask,
@@ -131,7 +137,9 @@ export default function Whiteboard({
   currentUser,
   onUpgradePremium,
   boardName = 'Bảng trắng Demo',
-  spaceName = 'Không gian làm việc'
+  spaceName = 'Không gian làm việc',
+  onBackToDashboard,
+  onRenameBoard
 }: WhiteboardProps) {
   const { t, locale } = useTranslation();
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +147,8 @@ export default function Whiteboard({
   const [canvasRevision, setCanvasRevision] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saveState, setSaveState] = useState<'saving' | 'saved'>('saved');
+  const [isEditingBoardTitle, setIsEditingBoardTitle] = useState(false);
+  const [editingTitleValue, setEditingTitleValue] = useState(boardName);
   
   // Custom tools state (extend with Hand tool support)
   const [activeTool, setActiveTool] = useState<WhiteboardTool | 'hand'>('select');
@@ -2279,7 +2289,7 @@ export default function Whiteboard({
   };
 
   return (
-    <div className="relative h-full min-h-0 flex overflow-hidden bg-[#f3f4f7] dark:bg-slate-950">
+    <div ref={editorRef} className="relative h-full min-h-0 flex overflow-hidden bg-[#f3f4f7] dark:bg-slate-950">
       
       {/* 1. SIDEBAR: BRAINSTORM WIDGETS & MODIFIERS PANEL */}
       <aside className={`${showLibrary ? 'flex' : 'hidden'} w-[248px] shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200/80 bg-white/95 p-3 dark:border-slate-800 dark:bg-slate-950 max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:shadow-2xl`}>
@@ -2504,23 +2514,96 @@ export default function Whiteboard({
         {/* Title & Multiplayer actions header */}
         <div className="z-30 flex h-[66px] shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95">
           <div className="flex min-w-0 items-center gap-3">
+            {onBackToDashboard && (
+              <button
+                onClick={onBackToDashboard}
+                className="flex h-9 items-center gap-1.5 px-3 rounded-xl border border-slate-200/90 bg-white text-slate-700 font-bold text-xs shadow-xs transition hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer shrink-0"
+                title="Quay lại danh sách dự án bảng trắng"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dự án</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowLibrary((value) => !value)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-              title={showLibrary ? 'Ẩn thư viện' : 'Mở thư viện'}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 cursor-pointer"
+              title={showLibrary ? 'Ẩn thư viện phần tử' : 'Mở thư viện phần tử'}
             >
               {showLibrary ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
             </button>
+
             <div className="min-w-0">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
-                <span className="truncate">{spaceName}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                <FolderKanban className="w-3 h-3 text-indigo-500" />
+                <span className="truncate max-w-[140px] font-bold text-slate-600 dark:text-slate-400">{projectName || spaceName || 'Dự án Bảng trắng'}</span>
                 <span>/</span>
-                <span>Whiteboards</span>
+                <span>Canvas</span>
               </div>
-              <h2 className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{boardName}</h2>
+
+              {isEditingBoardTitle && onRenameBoard ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <input
+                    type="text"
+                    value={editingTitleValue}
+                    onChange={(e) => setEditingTitleValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (editingTitleValue.trim()) onRenameBoard(editingTitleValue.trim());
+                        setIsEditingBoardTitle(false);
+                      } else if (e.key === 'Escape') {
+                        setIsEditingBoardTitle(false);
+                      }
+                    }}
+                    autoFocus
+                    className="px-2 py-0.5 text-xs font-extrabold rounded-md border border-indigo-400 outline-none bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                  />
+                  <button
+                    onClick={() => {
+                      if (editingTitleValue.trim()) onRenameBoard(editingTitleValue.trim());
+                      setIsEditingBoardTitle(false);
+                    }}
+                    className="p-1 text-emerald-600 hover:bg-emerald-50 rounded cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setIsEditingBoardTitle(false)}
+                    className="p-1 text-slate-400 hover:bg-slate-100 rounded cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 group cursor-pointer" onClick={() => {
+                  if (onRenameBoard) {
+                    setEditingTitleValue(boardName);
+                    setIsEditingBoardTitle(true);
+                  }
+                }}>
+                  <h2 className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{boardName}</h2>
+                  {onRenameBoard && (
+                    <Edit3 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </div>
+              )}
             </div>
-            <div className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700 sm:flex dark:bg-emerald-950/30 dark:text-emerald-400">
-              <Cloud className="h-3 w-3" /> Đã lưu
+
+            <div className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold sm:flex border ${
+              saveState === 'saved'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/40'
+                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/40'
+            }`}>
+              {saveState === 'saved' ? <CheckCircle2 className="h-3 w-3" /> : <Cloud className="h-3 w-3 animate-pulse" />}
+              {saveState === 'saved' ? 'Đã lưu' : 'Đang lưu'}
+            </div>
+            <div className="hidden items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-0.5 md:flex dark:border-slate-700 dark:bg-slate-800">
+              <button onClick={handleUndo} disabled={!canUndo} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-700" title="Hoàn tác (Ctrl+Z)">
+                <Undo2 className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={handleRedo} disabled={!canRedo} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-700" title="Làm lại (Ctrl+Y)">
+                <Redo2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
 
@@ -2585,6 +2668,14 @@ export default function Whiteboard({
               <FileJson className="w-4.5 h-4.5" />
             </button>
 
+            <button
+              onClick={() => jsonFileInputRef.current?.click()}
+              className="hidden lg:block p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 hover:bg-indigo-55/35 rounded-xl transition-colors cursor-pointer"
+              title="Nhập dữ liệu JSON"
+            >
+              <Upload className="w-4.5 h-4.5" />
+            </button>
+
             <input 
               type="file"
               ref={jsonFileInputRef}
@@ -2595,11 +2686,27 @@ export default function Whiteboard({
 
             <button
               id="btn_clear_whiteboard"
-              onClick={handleClearBoard}
+              onClick={() => setShowClearConfirm(true)}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
               title="Xóa toàn bộ bảng trắng"
             >
               <Trash2 className="w-4.5 h-4.5" />
+            </button>
+
+            <button
+              onClick={() => setShowShortcutHelp(true)}
+              className="hidden xl:block p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 rounded-xl transition-colors cursor-pointer"
+              title="Phím tắt"
+            >
+              <Keyboard className="w-4.5 h-4.5" />
+            </button>
+
+            <button
+              onClick={handleToggleFullscreen}
+              className="p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-600 rounded-xl transition-colors cursor-pointer"
+              title={isFullscreen ? 'Thoát toàn màn hình (Shift+F)' : 'Toàn màn hình (Shift+F)'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4.5 h-4.5" /> : <Expand className="w-4.5 h-4.5" />}
             </button>
 
           </div>
@@ -2680,7 +2787,12 @@ export default function Whiteboard({
         >
           <canvas
             ref={canvasRef}
-            onMouseDown={handleMouseDown}
+            tabIndex={0}
+            aria-label={locale === 'vi' ? 'Vùng vẽ bảng trắng' : 'Whiteboard drawing canvas'}
+            onMouseDown={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              handleMouseDown(event);
+            }}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onDoubleClick={handleDoubleClick}
@@ -2741,7 +2853,7 @@ export default function Whiteboard({
           })()}
 
           {/* Zoom Overlay (Miro style) */}
-          <div className="absolute bottom-4 right-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-md flex items-center gap-2 select-none z-10">
+          <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-md flex items-center gap-1.5 sm:gap-2 select-none z-10">
             <button
               onClick={() => {
                 const newZoom = Math.max(0.15, zoom - 0.15);
@@ -2767,19 +2879,15 @@ export default function Whiteboard({
             </button>
             <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
             <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-                onAddSyncLog("Whiteboard: Reset zoom");
-              }}
+              onClick={handleFitToContent}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-              title="Đặt lại chế độ xem 100%"
+              title="Vừa nội dung vào màn hình (0)"
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
+          <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 z-20 flex items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 sm:p-1.5 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
             {([
               { id: 'grid', label: 'Lưới' },
               { id: 'dots', label: 'Chấm' },
@@ -3014,6 +3122,73 @@ export default function Whiteboard({
                     <span className="inline-block text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 pt-1 group-hover:translate-x-1 transition-transform">
                       {locale === 'vi' ? 'Nạp mẫu này →' : 'Load Template →'}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showClearConfirm && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/30">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Xóa toàn bộ bảng?</h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Tất cả ghi chú, hình khối và đường nối sẽ bị xóa. Bạn vẫn có thể hoàn tác ngay sau thao tác này.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button onClick={() => setShowClearConfirm(false)} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+                  Hủy
+                </button>
+                <button onClick={handleClearBoard} className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-rose-700">
+                  Xóa bảng
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showShortcutHelp && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" onClick={() => setShowShortcutHelp(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Keyboard className="h-5 w-5 text-indigo-600" />
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Phím tắt Whiteboard</h3>
+                </div>
+                <button onClick={() => setShowShortcutHelp(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                {[
+                  ['V', 'Chọn và di chuyển'], ['H / Space', 'Kéo canvas'],
+                  ['N', 'Ghi chú dán'], ['P', 'Vẽ tự do'],
+                  ['R / O', 'Chữ nhật / hình tròn'], ['L', 'Đường nối'],
+                  ['Ctrl + Z', 'Hoàn tác'], ['Ctrl + Y', 'Làm lại'],
+                  ['Ctrl + C / V', 'Sao chép / dán'], ['Ctrl + D', 'Nhân bản'],
+                  ['Delete', 'Xóa phần tử'], ['0', 'Vừa nội dung'],
+                  ['+ / −', 'Phóng to / thu nhỏ'], ['Shift + F', 'Toàn màn hình']
+                ].map(([shortcut, label]) => (
+                  <div key={shortcut} className="flex items-center justify-between gap-4 rounded-xl px-2 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800/70">
+                    <span className="text-slate-500 dark:text-slate-400">{label}</span>
+                    <kbd className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[10px] font-bold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">{shortcut}</kbd>
                   </div>
                 ))}
               </div>

@@ -792,7 +792,7 @@ export default function InboxView({
                     <div 
                       key={notif.id}
                       onClick={() => setSelectedNotificationId(notif.id)}
-                      className={`group p-2.5 sm:p-3 rounded-2xl border transition-all flex items-start gap-2.5 cursor-pointer relative ${
+                      className={`group p-2 sm:p-3 rounded-2xl border transition-all flex items-start gap-2.5 cursor-pointer relative ${
                         isSelected
                           ? 'bg-blue-50/80 dark:bg-blue-600/15 border-blue-400/80 dark:border-blue-500/60 ring-2 ring-blue-500/20 shadow-xs'
                           : notif.read 

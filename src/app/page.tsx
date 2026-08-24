@@ -10,6 +10,7 @@ import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '
 import { presenceDotClass, uiStatusToPresence } from '@/lib/presence';
 import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notificationPolicy';
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
+import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 import { useUiStore } from '@/store/uiStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useSpaceStore } from '@/store/spaceStore';
@@ -23,7 +24,9 @@ import { usePomodoroStore } from '@/store/pomodoroStore';
 import { useAuthStore } from '@/store/authStore';
 import { useBillingEntitlement } from '@/hooks/useBillingEntitlement';
 import { useThemeSync } from '@/hooks/useThemeSync';
+import { useRuntimeConfig } from '@/hooks/useRuntimeConfig';
 import { resolveAppRole } from '@/lib/authRole';
+import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
 
 import { NavItem } from '@/components/ui';
 import { Select } from '@/components/ui/Select';
@@ -91,6 +94,7 @@ import {
   BarChart3, Target, Menu, Globe, Keyboard, Handshake, Landmark, Boxes,
   ListPlus, ListTodo, PanelLeftOpen, PanelLeftClose, PanelLeft, CheckSquare, Folder, WifiOff,
   CalendarClock, CalendarDays, Languages, UnfoldVertical, FoldVertical
+  , ShieldCheck
 } from 'lucide-react';
 
 import {
@@ -170,6 +174,7 @@ export default function App() {
   useUserPresence();
   const { t, locale } = useTranslation();
   const { applyEntitlement } = useBillingEntitlement();
+  const { config: runtimeConfig } = useRuntimeConfig();
   const isLoaded = useRef(false);
 
   // Authentication check with 1-month persistence
@@ -359,6 +364,14 @@ export default function App() {
         return;
       }
 
+      const { data: verifiedIdentity, error: identityError } = await supabase.auth.getUser(session.access_token);
+      if (identityError || !verifiedIdentity.user || verifiedIdentity.user.id !== session.user.id) {
+        updateCurrentUser(null);
+        localStorage.removeItem('avaxa_session');
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        return;
+      }
+
       const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2') {
         updateCurrentUser(null);
@@ -366,7 +379,7 @@ export default function App() {
         return;
       }
 
-      const u = session.user;
+      const u = verifiedIdentity.user;
       const cachedRaw = localStorage.getItem('avaxa_session');
       let cachedUser: any = null;
       try { cachedUser = cachedRaw ? JSON.parse(cachedRaw)?.user : null; } catch {}
@@ -2129,9 +2142,12 @@ export default function App() {
 
         // A. Load Team Members first to find user profile (or handle placeholder)
         const myMemberId = `user-${userId}`;
-        const myName = currentUser?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
+        const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || session.user.user_metadata?.avatar_url || session.user.user_metadata?.avatar || '';
+        const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.avatar || '';
+        const cachedAvatar = currentUser?.avatar && !currentUser.avatar.includes('api.dicebear.com') ? currentUser.avatar : '';
+        const myAvatar = googleAvatar || cachedAvatar || '';
         const myRole = resolveAppRole(session.user);
         
         let dbMembers: any[] = [];
@@ -2221,10 +2237,15 @@ export default function App() {
 
         if (myDbProfile) {
           // Synchronize database profile details back to currentUser
-          const syncedAvatar = myDbProfile.avatar || myAvatar;
-          const syncedName = myDbProfile.name || myName;
+          const dbAvatar = myDbProfile.avatar && !myDbProfile.avatar.includes('api.dicebear.com') ? myDbProfile.avatar : '';
+          const syncedAvatar = googleAvatar || dbAvatar || myAvatar;
+          const syncedName = myDbProfile.name || googleName || myName;
           const syncedRole = myDbProfile.role || myRole;
           const syncedIsPremium = Boolean(myDbProfile.is_premium);
+
+          if (syncedAvatar && myDbProfile.avatar !== syncedAvatar) {
+            void supabase.from('members').update({ avatar: syncedAvatar }).eq('id', myMemberId);
+          }
 
           updateCurrentUser({
             id: userId,
@@ -2890,7 +2911,7 @@ export default function App() {
                 if (eventType === 'INSERT' || eventType === 'UPDATE') {
                   const m = payload.new as any;
                   if (!m || !m.id) return;
-                  const isMe = m.id === `user-${userId}` || m.id === 'user';
+                  const isMe = m.id === `user-${userId}` || m.id === 'user' || m.user_id === userId || (m.email && session.user.email && m.email.toLowerCase().trim() === session.user.email.toLowerCase().trim());
                   const memberId = isMe ? 'user' : m.id;
                   const mappedMember: User = {
                     id: memberId,
@@ -2911,6 +2932,14 @@ export default function App() {
                     joinedDate: m.joined_date || '2026',
                     isPremium: Boolean(m.is_premium)
                   };
+
+                  if (isMe) {
+                    updateCurrentUser({
+                      ...mappedMember,
+                      id: userId,
+                      status: 'online'
+                    });
+                  }
                   setMembers(prev => {
                     const exists = prev.some(item => item.id === mappedMember.id);
                     if (exists) {
@@ -3276,18 +3305,12 @@ export default function App() {
   };
 
   const handleAddTask = async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
-    const assignee = members.find(m => m.id === t.assigneeId);
-    if (assignee) {
+    // Chỉ thông báo với người dùng khi người đó là assignee trong task
+    if (isUserAssignedToTask(t, currentUser, members)) {
       triggerToast(
         'assignment',
-        'New Task Assigned',
-        `Task "${t.title}" has been assigned to ${assignee.name}.`
-      );
-    } else {
-      triggerToast(
-        'success',
-        'New Task Created',
-        `Task "${t.title}" was recorded successfully.`
+        'Bạn được giao công việc',
+        `Bạn đã được phân công thực hiện công việc: "${t.title}".`
       );
     }
 
@@ -3389,37 +3412,32 @@ export default function App() {
     }
 
     if (oldTask) {
-      if (oldTask.assigneeId !== updated.assigneeId && updated.assigneeId) {
-        const targetUser = members.find(m => m.id === updated.assigneeId);
+      const wasAssigned = isUserAssignedToTask(oldTask, currentUser, members);
+      const isNowAssigned = isUserAssignedToTask(updated, currentUser, members);
+
+      // Chỉ thông báo với người dùng khi người đó được phân công trong task
+      if (!wasAssigned && isNowAssigned) {
         triggerToast(
           'assignment',
-          'Assignee Changed',
-          `Task "${updated.title}" has been handed over to ${targetUser ? targetUser.name : 'another colleague'}.`
+          'Bạn được giao công việc',
+          `Bạn đã được phân công thực hiện công việc: "${updated.title}".`
         );
+      }
+
+      if (oldTask.assigneeId !== updated.assigneeId && updated.assigneeId) {
+        const targetUser = members.find(m => m.id === updated.assigneeId);
         addSyncLog(`Đã bàn giao công việc "${updated.title}" cho ${targetUser ? targetUser.name : 'thành viên khác'}`, 'task');
       }
+
       if (oldTask.status !== updated.status) {
-        if (updated.status === 'completed') {
-          triggerToast(
-            'success',
-            'Task Completed!',
-            `Member has completed the task: "${updated.title}".`
-          );
-          addSyncLog(`Đã hoàn thành công việc "${updated.title}"`, 'task');
-        } else {
-          const statusTranslation: Record<string, string> = {
-            todo: 'Việc cần làm',
-            inprogress: 'Đang thực hiện',
-            review: 'Đang kiểm tra',
-            completed: 'Đã hoàn thành'
-          };
-          triggerToast(
-            'info',
-            'Status Updated',
-            `Task "${updated.title}" moved to "${statusTranslation[updated.status] || updated.status}".`
-          );
-          addSyncLog(`Đã chuyển công việc "${updated.title}" sang "${statusTranslation[updated.status] || updated.status}"`, 'task');
-        }
+        const statusTranslation: Record<string, string> = {
+          todo: 'Việc cần làm',
+          inprogress: 'Đang thực hiện',
+          review: 'Đang kiểm tra',
+          completed: 'Đã hoàn thành'
+        };
+        // Cập nhật trạng thái không gửi toast thông báo, chỉ lưu sync log nền
+        addSyncLog(`Đã chuyển công việc "${updated.title}" sang "${statusTranslation[updated.status] || updated.status}"`, 'task');
       }
     }
 
@@ -3433,13 +3451,12 @@ export default function App() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('tasks').update({
+          const payload: any = {
             title: updated.title,
             description: updated.description,
             priority: updated.priority,
             status: updated.status,
             assigneeId: updated.assigneeId || null,
-            assigneeIds: updated.assigneeIds || null,
             startDate: updated.startDate || null,
             dueDate: updated.dueDate || null,
             subtasks: updated.subtasks || [],
@@ -3455,12 +3472,24 @@ export default function App() {
             space_id: updated.spaceId || null,
             list_id: updated.listId || null,
             custom_fields: buildTaskCustomFields(updated),
-            recurrence: updated.recurrence || null,
-            relationships: updated.relationships || null
-          }).eq('id', updated.id).eq('user_id', session.user.id);
+            recurrence: updated.recurrence || null
+          };
+
+          const { error } = await supabase.from('tasks').update(payload).eq('id', updated.id);
           
           if (error) {
-            console.error('Supabase Task Update Error:', error);
+            console.warn('First task update attempt failed, retrying with fallback payload:', error.message || error);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('space_id') || error.message.includes('list_id') || error.message.includes('column'))) {
+              delete payload.workspace_id;
+              delete payload.space_id;
+              delete payload.list_id;
+              const { error: retryError } = await supabase.from('tasks').update(payload).eq('id', updated.id);
+              if (retryError) {
+                console.error('Supabase Task Update Error:', retryError.message || JSON.stringify(retryError));
+              }
+            } else {
+              console.error('Supabase Task Update Error:', error.message || JSON.stringify(error));
+            }
           }
         }
       } catch (err) {
@@ -3524,8 +3553,8 @@ export default function App() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('tasks').delete().eq('id', id).eq('user_id', session.user.id);
-          if (error) console.error('Supabase Task Delete Error:', error);
+          const { error } = await supabase.from('tasks').delete().eq('id', id);
+          if (error) console.error('Supabase Task Delete Error:', error.message || JSON.stringify(error));
         }
       } catch (err) {
         console.error('Task delete sync failure:', err);
@@ -3891,7 +3920,7 @@ export default function App() {
   ];
 
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={(user, rememberMe) => {
+    return <LoginScreen registrationEnabled={runtimeConfig.registration.enabled} onLoginSuccess={(user, rememberMe) => {
       const userWithId = user;
       updateCurrentUser(userWithId);
       if (rememberMe) {
@@ -3914,6 +3943,26 @@ export default function App() {
         role: user.role
       } : m));
     }} />;
+  }
+
+  if (runtimeConfig.maintenance.enabled && !runtimeConfig.isAdmin) {
+    return (
+      <main className="fixed inset-0 grid place-items-center overflow-hidden bg-[#07090e] p-6 text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,.25),_transparent_45%)]" />
+        <section className="relative w-full max-w-lg rounded-[30px] border border-white/10 bg-white/[0.055] p-8 text-center shadow-2xl backdrop-blur-2xl">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-400/25">
+            <Settings className="h-6 w-6 animate-[spin_8s_linear_infinite]" />
+          </span>
+          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.25em] text-indigo-300">Scheduled maintenance</p>
+          <h1 className="mt-2 text-2xl font-black">Apexa đang được bảo trì</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-300">{runtimeConfig.maintenance.message}</p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-500">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+            {runtimeConfig.runtime.statusMessage} · v{runtimeConfig.version}
+          </div>
+        </section>
+      </main>
+    );
   }
 
   if (showOnboarding) {
@@ -4154,7 +4203,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2, type: "spring", stiffness: 380, damping: 26 }}
-                    className={`absolute top-full mt-2 w-[270px] max-w-[calc(100vw-1.5rem)] p-3 bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
+                    className={`absolute top-full mt-2 w-[min(92vw,270px)] p-3 bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
                   >
                     {/* Active Workspace Hero Card */}
                     <div className="relative p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-slate-50/60 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900/90 border border-indigo-100 dark:border-indigo-900/40 shadow-xs group overflow-hidden">
@@ -4487,7 +4536,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="apexa-header-actions flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="apexa-header-actions flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3 pr-2 sm:pr-3">
             <button
               type="button"
               onClick={() => setShowKeyboardShortcuts(true)}
@@ -4558,7 +4607,7 @@ export default function App() {
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: 8 }}
                           transition={{ type: "spring", stiffness: 420, damping: 28 }}
-                          className="absolute right-0 top-full mt-2 w-84 sm:w-92 max-w-[92vw] bg-white dark:bg-[#0c0f18] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)] p-5 z-50 text-left space-y-4 font-sans overflow-hidden"
+                          className="absolute right-0 top-full mt-2 w-[min(92vw,23rem)] bg-white dark:bg-[#0c0f18] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-[0_25px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_70px_-15px_rgba(0,0,0,0.8)] p-4 sm:p-5 z-50 text-left space-y-4 font-sans overflow-hidden"
                         >
                           {/* Ambient gradient decoration */}
                           <div className="absolute -top-20 -right-12 w-52 h-52 rounded-full bg-gradient-to-br from-indigo-500/15 via-sky-500/10 to-transparent blur-2xl pointer-events-none dark:from-indigo-500/20" />
@@ -4762,7 +4811,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-2xl backdrop-blur-xl z-[90] overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 font-sans"
+                    className="absolute right-0 mt-2.5 w-[min(95vw,24rem)] bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-2xl backdrop-blur-xl z-[90] overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 font-sans"
                   >
                     {/* Header */}
                     <div className="p-3.5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
@@ -4974,7 +5023,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute right-0 mt-2 w-[250px] p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 z-[100] text-left origin-top-right font-sans"
+                    className="absolute right-0 mt-2 w-[min(92vw,250px)] p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 z-[100] text-left origin-top-right font-sans"
                   >
                     {/* User Info Header with Role */}
                     <div className="p-2.5 mb-1 bg-slate-50/90 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800/60">
@@ -5295,6 +5344,16 @@ export default function App() {
         <div className={`h-full flex flex-col justify-between overflow-hidden ${isMainSidebarCollapsed ? 'space-y-2' : 'space-y-4'}`}>
           {/* Scrollable Navigation List */}
           <div className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-0.5 ${isMainSidebarCollapsed ? 'space-y-1' : 'space-y-0.5'}`}>
+            {currentUser.id === APEXA_SUPER_ADMIN_UID && (
+              <a
+                href="/admin"
+                className={`mb-2 flex items-center rounded-xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-200 transition hover:bg-indigo-500/20 ${isMainSidebarCollapsed ? 'h-10 justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
+                title="Apexa Control Center"
+              >
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                {!isMainSidebarCollapsed && <span className="text-[11px] font-black">Control Center</span>}
+              </a>
+            )}
             {orderedItems.map((item) => {
               const isActive = item.id === 'tasks'
                 ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
@@ -5424,7 +5483,7 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'whiteboard' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
             <main className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden">
@@ -5441,7 +5500,7 @@ export default function App() {
                       ? 'overflow-hidden' 
                       : activeTab === 'dashboard'
                         ? 'apexa-route-scroll overflow-y-auto custom-scrollbar'
-                        : 'apexa-route-scroll overflow-y-auto p-3 pb-12 sm:p-4 md:p-6 custom-scrollbar'
+                        : 'apexa-route-scroll overflow-y-auto p-2.5 pb-12 sm:p-3 md:p-4 lg:p-6 custom-scrollbar'
                   }`}
                 >
                   {activeTab === 'dashboard' && (
@@ -5671,24 +5730,6 @@ export default function App() {
 
                   {activeTab === 'whiteboard' && (
                     <WhiteboardHub
-                      spaces={spaces}
-                      onSaveSpaces={handleSaveSpaces}
-                      activeWorkspaceId={activeWorkspaceId}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
-                      tasks={tasks}
-                      isOffline={isOffline}
-                      currentUser={currentUser}
-                      onUpgradePremium={() => setShowPremiumModal(true)}
-                      onAddSyncLog={addSyncLog}
-                      onAddTask={handleAddTask}
-                      triggerToast={triggerToast}
-                    />
-                  )}
-
-                  {activeTab === 'whiteboard' && (
-                    <WhiteboardHub
-                      spaces={spaces}
-                      onSaveSpaces={handleSaveSpaces}
                       activeWorkspaceId={activeWorkspaceId}
                       members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
                       tasks={tasks}

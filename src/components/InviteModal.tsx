@@ -172,13 +172,13 @@ export default function InviteModal({ isOpen, onClose, onSendInvites, workspaceN
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.94, y: 15, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-            className="relative w-full max-w-[460px] modal-glass-card rounded-[28px] shadow-2xl border border-white/80 dark:border-slate-800/80 p-6 z-10 font-sans select-none overflow-hidden"
+            className="relative w-[min(95vw,460px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto modal-glass-card rounded-[28px] shadow-2xl border border-white/80 dark:border-slate-800/80 p-4 sm:p-5 md:p-6 z-10 font-sans select-none"
           >
             {/* Close Button */}
             <button
               onClick={onClose}
               type="button"
-              className="absolute top-5 right-5 w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-300 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-300 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

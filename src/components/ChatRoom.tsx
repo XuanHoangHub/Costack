@@ -3208,7 +3208,7 @@ ${channelMessagesText}`;
 
                   {/* Interactive Poll Rendering */}
                   {msg.attachment?.isPoll && (
-                    <div className="mt-2.5 p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-2.5 max-w-md text-left select-none">
+                    <div className="mt-2.5 p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-2.5 max-w-[90%] sm:max-w-md text-left select-none">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-indigo-500 shrink-0" />
                         <span className="text-xs font-black text-slate-800 dark:text-slate-100">{msg.attachment.question}</span>
@@ -3613,7 +3613,7 @@ ${channelMessagesText}`;
         )}
 
                 {/* ── MESSENGER-STANDARD CHAT INPUT AREA ── */}
-        <div className="px-3.5 py-2.5 bg-white/90 dark:bg-[#07080d]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
+        <div className="px-3.5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] bg-white/90 dark:bg-[#07080d]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
           <form onSubmit={handleSendMessage} className="relative flex flex-col gap-2 max-w-7xl mx-auto select-text">
 
             {/* Reply Preview Bar */}
@@ -4054,7 +4054,7 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden relative"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -4202,7 +4202,7 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden relative h-full"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">

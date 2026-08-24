@@ -72,8 +72,6 @@ const isAttentionEvent = ({ type = '', title = '', message = '' }: NotificationL
     'security',
     'bao mat',
     'assignee changed',
-    'status updated',
-    'task completed',
     'action required',
     'thong bao',
     'nhac nho',

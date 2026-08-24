@@ -5,4 +5,6 @@ export { Badge } from "./Badge";
 export { SegmentedControl } from "./SegmentedControl";
 export { MockupFrame } from "./MockupFrame";
 export { FloatingCommandBar } from "./FloatingCommandBar";
+export { Checkbox } from "./Checkbox";
+export type { CheckboxProps, CheckboxSize, CheckboxVariant } from "./Checkbox";
 export { ApexaAiIcon, ApexaAiAvatar } from "../ApexaAiIcon";

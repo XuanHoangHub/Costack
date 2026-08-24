@@ -31,6 +31,37 @@ const securityHeaders = [
   },
 ];
 
+const adminSecurityHeaders = [
+  {
+    key: 'Cache-Control',
+    value: 'private, no-store, max-age=0, must-revalidate',
+  },
+  {
+    key: 'Content-Security-Policy',
+    value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+  },
+  {
+    key: 'Cross-Origin-Opener-Policy',
+    value: 'same-origin',
+  },
+  {
+    key: 'Cross-Origin-Resource-Policy',
+    value: 'same-origin',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'no-referrer',
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY',
+  },
+  {
+    key: 'X-Robots-Tag',
+    value: 'noindex, nofollow, noarchive',
+  },
+];
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,
@@ -57,6 +88,14 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        source: '/admin/:path*',
+        headers: adminSecurityHeaders,
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: adminSecurityHeaders,
       },
     ];
   },

@@ -588,10 +588,10 @@ export default function WorkspaceSettingsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
-          className="relative w-full max-w-4xl h-[85vh] max-h-[720px] modal-glass-card rounded-3xl overflow-hidden shadow-2xl border border-white/80 dark:border-slate-800/80 flex flex-col z-10 select-none"
+          className="relative w-[min(95vw,896px)] max-sm:w-full max-sm:mx-2 h-[85vh] max-h-[90dvh] modal-glass-card rounded-3xl overflow-hidden shadow-2xl border border-white/80 dark:border-slate-800/80 flex flex-col z-10 select-none"
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-905/50 shrink-0">
+          <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-905/50 shrink-0">
             <div className="flex items-center gap-3">
               <div 
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-[15px] shadow-sm shrink-0 overflow-hidden relative"
@@ -635,10 +635,10 @@ export default function WorkspaceSettingsModal({
               </div>
               <button 
                 onClick={onClose}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer transition-colors"
+                className="min-h-[44px] min-w-[44px] rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold cursor-pointer transition-colors"
                 aria-label={isVietnamese ? 'Đóng' : 'Close'}
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -646,7 +646,7 @@ export default function WorkspaceSettingsModal({
           {/* Body Layout */}
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Sidebar Navigation */}
-            <div className="w-60 border-r border-slate-100 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-955/20 p-4 flex flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
+            <div className="w-60 hidden md:flex border-r border-slate-100 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-955/20 p-4 flex-col gap-4 shrink-0 overflow-y-auto custom-scrollbar">
               
               {/* Search Header */}
               <div className="relative">
@@ -657,9 +657,9 @@ export default function WorkspaceSettingsModal({
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={isVietnamese ? 'Tìm cài đặt...' : 'Search settings...'}
-                  className="w-full pl-8 pr-12 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-905 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                  className="w-full pl-8 pr-12 py-1.5 min-h-[44px] text-[11px] font-semibold rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-905 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
-                <span className="absolute right-2 top-2 text-[8px] font-black text-slate-400 border border-slate-200 dark:border-slate-805 rounded px-1 select-none">
+                <span className="absolute right-2 top-3 text-[8px] font-black text-slate-400 border border-slate-200 dark:border-slate-805 rounded px-1 select-none">
                   Ctrl+K
                 </span>
               </div>
@@ -677,7 +677,7 @@ export default function WorkspaceSettingsModal({
                         <button
                           key={link.id}
                           onClick={() => setActiveTab(link.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`w-full flex items-center min-h-[44px] gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                             activeTab === link.id
                               ? 'bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-l-4 border-indigo-500 shadow-xs'
                               : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350 hover:bg-slate-100/50 dark:hover:bg-slate-800/40'
@@ -694,7 +694,7 @@ export default function WorkspaceSettingsModal({
               <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-805">
                 <button
                   onClick={() => setActiveTab('danger')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center min-h-[44px] gap-2.5 px-3 py-2 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                     activeTab === 'danger'
                       ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 border-l-4 border-rose-550 shadow-xs'
                       : 'text-rose-500 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-955/10'
@@ -707,7 +707,7 @@ export default function WorkspaceSettingsModal({
             </div>
 
             {/* Content Pane */}
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 custom-scrollbar">
               
               {/* 1. General Settings Tab */}
               {activeTab === 'general' && (

@@ -659,16 +659,20 @@ export default function TaskTableView({
         <thead>
           <tr className="bg-slate-50/95 dark:bg-slate-900/95">
             <th className="sticky left-0 top-0 z-20 w-12 h-11 px-4 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 text-center">
-              <input type="checkbox" checked={allSelected}
+              <input 
+                type="checkbox" 
+                ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !allSelected; }}
+                checked={allSelected}
                 aria-label="Chọn tất cả công việc"
                 onChange={e => { if (e.target.checked) setSelectedTaskIds(sortedTasks.map(t => t.id)); else setSelectedTaskIds([]); }}
-                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600" />
+                className="w-4 h-4 rounded-md cursor-pointer" 
+              />
             </th>
             {/* Task Name is always visible and first */}
             <CustomizableHeader 
               col="title" 
               label={getColumnLabel('title', 'Task', 'Công việc')}
-              className="min-w-[250px]" 
+              className="min-w-[250px] sticky left-12 z-20 bg-slate-50/95 dark:bg-slate-900/95" 
               sortCol={sortCol} 
               sortDir={sortDir} 
               onToggleSort={toggleSort}
@@ -803,11 +807,11 @@ export default function TaskTableView({
                     <input type="checkbox" checked={isSelected}
                       aria-label={`Select ${task.title}`}
                       onChange={e => setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))}
-                      className={`w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-45 group-hover/row:opacity-100'}`} />
+                      className={`w-4 h-4 rounded-md cursor-pointer transition-opacity ${isSelected ? 'opacity-100' : 'opacity-40 group-hover/row:opacity-100'}`} />
                   </div>
                 </td>
 
-                <td className="h-[54px] px-4 border-b border-slate-100 dark:border-slate-800/60">
+                <td className="sticky left-12 z-[5] bg-inherit h-[54px] px-4 border-b border-slate-100 dark:border-slate-800/60">
                   <div className="flex items-center gap-2">
                     {/* Render visual indentation and connector lines */}
                     {depth > 0 && (
@@ -1105,7 +1109,7 @@ export default function TaskTableView({
                   <Plus className="w-3.5 h-3.5" />
                 </div>
               </td>
-              <td className="px-3 py-3 border-b border-indigo-100/70 dark:border-indigo-900/50">
+              <td className="sticky left-12 z-[5] bg-inherit px-3 py-3 border-b border-indigo-100/70 dark:border-indigo-900/50">
                 <div className="relative flex items-center">
                   <input
                     type="text"

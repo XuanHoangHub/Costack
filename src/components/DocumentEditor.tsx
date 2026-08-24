@@ -1844,7 +1844,7 @@ export default function DocumentEditor({
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95, y: 5 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="absolute left-0 top-full mt-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 grid grid-cols-6 gap-1.5 w-64 select-none"
+                    className="absolute left-0 top-full mt-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 grid grid-cols-6 gap-1.5 w-[min(92vw,16rem)] select-none"
                   >
                     {EMOJIS.map(emo => (
                       <button

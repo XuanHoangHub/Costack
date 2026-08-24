@@ -763,7 +763,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
       <div className="lg:col-span-8 space-y-6">
         
         {/* Aesthetic Title Block */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500">
@@ -803,9 +803,9 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
         </div>
 
         {/* Dynamic Analytics & Curves (Recharts) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Chart 1: Daily Focus Minutes */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">{locale === 'vi' ? 'Biểu đồ Tập Trung Tuần' : 'Weekly Focus Chart'}</h2>
@@ -814,7 +814,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
               <BarChart2 className="w-4 h-4 text-slate-400" />
             </div>
 
-            <div className="h-48 w-full">
+            <div className="h-40 sm:h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={focusChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
@@ -834,13 +834,13 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
           </div>
 
           {/* Productivity Metrics Summary cards */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4 flex flex-col justify-between">
             <div className="space-y-0.5 pb-2">
               <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">Hiệu suất và thống kê hôm nay</h2>
               <p className="text-xs text-slate-400 dark:text-slate-500">Tổng quan các chỉ số năng suất và tiến độ thành tích</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 flex-1">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
               <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
                 <span className="text-xs font-semibold text-slate-400 dark:text-slate-550 uppercase">Completed</span>
                 <div className="mt-2 space-y-1">
@@ -885,7 +885,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
         </div>
 
         {/* glassmorphic achievements board */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-5">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-105 dark:border-slate-800/80 pb-4">
             <div className="space-y-0.5">
               <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 font-sans tracking-tight">
@@ -979,7 +979,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
         </div>
 
         {/* Habits Tracker Board (Vietnamese Style) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-5">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
             <div className="space-y-0.5">
               <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -1074,7 +1074,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
         </div>
 
         {/* Eisenhower Prioritization Board */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
           <div className="space-y-0.5 border-b border-slate-100 dark:border-slate-800 pb-3">
             <h2 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Compass className="w-4.5 h-4.5 text-indigo-500" />
@@ -1173,7 +1173,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
       <div className="lg:col-span-4 space-y-6">
         
         {/* Modern Pomodoro Timer Node */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center text-center space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center text-center space-y-6">
           <div className="space-y-1 w-full text-left">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-500" />
@@ -1273,7 +1273,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
         </div>
 
         {/* Ambient Soundscapes Synthesizer panel (Acoustic brain boosts) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/65 dark:border-slate-800 shadow-xs space-y-4">
           <div className="space-y-0.5">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Volume2 className="w-4 h-4 text-indigo-500" />

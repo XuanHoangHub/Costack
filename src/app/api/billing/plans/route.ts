@@ -1,43 +1,33 @@
-import type Stripe from 'stripe';
-import { billingErrorResponse, getPriceId, getStripe, type BillingCycle } from '@/lib/billing/server';
+import { SELF_SERVE_PLANS, type BillingCycle, type SelfServeBillingPlan } from '@/lib/billing/plans';
+import { getPayOSPrice, isPayOSConfigured } from '@/lib/billing/payos';
+import { billingErrorResponse } from '@/lib/billing/server';
 
 export const dynamic = 'force-dynamic';
 
-function serializePrice(cycle: BillingCycle, price: Stripe.Price) {
-  if (price.type !== 'recurring' || price.unit_amount == null || !price.recurring) {
-    throw new Error(`The configured ${cycle} price must be a fixed recurring Stripe Price.`);
-  }
+function serializePrice(plan: SelfServeBillingPlan, cycle: BillingCycle) {
   return {
+    plan,
     cycle,
-    id: price.id,
-    unit_amount: price.unit_amount,
-    currency: price.currency,
-    interval: price.recurring.interval,
-    interval_count: price.recurring.interval_count
+    id: `payos:${plan}:${cycle}`,
+    unit_amount: getPayOSPrice(plan, cycle),
+    currency: 'vnd',
+    interval: cycle === 'yearly' ? 'year' as const : 'month' as const,
+    interval_count: 1,
   };
 }
 
 export async function GET() {
   try {
-    if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PRICE_PRO_MONTHLY || !process.env.STRIPE_PRICE_PRO_YEARLY) {
-      return Response.json({
-        configured: false,
-        prices: {}
-      }, { headers: { 'Cache-Control': 'private, no-store' } });
-    }
+    const prices: Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, ReturnType<typeof serializePrice>>>>> = {};
+    SELF_SERVE_PLANS.forEach((plan) => (['monthly', 'yearly'] as const).forEach((cycle) => {
+      prices[plan] ??= {};
+      prices[plan]![cycle] = serializePrice(plan, cycle);
+    }));
 
-    const stripe = getStripe();
-    const [monthly, yearly] = await Promise.all([
-      stripe.prices.retrieve(getPriceId('monthly')),
-      stripe.prices.retrieve(getPriceId('yearly'))
-    ]);
-    return Response.json({
-      configured: true,
-      prices: {
-        monthly: serializePrice('monthly', monthly),
-        yearly: serializePrice('yearly', yearly)
-      }
-    }, { headers: { 'Cache-Control': 'private, no-store' } });
+    return Response.json(
+      { configured: isPayOSConfigured(), provider: 'payos', prices },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    );
   } catch (error) {
     return billingErrorResponse(error);
   }

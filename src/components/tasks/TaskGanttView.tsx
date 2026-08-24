@@ -709,7 +709,7 @@ export default function TaskGanttView({
 
         {/* ── Left: Task Tree Sidebar Table ── */}
         <div className={`border-r border-slate-200/80 dark:border-slate-800/80 overflow-y-auto bg-white dark:bg-slate-950 transition-all duration-300 shrink-0 ${
-          isLeftPanelCollapsed ? 'w-0 min-w-0 border-r-0' : 'w-[300px] md:w-[340px]'
+          isLeftPanelCollapsed ? 'w-0 min-w-0 border-r-0' : 'w-[200px] sm:w-[300px] md:w-[340px]'
         }`}>
           {/* Header */}
           <div className="h-[60px] flex items-end justify-between px-4 pb-2.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-900/60">

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useInView } from 'motion/react';
 import {
   Kanban, Sparkles, ArrowRight, Menu, X,
@@ -19,6 +20,7 @@ import ThemeSwitch from '../ThemeSwitch';
 import LanguageDropdown from '../LanguageDropdown';
 import { Button, Badge, SegmentedControl } from '../ui';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { SUGGESTED_PRICES, type BillingCycle, type BillingPlan, type SelfServeBillingPlan } from '@/lib/billing/plans';
 import { ApexaAiIcon, ApexaAiAvatar } from '../ApexaAiIcon';
 import LandingFooter from './LandingFooter';
 
@@ -41,6 +43,8 @@ interface MockTask {
 }
 
 type PublicBillingPrice = {
+  plan: SelfServeBillingPlan;
+  cycle: BillingCycle;
   unit_amount: number;
   currency: string;
   interval: 'day' | 'week' | 'month' | 'year';
@@ -1171,14 +1175,15 @@ function ComparisonMatrix() {
    MAIN LANDING PAGE EXPORT
    ========================================================================= */
 export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
+  const router = useRouter();
   const { isVietnamese } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
 
   const [activeCategory, setActiveCategory] = useState('all');
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
-  const [billingPrices, setBillingPrices] = useState<Partial<Record<'monthly' | 'yearly', PublicBillingPrice>>>({});
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly');
+  const [billingPrices, setBillingPrices] = useState<Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, PublicBillingPrice>>>>>({});
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -1213,7 +1218,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         : 'Enterprise-grade security: AES 256-bit encryption, Row-Level Security & SOC-2 compliance.',
       cta: isVietnamese ? 'Xem bảo mật' : 'Learn more',
       action: () => {
-        if (typeof window !== 'undefined') window.location.href = '/legal/security';
+        router.push('/legal/security');
       },
     },
     {
@@ -1236,7 +1241,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       cta: isVietnamese ? 'Đăng ký miễn phí' : 'Sign up free',
       action: onSignUp,
     },
-  ], [isVietnamese, onSignUp]);
+  ], [isVietnamese, onSignUp, router]);
 
   // Dynamic Categories
   const categories = useMemo(() => [
@@ -1398,80 +1403,68 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   // Dynamic Pricing Plans
   const pricingPlans = useMemo(() => [
     {
-      id: 'free',
-      name: isVietnamese ? 'Khởi đầu (Free)' : 'Starter (Free)',
-      desc: isVietnamese
-        ? 'Hoàn hảo cho cá nhân và nhóm nhỏ muốn bắt đầu chuẩn hóa quy trình làm việc.'
-        : 'Perfect for individuals and small teams standardizing daily workflows.',
+      id: 'free' as BillingPlan,
+      name: 'Free',
+      desc: isVietnamese ? 'Dành cho cá nhân bắt đầu chuẩn hóa công việc.' : 'For individuals starting to organize their work.',
       badge: isVietnamese ? 'Miễn phí mãi mãi' : 'Free Forever',
       highlight: false,
       cta: isVietnamese ? 'Bắt đầu miễn phí' : 'Start for Free',
       features: isVietnamese ? [
-        'Tối đa 5 thành viên không gian',
-        'Không giới hạn số lượng Task & Dự án',
-        'Chế độ xem Kanban & List View',
-        'Lưu trữ local-first và cloud theo cấu hình',
-        'Đồng bộ dữ liệu thời gian thực',
-        'Hỗ trợ tiêu chuẩn qua kênh trong ứng dụng'
+        'Tối đa 5 Spaces', 'Task và dự án không giới hạn', 'Board, List và Docs cơ bản', '3 bảng trắng cộng tác', '100 AI credits mỗi tháng'
       ] : [
-        'Up to 5 workspace members',
-        'Unlimited tasks & projects',
-        'Kanban Board & List views',
-        'Local-first and deployment-configured cloud storage',
-        'Real-time cloud synchronization',
-        'Standard in-app support channel'
+        'Up to 5 Spaces', 'Unlimited tasks and projects', 'Core Board, List, and Docs', '3 collaborative whiteboards', '100 monthly AI credits'
       ]
     },
     {
-      id: 'pro',
-      name: 'Apexa Pro OS',
-      desc: isVietnamese
-        ? 'Giải pháp toàn diện cho các đội ngũ phát triển sản phẩm, startup & doanh nghiệp tăng tốc.'
-        : 'The complete productivity suite for fast-moving engineering teams, startups & agencies.',
+      id: 'starter' as BillingPlan,
+      name: 'Starter',
+      desc: isVietnamese ? 'Cho nhóm nhỏ cần cộng tác và giao việc chuyên nghiệp.' : 'For small teams that need professional collaboration.',
+      badge: isVietnamese ? 'Khởi động nhanh' : 'Get Started',
+      highlight: false,
+      cta: isVietnamese ? 'Chọn Starter' : 'Choose Starter',
+      features: isVietnamese ? [
+        'Không giới hạn Spaces và whiteboard', 'Calendar và Gantt', '500 AI credits / người', '1.000 automation mỗi tháng', 'Tích hợp thiết yếu'
+      ] : [
+        'Unlimited spaces and whiteboards', 'Calendar and Gantt', '500 AI credits / user', '1,000 monthly automations', 'Essential integrations'
+      ]
+    },
+    {
+      id: 'pro' as BillingPlan,
+      name: 'Pro',
+      desc: isVietnamese ? 'Cân bằng tốt nhất giữa AI, vận hành và chi phí.' : 'The best balance of AI, operations, and cost.',
       badge: isVietnamese ? 'Lựa chọn hàng đầu 🔥' : 'Most Popular 🔥',
       highlight: true,
-      cta: isVietnamese ? 'Trải nghiệm Pro OS' : 'Upgrade to Pro OS',
+      cta: isVietnamese ? 'Chọn Pro' : 'Choose Pro',
       features: isVietnamese ? [
-        'Không giới hạn thành viên & Spaces',
-        'Apexa Brain AI Copilot theo chính sách sử dụng hợp lý',
-        'Trọn bộ 5 View Modes (Board, Table, Calendar, Gantt, Timeline)',
-        'Báo cáo tự động hóa phân tích hiệu suất tuần bằng AI',
-        'Đồng bộ 2 chiều Google Calendar & Lịch biểu',
-        'Dung lượng cloud theo gói triển khai',
-        'Hỗ trợ kỹ thuật ưu tiên'
+        'Toàn bộ Starter', 'Apexa AI và báo cáo nâng cao', 'CRM, ERP và Finance workspace', '5.000 automation mỗi tháng', 'Time tracking, export và khách mời'
       ] : [
-        'Unlimited members & spaces',
-        'Apexa Brain AI Copilot with fair-use limits',
-        'All 5 View Modes (Board, Table, Calendar, Gantt, Timeline)',
-        'Automated AI weekly performance digests',
-        'Two-way Google Calendar synchronization',
-        'Cloud capacity based on deployment plan',
-        'Priority technical support'
+        'Everything in Starter', 'Apexa AI and advanced reporting', 'CRM, ERP, and Finance workspaces', '5,000 monthly automations', 'Time tracking, export, and guests'
       ]
     },
     {
-      id: 'enterprise',
-      name: isVietnamese ? 'Doanh Nghiệp (Enterprise)' : 'Enterprise',
-      desc: isVietnamese
-        ? 'Dành cho các tổ chức quy mô lớn yêu cầu kiểm soát dữ liệu, bảo mật chuyên sâu và SLA cao cấp.'
-        : 'A scoped deployment plan for organizations requiring additional governance, migration, and support.',
+      id: 'business' as BillingPlan,
+      name: 'Business',
+      desc: isVietnamese ? 'Quản trị và mở rộng cho nhiều phòng ban.' : 'Governance and scale for multiple departments.',
+      badge: isVietnamese ? 'Mở rộng tổ chức' : 'Scale Up',
+      highlight: false,
+      cta: isVietnamese ? 'Chọn Business' : 'Choose Business',
+      features: isVietnamese ? [
+        'Toàn bộ Pro', 'Phân quyền và nhiều workspace nâng cao', 'Portfolio, workload và audit log', 'API, webhook và AI quota cao', 'Hỗ trợ ưu tiên'
+      ] : [
+        'Everything in Pro', 'Advanced permissions and workspaces', 'Portfolio, workload, and audit log', 'API, webhooks, and higher AI quota', 'Priority support'
+      ]
+    },
+    {
+      id: 'enterprise' as BillingPlan,
+      name: 'Enterprise',
+      desc: isVietnamese ? 'Bảo mật, triển khai và SLA được thiết kế riêng.' : 'Tailored security, deployment, and SLA.',
       badge: isVietnamese ? 'Tùy chỉnh riêng' : 'Custom Tailored',
       highlight: false,
       cta: isVietnamese ? 'Liên hệ tư vấn' : 'Contact Enterprise Team',
       features: isVietnamese ? [
-        'Tất cả quyền lợi của gói Pro OS',
-        'Đánh giá kiến trúc và phạm vi triển khai riêng',
-        'Hỗ trợ migration dữ liệu theo kế hoạch thống nhất',
-        'Chính sách phân quyền và bảo mật theo yêu cầu',
-        'SLA chỉ áp dụng khi được thẩm định và ký kết',
-        'Đầu mối hỗ trợ triển khai doanh nghiệp'
+        'Toàn bộ Business', 'SSO/SAML và SCIM', 'Quản trị dữ liệu tùy chỉnh', 'SLA và onboarding riêng', 'Customer Success chuyên trách'
       ] : [
-        'All features in Pro OS plan',
-        'Architecture and deployment scope assessment',
-        'Planned data migration assistance',
-        'Custom access-control and security requirements',
-        'SLA available after written assessment and agreement',
-        'Dedicated enterprise implementation contact'
+        'Everything in Business', 'SSO/SAML and SCIM', 'Custom data governance', 'Tailored SLA and onboarding', 'Dedicated Customer Success'
       ]
     }
   ], [isVietnamese]);
@@ -1549,11 +1542,11 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
     },
     {
       q: isVietnamese
-        ? 'Chính sách dùng thử và nâng cấp gói Pro như thế nào?'
-        : 'How do the Free and Pro plans work?',
+        ? 'Các gói Free, Starter, Pro và Business hoạt động như thế nào?'
+        : 'How do the Free, Starter, Pro, and Business plans work?',
       a: isVietnamese
-        ? 'Bạn có thể bắt đầu với gói Miễn phí không cần thẻ tín dụng. Khi nâng cấp, giá và chu kỳ thanh toán chính thức được hiển thị trên Stripe Checkout trước khi xác nhận. Bạn có thể quản lý hoặc hủy gói trong Billing Portal; mọi chính sách hoàn tiền phải được xác nhận tại thời điểm mua.'
-        : 'You can start on the Free plan without a credit card. Stripe Checkout shows the official price and billing cycle before confirmation. You can manage or cancel through the Billing Portal; any refund terms must be confirmed at purchase.'
+        ? 'Bạn có thể bắt đầu với Free không cần thẻ tín dụng, sau đó chọn Starter, Pro hoặc Business theo quy mô. PayOS hiển thị số tiền chính thức và hỗ trợ VietQR; gói trả trước không tự động gia hạn.'
+        : 'Start on Free without a credit card, then choose Starter, Pro, or Business as your team grows. PayOS shows the final amount and supports VietQR; prepaid plans do not auto-renew.'
     }
   ], [isVietnamese]);
 
@@ -1580,29 +1573,31 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   const formatPrice = (planId: string) => {
     if (planId === 'free') return { value: isVietnamese ? '0 ₫' : '$0', suffix: isVietnamese ? '/ mãi mãi' : '/ forever' };
     if (planId === 'enterprise') return { value: isVietnamese ? 'Liên hệ' : 'Custom', suffix: isVietnamese ? '/ tùy biến SLA' : '/ tailored SLA' };
-    const price = billingPrices[billingCycle];
-    if (!price) {
-      return {
-        value: isVietnamese 
-          ? 'Chưa mở bán'
-          : 'Coming soon',
-        suffix: ''
-      };
-    }
-    const monthlyAmount = price.unit_amount / (price.interval === 'year' ? 12 * price.interval_count : price.interval_count);
-    const divisor = ZERO_DECIMAL_CURRENCIES.has(price.currency.toLowerCase()) ? 1 : 100;
+    const paidPlan = planId as SelfServeBillingPlan;
+    const price = billingPrices[paidPlan]?.[billingCycle];
+    const unitAmount = price?.unit_amount ?? SUGGESTED_PRICES[paidPlan][billingCycle];
+    const monthlyAmount = unitAmount / (billingCycle === 'yearly' ? 12 * (price?.interval_count || 1) : (price?.interval_count || 1));
+    const currency = price?.currency || 'usd';
+    const divisor = ZERO_DECIMAL_CURRENCIES.has(currency.toLowerCase()) ? 1 : 100;
     return {
-      value: new Intl.NumberFormat(isVietnamese ? 'vi-VN' : 'en-US', { style: 'currency', currency: price.currency.toUpperCase(), maximumFractionDigits: 0 }).format(monthlyAmount / divisor),
+      value: new Intl.NumberFormat(isVietnamese ? 'vi-VN' : 'en-US', { style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: 0 }).format(monthlyAmount / divisor),
       suffix: isVietnamese ? '/ người / tháng' : '/ user / month'
     };
   };
 
-  const yearlySaving = billingPrices.monthly && billingPrices.yearly && billingPrices.monthly.currency === billingPrices.yearly.currency
-    ? Math.max(0, Math.round((1 - billingPrices.yearly.unit_amount / (billingPrices.monthly.unit_amount * 12)) * 100))
-    : 0;
+  const proMonthly = billingPrices.pro?.monthly?.unit_amount ?? SUGGESTED_PRICES.pro.monthly;
+  const proYearly = billingPrices.pro?.yearly?.unit_amount ?? SUGGESTED_PRICES.pro.yearly;
+  const yearlySaving = Math.max(0, Math.round((1 - proYearly / (proMonthly * 12)) * 100));
 
   const startPlan = (planId: string) => {
-    if (planId === 'pro') localStorage.setItem('apexa_pending_upgrade_cycle', billingCycle);
+    if (planId === 'enterprise') {
+      window.location.assign(`mailto:contact@apexa.vn?subject=${encodeURIComponent('Apexa Enterprise consultation')}`);
+      return;
+    }
+    if (planId !== 'free') {
+      localStorage.setItem('apexa_pending_upgrade_cycle', billingCycle);
+      localStorage.setItem('apexa_pending_upgrade_plan', planId);
+    }
     onSignUp();
   };
 
@@ -2161,7 +2156,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 items-stretch">
             {pricingPlans.map(plan => {
               const price = formatPrice(plan.id);
               return (
@@ -2169,7 +2164,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   key={plan.id}
                   className={`rounded-3xl p-8 flex flex-col justify-between text-left relative transition-all ${
                     plan.highlight
-                      ? 'shots-glass-panel border-2 border-blue-500 shadow-2xl shadow-blue-500/20 scale-105 z-10'
+                      ? 'shots-glass-panel border-2 border-blue-500 shadow-2xl shadow-blue-500/20 xl:scale-[1.035] z-10'
                       : 'shots-glass-card hover:border-slate-300 dark:hover:border-white/20'
                   }`}
                 >

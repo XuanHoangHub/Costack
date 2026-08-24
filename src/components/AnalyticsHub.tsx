@@ -322,7 +322,7 @@ export default function AnalyticsHub({
       <motion.div 
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-6 md:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6"
+        className="p-4 sm:p-6 md:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm relative overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6"
       >
         <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="space-y-2 relative z-10">
@@ -399,7 +399,7 @@ export default function AnalyticsHub({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.05 }}
-            className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden"
+            className="p-4 sm:p-5 lg:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden"
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-450 dark:text-slate-500">{card.label}</span>
@@ -438,7 +438,7 @@ export default function AnalyticsHub({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* 1. Area Chart: Weekly Velocity */}
-          <div className="lg:col-span-8 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="lg:col-span-8 p-4 sm:p-5 lg:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-6">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <LineChart className="w-4.5 h-4.5 text-indigo-500" />
@@ -449,7 +449,7 @@ export default function AnalyticsHub({
               </p>
             </div>
 
-            <div className="h-[280px] w-full">
+            <div className="h-[200px] sm:h-[240px] md:h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={velocityChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
@@ -475,7 +475,7 @@ export default function AnalyticsHub({
           </div>
 
           {/* 2. Donut Chart: Status Distribution */}
-          <div className="lg:col-span-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="lg:col-span-4 p-4 sm:p-5 lg:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <PieIcon className="w-4.5 h-4.5 text-indigo-500" />
@@ -487,7 +487,7 @@ export default function AnalyticsHub({
             </div>
 
             <div className="flex items-center justify-center py-6 relative">
-              <div className="w-[170px] h-[170px]">
+              <div className="w-[140px] h-[140px] sm:w-[170px] sm:h-[170px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -546,7 +546,7 @@ export default function AnalyticsHub({
           </div>
 
           {/* 3. Bar Chart: Space Distribution */}
-          <div className="lg:col-span-6 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="lg:col-span-6 p-4 sm:p-5 lg:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-6">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <Compass className="w-4.5 h-4.5 text-indigo-500" />
@@ -557,7 +557,7 @@ export default function AnalyticsHub({
               </p>
             </div>
 
-            <div className="h-[250px] w-full">
+            <div className="h-[180px] sm:h-[220px] md:h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={spaceDistributionData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
@@ -573,7 +573,7 @@ export default function AnalyticsHub({
           </div>
 
           {/* 4. Radar Chart: Member capability/performance stats */}
-          <div className="lg:col-span-6 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <div className="lg:col-span-6 p-4 sm:p-5 lg:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-4">
               <h3 className="font-display font-black text-slate-850 dark:text-slate-100 text-base flex items-center gap-2">
                 <Users className="w-4.5 h-4.5 text-indigo-500" />
@@ -589,7 +589,7 @@ export default function AnalyticsHub({
                 {locale === 'vi' ? 'Chưa có dữ liệu thành viên đóng góp' : 'No member contribution data yet'}
               </div>
             ) : (
-              <div className="h-[250px] w-full flex items-center justify-center">
+              <div className="h-[200px] sm:h-[220px] md:h-[250px] w-full flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="75%" data={memberPerformanceData}>
                     <PolarGrid stroke="rgba(226, 232, 240, 0.4)" />
@@ -612,7 +612,7 @@ export default function AnalyticsHub({
             {topPerformer ? (
               <motion.div 
                 whileHover={{ scale: 1.005 }}
-                className="p-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-150/40 dark:border-indigo-900/35 shadow-sm flex items-center gap-5 text-left relative overflow-hidden"
+                className="p-4 sm:p-5 lg:p-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-150/40 dark:border-indigo-900/35 shadow-sm flex items-center gap-5 text-left relative overflow-hidden"
               >
                 <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 flex items-center justify-center shrink-0">
@@ -634,7 +634,7 @@ export default function AnalyticsHub({
                 </div>
               </motion.div>
             ) : (
-              <div className="p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-400">
+              <div className="p-4 sm:p-5 lg:p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-400">
                 {locale === 'vi' ? 'Chưa đủ số liệu xếp hạng thành viên cống hiến' : 'Insufficient data for top contributor ranking'}
               </div>
             )}
@@ -642,7 +642,7 @@ export default function AnalyticsHub({
             {/* Workspace Health Indicator */}
             <motion.div 
               whileHover={{ scale: 1.005 }}
-              className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-150/40 dark:border-emerald-900/35 shadow-sm flex items-center gap-5 text-left relative overflow-hidden"
+              className="p-4 sm:p-5 lg:p-6 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-150/40 dark:border-emerald-900/35 shadow-sm flex items-center gap-5 text-left relative overflow-hidden"
             >
               <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 flex items-center justify-center shrink-0">

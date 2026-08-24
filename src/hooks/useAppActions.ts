@@ -15,6 +15,7 @@ import { useUiStore } from '@/store/uiStore';
 import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Space, BaseApp, WorkspaceInvitation } from '@/types';
 import { embedTaskRelationships } from '@/lib/taskRelationships';
+import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -190,11 +191,15 @@ export function useAppActions() {
   }, [workspaces, currentUser, isOffline, activeWorkspaceId, setWorkspaces, triggerToast, addSyncLog]);
 
   const handleAddTask = useCallback(async (t: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress' | 'comments'>) => {
-    const assignee = members.find(m => m.id === t.assigneeId);
-    if (assignee) {
-      triggerToast({ id: generateId(), type: 'assignment', title: 'New Task Assigned', message: `Task "${t.title}" has been assigned to ${assignee.name}.`, duration: 4000 });
-    } else {
-      triggerToast({ id: generateId(), type: 'success', title: 'New Task Created', message: `Task "${t.title}" was recorded successfully.`, duration: 4000 });
+    // Chỉ thông báo với người dùng khi người đó là assignee trong task
+    if (isUserAssignedToTask(t, currentUser, members)) {
+      triggerToast({ 
+        id: generateId(), 
+        type: 'assignment', 
+        title: 'Bạn được giao công việc', 
+        message: `Bạn đã được phân công thực hiện công việc: "${t.title}".`, 
+        duration: 4000 
+      });
     }
 
     const currentActiveSpaceId = useSpaceStore.getState().activeSpaceId;
@@ -276,45 +281,33 @@ export function useAppActions() {
         console.error('Task sync failure:', err);
       }
     }
-  }, [members, activeWorkspaceId, isOffline, setTasks, triggerToast, addSyncLog]);
+  }, [members, activeWorkspaceId, isOffline, setTasks, triggerToast, addSyncLog, currentUser, spaces]);
 
   const handleUpdateTask = useCallback(async (updated: Task) => {
     const oldTask = tasks.find(t => t.id === updated.id);
     if (oldTask) {
-      if (oldTask.assigneeId !== updated.assigneeId && updated.assigneeId) {
-        const targetUser = members.find(m => m.id === updated.assigneeId);
+      const wasAssigned = isUserAssignedToTask(oldTask, currentUser, members);
+      const isNowAssigned = isUserAssignedToTask(updated, currentUser, members);
+
+      // Chỉ thông báo với người dùng khi người đó được phân công trong task
+      if (!wasAssigned && isNowAssigned) {
         triggerToast({
           id: generateId(),
           type: 'assignment',
-          title: 'Assignee Changed',
-          message: `Task "${updated.title}" has been handed over to ${targetUser ? targetUser.name : 'another colleague'}.`,
+          title: 'Bạn được giao công việc',
+          message: `Bạn đã được phân công thực hiện công việc: "${updated.title}".`,
           duration: 4000
         });
       }
+
+      if (oldTask.assigneeId !== updated.assigneeId && updated.assigneeId) {
+        const targetUser = members.find(m => m.id === updated.assigneeId);
+        addSyncLog(`Đã bàn giao công việc "${updated.title}" cho ${targetUser ? targetUser.name : 'thành viên khác'}`);
+      }
+
       if (oldTask.status !== updated.status) {
-        if (updated.status === 'completed') {
-          triggerToast({
-            id: generateId(),
-            type: 'success',
-            title: 'Task Completed!',
-            message: `Member has completed the task: "${updated.title}".`,
-            duration: 4000
-          });
-        } else {
-          const statusTranslation: Record<string, string> = {
-            todo: 'TO DO',
-            inprogress: 'IN PROGRESS',
-            review: 'REVIEW',
-            completed: 'COMPLETED'
-          };
-          triggerToast({
-            id: generateId(),
-            type: 'info',
-            title: 'Status Updated',
-            message: `Task "${updated.title}" moved to "${statusTranslation[updated.status] || updated.status}".`,
-            duration: 4000
-          });
-        }
+        // Cập nhật trạng thái không gửi toast thông báo, chỉ lưu sync log nền
+        addSyncLog(`Đã chuyển công việc "${updated.title}" sang "${updated.status}"`);
       }
     }
 
@@ -345,13 +338,13 @@ export function useAppActions() {
             custom_fields: embedTaskRelationships(updated.custom_fields, updated.relationships),
             recurrence: updated.recurrence || null
           }).eq('id', updated.id);
-          if (error) console.error('Supabase Task Update Error:', error);
+          if (error) console.error('Supabase Task Update Error:', error.message || JSON.stringify(error));
         }
       } catch (err) {
         console.error('Task update sync failure:', err);
       }
     }
-  }, [tasks, members, isOffline, setTasks, triggerToast]);
+  }, [tasks, members, isOffline, setTasks, triggerToast, currentUser, addSyncLog]);
 
   const handleDeleteTask = useCallback(async (id: string) => {
     const targetTask = tasks.find(t => t.id === id);

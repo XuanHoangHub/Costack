@@ -47,7 +47,7 @@ export default function BaseFieldCell({ field, value, members = [], editable = f
           checked={!!value}
           disabled={!editable}
           onChange={e => onChange?.(e.target.checked)}
-          className="w-4 h-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 cursor-pointer"
+          className="w-4 h-4 rounded-md cursor-pointer"
         />
       </div>
     );

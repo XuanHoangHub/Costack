@@ -852,15 +852,14 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
 
 .document-editor ul[data-type="taskList"] li > div { flex: 1; }
 .document-editor ul[data-type="taskList"] input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 0.25rem;
-  accent-color: #6366f1;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease;
 }
 .document-editor ul[data-type="taskList"] input[type="checkbox"]:hover {
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 
 .document-editor ul[data-type="taskList"] li[data-checked="true"] > div {
@@ -1014,6 +1013,48 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
 
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ── Enhanced Mobile & Tablet Responsive Utilities ── */
+.cu-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.cu-scroll-x-mobile {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cu-scroll-x-mobile::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .cu-scroll-x-mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cu-mobile-full {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .cu-mobile-stack {
+    flex-direction: column !important;
+  }
+
+  .cu-mobile-p-compact {
+    padding: 0.75rem !important;
+  }
+}
+
+@media (max-width: 479px) {
+  .cu-modal-mobile {
+    width: calc(100vw - 1rem) !important;
+    max-width: none !important;
+    margin-inline: 0.5rem;
+  }
 }
 
 /* ── Modern Premium UI/UX Utility Additions ── */
@@ -1740,3 +1781,136 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
   animation-play-state: paused;
 }
 
+.admin-input {
+  width: 100%;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.75rem;
+  background: rgb(248 250 252);
+  padding: 0.75rem;
+  color: rgb(15 23 42);
+  font-size: 0.75rem;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.admin-input:focus {
+  border-color: rgb(79 70 229);
+  background: white;
+  box-shadow: 0 0 0 4px rgb(99 102 241 / 0.12);
+}
+
+.dark .admin-input {
+  border-color: rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.035);
+  color: white;
+}
+
+.dark .admin-input:focus {
+  border-color: rgb(129 140 248);
+  background: rgb(255 255 255 / 0.055);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Apexa Modern Checkbox Design System
+   ══════════════════════════════════════════════════════════════════ */
+input[type="checkbox"]:not(.sr-only) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  min-width: 1rem;
+  min-height: 1rem;
+  border-radius: 0.35rem;
+  border: 1.5px solid rgba(148, 163, 184, 0.48);
+  background-color: #ffffff;
+  background-origin: border-box;
+  user-select: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -2px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dark input[type="checkbox"]:not(.sr-only),
+html.dark input[type="checkbox"]:not(.sr-only) {
+  border-color: rgba(148, 163, 184, 0.28);
+  background-color: rgba(15, 23, 42, 0.6);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+input[type="checkbox"]:not(.sr-only):hover:not(:disabled) {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14), 0 1px 2px rgba(15, 23, 42, 0.04);
+  transform: translateY(-0.5px);
+}
+
+.dark input[type="checkbox"]:not(.sr-only):hover:not(:disabled),
+html.dark input[type="checkbox"]:not(.sr-only):hover:not(:disabled) {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+input[type="checkbox"]:not(.sr-only):active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+input[type="checkbox"]:not(.sr-only):focus-visible {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.dark input[type="checkbox"]:not(.sr-only):focus-visible,
+html.dark input[type="checkbox"]:not(.sr-only):focus-visible {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.32), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+input[type="checkbox"]:not(.sr-only):checked {
+  background-color: #4f46e5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5L6.5 11.5L12.5 4.5'/%3E%3C/svg%3E");
+  background-size: 85% 85%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: #4f46e5;
+  box-shadow: 0 2px 6px -1px rgba(79, 70, 229, 0.45), 0 1px 3px -1px rgba(79, 70, 229, 0.3);
+}
+
+.dark input[type="checkbox"]:not(.sr-only):checked,
+html.dark input[type="checkbox"]:not(.sr-only):checked {
+  background-color: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px -1px rgba(99, 102, 241, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+input[type="checkbox"]:not(.sr-only):indeterminate {
+  background-color: #4f46e5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+  background-size: 80% 80%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: #4f46e5;
+  box-shadow: 0 2px 6px -1px rgba(79, 70, 229, 0.4);
+}
+
+.dark input[type="checkbox"]:not(.sr-only):indeterminate,
+html.dark input[type="checkbox"]:not(.sr-only):indeterminate {
+  background-color: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px -1px rgba(99, 102, 241, 0.5);
+}
+
+input[type="checkbox"]:not(.sr-only):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  box-shadow: none;
+  pointer-events: none;
+}

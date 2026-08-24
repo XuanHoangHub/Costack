@@ -127,12 +127,12 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        whileHover={{ y: -4, scale: 1.015 }}
+        whileHover={{ y: -3, scale: 1.01 }}
         whileTap={{ scale: 0.98 }}
-        className={`ios27-card rounded-[24px] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-300 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500/40 dark:ring-indigo-400/50' : ''} overflow-hidden`}
+        className={`group relative bg-white dark:bg-[#121623] rounded-[22px] border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400/50 dark:hover:border-indigo-500/50 shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.5)] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-200 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500/80' : ''} overflow-hidden`}
       >
         {imageAttachment && (
-          <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-955" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
+          <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
             <SignedImage filePath={imageAttachment.filePath} className="w-full h-full object-cover" alt={task.title} fallback={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=300`} />
           </div>
         )}
@@ -140,82 +140,90 @@ function KanbanCard({
         <div className={paddingCls}>
           {localCardSize === 'small' ? (
             <div className="flex items-center gap-2">
-              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-550' : 'text-slate-850 dark:text-slate-101'}`}>
+              <h4 className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-100'}`}>
                 {task.title}
               </h4>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-2">
+              {/* Card Top Meta Row */}
+              <div className="flex items-center justify-between gap-1.5 mb-2.5">
                 <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                  <input type="checkbox" checked={selectedTaskIds.includes(task.id)}
+                  <input 
+                    type="checkbox" 
+                    checked={selectedTaskIds.includes(task.id)}
                     onChange={e => { e.stopPropagation(); setSelectedTaskIds((prev: any) => e.target.checked ? [...prev, task.id] : prev.filter((id: any) => id !== task.id)); }}
                     onClick={e => e.stopPropagation()}
-                    className="w-3.5 h-3.5 rounded border-slate-355 text-indigo-655 focus:ring-indigo-505/20 cursor-pointer shrink-0 accent-indigo-600" />
+                    className="w-3.5 h-3.5 rounded-md border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer shrink-0 accent-indigo-600" 
+                  />
                   
                   {task.isPinned && <Pin className="w-3 h-3 text-amber-500 fill-amber-400 shrink-0" />}
 
-                  {activeTimerTaskId === task.id ? (
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (onStopGlobalTimer) onStopGlobalTimer();
-                      }}
-                      className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-105 border border-rose-200/30"
-                      title="Dừng bấm giờ"
-                    >
-                      <Clock className="w-3 h-3 text-rose-500 animate-spin" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (onStartGlobalTimer) onStartGlobalTimer(task.id);
-                      }}
-                      className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-650 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
-                      title="Bắt đầu bấm giờ"
-                    >
-                      <Play className="w-3 h-3 text-emerald-505 fill-emerald-555" />
-                    </button>
-                  )}
+                  {/* Quick Action Buttons on Hover */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {activeTimerTaskId === task.id ? (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (onStopGlobalTimer) onStopGlobalTimer();
+                        }}
+                        className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/50"
+                        title="Dừng bấm giờ"
+                      >
+                        <Clock className="w-3 h-3 text-rose-500 animate-spin" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (onStartGlobalTimer) onStartGlobalTimer(task.id);
+                        }}
+                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-600 cursor-pointer transition-all"
+                        title="Bắt đầu bấm giờ"
+                      >
+                        <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
+                      </button>
+                    )}
 
-                  {onAddTask && (
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        onAddTask({
-                          ...task,
-                          title: `${task.title} (Bản sao)`,
-                          subtasks: (task.subtasks || []).map((st: any) => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
-                          tags: task.tags ? [...task.tags] : []
-                        });
-                        triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
-                        if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
-                      }}
-                      className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 cursor-pointer transition-all border border-transparent hover:border-slate-202 dark:hover:border-slate-700"
-                      title="Nhân bản công việc"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  )}
+                    {onAddTask && (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          onAddTask({
+                            ...task,
+                            title: `${task.title} (Bản sao)`,
+                            subtasks: (task.subtasks || []).map((st: any) => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+                            tags: task.tags ? [...task.tags] : []
+                          });
+                          triggerToast?.('success', 'Đã nhân bản', `Đã tạo bản sao cho "${task.title}"`);
+                          if (onAddSyncLog) onAddSyncLog(`Duplicated task "${task.title}"`);
+                        }}
+                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-sky-600 cursor-pointer transition-all"
+                        title="Nhân bản công việc"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-1">
+                {/* Badges */}
+                <div className="flex items-center gap-1.5">
                   {workspaces.find((w: any) => w.id === (task.workspaceId || 'w2')) && (() => {
                     const ws = workspaces.find((w: any) => w.id === (task.workspaceId || 'w2'));
                     return (
-                      <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none bg-indigo-55 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100/10 dark:border-indigo-900/10">
+                      <span className="text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/30">
                         {ws?.name}
                       </span>
                     );
                   })()}
                   <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none border ${
-                    task.priority === 'urgent' ? 'bg-rose-500/15 border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.08)]' :
-                    task.priority === 'high' ? 'bg-orange-500/15 border-orange-500/20 text-orange-600 dark:text-orange-450' :
-                    task.priority === 'medium' ? 'bg-yellow-500/15 border-yellow-500/20 text-yellow-700 dark:text-yellow-455' :
+                    task.priority === 'urgent' ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.08)]' :
+                    task.priority === 'high' ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400' :
+                    task.priority === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400' :
                     'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                   }`}>
                     {dynamicPriorityMeta[task.priority]?.label || task.priority}
@@ -223,8 +231,8 @@ function KanbanCard({
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 mt-2">
-                {/* Complete toggle circle button */}
+              {/* Task Title & Complete Toggle */}
+              <div className="flex items-start gap-2.5 mt-1.5">
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.15 }}
@@ -259,7 +267,7 @@ function KanbanCard({
                       }}
                       onBlur={() => submitInlineEdit(task)}
                       onClick={e => e.stopPropagation()}
-                      className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
+                      className="text-[13px] font-bold text-slate-900 dark:text-slate-100 bg-transparent border-b border-indigo-500 outline-none py-0.5 w-full leading-snug" 
                     />
                   ) : (
                     <h4 
@@ -268,7 +276,7 @@ function KanbanCard({
                         setInlineEditTaskId(task.id);
                         setInlineEditTitle(task.title);
                       }}
-                      className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-650 hover:underline transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}
+                      className={`${titleCls} leading-snug cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}`}
                       title="Nhấp đúp để đổi tên công việc"
                     >
                       {task.title}
@@ -282,13 +290,13 @@ function KanbanCard({
               )}
 
               {task.tags && task.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2.5 mb-1">
+                <div className="flex flex-wrap gap-1.5 mt-2.5 mb-1">
                   {task.tags.slice(0, 3).map((tag: any) => (
                     <span key={tag} onClick={e => { e.stopPropagation(); setFilterTag(filterTag === tag ? 'all' : tag); }}
-                      className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
                         filterTag === tag 
                           ? 'bg-indigo-600 border-indigo-600 text-white' 
-                          : 'bg-indigo-50/20 dark:bg-indigo-955/25 border-indigo-100/10 dark:border-indigo-900/10 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-55 dark:hover:bg-indigo-900/40'
+                          : 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-200/40 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'
                       }`}>
                       #{tag}
                     </span>
@@ -296,16 +304,16 @@ function KanbanCard({
                 </div>
               )}
 
-              {/* Render progress bar for subtasks */}
+              {/* Subtasks progress bar */}
               {hasSubtasks && (
-                <div className="mt-3 select-none">
-                  <div className="flex justify-between items-center text-[9px] text-slate-450 dark:text-slate-500 font-bold mb-1">
-                    <span>Progress</span>
-                    <span>{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
+                <div className="mt-3 select-none bg-slate-50/80 dark:bg-slate-900/40 rounded-xl p-2 border border-slate-100 dark:border-slate-800/60">
+                  <div className="flex justify-between items-center text-[9.5px] text-slate-500 dark:text-slate-400 font-bold mb-1">
+                    <span>Tiến độ phụ</span>
+                    <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{completedSubtasks}/{subtasks.length} ({subtaskPercent}%)</span>
                   </div>
-                  <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/10">
+                  <div className="w-full h-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-full overflow-hidden">
                     <motion.div 
-                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${subtaskPercent}%` }}
                       transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -314,7 +322,8 @@ function KanbanCard({
                 </div>
               )}
 
-              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold select-none">
+              {/* Card Footer Meta */}
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-2.5 text-[10.5px] text-slate-400 dark:text-slate-500 font-semibold select-none">
                 <div className="flex items-center gap-1.5">
                   {assignees.length > 0 ? (
                     <div className="flex -space-x-1.5 overflow-hidden">
@@ -326,12 +335,12 @@ function KanbanCard({
                             useUiStore.getState().setViewingMemberProfileId(member.id);
                           }}
                           className="relative group/avatar cursor-pointer hover:scale-110 transition-transform z-10"
-                          title={`Click to view profile of ${member.name}`}
+                          title={member.name}
                         >
                           {member.avatar ? (
-                            <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
+                            <SignedImage filePath={member.avatar} className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-slate-900 shadow-3xs" alt={member.name} />
                           ) : (
-                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border border-white dark:border-slate-900">
+                            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[9px] border-2 border-white dark:border-slate-900 shadow-3xs">
                               {member.name.charAt(0)}
                             </div>
                           )}
@@ -339,22 +348,22 @@ function KanbanCard({
                       ))}
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center dark:bg-slate-800/40 dark:border-slate-800/80"><UserIcon className="w-3 h-3" /></div>
+                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center dark:bg-slate-800 dark:border-slate-700"><UserIcon className="w-3 h-3" /></div>
                   )}
                   {task.commentsCount > 0 && (
                     <span className="flex items-center gap-0.5 ml-1">
-                      <MessageSquare className="w-3 h-3 text-slate-350" />
+                      <MessageSquare className="w-3 h-3 text-slate-400" />
                       {task.commentsCount}
                     </span>
                   )}
                   {task.attachments && task.attachments.length > 0 && (
                     <span className="flex items-center gap-0.5">
-                      <Paperclip className="w-3 h-3 text-slate-350" />
+                      <Paperclip className="w-3 h-3 text-slate-400" />
                       {task.attachments.length}
                     </span>
                   )}
                   {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                    <span title={`Repeats ${task.recurrence.frequency}`} className="flex items-center gap-0.5 text-indigo-500"><Repeat2 className="h-3 w-3" /></span>
+                    <span title={`Lặp lại ${task.recurrence.frequency}`} className="flex items-center gap-0.5 text-indigo-500"><Repeat2 className="h-3 w-3" /></span>
                   )}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
                     <span title="Đang chờ công việc khác" className="flex items-center gap-0.5 text-amber-500"><Hourglass className="h-3 w-3" /></span>
@@ -363,7 +372,7 @@ function KanbanCard({
 
                 <div className="flex items-center gap-1">
                   {daysInfo && (
-                    <span className={`px-1.5 py-0.5 rounded flex items-center gap-1 text-[8.5px] font-black border border-transparent ${daysInfo.cls}`}>
+                    <span className={`px-2 py-0.5 rounded-lg flex items-center gap-1 text-[9px] font-black border ${daysInfo.cls}`}>
                       <Calendar className="w-2.5 h-2.5" />
                       {daysInfo.text}
                     </span>
@@ -1071,9 +1080,6 @@ export default function TaskBoardView({
           .map(([k, v]) => `${k} sang "${v}"`)
           .join(', ');
         onAddSyncLog(`Di chuyển công việc "${taskToUpdate.title}": ${changeDesc}`);
-        if (triggerToast) {
-          triggerToast('success', locale === 'vi' ? 'Bảng Kanban' : 'Kanban Board', locale === 'vi' ? 'Đã cập nhật vị trí công việc.' : 'Task position updated.');
-        }
       }
     } catch (err: any) {
       console.error('Exception during drag sync:', err);
@@ -1270,11 +1276,11 @@ export default function TaskBoardView({
       <div className="flex flex-col h-full w-full">
         
         {/* Kanban Board Controls Panel */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#0c0f18]/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
           <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
             
             {/* Group By selector */}
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
               <Select
                 value={boardGroupBy}
@@ -1295,7 +1301,7 @@ export default function TaskBoardView({
             </div>
 
             {/* Swimlane selector */}
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
               <Select
                 value={boardSwimlaneBy}
@@ -1314,15 +1320,15 @@ export default function TaskBoardView({
 
           {/* Card size & covers selectors */}
           <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2 sm:gap-3">
-            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl p-0.5 shadow-3xs">
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl p-1 shadow-3xs">
               {(['small', 'medium', 'large'] as const).map(size => (
                 <button
                   key={size}
                   onClick={() => toggleCardSize(size)}
-                  className={`px-2 py-1 rounded-lg capitalize transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg capitalize transition-all cursor-pointer text-xs font-bold ${
                     localCardSize === size 
-                      ? 'bg-indigo-55 dark:bg-indigo-950/30 text-indigo-650 dark:text-indigo-400 font-extrabold shadow-3xs' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-850'
+                      ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-300 font-black shadow-xs border border-slate-200/80 dark:border-indigo-500/30' 
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                   }`}
                 >
                   {{ small: 'Nhỏ', medium: 'Vừa', large: 'Lớn' }[size]}
@@ -1332,13 +1338,13 @@ export default function TaskBoardView({
 
             <button
               onClick={() => toggleCardCover(!localCardCover)}
-              className={`px-3 py-1.5 border rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer bg-white dark:bg-slate-900 ${
+              className={`px-3 py-1.5 border rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-bold ${
                 localCardCover 
-                  ? 'border-indigo-200 text-indigo-600 dark:border-indigo-905 dark:text-indigo-400 font-black' 
-                  : 'border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-455 hover:bg-slate-50'
+                  ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black' 
+                  : 'bg-slate-50 dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100'
               }`}
             >
-              <span>{locale === 'vi' ? 'Hiển thị ảnh nền' : 'Show Covers'}</span>
+              <span>{locale === 'vi' ? 'Hiển thị ảnh bìa' : 'Show Covers'}</span>
             </button>
           </div>
         </div>
@@ -1354,37 +1360,37 @@ export default function TaskBoardView({
               return (
                 <div 
                   key={col} 
-                  className={`min-w-[285px] sm:min-w-[290px] w-[285px] sm:w-[290px] flex-shrink-0 snap-center bg-slate-50/30 dark:bg-slate-900/15 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl flex flex-col gap-3 transition-all duration-300 border border-slate-200/40 dark:border-slate-800/40 shadow-[0_4px_18px_rgba(15,23,42,0.01)] hover:border-slate-300 dark:hover:border-slate-700/60 hover:shadow-[0_8px_24px_rgba(15,23,42,0.02)] ${
-                    isOverColumn ? 'ring-2 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-955/15 border-indigo-400/40' : ''
+                  className={`min-w-[295px] sm:min-w-[305px] w-[295px] sm:w-[305px] flex-shrink-0 snap-center bg-slate-100/50 dark:bg-[#0c0f18]/70 backdrop-blur-xl p-3.5 sm:p-4 rounded-[26px] flex flex-col gap-3 transition-all duration-300 border border-slate-200/70 dark:border-slate-800/70 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:border-slate-300 dark:hover:border-slate-700/80 hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.06)] ${
+                    isOverColumn ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-955/20 border-indigo-400/50' : ''
                   }`}
                 >
                   {/* Column Header */}
-                  <div className="flex flex-col gap-1 px-0.5 py-0.5 text-xs">
+                  <div className="flex flex-col gap-1.5 px-0.5 py-0.5 text-xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {colMeta.avatar && (
                           <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
                         )}
-                        <span className={`px-2 py-0.5 rounded-[8px] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5 border border-transparent shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
-                          {col === 'completed' && <Check className="w-3 h-3 text-emerald-650 stroke-[3px]" />}
+                        <span className={`px-2.5 py-1 rounded-xl text-[10.5px] font-black tracking-wider uppercase flex items-center gap-1.5 border shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                          {col === 'completed' && <Check className="w-3 h-3 text-emerald-600 stroke-[3px]" />}
                           {colMeta.label}
                         </span>
-                        <span className={`font-black text-[10px] px-2 py-0.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 min-w-[22px] text-center shadow-3xs ${
-                          col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-400 dark:text-slate-500'
+                        <span className={`font-black text-[11px] px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 min-w-[24px] text-center shadow-3xs ${
+                          col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-600 dark:text-slate-300'
                         }`}>
                           {colTasks.length}
                         </span>
                         {/* WIP Limit warning badge if tasks > 6 */}
                         {colTasks.length > 6 && (
                           <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-955/40 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 animate-pulse">
-                            Giới hạn việc đang làm
+                            Giới hạn WIP
                           </span>
                         )}
                       </div>
                       
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="w-6 h-6 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 text-slate-400 hover:text-indigo-650 flex items-center justify-center transition-all cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                        className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-400 text-slate-400 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
                         title="Thêm công việc"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -1392,10 +1398,10 @@ export default function TaskBoardView({
                     </div>
 
                     {/* Column Percentage Progress Bar */}
-                    <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
+                    <div className="w-full h-1 bg-slate-200/60 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
                       <div 
                         className={`h-full transition-all duration-300 ${
-                          col === 'completed' ? 'bg-emerald-500' : 'bg-indigo-500'
+                          col === 'completed' ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'
                         }`}
                         style={{ width: `${Math.min(100, Math.round((colTasks.length / Math.max(1, filteredTasks.length)) * 100))}%` }}
                       />
@@ -1410,7 +1416,7 @@ export default function TaskBoardView({
 
                     {/* Inline Add Task Form */}
                     {inlineAddCell === col ? (
-                      <div className="p-3 bg-white/95 dark:bg-slate-900/95 rounded-2xl border-2 border-indigo-500 shadow-xl space-y-3 select-text animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                      <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-500 shadow-xl space-y-3 select-text animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
                         <input
                           type="text"
                           value={inlineTitle}
@@ -1434,18 +1440,16 @@ export default function TaskBoardView({
                     ) : (
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="w-full flex items-center justify-start gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-955/30 border border-dashed border-slate-200 dark:border-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-800/80 rounded-2xl transition-all cursor-pointer text-left group"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-850 hover:border-indigo-400 dark:hover:border-indigo-600 border border-dashed border-slate-300/80 dark:border-slate-800/90 rounded-2xl transition-all cursor-pointer text-center group shadow-3xs hover:shadow-xs"
                       >
-                        <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-600 text-slate-500 group-hover:text-white flex items-center justify-center transition-all duration-200">
-                          <Plus className="w-3.5 h-3.5" />
-                        </div>
+                        <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                         <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
                       </button>
                     )}
 
                     {colTasks.length === 0 && inlineAddCell !== col && (
-                      <div className="text-center py-6 text-[11px] text-slate-400 dark:text-slate-505 font-medium border border-dashed border-slate-200/60 dark:border-slate-800/50 rounded-xl">
-                        {locale === 'vi' ? 'Không có công việc' : 'No tasks'}
+                      <div className="text-center py-7 px-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium border border-dashed border-slate-200/80 dark:border-slate-800/70 rounded-2xl bg-white/40 dark:bg-slate-900/20">
+                        {locale === 'vi' ? 'Chưa có công việc trong cột này' : 'No tasks in this column'}
                       </div>
                     )}
                   </KanbanColumn>

@@ -731,12 +731,12 @@ export default function NotionDocEditor({
                         onClick={() => toggleCheckboxInText(idx)}
                         className="flex items-center gap-2.5 py-0.5 cursor-pointer group select-none"
                       >
-                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
+                        <div className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-all duration-150 group-hover:scale-105 active:scale-95 ${
                           isChecked 
-                            ? 'bg-indigo-600 border-indigo-600 text-white' 
-                            : 'border-slate-300 dark:border-slate-600 group-hover:border-indigo-400'
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-[0_2px_6px_-1px_rgba(79,70,229,0.45)]' 
+                            : 'bg-white dark:bg-slate-900/60 border-slate-300/90 dark:border-slate-700 group-hover:border-indigo-500/70 group-hover:shadow-xs'
                         }`}>
-                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                         </div>
                         <span className={`text-xs font-semibold ${isChecked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
                           {content}

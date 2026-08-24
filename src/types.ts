@@ -303,6 +303,33 @@ export interface ChatChannel {
 
 export type WhiteboardTool = 'select' | 'pencil' | 'rectangle' | 'circle' | 'line' | 'sticky' | 'diamond' | 'parallelogram' | 'pill' | 'cylinder';
 
+export interface WhiteboardProject {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  color: string;
+  emoji?: string;
+  createdAt: string;
+  updatedAt: string;
+  isFavorite?: boolean;
+}
+
+export interface WhiteboardBoard {
+  id: string;
+  projectId?: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  thumbnail?: string;
+  createdAt: string;
+  updatedAt: string;
+  isFavorite?: boolean;
+  tags?: string[];
+  elementsCount?: number;
+  templateType?: string;
+}
+
 export interface WhiteboardElement {
   id: string;
   type: WhiteboardTool;

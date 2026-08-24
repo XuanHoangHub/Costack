@@ -416,12 +416,58 @@ function DashboardOverview({
   }, [scopedTasks]);
 
   const onlineMembersCount = useMemo(() => members.filter((member) => member.status === 'online').length, [members]);
-  const now = new Date();
-  const currentHour = now.getHours();
-  const greetingIcon = currentHour < 12 ? '🌅' : currentHour < 18 ? '☀️' : '🌙';
-  const greeting = locale === 'vi'
-    ? (currentHour < 12 ? 'Chào buổi sáng' : currentHour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối')
-    : (currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening');
+  
+  // Real-time dynamic clock state to update greeting and time-of-day accurately
+  const [currentDateTime, setCurrentDateTime] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 15000); // Check every 15 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  const { greetingIcon, greeting } = useMemo(() => {
+    const currentHour = currentDateTime.getHours();
+    
+    // 05:00 - 10:59: Buổi sáng
+    if (currentHour >= 5 && currentHour < 11) {
+      return {
+        greetingIcon: '🌅',
+        greeting: locale === 'vi' ? 'Chào buổi sáng' : 'Good morning'
+      };
+    }
+    
+    // 11:00 - 13:59: Buổi trưa
+    if (currentHour >= 11 && currentHour < 14) {
+      return {
+        greetingIcon: '☀️',
+        greeting: locale === 'vi' ? 'Chào buổi trưa' : 'Good day'
+      };
+    }
+    
+    // 14:00 - 17:59: Buổi chiều
+    if (currentHour >= 14 && currentHour < 18) {
+      return {
+        greetingIcon: '🌤️',
+        greeting: locale === 'vi' ? 'Chào buổi chiều' : 'Good afternoon'
+      };
+    }
+    
+    // 18:00 - 21:59: Buổi tối
+    if (currentHour >= 18 && currentHour < 22) {
+      return {
+        greetingIcon: '🌙',
+        greeting: locale === 'vi' ? 'Chào buổi tối' : 'Good evening'
+      };
+    }
+    
+    // 22:00 - 04:59: Đêm muộn
+    return {
+      greetingIcon: '🌌',
+      greeting: locale === 'vi' ? 'Chào buổi tối' : 'Good evening'
+    };
+  }, [currentDateTime, locale]);
 
   if (isLoading && !isOffline) {
     return (
@@ -442,7 +488,7 @@ function DashboardOverview({
   }
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-5 overflow-x-hidden bg-transparent px-4 py-5 text-slate-800 dark:text-slate-100 sm:space-y-6 sm:px-6 sm:py-6 xl:space-y-8 xl:px-8 xl:py-8">
+    <div className="mx-auto flex min-h-full w-full max-w-[1800px] select-none flex-col space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden bg-transparent px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8 text-slate-800 dark:text-slate-100">
       
       {/* ── Morning Briefing Notification Banner ── */}
       {showBriefing && (overdueTasks.length > 0 || briefingTasks.length > 0) && (
@@ -672,7 +718,7 @@ function DashboardOverview({
       </motion.section>
 
       {/* ── 4 Hero KPI Cards ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
           { 
             label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', 
@@ -832,7 +878,7 @@ function DashboardOverview({
             </div>
 
             {/* Chart Container */}
-            <div className="h-[240px] w-full pt-4 sm:h-[280px] sm:pt-5">
+            <div className="h-[180px] w-full pt-4 sm:h-[240px] md:h-[280px] sm:pt-5">
               <ResponsiveContainer width="100%" height="100%">
                 {activeMetricTab === 'progress' ? (
                   <AreaChart data={weeklyData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
@@ -973,7 +1019,7 @@ function DashboardOverview({
               <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">{locale === 'vi' ? 'Chỉ tính công việc có thời điểm hoàn thành được lưu trong hệ thống' : 'Only tasks with a stored completion timestamp are counted'}</p>
             </div>
 
-            <div className="h-[220px] w-full pt-2 sm:h-[250px]">
+            <div className="h-[180px] w-full pt-2 sm:h-[220px] md:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={velocityData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                   <defs>
@@ -1110,7 +1156,7 @@ function DashboardOverview({
         </div>
 
         {/* Live Mathematical Indicators */}
-        <div className="relative z-10 grid grid-cols-1 gap-4 rounded-[22px] border border-white/80 bg-white/65 p-4 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/35 sm:grid-cols-2 sm:p-5 md:grid-cols-4">
+        <div className="relative z-10 grid grid-cols-2 gap-3 sm:gap-4 rounded-[22px] border border-white/80 bg-white/65 p-4 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/35 sm:p-5 md:grid-cols-4">
           <div className="space-y-1">
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider block">{t('dashboardChartCompletedTasks') || 'Hoàn thành công việc'}</span>
             <span className="text-sm font-black text-slate-900 dark:text-white">

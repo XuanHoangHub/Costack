@@ -1219,12 +1219,13 @@ export default function CalendarView({
           {/* A. MONTH VIEW */}
           {viewMode === 'month' && (
             <div
-              className="grid h-full min-h-[600px] min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-slate-800"
-              style={{ gridTemplateRows: `36px repeat(${Math.ceil(daysInMonth.length / 7)}, minmax(96px, 1fr))` }}
+              className="grid h-full min-h-[600px] min-w-full md:min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-slate-800"
+              style={{ gridTemplateRows: `36px repeat(${Math.ceil(daysInMonth.length / 7)}, minmax(80px, 1fr))` }}
             >
               {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'].map(header => (
                 <div key={header} className="flex items-center justify-center bg-slate-50 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 dark:bg-[#0b0d13] dark:text-slate-500">
-                  {header}
+                  <span className="hidden md:inline">{header}</span>
+                  <span className="md:hidden">{header.replace('THỨ ', 'T').replace('CHỦ NHẬT', 'CN')}</span>
                 </div>
               ))}
               
@@ -1326,7 +1327,7 @@ export default function CalendarView({
 
           {/* B. WEEK VIEW & D. 4-DAY VIEW & C. DAY VIEW (Hourly grids) */}
           {(viewMode === 'week' || viewMode === '4day' || viewMode === 'day') && (
-            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-[#090b10] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[650px]'}`}>
+            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-[#090b10] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[300px] md:min-w-[650px]'}`}>
               
               {/* Header Days Row */}
               <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800`}>
@@ -1338,7 +1339,8 @@ export default function CalendarView({
                     return (
                       <div key={idx} className={`flex flex-col items-center justify-center gap-1 bg-slate-50 py-2.5 text-center dark:bg-[#0b0d13] ${isToday ? 'bg-blue-50/70 dark:bg-blue-950/20' : ''}`}>
                         <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                          {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
+                          <span className="hidden md:inline">{['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}</span>
+                          <span className="md:hidden">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][day.getDay() === 0 ? 6 : day.getDay() - 1]}</span>
                         </span>
                         <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${isToday ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' : 'text-slate-700 dark:text-slate-200'}`}>
                           {day.getDate()}

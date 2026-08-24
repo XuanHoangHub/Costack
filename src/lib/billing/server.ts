@@ -2,8 +2,9 @@ import 'server-only';
 
 import Stripe from 'stripe';
 import { createClient, type User } from '@supabase/supabase-js';
+import type { BillingCycle, SelfServeBillingPlan } from '@/lib/billing/plans';
 
-export type BillingCycle = 'monthly' | 'yearly';
+export type { BillingCycle, SelfServeBillingPlan } from '@/lib/billing/plans';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -36,9 +37,13 @@ export async function requireBillingUser(request: Request): Promise<{ user: User
   return { user: data.user, accessToken };
 }
 
-export function getPriceId(cycle: BillingCycle) {
-  const priceId = cycle === 'yearly' ? process.env.STRIPE_PRICE_PRO_YEARLY : process.env.STRIPE_PRICE_PRO_MONTHLY;
-  if (!priceId) throw new Error(`The ${cycle} Pro price is not configured.`);
+export function getPriceId(plan: SelfServeBillingPlan, cycle: BillingCycle) {
+  const priceId = plan === 'starter'
+    ? (cycle === 'yearly' ? process.env.STRIPE_PRICE_STARTER_YEARLY : process.env.STRIPE_PRICE_STARTER_MONTHLY)
+    : plan === 'business'
+      ? (cycle === 'yearly' ? process.env.STRIPE_PRICE_BUSINESS_YEARLY : process.env.STRIPE_PRICE_BUSINESS_MONTHLY)
+      : (cycle === 'yearly' ? process.env.STRIPE_PRICE_PRO_YEARLY : process.env.STRIPE_PRICE_PRO_MONTHLY);
+  if (!priceId) throw new Error(`The ${cycle} ${plan} price is not configured.`);
   return priceId;
 }
 

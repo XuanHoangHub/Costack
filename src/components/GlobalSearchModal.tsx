@@ -641,7 +641,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: -16 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white/98 dark:bg-[#0c0f17]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh] z-10"
+          className="relative bg-white/98 dark:bg-[#0c0f17]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
@@ -688,7 +688,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-3 min-h-[44px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 {isVietnamese ? 'Xóa' : 'Clear'}
               </button>
@@ -701,7 +701,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 onClose();
                 setSearchQuery('');
               }}
-              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -709,7 +709,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
           {/* Category Filter Pills (When search query exists or in command mode) */}
           {(searchQuery.trim() !== '' || isCommandMode) && (
-            <div className="px-5 py-2 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+            <div className="px-5 py-2 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200/50 dark:border-slate-800/50 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-h-[52px]">
               <button
                 onClick={() => setSearchCategory('all')}
                 type="button"

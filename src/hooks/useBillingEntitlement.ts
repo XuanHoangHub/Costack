@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import type { BillingCycle, BillingPlan } from '@/lib/billing/plans';
 import { useAuthStore } from '@/store/authStore';
 import { useMemberStore } from '@/store/memberStore';
 
 export type BillingEntitlement = {
-  plan: 'free' | 'pro' | 'enterprise';
+  plan: BillingPlan;
+  provider?: 'payos' | 'stripe';
   status: string;
-  billing_cycle?: 'monthly' | 'yearly';
+  billing_cycle?: BillingCycle;
   is_pro: boolean;
   cancel_at_period_end?: boolean;
   current_period_end?: string;
@@ -33,7 +35,10 @@ export function useBillingEntitlement() {
   const refresh = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return null;
-    const response = await fetch('/api/billing/subscription', { headers: { Authorization: `Bearer ${session.access_token}` } });
+    const response = await fetch('/api/billing/subscription', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
     if (!response.ok) return null;
     const body = await response.json();
     applyEntitlement(body.entitlement);
@@ -53,11 +58,21 @@ export function useBillingEntitlement() {
       }, 1500);
       url.searchParams.delete('billing');
       url.searchParams.delete('session_id');
+      url.searchParams.delete('code');
+      url.searchParams.delete('id');
+      url.searchParams.delete('cancel');
+      url.searchParams.delete('status');
+      url.searchParams.delete('orderCode');
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
       return () => window.clearInterval(timer);
     }
     if (billing === 'canceled' || billing === 'portal_return') {
       url.searchParams.delete('billing');
+      url.searchParams.delete('code');
+      url.searchParams.delete('id');
+      url.searchParams.delete('cancel');
+      url.searchParams.delete('status');
+      url.searchParams.delete('orderCode');
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     }
   }, [currentUserId, refresh]);

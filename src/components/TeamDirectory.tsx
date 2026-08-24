@@ -1023,11 +1023,11 @@ export default function TeamDirectory({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
               <select
                 value={filterDept}
                 onChange={(e) => setFilterDept(e.target.value)}
-                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+                className="w-full sm:w-auto px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">{t('allDepartments') || 'All departments'}</option>
                 {DEPARTMENTS.map(d => (
@@ -1038,7 +1038,7 @@ export default function TeamDirectory({
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+                className="w-full sm:w-auto px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">{t('allRoles') || 'All roles'}</option>
                 <option value="admin">{t('roleAdminLabel') || 'Admin'}</option>
@@ -1099,7 +1099,7 @@ export default function TeamDirectory({
 
           {/* Members Display: GRID VIEW */}
           {directoryViewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
               {filteredMembers.map((member) => {
                 const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
                 const totalTaskCount = memberTasks.length;
@@ -1117,7 +1117,7 @@ export default function TeamDirectory({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.25 }}
-                    className="group relative p-5.5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-xl hover:border-indigo-400/40 dark:hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between overflow-hidden"
+                    className="group relative p-4 sm:p-5.5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/70 dark:border-slate-800/80 shadow-xs hover:shadow-xl hover:border-indigo-400/40 dark:hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between overflow-hidden"
                   >
                     <div className="absolute -inset-px bg-gradient-to-br from-indigo-500/5 via-cyan-500/5 to-purple-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     <div className="space-y-4 relative z-10">

@@ -623,7 +623,7 @@ export default function ERPHub({
       {activeModule === 'dashboard' && (
         <div className="space-y-6">
           {/* Top KPI Cards */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 shadow-xs">
               <div className="flex items-start justify-between">
                 <div>
@@ -686,7 +686,7 @@ export default function ERPHub({
           </section>
 
           {/* Detailed sections */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Products In Stock */}
             <div className="rounded-3xl border border-slate-200/70 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
@@ -1295,7 +1295,7 @@ function AddProductModal({ onClose, onSave }: { onClose: () => void; onSave: (pr
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,576px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm Sản Phẩm Mới Vào Kho</h3>
@@ -1365,7 +1365,7 @@ function StockVoucherModal({ products, onClose, onSave }: { products: ProductIte
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Lập Phiếu Nhập / Xuất Kho</h3>
@@ -1484,7 +1484,7 @@ function AddSalesOrderModal({ products, onClose, onSave }: { products: ProductIt
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Tạo Đơn Hàng Bán (Sales Order)</h3>
@@ -1576,7 +1576,7 @@ function AddVendorModal({ onClose, onSave }: { onClose: () => void; onSave: (v: 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm Nhà Cung Cấp Mới</h3>
@@ -1651,7 +1651,7 @@ function AddPOModal({ vendors, products, onClose, onSave }: { vendors: Vendor[];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Tạo Đơn Đặt Hàng Mua (Purchase Order)</h3>
@@ -1721,7 +1721,7 @@ function AddEmployeeModal({ onClose, onSave }: { onClose: () => void; onSave: (e
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
       <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
-      <form onSubmit={handleSubmit} className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
+      <form onSubmit={handleSubmit} className="relative z-10 max-h-[90dvh] overflow-y-auto w-[min(95vw,512px)] rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white">Thêm Nhân Sự & Cấu Hình Lương</h3>

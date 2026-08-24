@@ -591,7 +591,7 @@ Based on current information, here is a quick summary:
       `}} />
 
       {/* PERSISTENT FLOATING BUTTON (Apexa AI Icon) */}
-      <div className={`fixed right-6 ${appActiveTab === 'chat' ? 'bottom-24 sm:bottom-24' : 'bottom-6'} z-40 transition-all duration-300`}>
+      <div className={`fixed right-3 sm:right-6 ${appActiveTab === 'chat' ? 'bottom-20 sm:bottom-24' : 'bottom-4 sm:bottom-6'} z-40 transition-all duration-300`}>
         <motion.button
           id="btn_apexa_ai_float"
           onClick={() => {

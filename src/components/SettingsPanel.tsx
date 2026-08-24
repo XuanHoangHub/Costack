@@ -567,9 +567,9 @@ export default function SettingsPanel({
   };
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden rounded-none border-0 bg-white dark:bg-slate-950">
+    <div className="relative flex flex-col md:flex-row h-full w-full overflow-hidden rounded-none border-0 bg-white dark:bg-slate-950">
 
-      <aside className={`${mobileNavigationOpen ? 'absolute inset-0 z-30 flex w-full' : 'hidden'} flex-col border-r border-slate-200/80 bg-white/95 p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 md:relative md:flex md:w-[276px] md:shrink-0`}>
+      <aside className="flex flex-col border-b md:border-b-0 md:border-r border-slate-200/80 bg-white/95 p-3 md:p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 md:relative md:flex md:w-[276px] shrink-0 z-10">
         <div className="mb-5 flex items-center justify-between px-1">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20">
@@ -593,22 +593,22 @@ export default function SettingsPanel({
           />
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 scrollbar-none">
+        <nav className="min-h-0 flex-1 flex md:flex-col gap-2 md:gap-0 md:space-y-5 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto pr-1 pb-2 md:pb-0 scrollbar-none">
           {visibleNavigation.map(section => (
-            <div key={section.label}>
-              <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{section.label}</p>
-              <div className="space-y-1">
+            <div key={section.label} className="flex md:block gap-2">
+              <p className="hidden md:block mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{section.label}</p>
+              <div className="flex md:block space-x-2 md:space-x-0 md:space-y-1">
                 {section.items.map(item => {
                   const Icon = item.icon;
                   const selected = item.id === activeTab;
                   return (
-                    <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition cursor-pointer ${selected ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'}`}>
+                    <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={`group flex shrink-0 md:w-full items-center gap-2 md:gap-3 rounded-xl px-3 py-2 md:py-2.5 text-left transition cursor-pointer ${selected ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900/50' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'}`}>
                       <Icon className={`h-4 w-4 shrink-0 ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-extrabold">{item.label}</span>
-                        <span className={`mt-0.5 block truncate text-[10px] ${selected ? 'text-indigo-500/80 dark:text-indigo-400/70' : 'text-slate-400 dark:text-slate-500'}`}>{item.description}</span>
+                        <span className={`hidden md:block mt-0.5 truncate text-[10px] ${selected ? 'text-indigo-500/80 dark:text-indigo-400/70' : 'text-slate-400 dark:text-slate-500'}`}>{item.description}</span>
                       </span>
-                      <ChevronRight className={`h-3.5 w-3.5 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`} />
+                      <ChevronRight className={`hidden md:block h-3.5 w-3.5 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`} />
                     </button>
                   );
                 })}
@@ -650,7 +650,7 @@ export default function SettingsPanel({
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16 }} className="mx-auto max-w-5xl space-y-6 p-4 pb-16 sm:p-7 lg:p-9">
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16 }} className="mx-auto max-w-5xl space-y-6 p-3 sm:p-5 md:p-7 lg:p-9 pb-16">
             {activeTab === 'general' && (
               <>
                 <SectionHeader 

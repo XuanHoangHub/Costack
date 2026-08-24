@@ -89,9 +89,12 @@ export function useSupabaseSync() {
         await loadWorkspaces();
 
         const myMemberId = `user-${userId}`;
-        const myName = currentUser?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Apexa Champion';
+        const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+        const myName = googleName || currentUser?.name || session.user.email?.split('@')[0] || 'Avaxa Champion';
         const myEmail = currentUser?.email || session.user.email || '';
-        const myAvatar = currentUser?.avatar || '';
+        const googleAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || session.user.user_metadata?.avatar || '';
+        const cachedAvatar = currentUser?.avatar && !currentUser.avatar.includes('api.dicebear.com') ? currentUser.avatar : '';
+        const myAvatar = googleAvatar || cachedAvatar || '';
         const myRole = resolveAppRole(session.user);
 
         const { data: dbMembers, error: membersErr } = await supabase
@@ -145,7 +148,11 @@ export function useSupabaseSync() {
             if (!myDbProfile.department && session.user.user_metadata?.department) { updatedFields.department = session.user.user_metadata.department; myDbProfile.department = session.user.user_metadata.department; needsUpdate = true; }
             if (!myDbProfile.bio && session.user.user_metadata?.bio) { updatedFields.bio = session.user.user_metadata.bio; myDbProfile.bio = session.user.user_metadata.bio; needsUpdate = true; }
             if (!myDbProfile.joined_date && session.user.user_metadata?.joinedDate) { updatedFields.joined_date = session.user.user_metadata.joinedDate; myDbProfile.joined_date = session.user.user_metadata.joinedDate; needsUpdate = true; }
-            if (!myDbProfile.avatar && session.user.user_metadata?.avatar) { updatedFields.avatar = session.user.user_metadata.avatar; myDbProfile.avatar = session.user.user_metadata.avatar; needsUpdate = true; }
+            if (googleAvatar && (!myDbProfile.avatar || myDbProfile.avatar.includes('api.dicebear.com') || myDbProfile.avatar !== googleAvatar)) { 
+              updatedFields.avatar = googleAvatar; 
+              myDbProfile.avatar = googleAvatar; 
+              needsUpdate = true; 
+            }
             if (needsUpdate) {
               await supabase.from('members').update(updatedFields).eq('id', myMemberId);
             }
@@ -162,11 +169,12 @@ export function useSupabaseSync() {
         }
 
         if (myDbProfile) {
+          const dbAvatar = myDbProfile.avatar && !myDbProfile.avatar.includes('api.dicebear.com') ? myDbProfile.avatar : '';
           useAuthStore.getState().updateCurrentUser({
             id: userId,
-            name: myDbProfile.name || myName,
+            name: myDbProfile.name || googleName || myName,
             email: myEmail,
-            avatar: myDbProfile.avatar || myAvatar,
+            avatar: googleAvatar || dbAvatar || myAvatar,
             role: (myDbProfile.role || myRole) as any,
             status: 'online',
             isPremium: Boolean(myDbProfile.is_premium)
@@ -624,7 +632,8 @@ export function useSupabaseSync() {
               if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 const m = payload.new as any;
                 if (!m || !m.id) return;
-                const isMe = m.id === `user-${userId}` || m.id === 'user';
+                const currentUserEmail = (session.user.email || '').toLowerCase().trim();
+                const isMe = m.id === `user-${userId}` || m.id === 'user' || m.user_id === userId || (m.email && currentUserEmail && m.email.toLowerCase().trim() === currentUserEmail);
                 const memberId = isMe ? 'user' : m.id;
                 const mappedMember: User = {
                   id: memberId,
@@ -645,6 +654,17 @@ export function useSupabaseSync() {
                   joinedDate: m.joined_date || '2026',
                   isPremium: Boolean(m.is_premium)
                 };
+                if (isMe) {
+                  useAuthStore.getState().updateCurrentUser({
+                    id: userId,
+                    name: m.name,
+                    email: m.email,
+                    avatar: m.avatar,
+                    role: m.role as any,
+                    status: 'online',
+                    isPremium: Boolean(m.is_premium)
+                  });
+                }
                 setMembers(prev => {
                   const exists = prev.some(item => item.id === mappedMember.id);
                   if (exists) {

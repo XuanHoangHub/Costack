@@ -22,6 +22,7 @@ import LandingPage from './landing/LandingPage';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { id: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
+  registrationEnabled?: boolean;
 }
 
 type AuthMode = 'signin' | 'signup' | 'forgot';
@@ -88,7 +89,7 @@ function GlowInputField({
   );
 }
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, registrationEnabled = true }: LoginScreenProps) {
   const { locale } = useTranslation();
   const [isAuthActive, setIsAuthActive] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
@@ -117,6 +118,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const isSignUp = authMode === 'signup';
   const isForgot = authMode === 'forgot';
   const isVietnamese = locale === 'vi';
+
+  useEffect(() => {
+    if (!registrationEnabled && authMode === 'signup') {
+      setAuthMode('signin');
+      setError(isVietnamese ? 'Đăng ký mới hiện đang tạm khóa.' : 'New account registration is currently disabled.');
+    }
+  }, [authMode, isVietnamese, registrationEnabled]);
 
   const copy = isVietnamese ? {
     signin: 'Đăng nhập', signup: 'Đăng ký', free: 'Miễn phí', email: 'Địa chỉ email',
@@ -430,7 +438,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const openAuth = (signUp: boolean) => {
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setIsAuthActive(true);
-    switchAuthMode(signUp ? 'signup' : 'signin');
+    switchAuthMode(signUp && registrationEnabled ? 'signup' : 'signin');
+    if (signUp && !registrationEnabled) {
+      setError(isVietnamese ? 'Đăng ký mới hiện đang tạm khóa. Vui lòng đăng nhập bằng tài khoản hiện có.' : 'New registration is currently disabled. Sign in with an existing account.');
+    }
   };
 
   const closeAuth = () => {
@@ -775,7 +786,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               {/* Segmented Tab Switcher (Sign In vs Sign Up) */}
               {!isForgot && !mfaPendingUser && (
                 <div role="tablist" aria-label={isVietnamese ? 'Chọn phương thức truy cập' : 'Choose access method'} className="relative p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex select-none">
-                  <button
+                  {registrationEnabled && <button
                     type="button"
                     role="tab"
                     aria-selected={!isSignUp}
@@ -794,7 +805,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       />
                     )}
                     <span className="relative z-10">{copy.signin}</span>
-                  </button>
+                  </button>}
 
                   <button
                     type="button"
@@ -1090,7 +1101,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                           required
                           aria-invalid={Boolean(fieldErrors.terms)}
                           aria-describedby={fieldErrors.terms ? 'signup_terms_error' : undefined}
-                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500"
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded-md cursor-pointer"
                         />
                         <span>
                           {isVietnamese ? 'Tôi đồng ý với ' : 'I agree to Apexa’s '}
@@ -1178,7 +1189,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                         <ShieldAlert className="w-4.5 h-4.5 text-rose-500 shrink-0 mt-0.5" />
                         <span className="leading-snug">{error}</span>
                       </div>
-                      {!isSignUp && (
+                      {!isSignUp && registrationEnabled && (
                         <div className="flex items-center gap-2 pt-1 border-t border-rose-200/50 dark:border-rose-900/50 pl-7 flex-wrap">
                           <button
                             type="button"

@@ -1211,7 +1211,7 @@ export default function TaskDetailsPanel({
 
         {fieldsExpanded && (
           <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Objective */}
               {isShown('Objective') && (
                 <div className="space-y-1 relative group/field">
@@ -1370,7 +1370,7 @@ export default function TaskDetailsPanel({
             {dynamicCustomFieldNames.filter(key => isShown(key)).length > 0 && (
               <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trường tùy chỉnh khác</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {dynamicCustomFieldNames
                     .filter(key => isShown(key))
                     .map(key => {
@@ -1431,7 +1431,7 @@ export default function TaskDetailsPanel({
             {showAddCustomField ? (
               <div className="p-3 bg-slate-50 dark:bg-slate-955/40 rounded-xl border border-slate-200/60 dark:border-slate-800/80 space-y-2 mt-2 shadow-2xs">
                 <div className="text-[9px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-550">Trường tùy chỉnh mới</div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input 
                     type="text" 
                     placeholder="Tên trường" 
@@ -2489,7 +2489,7 @@ export default function TaskDetailsPanel({
               </div>
             ) : (
               // ── Single Column Scroll (Sidebar narrow layout) ──
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 text-left relative z-10">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 md:p-6 space-y-5 sm:space-y-6 text-left relative z-10">
                 
                 {/* Blocked Warning Banner */}
                 {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (

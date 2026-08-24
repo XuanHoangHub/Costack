@@ -127,7 +127,7 @@ export default function ConfirmModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 12 }}
               transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-              className="relative w-full max-w-[480px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800/90 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)] rounded-[28px] p-6 sm:p-7 text-left overflow-hidden z-10 font-sans select-none ring-1 ring-black/5 dark:ring-white/10"
+              className="relative w-[min(95vw,480px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800/90 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.85)] rounded-[28px] p-5 sm:p-6 md:p-7 text-left z-10 font-sans select-none ring-1 ring-black/5 dark:ring-white/10"
             >
               {/* Subtle Decorative Ambient Glow */}
               <div 
@@ -149,13 +149,13 @@ export default function ConfirmModal({
               <button
                 type="button"
                 onClick={onCancel}
-                className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer group"
+                className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer group min-h-[44px] min-w-[44px] flex items-center justify-center"
                 title="Đóng (Esc)"
               >
                 <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
               </button>
 
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4 pr-8">
                 {/* Modern Icon Badge with Glow Ring */}
                 <div className="relative shrink-0">
                   <div 
@@ -177,7 +177,7 @@ export default function ConfirmModal({
                 </div>
 
                 {/* Text Header */}
-                <div className="flex-1 min-w-0 pr-6">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-snug">
                       {title}
@@ -221,17 +221,17 @@ export default function ConfirmModal({
               )}
 
               {/* Actions Row */}
-              <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80">
                 {/* Cancel Button */}
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={onCancel}
-                  className="px-4.5 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-750 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer select-none shadow-3xs flex items-center gap-1.5"
+                  className="px-4.5 py-2.5 min-h-[44px] rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-100/70 dark:bg-slate-800/70 hover:bg-slate-200/80 dark:hover:bg-slate-750 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer select-none shadow-3xs flex items-center justify-center gap-1.5 w-full sm:w-auto"
                 >
                   <span>{effectiveCancelText}</span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-medium px-1 py-0.2 rounded bg-slate-200/60 dark:bg-slate-700/60">
+                  <span className="hidden sm:inline-block text-[10px] text-slate-400 dark:text-slate-500 font-mono font-medium px-1 py-0.2 rounded bg-slate-200/60 dark:bg-slate-700/60">
                     Esc
                   </span>
                 </motion.button>
@@ -242,7 +242,7 @@ export default function ConfirmModal({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={onConfirm}
-                  className={`group px-5 py-2.5 rounded-2xl text-xs font-black text-white transition-all cursor-pointer select-none flex items-center gap-2 shadow-lg relative overflow-hidden ${
+                  className={`group px-5 py-2.5 min-h-[44px] rounded-2xl text-xs font-black text-white transition-all cursor-pointer select-none flex items-center justify-center gap-2 shadow-lg relative overflow-hidden w-full sm:w-auto ${
                     resolvedIsDestructive
                       ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 shadow-rose-500/25 hover:shadow-rose-500/40 border border-rose-400/30'
                       : 'bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-500 hover:to-blue-500 shadow-indigo-500/25 hover:shadow-indigo-500/40 border border-indigo-400/30'
@@ -258,7 +258,7 @@ export default function ConfirmModal({
                   )}
                   <span>{effectiveConfirmText}</span>
 
-                  <span className="text-[10px] text-white/80 font-mono font-bold px-1.5 py-0.5 rounded bg-white/20 ml-0.5 flex items-center gap-0.5">
+                  <span className="hidden sm:flex text-[10px] text-white/80 font-mono font-bold px-1.5 py-0.5 rounded bg-white/20 ml-0.5 items-center gap-0.5">
                     <CornerDownLeft className="w-2.5 h-2.5" />
                     Enter
                   </span>

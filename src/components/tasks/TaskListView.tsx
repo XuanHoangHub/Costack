@@ -264,9 +264,6 @@ const TaskListView = React.memo(function TaskListView({
       const updatedTask = { ...taskToUpdate, status: newStatus as TaskStatus };
       onUpdateTask(updatedTask);
       onAddSyncLog(`Moved task "${taskToUpdate.title}" to status ${newStatus}`);
-      if (triggerToast) {
-        triggerToast('success', 'Task Updated', `Moved task to ${newStatus}`);
-      }
     } else if (taskToUpdate && result.source.droppableId === destination.droppableId) {
       const groupIds = filteredTasks.filter(task => task.status === newStatus).map(task => task.id);
       const sourceIndex = groupIds.indexOf(taskId);
@@ -355,9 +352,10 @@ const TaskListView = React.memo(function TaskListView({
           <div className="flex items-center gap-2 shrink-0">
             <input 
               type="checkbox" 
+              ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !isAllSelected; }}
               checked={isAllSelected}
               onChange={handleToggleSelectAll}
-              className="w-4 h-4 rounded-md border border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 transition-all"
+              className="w-4 h-4 rounded-md cursor-pointer transition-all"
               title={isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả công việc"}
             />
           </div>
@@ -604,7 +602,7 @@ const TaskListView = React.memo(function TaskListView({
                                           checked={isSelected}
                                           onChange={e => { e.stopPropagation(); setSelectedTaskIds(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id)); }}
                                           onClick={e => e.stopPropagation()}
-                                          className={`w-4 h-4 rounded-md border border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0 transition-all accent-indigo-600 ${
+                                          className={`w-4 h-4 rounded-md cursor-pointer shrink-0 transition-opacity ${
                                             isSelected ? 'opacity-100' : 'opacity-40 group-hover/row:opacity-100'
                                           }`} 
                                         />
