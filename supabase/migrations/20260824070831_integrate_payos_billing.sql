@@ -20,6 +20,7 @@ create table if not exists public.billing_orders (
   status text not null default 'pending'
     check (status in ('pending', 'paid', 'cancelled', 'expired', 'failed')),
   description text not null,
+  return_url text not null,
   payment_link_id text unique,
   checkout_url text,
   payment_reference text unique,
@@ -39,8 +40,12 @@ create index if not exists billing_orders_pending_user_idx
 
 alter table public.billing_orders enable row level security;
 
+alter table public.billing_orders
+  add column if not exists return_url text;
+
 revoke all on table public.billing_orders from anon, authenticated;
 grant select on table public.billing_orders to authenticated;
+grant select, insert, update on table public.billing_orders to service_role;
 
 drop policy if exists "Users can view own billing orders" on public.billing_orders;
 create policy "Users can view own billing orders"

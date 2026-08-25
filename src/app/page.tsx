@@ -84,6 +84,7 @@ const KeyboardShortcutsModal = dynamic(() => import('../components/KeyboardShort
 const AddListModal = dynamic(() => import('../components/AddListModal'));
 const FinanceHub = dynamic(() => import('../components/FinanceHub'), { loading: ComponentLoading });
 const ERPHub = dynamic(() => import('../components/ERPHub'), { loading: ComponentLoading });
+const GoalsHub = dynamic(() => import('../components/GoalsHub'), { loading: ComponentLoading });
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -164,7 +165,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'inbox', 'tasks', 'calendar',
+  'dashboard', 'inbox', 'tasks', 'goals', 'calendar',
   'crm', 'erp', 'finance', 'base', 'docs', 'whiteboard', 'chat', 'team'
 ];
 
@@ -536,7 +537,8 @@ export default function App() {
   // Load / Seed Spaces (Offline/Fallback)
   useEffect(() => {
     if (currentUser?.id) {
-      const savedSpaces = localStorage.getItem(`avaxa_spaces_${currentUser.id}`);
+      const savedSpaces = localStorage.getItem(`apexa_spaces_${currentUser.id}`)
+        || localStorage.getItem(`avaxa_spaces_${currentUser.id}`);
       if (savedSpaces) {
         try {
           setSpaces(JSON.parse(savedSpaces));
@@ -549,7 +551,18 @@ export default function App() {
 
   const handleSaveSpaces = async (newSpaces: Space[]) => {
     const currentAllSpaces = useSpaceStore.getState().spaces;
-    const allMergedSpaces = newSpaces;
+    const containsOtherWorkspaces = newSpaces.some(space => space.workspaceId !== activeWorkspaceId);
+    const isFullSnapshot = !activeWorkspaceId || containsOtherWorkspaces;
+    const scopedIncomingSpaces = activeWorkspaceId
+      ? newSpaces.filter(space => space.workspaceId === activeWorkspaceId)
+      : newSpaces;
+    const allMergedSpaces = isFullSnapshot
+      ? newSpaces
+      : [
+          ...currentAllSpaces.filter(space => space.workspaceId !== activeWorkspaceId),
+          ...scopedIncomingSpaces,
+        ];
+    const spacesToSync = isFullSnapshot ? newSpaces : scopedIncomingSpaces;
 
     setSpaces(allMergedSpaces);
     if (!currentUser?.id) return;
@@ -573,11 +586,12 @@ export default function App() {
           const deletedSpaceIds = oldSpaceIds.filter(id => !newSpaceIds.includes(id));
 
           if (deletedSpaceIds.length > 0) {
-            await supabase.from('spaces').delete().in('id', deletedSpaceIds).eq('user_id', userId);
+            const { error: deleteSpacesError } = await supabase.from('spaces').delete().in('id', deletedSpaceIds);
+            if (deleteSpacesError) throw deleteSpacesError;
           }
 
           // 2. Upsert each space and sync lists
-          for (const space of allMergedSpaces) {
+          for (const space of spacesToSync) {
             let spaceWsId = space.workspaceId;
             if (!spaceWsId || (!validWsIds.has(spaceWsId) && validWsIds.size > 0)) {
               spaceWsId = activeWorkspaceId || workspaces[0]?.id || spaceWsId;
@@ -597,10 +611,12 @@ export default function App() {
               click_apps: {
                 ...(space.clickApps || {}),
                 spacePreferences: {
+                  ...(space.clickApps?.spacePreferences || {}),
                   description: space.description || '',
                   isFavorite: !!space.isFavorite,
                   isHidden: !!space.isHidden,
                   isArchived: !!space.isArchived,
+                  defaultPermission: space.defaultPermission || space.clickApps?.spacePreferences?.defaultPermission || 'Full edit',
                   listPreferences: Object.fromEntries(currentLists.map(list => [list.id, {
                     isFavorite: !!list.isFavorite,
                     isArchived: !!list.isArchived
@@ -608,7 +624,7 @@ export default function App() {
                 }
               },
               custom_fields_config: space.customFields || [],
-              user_id: userId,
+              user_id: space.user_id || userId,
               is_private: space.isPrivate || false,
               share_settings: space.shareSettings || {}
             });
@@ -627,7 +643,8 @@ export default function App() {
             // Delete removed lists
             const deletedListIds = oldListIds.filter(id => !newListIds.includes(id));
             if (deletedListIds.length > 0) {
-              await supabase.from('lists').delete().in('id', deletedListIds).eq('user_id', userId);
+              const { error: deleteListsError } = await supabase.from('lists').delete().in('id', deletedListIds);
+              if (deleteListsError) throw deleteListsError;
             }
 
             // Upsert current lists
@@ -637,7 +654,7 @@ export default function App() {
                 name: list.name,
                 space_id: space.id,
                 folder_id: list.folderId || null,
-                user_id: userId,
+                user_id: list.user_id || space.user_id || userId,
                 is_private: list.isPrivate || false,
                 share_settings: list.shareSettings || {},
                 is_favorite: Boolean(list.isFavorite),
@@ -653,6 +670,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error syncing spaces/lists with Supabase:', err);
+        triggerToast('info', 'Đã lưu trên thiết bị', 'Không thể đồng bộ thay đổi Space lên máy chủ. Apexa sẽ giữ bản cục bộ để bạn không mất dữ liệu.');
       }
     }
   };
@@ -702,7 +720,7 @@ export default function App() {
       clickApps: { subtasks: true, priorities: true, customFields: true },
       description: newSpaceDescription,
       isPrivate: newSpaceIsPrivate,
-      defaultPermission: newSpacePermission
+      defaultPermission: newSpacePermission as Space['defaultPermission']
     };
     const updated = [...spaces, newSpace];
     handleSaveSpaces(updated);
@@ -754,13 +772,13 @@ export default function App() {
     addSyncLog(`Created List "${name}" in Space`);
   };
 
-  const handleAddFolderToSpace = (spaceId: string, name: string) => {
+  const handleAddFolderToSpace = (spaceId: string, name: string, color?: string) => {
     const updated = spaces.map(s => {
       if (s.id === spaceId) {
         const folders = s.folders || [];
         return {
           ...s,
-          folders: [...folders, { id: `folder-${Date.now()}`, name }]
+          folders: [...folders, { id: `folder-${Date.now()}`, name, color }]
         };
       }
       return s;
@@ -1315,6 +1333,7 @@ export default function App() {
         count: unreadNotificationsCount
       },
       tasks: { label: t('space') || 'Space', icon: PhCheckSquare },
+      goals: { label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: PhTarget, badge: locale === 'vi' ? 'Mới' : 'New' },
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
       crm: { label: 'CRM', icon: PhHandshake, badge: locale === 'vi' ? 'Mới' : 'New' },
       erp: { label: 'ERP', icon: PhBuildings, badge: 'Enterprise' },
@@ -1918,14 +1937,31 @@ export default function App() {
                         updatedBy: d.updatedBy,
                         isAiGenerated: d.isAiGenerated || false,
                         user_id: userId,
-                        workspace_id: d.workspaceId || null
+                        workspace_id: d.workspaceId || null,
+                        space_id: d.spaceId || null,
+                        folder_id: d.folderId || null
                       }));
                       
                       syncPromises.push(
                         supabase.from('docs')
                           .upsert(formattedDocs)
-                          .then(({ error }) => {
-                            if (error) console.error('Error syncing batched offline docs:', error);
+                          .then(async ({ error }) => {
+                            if (!error) return;
+                            if (error.message?.includes('space_id') || error.message?.includes('folder_id') || error.message?.includes('workspace_id')) {
+                              const compatibleDocs = formattedDocs.map(doc => {
+                                const compatibleDoc = { ...doc };
+                                delete (compatibleDoc as Partial<typeof doc>).space_id;
+                                delete (compatibleDoc as Partial<typeof doc>).folder_id;
+                                if (error.message.includes('workspace_id')) {
+                                  delete (compatibleDoc as Partial<typeof doc>).workspace_id;
+                                }
+                                return compatibleDoc;
+                              });
+                              const { error: retryError } = await supabase.from('docs').upsert(compatibleDocs);
+                              if (retryError) console.error('Error syncing batched offline docs:', retryError);
+                              return;
+                            }
+                            console.error('Error syncing batched offline docs:', error);
                           })
                       );
                     }
@@ -2557,7 +2593,9 @@ export default function App() {
             updatedAt: d.updatedAt,
             updatedBy: d.updatedBy,
             isAiGenerated: d.isAiGenerated || false,
-            workspaceId: d.workspace_id || undefined
+            workspaceId: d.workspace_id || undefined,
+            spaceId: d.space_id || undefined,
+            folderId: d.folder_id || undefined
           })));
         } else {
           setDocs([]);
@@ -2655,6 +2693,7 @@ export default function App() {
                   isFavorite: !!s.is_favorite || !!s.click_apps?.spacePreferences?.isFavorite,
                   isHidden: !!s.is_hidden || !!s.click_apps?.spacePreferences?.isHidden,
                   isArchived: !!s.is_archived || !!s.click_apps?.spacePreferences?.isArchived,
+                  defaultPermission: s.click_apps?.spacePreferences?.defaultPermission || 'Full edit',
                   lists: mergedLists,
                   folders: s.folders || [],
                   whiteboards: s.whiteboards || [],
@@ -2879,7 +2918,9 @@ export default function App() {
                     updatedAt: d.updatedAt,
                     updatedBy: d.updatedBy,
                     isAiGenerated: d.isAiGenerated || false,
-                    workspaceId: d.workspace_id || undefined
+                    workspaceId: d.workspace_id || undefined,
+                    spaceId: d.space_id || undefined,
+                    folderId: d.folder_id || undefined
                   };
                   setDocs(prev => {
                     const exists = prev.some(item => item.id === mappedDoc.id);
@@ -3318,8 +3359,10 @@ export default function App() {
     const targetSpace = (t.spaceId && workspaceSpaces.find(s => s.id === t.spaceId))
       || (activeSpaceId && workspaceSpaces.find(s => s.id === activeSpaceId))
       || workspaceSpaces[0];
-    const targetSpaceId = t.spaceId || targetSpace?.id || undefined;
-    const targetListId = t.listId || (targetSpace?.lists && targetSpace.lists.length > 0 ? (targetSpace.lists.find(l => l.id === activeListId)?.id || targetSpace.lists[0].id) : undefined);
+    const targetSpaceId = targetSpace?.id;
+    const requestedList = targetSpace?.lists?.find(list => list.id === t.listId);
+    const activeList = targetSpace?.lists?.find(list => list.id === activeListId);
+    const targetListId = requestedList?.id || activeList?.id || targetSpace?.lists?.[0]?.id;
 
     const taskId = `task-${Date.now()}`;
     const newTask: Task = {
@@ -3624,15 +3667,19 @@ export default function App() {
             updatedBy: newDocObj.updatedBy,
             isAiGenerated: newDocObj.isAiGenerated || false,
             user_id: session.user.id,
-            workspace_id: activeWorkspaceId
+            workspace_id: activeWorkspaceId,
+            space_id: newDocObj.spaceId || null,
+            folder_id: newDocObj.folderId || null
           };
 
           const { error } = await supabase.from('docs').insert([payload]);
           
           if (error) {
-            console.warn('First doc insert attempt failed, retrying without workspace_id column:', error.message);
-            if (error.message && (error.message.includes('workspace_id') || error.message.includes('column') || error.message.includes('relation'))) {
-              delete payload.workspace_id;
+            console.warn('First doc insert attempt failed, retrying without incompatible relation columns:', error.message);
+            if (error.message && (error.message.includes('workspace_id') || error.message.includes('space_id') || error.message.includes('folder_id') || error.message.includes('column') || error.message.includes('relation'))) {
+              if (error.message.includes('workspace_id')) delete payload.workspace_id;
+              delete payload.space_id;
+              delete payload.folder_id;
               const { error: retryError } = await supabase.from('docs').insert([payload]);
               if (retryError) {
                 console.error('Retry doc insert failed:', retryError);
@@ -3659,15 +3706,27 @@ export default function App() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('docs').update({
+          const payload: Record<string, unknown> = {
             title: updated.title,
             content: updated.content,
             category: updated.category,
             updatedAt: updated.updatedAt,
             updatedBy: updated.updatedBy,
-            isAiGenerated: updated.isAiGenerated || false
-          }).eq('id', updated.id).eq('user_id', session.user.id);
-          if (error) console.error('Supabase Doc Update Error:', error);
+            isAiGenerated: updated.isAiGenerated || false,
+            workspace_id: updated.workspaceId || activeWorkspaceId,
+            space_id: updated.spaceId || null,
+            folder_id: updated.folderId || null
+          };
+          const { error } = await supabase.from('docs').update(payload).eq('id', updated.id);
+          if (error && (error.message?.includes('space_id') || error.message?.includes('folder_id') || error.message?.includes('workspace_id'))) {
+            delete payload.space_id;
+            delete payload.folder_id;
+            if (error.message.includes('workspace_id')) delete payload.workspace_id;
+            const { error: retryError } = await supabase.from('docs').update(payload).eq('id', updated.id);
+            if (retryError) console.error('Supabase Doc Update Error:', retryError);
+          } else if (error) {
+            console.error('Supabase Doc Update Error:', error);
+          }
         }
       } catch (err) {
         console.error('Doc update sync failure:', err);
@@ -3684,7 +3743,7 @@ export default function App() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { error } = await supabase.from('docs').delete().eq('id', id).eq('user_id', session.user.id);
+          const { error } = await supabase.from('docs').delete().eq('id', id);
           if (error) console.error('Supabase Doc Delete Error:', error);
         }
       } catch (err) {
@@ -3909,6 +3968,7 @@ export default function App() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
     { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
+    { id: 'goals', label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: Target, category: 'workspace' },
     { id: 'crm', label: 'CRM', icon: Handshake, category: 'workspace' },
     { id: 'base', label: 'Avaxa Base', icon: Database, category: 'workspace' },
     { id: 'whiteboard', label: 'Mind Whiteboard', icon: Grid, category: 'collaboration' },
@@ -5483,7 +5543,7 @@ export default function App() {
         
 
         {(() => {
-          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
+          const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
             <main className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden">
@@ -5624,6 +5684,25 @@ export default function App() {
                       onAddDoc={handleAddDoc}
                       onUpdateDoc={handleUpdateDoc}
                       onDeleteDoc={handleDeleteDoc}
+                    />
+                  )}
+
+                  {activeTab === 'goals' && (
+                    <GoalsHub
+                      activeWorkspaceId={activeWorkspaceId}
+                      currentUser={currentUser}
+                      members={currentWorkspaceMembers}
+                      tasks={currentWorkspaceTasks}
+                      isOffline={isOffline}
+                      onOpenTask={(taskId) => {
+                        const task = currentWorkspaceTasks.find((item) => item.id === taskId);
+                        setActiveTab('tasks');
+                        if (task?.spaceId) setActiveSpaceId(task.spaceId);
+                        if (task?.listId) setActiveListId(task.listId);
+                        setInitialSelectedTaskId(taskId);
+                      }}
+                      onAddSyncLog={addSyncLog}
+                      triggerToast={triggerToast}
                     />
                   )}
 

@@ -15,10 +15,11 @@ export function resolveModel(model?: string): string {
   return model.trim();
 }
 
-export async function getAuthorizedGeminiClient(request: Request) {
+export async function getAuthorizedGeminiClient(request: Request, maxPayloadSize: number = 512_000) {
   const contentLength = Number(request.headers.get('content-length') || 0);
-  if (contentLength > 512_000) {
-    throw new Error('AI_PAYLOAD_TOO_LARGE: Nội dung yêu cầu vượt quá giới hạn 500 KB.');
+  if (contentLength > maxPayloadSize) {
+    const sizeMb = (maxPayloadSize / (1024 * 1024)).toFixed(1);
+    throw new Error(`AI_PAYLOAD_TOO_LARGE: Nội dung yêu cầu vượt quá giới hạn ${maxPayloadSize >= 1_000_000 ? sizeMb + ' MB' : Math.round(maxPayloadSize / 1024) + ' KB'}.`);
   }
 
   const customApiKey = request.headers.get('x-gemini-api-key')?.trim();

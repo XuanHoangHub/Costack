@@ -32,11 +32,12 @@ import {
   Zap,
   Lock
 } from 'lucide-react';
-import { Task, TaskStatus, User, Space } from '../types';
+import { Task, TaskStatus, User, Space, SpaceBookmark } from '../types';
 import { useTranslation } from '../contexts/TranslationContext';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
+import { callAiApi } from '../lib/aiClient';
 
 interface SpaceOverviewTabProps {
   space: Space;
@@ -52,12 +53,7 @@ interface SpaceOverviewTabProps {
   onOpenDoc?: (docId: string) => void;
   activeFolderId?: string | null;
   onUpdateSpaceEmoji?: (emoji: string) => void;
-}
-
-interface BookmarkItem {
-  id: string;
-  title: string;
-  url: string;
+  onUpdateBookmarks?: (bookmarks: SpaceBookmark[]) => void;
 }
 
 const THEME_COLORS: Record<
@@ -238,10 +234,11 @@ export default function SpaceOverviewTab({
   onAddDoc,
   onOpenDoc,
   activeFolderId = null,
-  onUpdateSpaceEmoji
+  onUpdateSpaceEmoji,
+  onUpdateBookmarks
 }: SpaceOverviewTabProps) {
   const { locale } = useTranslation();
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
+  const [bookmarks, setBookmarks] = useState<SpaceBookmark[]>([]);
   const [showAddBookmarkModal, setShowAddBookmarkModal] = useState(false);
   const [bookmarkTitle, setBookmarkTitle] = useState('');
   const [bookmarkUrl, setBookmarkUrl] = useState('');
@@ -254,13 +251,26 @@ export default function SpaceOverviewTab({
   const bookmarkKey = activeFolderId ? `apexa_bookmarks_folder_${activeFolderId}` : `apexa_bookmarks_${space.id}`;
 
   useEffect(() => {
+    const preferences = space.clickApps?.spacePreferences;
+    const syncedBookmarks = activeFolderId
+      ? preferences?.folderBookmarks?.[activeFolderId]
+      : preferences?.bookmarks;
+
+    if (Array.isArray(syncedBookmarks)) {
+      setBookmarks(syncedBookmarks);
+      return;
+    }
+
     try {
       const saved = localStorage.getItem(bookmarkKey);
-      setBookmarks(saved ? JSON.parse(saved) : []);
+      const parsed = saved ? JSON.parse(saved) : [];
+      const migratedBookmarks = Array.isArray(parsed) ? parsed : [];
+      setBookmarks(migratedBookmarks);
+      if (migratedBookmarks.length > 0) onUpdateBookmarks?.(migratedBookmarks);
     } catch {
       setBookmarks([]);
     }
-  }, [bookmarkKey]);
+  }, [activeFolderId, bookmarkKey, onUpdateBookmarks, space.clickApps?.spacePreferences]);
 
   const contextListIds = useMemo(() => {
     if (!activeFolderId) return space.lists?.map(list => list.id) || [];
@@ -355,6 +365,7 @@ export default function SpaceOverviewTab({
 
     const updated = [...bookmarks, { id: `bookmark-${Date.now()}`, title: bookmarkTitle.trim(), url: formattedUrl }];
     setBookmarks(updated);
+    onUpdateBookmarks?.(updated);
 
     try {
       localStorage.setItem(bookmarkKey, JSON.stringify(updated));
@@ -373,6 +384,7 @@ export default function SpaceOverviewTab({
   const handleDeleteBookmark = (id: string) => {
     const updated = bookmarks.filter(bookmark => bookmark.id !== id);
     setBookmarks(updated);
+    onUpdateBookmarks?.(updated);
 
     try {
       localStorage.setItem(bookmarkKey, JSON.stringify(updated));
@@ -409,23 +421,31 @@ export default function SpaceOverviewTab({
     );
   };
 
-  const handleRunAiAnalysis = () => {
+  const handleRunAiAnalysis = async () => {
     setIsAnalyzing(true);
-    window.setTimeout(() => {
-      const focusLine =
-        overdueCount > 0
-          ? locale === 'vi'
-            ? `Phát hiện ${overdueCount} công việc quá hạn cần giải quyết khẩn cấp.`
-            : `Detected ${overdueCount} overdue item(s) requiring immediate attention.`
-          : locale === 'vi'
-            ? `Tất cả tiến độ đều đúng hạn. Tập trung hoàn thành ${highPriorityCount} mục quan trọng.`
-            : `All tasks on schedule. Prioritize completing ${highPriorityCount} critical item(s).`;
+    const fallbackSummary = locale === 'vi'
+      ? `Space "${space.name}" hoàn thành ${completionPercentage}%. Có ${statusCounts.inprogress} việc đang làm, ${statusCounts.review} việc chờ duyệt, ${overdueCount} việc quá hạn và ${highPriorityCount} việc ưu tiên cao. ${overdueCount > 0 ? 'Nên xử lý các việc quá hạn trước, sau đó tập trung vào nhóm ưu tiên cao.' : 'Tiến độ đang đúng hạn; hãy tập trung hoàn tất nhóm ưu tiên cao.'}`
+      : `Space "${space.name}" is ${completionPercentage}% complete, with ${statusCounts.inprogress} in progress, ${statusCounts.review} in review, ${overdueCount} overdue, and ${highPriorityCount} high-priority items. ${overdueCount > 0 ? 'Address overdue work first, then focus on high-priority items.' : 'Work is on schedule; focus on closing the high-priority items.'}`;
 
-      const summary =
-        locale === 'vi'
-          ? `Space "${space.name}" đạt ${completionPercentage}% tỷ lệ hoàn thành. Đang chạy ${statusCounts.inprogress} nhiệm vụ, ${statusCounts.review} việc chờ duyệt. ${focusLine}`
-          : `Space "${space.name}" reached ${completionPercentage}% completion rate. ${statusCounts.inprogress} active task(s), ${statusCounts.review} in review. ${focusLine}`;
-
+    try {
+      const taskContext = spaceTasks.slice(0, 30).map(task => ({
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate || null,
+        progress: task.progress,
+      }));
+      const response = await callAiApi('/api/ai/chat', {
+        message: locale === 'vi'
+          ? `Phân tích sức khỏe Space "${space.name}" từ dữ liệu sau và trả lời bằng tiếng Việt trong 3-5 câu ngắn. Nêu rủi ro lớn nhất, ưu tiên tiếp theo và một hành động cụ thể. Không dùng markdown. Dữ liệu: ${JSON.stringify(taskContext)}`
+          : `Analyze the health of Space "${space.name}" from the following data in 3-5 concise English sentences. Identify the biggest risk, next priority, and one concrete action. Do not use markdown. Data: ${JSON.stringify(taskContext)}`,
+        history: [],
+        googleSearch: false,
+      });
+      if (!response.ok) throw new Error('AI analysis request failed');
+      const payload = await response.json();
+      const summary = typeof payload.text === 'string' ? payload.text.trim() : '';
+      if (!summary) throw new Error('AI analysis returned an empty response');
       setAiAnalysis(summary);
       setIsAnalyzing(false);
       triggerToast?.(
@@ -433,7 +453,15 @@ export default function SpaceOverviewTab({
         locale === 'vi' ? 'Phân tích AI hoàn tất' : 'AI Analysis Complete',
         locale === 'vi' ? 'Đã tổng hợp bức tranh toàn cảnh của Space.' : 'Generated space health brief.'
       );
-    }, 600);
+    } catch {
+      setAiAnalysis(fallbackSummary);
+      setIsAnalyzing(false);
+      triggerToast?.(
+        'info',
+        locale === 'vi' ? 'Đã tạo phân tích nhanh' : 'Quick analysis ready',
+        locale === 'vi' ? 'AI đang không khả dụng nên Apexa đã dùng dữ liệu tiến độ hiện có.' : 'AI was unavailable, so Apexa used the current progress data.'
+      );
+    }
   };
 
   return (

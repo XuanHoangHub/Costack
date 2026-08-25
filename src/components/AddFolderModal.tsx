@@ -21,13 +21,13 @@ interface AddFolderModalProps {
 }
 
 const FOLDER_COLORS = [
-  { id: 'amber', name: 'Hổ phách', bg: 'bg-amber-500', text: 'text-amber-500', ring: 'ring-amber-500', gradient: 'from-amber-500 via-orange-500 to-yellow-400' },
-  { id: 'indigo', name: 'Chàm', bg: 'bg-indigo-500', text: 'text-indigo-500', ring: 'ring-indigo-500', gradient: 'from-indigo-600 via-indigo-500 to-purple-500' },
-  { id: 'blue', name: 'Xanh dương', bg: 'bg-blue-500', text: 'text-blue-500', ring: 'ring-blue-500', gradient: 'from-blue-600 via-sky-500 to-cyan-400' },
-  { id: 'emerald', name: 'Lục', bg: 'bg-emerald-500', text: 'text-emerald-500', ring: 'ring-emerald-500', gradient: 'from-emerald-600 via-emerald-500 to-teal-400' },
-  { id: 'violet', name: 'Tím', bg: 'bg-purple-500', text: 'text-purple-500', ring: 'ring-purple-500', gradient: 'from-purple-600 via-violet-500 to-fuchsia-500' },
-  { id: 'rose', name: 'Hồng đỏ', bg: 'bg-rose-500', text: 'text-rose-500', ring: 'ring-rose-500', gradient: 'from-rose-600 via-rose-500 to-pink-400' },
-  { id: 'cyan', name: 'Xanh ngọc', bg: 'bg-cyan-500', text: 'text-cyan-500', ring: 'ring-cyan-500', gradient: 'from-cyan-500 via-sky-500 to-blue-500' },
+  { id: 'amber', hex: '#f59e0b', name: 'Hổ phách', bg: 'bg-amber-500', text: 'text-amber-500', ring: 'ring-amber-500', gradient: 'from-amber-500 via-orange-500 to-yellow-400' },
+  { id: 'indigo', hex: '#6366f1', name: 'Chàm', bg: 'bg-indigo-500', text: 'text-indigo-500', ring: 'ring-indigo-500', gradient: 'from-indigo-600 via-indigo-500 to-purple-500' },
+  { id: 'blue', hex: '#3b82f6', name: 'Xanh dương', bg: 'bg-blue-500', text: 'text-blue-500', ring: 'ring-blue-500', gradient: 'from-blue-600 via-sky-500 to-cyan-400' },
+  { id: 'emerald', hex: '#10b981', name: 'Lục', bg: 'bg-emerald-500', text: 'text-emerald-500', ring: 'ring-emerald-500', gradient: 'from-emerald-600 via-emerald-500 to-teal-400' },
+  { id: 'violet', hex: '#8b5cf6', name: 'Tím', bg: 'bg-purple-500', text: 'text-purple-500', ring: 'ring-purple-500', gradient: 'from-purple-600 via-violet-500 to-fuchsia-500' },
+  { id: 'rose', hex: '#f43f5e', name: 'Hồng đỏ', bg: 'bg-rose-500', text: 'text-rose-500', ring: 'ring-rose-500', gradient: 'from-rose-600 via-rose-500 to-pink-400' },
+  { id: 'cyan', hex: '#06b6d4', name: 'Xanh ngọc', bg: 'bg-cyan-500', text: 'text-cyan-500', ring: 'ring-cyan-500', gradient: 'from-cyan-500 via-sky-500 to-blue-500' },
 ];
 
 export default function AddFolderModal({
@@ -53,9 +53,15 @@ export default function AddFolderModal({
   useEffect(() => {
     if (isOpen) {
       setFolderName(initialName);
-      setSelectedColor(isSprintMode ? 'cyan' : 'amber');
+      const existingColor = editingFolderId
+        ? targetSpace?.folders?.find(folder => folder.id === editingFolderId)?.color
+        : undefined;
+      const matchingColor = existingColor
+        ? FOLDER_COLORS.find(color => color.id === existingColor || color.hex.toLowerCase() === existingColor.toLowerCase())
+        : undefined;
+      setSelectedColor(matchingColor?.id || (isSprintMode ? 'cyan' : 'amber'));
     }
-  }, [isOpen, initialName, isSprintMode]);
+  }, [editingFolderId, initialName, isOpen, isSprintMode, targetSpace?.folders]);
 
   // Keyboard shortcut: Esc to close
   useEffect(() => {
@@ -79,7 +85,7 @@ export default function AddFolderModal({
       finalName = `Sprint: ${finalName}`;
     }
 
-    onSave(spaceId, finalName, selectedColor, editingFolderId || undefined);
+    onSave(spaceId, finalName, activeColorObj.hex, editingFolderId || undefined);
     onClose();
   };
 

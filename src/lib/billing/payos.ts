@@ -82,6 +82,17 @@ export function createPayOSPaymentLink(input: CreatePaymentLinkInput) {
   return getPayOS().paymentRequests.create(input, { timeout: 10_000, maxRetries: 2 });
 }
 
+export function getPayOSPaymentLink(orderCode: number) {
+  // Used as a server-side fallback when the browser callback arrives before
+  // the PayOS webhook. The official SDK authenticates the request and
+  // validates the response before we reconcile the local entitlement.
+  return getPayOS().paymentRequests.get(orderCode, { timeout: 10_000, maxRetries: 2 });
+}
+
+export function cancelPayOSPaymentLink(orderCode: number, reason: string) {
+  return getPayOS().paymentRequests.cancel(orderCode, reason, { timeout: 10_000, maxRetries: 2 });
+}
+
 export function createPayOSOrderCode() {
   // 15 digits, unique enough for retries and still below Number.MAX_SAFE_INTEGER.
   return Date.now() * 100 + randomInt(0, 100);

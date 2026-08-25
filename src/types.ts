@@ -106,6 +106,9 @@ export interface Space {
       isFavorite?: boolean;
       isHidden?: boolean;
       isArchived?: boolean;
+      defaultPermission?: 'Full edit' | 'Edit only' | 'Read only' | 'Comment only';
+      bookmarks?: SpaceBookmark[];
+      folderBookmarks?: Record<string, SpaceBookmark[]>;
       listPreferences?: Record<string, { isFavorite?: boolean; isArchived?: boolean }>;
     };
   };
@@ -116,6 +119,13 @@ export interface Space {
   isArchived?: boolean;
   shareSettings?: Record<string, 'view' | 'edit'>;
   user_id?: string;
+  defaultPermission?: 'Full edit' | 'Edit only' | 'Read only' | 'Comment only';
+}
+
+export interface SpaceBookmark {
+  id: string;
+  title: string;
+  url: string;
 }
 
 export interface Task {

@@ -9,8 +9,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import { yCursorPlugin } from '@tiptap/y-tiptap';
-import { Doc, applyUpdate, encodeStateAsUpdate } from 'yjs';
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness';
+import { Doc } from 'yjs';
 import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Bold, Italic, Strikethrough, Code, Sparkles, Image as ImageIcon,
@@ -18,7 +17,7 @@ import {
   Download, FileText, Copy, X, History, Share2, Globe2, LockKeyhole,
   RotateCcw, RotateCw, UserPlus, CheckCircle2, ListTodo, ShieldCheck, Pilcrow, Minus, Wand2, Eye,
   Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2,
-  Film, Clapperboard
+  Film, Clapperboard, Cloud, CloudOff, WifiOff, LoaderCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMemberStore } from '@/store/memberStore';
@@ -27,6 +26,10 @@ import { renderSpaceIcon } from './EmojiIconPicker';
 import { Select } from './ui/Select';
 import ScreenplayEditor from './script/ScreenplayEditor';
 import { ApexaAiIcon } from './ApexaAiIcon';
+import {
+  SupabaseYjsProvider,
+  type DocumentRealtimeStatus,
+} from '@/lib/supabaseYjsProvider';
 
 interface DocumentEditorProps {
   documentId: string;
@@ -54,31 +57,14 @@ type PaperStyle = 'blank' | 'lined' | 'grid' | 'warm';
 type FontFamily = 'sans' | 'serif' | 'mono';
 type FontSize = 'sm' | 'md' | 'lg';
 type PageWidth = 'standard' | 'wide' | 'full';
+type DocumentAccessLevel = 'owner' | 'editor' | 'commenter' | 'viewer' | 'none';
+type DocumentSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const resolveAuthUserId = (user: any): string => {
   const candidate = user?.user_id || user?.authUserId || user?.id || '';
   return typeof candidate === 'string' && candidate.startsWith('user-')
     ? candidate.slice(5)
     : candidate;
-};
-
-const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-};
-
-const base64ToUint8Array = (base64: string): Uint8Array => {
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
 };
 
 export const COLLAB_COLORS = [
@@ -102,179 +88,6 @@ const getUserCollabColor = (userId?: string, seedName?: string) => {
   }
   return COLLAB_COLORS[Math.abs(hash) % COLLAB_COLORS.length];
 };
-
-// Custom Supabase Broadcast Yjs Provider for Peer-to-Peer Realtime Collaboration
-class SupabaseYjsProvider {
-  doc: Doc;
-  channelName: string;
-  channel: any;
-  awareness: Awareness;
-  userId: string;
-  userName: string;
-  userColor: string;
-  userAvatar: string;
-  private updateHandler: (update: Uint8Array, origin: any) => void;
-  private awarenessHandler: (data: any) => void;
-  private isConnected = false;
-
-  constructor(doc: Doc, channelName: string, userId: string, userName: string, userColor: string, userAvatar: string) {
-    this.doc = doc;
-    this.channelName = channelName;
-    this.userId = userId;
-    this.userName = userName;
-    this.userColor = userColor;
-    this.userAvatar = userAvatar;
-    this.awareness = new Awareness(doc);
-
-    // Set local presence state
-    this.awareness.setLocalStateField('user', {
-      id: userId,
-      name: userName,
-      color: userColor,
-      avatar: userAvatar,
-    });
-
-    this.channel = getCleanChannel(channelName, {
-      config: {
-        broadcast: {
-          self: false,
-          ack: false,
-        },
-      },
-    });
-
-    // Wire up listeners for incoming document updates
-    this.channel.on('broadcast', { event: 'yjs-update' }, (payload: any) => {
-      if (payload.payload?.sender !== this.userId && payload.payload?.update && this.doc) {
-        try {
-          const update = base64ToUint8Array(payload.payload.update);
-          applyUpdate(this.doc, update, this);
-        } catch (err) {
-          console.warn('[Realtime Doc] Error applying update:', err);
-        }
-      }
-    });
-
-    // Wire up listeners for incoming awareness updates (cursor position, selection)
-    this.channel.on('broadcast', { event: 'yjs-awareness' }, (payload: any) => {
-      if (payload.payload?.sender !== this.userId && payload.payload?.update && this.awareness) {
-        try {
-          const update = base64ToUint8Array(payload.payload.update);
-          applyAwarenessUpdate(this.awareness, update, this);
-        } catch (err) {
-          console.warn('[Realtime Doc] Error applying awareness:', err);
-        }
-      }
-    });
-
-    // Handle peer sync requests
-    this.channel.on('broadcast', { event: 'yjs-request-sync' }, (payload: any) => {
-      if (payload.payload?.sender !== this.userId && this.doc) {
-        try {
-          const stateVector = encodeStateAsUpdate(this.doc);
-          this.channel.send({
-            type: 'broadcast',
-            event: 'yjs-update',
-            payload: {
-              update: uint8ArrayToBase64(stateVector),
-              sender: this.userId,
-            },
-          });
-
-          const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [this.awareness.clientID]);
-          this.channel.send({
-            type: 'broadcast',
-            event: 'yjs-awareness',
-            payload: {
-              update: uint8ArrayToBase64(awarenessUpdate),
-              sender: this.userId,
-            },
-          });
-        } catch (err) {
-          console.warn('[Realtime Doc] Error responding to sync request:', err);
-        }
-      }
-    });
-
-    this.channel.subscribe((status: string) => {
-      if (status === 'SUBSCRIBED') {
-        this.isConnected = true;
-        // Request sync from existing peers
-        this.channel.send({
-          type: 'broadcast',
-          event: 'yjs-request-sync',
-          payload: { sender: this.userId },
-        });
-
-        // Broadcast initial awareness
-        const awarenessUpdate = encodeAwarenessUpdate(this.awareness, [this.awareness.clientID]);
-        this.channel.send({
-          type: 'broadcast',
-          event: 'yjs-awareness',
-          payload: {
-            update: uint8ArrayToBase64(awarenessUpdate),
-            sender: this.userId,
-          },
-        });
-      }
-    });
-
-    // Listen to local Yjs changes and broadcast them
-    this.updateHandler = (update: Uint8Array, origin: any) => {
-      if (origin !== this && this.isConnected) {
-        try {
-          const updateBase64 = uint8ArrayToBase64(update);
-          this.channel.send({
-            type: 'broadcast',
-            event: 'yjs-update',
-            payload: {
-              update: updateBase64,
-              sender: this.userId,
-            },
-          });
-        } catch (err) {
-          console.warn('[Realtime Doc] Error broadcasting update:', err);
-        }
-      }
-    };
-    this.doc.on('update', this.updateHandler);
-
-    this.awarenessHandler = ({ added, updated, removed }: any) => {
-      const changedClients = [...added, ...updated, ...removed];
-      if (changedClients.length > 0 && this.isConnected) {
-        try {
-          const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
-          const updateBase64 = uint8ArrayToBase64(awarenessUpdate);
-          this.channel.send({
-            type: 'broadcast',
-            event: 'yjs-awareness',
-            payload: {
-              update: updateBase64,
-              sender: this.userId,
-            },
-          });
-        } catch (err) {
-          console.warn('[Realtime Doc] Error broadcasting awareness:', err);
-        }
-      }
-    };
-    this.awareness.on('update', this.awarenessHandler);
-  }
-
-  destroy() {
-    this.isConnected = false;
-    if (this.doc) {
-      this.doc.off('update', this.updateHandler);
-    }
-    if (this.awareness) {
-      this.awareness.off('update', this.awarenessHandler);
-      this.awareness.destroy();
-    }
-    if (this.channel) {
-      supabase.removeChannel(this.channel);
-    }
-  }
-}
 
 // Custom Collaboration Cursor Extension using @tiptap/y-tiptap to avoid pluginKey mismatch
 const CustomCollaborationCursor = Extension.create({
@@ -461,12 +274,18 @@ export default function DocumentEditor({
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<DocumentAccessLevel>(isOffline ? 'editor' : 'viewer');
+  const [realtimeStatus, setRealtimeStatus] = useState<DocumentRealtimeStatus>(isOffline ? 'offline' : 'connecting');
+  const [saveStatus, setSaveStatus] = useState<DocumentSaveStatus>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   
   const titleSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contentSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedDocumentId = useRef<string | null>(null);
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const slashMenuRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<any>(null);
+  const onDocumentUpdatedRef = useRef(onDocumentUpdated);
   const slashMenuOpenRef = useRef(false);
   const slashRangeRef = useRef({ from: 0, to: 0 });
   const slashActiveIndexRef = useRef(0);
@@ -475,6 +294,12 @@ export default function DocumentEditor({
   
   const members = useMemberStore(s => s.members);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
+  const canEdit = isOffline || accessLevel === 'owner' || accessLevel === 'editor';
+  const canComment = canEdit || accessLevel === 'commenter';
+
+  useEffect(() => {
+    onDocumentUpdatedRef.current = onDocumentUpdated;
+  }, [onDocumentUpdated]);
 
   // Persist paper settings to localStorage
   const handleSetPaperStyle = (val: PaperStyle) => {
@@ -506,39 +331,75 @@ export default function DocumentEditor({
     return getUserCollabColor(authUserId, currentUser?.name);
   }, [authUserId, currentUser?.name]);
 
-  const yDoc = useMemo(() => new Doc(), [documentId]);
+  const [yDoc] = useState(() => new Doc());
 
   const provider = useMemo(() => {
+    if (isOffline || !authUserId) return null;
+
     return new SupabaseYjsProvider(
       yDoc,
-      `doc-collab-${documentId}`,
-      authUserId || 'user',
-      currentUser?.name || 'Anonymous User',
-      userColor,
-      currentUser?.avatar || ''
+      documentId,
+      {
+        userId: authUserId,
+        name: currentUser?.name || 'Thành viên',
+        avatar: currentUser?.avatar || '',
+        color: userColor,
+      },
     );
-  }, [yDoc, documentId, authUserId, currentUser, userColor]);
+  }, [authUserId, currentUser?.avatar, currentUser?.name, documentId, isOffline, userColor, yDoc]);
 
-  // Track active collaborators via Yjs awareness
+  // Connect the private document channel and expose its Presence/status to the UI.
   useEffect(() => {
-    const handleAwarenessUpdate = () => {
-      const states = provider.awareness.getStates();
-      const usersMap = new Map<string, any>();
-      states.forEach((state: any) => {
-        if (state.user && state.user.id) {
-          usersMap.set(state.user.id, state.user);
-        }
-      });
-      setActiveUsers(Array.from(usersMap.values()));
-    };
+    if (!provider) {
+      setRealtimeStatus('offline');
+      setActiveUsers([]);
+      return;
+    }
 
-    provider.awareness.on('change', handleAwarenessUpdate);
-    handleAwarenessUpdate();
+    const unsubscribeStatus = provider.onStatus(status => setRealtimeStatus(status));
+    const unsubscribePresence = provider.onPresence(users => setActiveUsers(users.map(user => ({
+      id: user.userId,
+      ...user,
+    }))));
+    void provider.connect();
 
     return () => {
-      provider.awareness.off('change', handleAwarenessUpdate);
+      unsubscribeStatus();
+      unsubscribePresence();
+      provider.destroy();
     };
   }, [provider]);
+
+  useEffect(() => {
+    provider?.setCanWrite(canEdit);
+  }, [canEdit, provider]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAccessLevel = async () => {
+      if (isOffline) {
+        setAccessLevel('editor');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('get_document_access_level', {
+        target_document_id: documentId,
+      });
+
+      if (cancelled) return;
+      if (!error && ['owner', 'editor', 'commenter', 'viewer', 'none'].includes(String(data))) {
+        setAccessLevel(data as DocumentAccessLevel);
+      } else if (docDetails?.user_id === authUserId) {
+        setAccessLevel('owner');
+      }
+    };
+
+    void loadAccessLevel();
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId, docDetails?.user_id, documentId, isOffline]);
 
   // Load document details and comments from database
   useEffect(() => {
@@ -573,7 +434,7 @@ export default function DocumentEditor({
     loadDocData();
 
     if (isOffline) {
-      return () => provider.destroy();
+      return;
     }
 
     const commentsSub = getCleanChannel(`comments-realtime-${documentId}`)
@@ -594,13 +455,13 @@ export default function DocumentEditor({
       .subscribe();
 
     return () => {
-      provider.destroy();
       supabase.removeChannel(commentsSub);
     };
-  }, [documentId, isOffline, provider, yDoc]);
+  }, [documentId, isOffline]);
 
   useEffect(() => () => {
     if (titleSaveTimeout.current) clearTimeout(titleSaveTimeout.current);
+    if (contentSaveTimeout.current) clearTimeout(contentSaveTimeout.current);
   }, []);
 
   const editorExtensions = useMemo(() => {
@@ -617,7 +478,7 @@ export default function DocumentEditor({
       }),
     ];
 
-    if (!isOffline && yDoc && typeof yDoc.getXmlFragment === 'function') {
+    if (!isOffline && provider && yDoc && typeof yDoc.getXmlFragment === 'function') {
       baseExtensions.push(
         Collaboration.configure({
           document: yDoc,
@@ -730,7 +591,7 @@ export default function DocumentEditor({
 
   const editor = useEditor({
     extensions: editorExtensions,
-    editable: !isLocked,
+    editable: canEdit && !isLocked,
     editorProps: {
       attributes: {
         class: `document-editor focus:outline-none max-w-none select-text leading-relaxed break-words min-h-[550px] ${
@@ -768,20 +629,29 @@ export default function DocumentEditor({
     },
     onUpdate({ editor }) {
       updateSlashMenu(editor);
-      if (isOffline) return;
+      if (isOffline || !canEdit) return;
+      setSaveStatus('saving');
       const saveContent = async () => {
-        await supabase
+        const { error } = await supabase
           .from('documents')
           .update({ 
             content: editor.getJSON(),
             updated_at: new Date().toISOString()
           })
           .eq('id', documentId);
+
+        if (error) {
+          setSaveStatus('error');
+          return;
+        }
+
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+        onDocumentUpdatedRef.current?.({ content: editor.getJSON(), updated_at: new Date().toISOString() });
       };
       
-      const timeoutId = (editor as any).saveTimeout;
-      if (timeoutId) clearTimeout(timeoutId);
-      (editor as any).saveTimeout = setTimeout(saveContent, 1000);
+      if (contentSaveTimeout.current) clearTimeout(contentSaveTimeout.current);
+      contentSaveTimeout.current = setTimeout(saveContent, 900);
     },
     onSelectionUpdate({ editor }) {
       if (!editor || !editor.state || !editor.view || !editor.state.doc) return;
@@ -815,7 +685,7 @@ export default function DocumentEditor({
     onBlur() {
       closeSlashMenu();
     },
-  }, [documentId, isOffline, yDoc, provider, closeSlashMenu, runSlashCommand, updateSlashMenu, isLocked, fontFamily, fontSize]);
+  }, [canEdit, documentId, isOffline, yDoc, provider, closeSlashMenu, runSlashCommand, updateSlashMenu, isLocked, fontFamily, fontSize]);
 
   useEffect(() => {
     editorRef.current = editor;
@@ -826,9 +696,9 @@ export default function DocumentEditor({
 
   useEffect(() => {
     if (editor) {
-      editor.setEditable(!isLocked);
+      editor.setEditable(canEdit && !isLocked);
     }
-  }, [editor, isLocked]);
+  }, [canEdit, editor, isLocked]);
 
   useEffect(() => {
     if (!editor || !docDetails || hydratedDocumentId.current === documentId) return;
@@ -836,9 +706,9 @@ export default function DocumentEditor({
     if (content && typeof content === 'object') {
       editor.commands.setContent(content, { emitUpdate: false });
     }
-    editor.setEditable(!isOffline && !isLocked);
+    editor.setEditable(canEdit && !isLocked);
     hydratedDocumentId.current = documentId;
-  }, [docDetails, documentId, editor, isOffline, isLocked]);
+  }, [canEdit, docDetails, documentId, editor, isLocked]);
 
   const filteredSlashCommands = filterSlashCommands(slashQuery);
 
@@ -878,20 +748,25 @@ export default function DocumentEditor({
   };
 
   const handleSaveTitle = async (val: string) => {
+    if (!canEdit || isLocked) return;
     setDocDetails((prev: any) => prev ? { ...prev, title: val } : null);
     onUpdateTitle(val);
     onDocumentUpdated?.({ title: val });
     if (isOffline) return;
+    setSaveStatus('saving');
     if (titleSaveTimeout.current) clearTimeout(titleSaveTimeout.current);
     titleSaveTimeout.current = setTimeout(async () => {
-      await supabase
+      const { error } = await supabase
         .from('documents')
         .update({ title: val, updated_at: new Date().toISOString() })
         .eq('id', documentId);
+      setSaveStatus(error ? 'error' : 'saved');
+      if (!error) setLastSavedAt(new Date());
     }, 500);
   };
 
   const selectEmoji = async (emoji: string) => {
+    if (!canEdit || isLocked) return;
     setDocDetails((prev: any) => prev ? { ...prev, icon: emoji } : null);
     onUpdateCoverAndIcon(docDetails?.cover_url || null, emoji);
     onDocumentUpdated?.({ icon: emoji });
@@ -904,6 +779,7 @@ export default function DocumentEditor({
   };
 
   const selectCover = async (cover: string | null) => {
+    if (!canEdit || isLocked) return;
     setDocDetails((prev: any) => prev ? { ...prev, cover_url: cover } : null);
     onUpdateCoverAndIcon(cover, docDetails?.icon || null);
     onDocumentUpdated?.({ cover_url: cover });
@@ -917,7 +793,7 @@ export default function DocumentEditor({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentVal.trim()) return;
+    if (!canComment || !newCommentVal.trim()) return;
 
     const payload = {
       document_id: documentId,
@@ -976,7 +852,7 @@ export default function DocumentEditor({
   };
 
   const handleAiAction = async (action: 'expand' | 'summarize' | 'translate' | 'formal' | 'proofread') => {
-    if (!editor) return;
+    if (!editor || !canEdit || isLocked) return;
     const currentText = editor.getText().trim();
     if (!currentText) return;
 
@@ -1045,7 +921,7 @@ export default function DocumentEditor({
   };
 
   const restoreVersion = async (version: DocumentVersion) => {
-    if (isOffline || !editor) return;
+    if (isOffline || !editor || !canEdit || isLocked) return;
     const updates = {
       title: version.title,
       icon: version.icon,
@@ -1072,7 +948,7 @@ export default function DocumentEditor({
   };
 
   const addCollaborator = async () => {
-    if (!selectedCollaboratorId || isOffline) return;
+    if (!selectedCollaboratorId || isOffline || !canEdit) return;
     const member = members.find(memberItem => memberItem.id === selectedCollaboratorId);
     const memberAuthId = resolveAuthUserId(member);
     if (!memberAuthId) return;
@@ -1088,13 +964,13 @@ export default function DocumentEditor({
   };
 
   const removeCollaborator = async (collaboratorId: string) => {
-    if (isOffline) return;
+    if (isOffline || !canEdit) return;
     const { error } = await supabase.from('document_collaborators').delete().eq('id', collaboratorId);
     if (!error) setCollaborators(prev => prev.filter(item => item.id !== collaboratorId));
   };
 
   const togglePublished = async () => {
-    if (isOffline) return;
+    if (isOffline || !canEdit) return;
     const nextPublished = !docDetails?.is_published;
     const { error } = await supabase
       .from('documents')
@@ -1147,6 +1023,37 @@ export default function DocumentEditor({
   // Word count & stats
   const words = editor.getText().trim().split(/\s+/).filter(Boolean).length;
   const readTime = Math.max(1, Math.ceil(words / 200));
+  const collaborationStatus = (() => {
+    if (isOffline || realtimeStatus === 'offline') {
+      return { label: 'Ngoại tuyến', detail: 'Chỉnh sửa realtime đang tạm dừng', tone: 'amber', icon: CloudOff };
+    }
+    if (realtimeStatus === 'connecting') {
+      return { label: 'Đang kết nối', detail: 'Đang mở phòng cộng tác riêng tư', tone: 'sky', icon: LoaderCircle };
+    }
+    if (realtimeStatus === 'reconnecting') {
+      return { label: 'Đang kết nối lại', detail: 'Thay đổi mới sẽ được gửi khi kết nối phục hồi', tone: 'amber', icon: LoaderCircle };
+    }
+    if (realtimeStatus === 'error' || saveStatus === 'error') {
+      return { label: 'Chưa thể đồng bộ', detail: 'Kiểm tra kết nối hoặc quyền tài liệu', tone: 'rose', icon: WifiOff };
+    }
+    if (saveStatus === 'saving') {
+      return { label: 'Đang lưu', detail: 'Đang ghi snapshot vào Supabase', tone: 'sky', icon: LoaderCircle };
+    }
+    return {
+      label: 'Đã đồng bộ',
+      detail: lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Yjs Realtime và Supabase đã sẵn sàng',
+      tone: 'emerald',
+      icon: Cloud,
+    };
+  })();
+  const CollaborationStatusIcon = collaborationStatus.icon;
+  const collaborationToneClass = collaborationStatus.tone === 'emerald'
+    ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/35 border-emerald-200/70 dark:border-emerald-900/60'
+    : collaborationStatus.tone === 'rose'
+      ? 'text-rose-700 dark:text-rose-300 bg-rose-50/90 dark:bg-rose-950/35 border-rose-200/70 dark:border-rose-900/60'
+      : collaborationStatus.tone === 'sky'
+        ? 'text-sky-700 dark:text-sky-300 bg-sky-50/90 dark:bg-sky-950/35 border-sky-200/70 dark:border-sky-900/60'
+        : 'text-amber-700 dark:text-amber-300 bg-amber-50/90 dark:bg-amber-950/35 border-amber-200/70 dark:border-amber-900/60';
 
   if (isScreenplayMode) {
     return (
@@ -1860,20 +1767,24 @@ export default function DocumentEditor({
               </div>
 
               {/* Realtime Collaborators & Status */}
-              <div className="flex items-center gap-2.5 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 select-none text-[11px] font-bold text-slate-600 dark:text-slate-300 shadow-2xs">
-                <span className={`flex items-center gap-1.5 ${isOffline ? 'text-amber-600' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  <span className="relative flex h-2 w-2">
-                    {!isOffline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isOffline ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+              <div className="flex items-center gap-2.5 select-none">
+                {!canEdit && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-violet-200/70 bg-violet-50/90 px-2.5 py-1.5 text-[10.5px] font-black text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/35 dark:text-violet-300">
+                    <Eye className="h-3.5 w-3.5" />
+                    {accessLevel === 'commenter' ? 'Chỉ bình luận' : 'Chỉ xem'}
                   </span>
-                  {isOffline ? 'Ngoại tuyến' : 'Đã lưu tự động'}
-                </span>
-
+                )}
+                <div
+                  className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 shadow-2xs backdrop-blur-md ${collaborationToneClass}`}
+                  title={collaborationStatus.detail}
+                >
+                  <CollaborationStatusIcon className={`h-3.5 w-3.5 ${['connecting', 'reconnecting'].includes(realtimeStatus) || saveStatus === 'saving' ? 'animate-spin' : ''}`} />
+                  <span className="text-[10.5px] font-black">{collaborationStatus.label}</span>
+                </div>
                 {words > 0 && (
-                  <>
-                    <span>•</span>
-                    <span>{words} từ ({readTime} phút)</span>
-                  </>
+                  <span className="hidden md:inline text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+                    {words} từ · {readTime} phút đọc
+                  </span>
                 )}
               </div>
             </div>
@@ -1885,7 +1796,7 @@ export default function DocumentEditor({
               type="text" 
               value={docDetails.title || ''}
               onChange={e => handleSaveTitle(e.target.value)}
-              readOnly={isOffline || isLocked}
+              readOnly={!canEdit || isLocked}
               placeholder="Chưa có tiêu đề"
               className="w-full bg-transparent border-0 outline-none font-black text-3xl sm:text-4xl md:text-5xl tracking-tight placeholder-slate-300 dark:placeholder-slate-700 text-slate-900 dark:text-white transition-all"
             />
@@ -2096,13 +2007,13 @@ export default function DocumentEditor({
                       type="text" 
                       value={newCommentVal}
                       onChange={e => setNewCommentVal(e.target.value)}
-                      disabled={isOffline}
-                      placeholder="Viết bình luận..."
+                      disabled={isOffline || !canComment}
+                      placeholder={canComment ? 'Viết bình luận...' : 'Bạn chỉ có quyền xem'}
                       className="flex-grow bg-white dark:bg-slate-900 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 placeholder-slate-400 text-slate-800 dark:text-slate-100"
                     />
                     <button 
                       type="submit" 
-                      disabled={!newCommentVal.trim()}
+                      disabled={!canComment || !newCommentVal.trim()}
                       className={`p-2 rounded-xl text-white ${
                         newCommentVal.trim() 
                           ? 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-xs active:scale-95' 

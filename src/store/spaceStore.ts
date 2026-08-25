@@ -21,7 +21,10 @@ export const useSpaceStore = create<SpaceState>()(
       activeSpaceId: null,
       activeListId: null,
       setSpaces: (spaces) => set({ spaces: typeof spaces === 'function' ? spaces(get().spaces) : spaces }),
-      setActiveSpaceId: (id) => set({ activeSpaceId: id }),
+      setActiveSpaceId: (id) => set((state) => ({
+        activeSpaceId: id,
+        activeListId: id === state.activeSpaceId ? state.activeListId : null,
+      })),
       setActiveListId: (id) => set({ activeListId: id }),
       addSpace: (space) => set((state) => ({ spaces: [...state.spaces, space] })),
       updateSpace: (updated) =>
@@ -31,6 +34,8 @@ export const useSpaceStore = create<SpaceState>()(
       deleteSpace: (id) =>
         set((state) => ({
           spaces: state.spaces.filter((s) => s.id !== id),
+          activeSpaceId: state.activeSpaceId === id ? null : state.activeSpaceId,
+          activeListId: state.activeSpaceId === id ? null : state.activeListId,
         })),
     }),
     {

@@ -896,7 +896,15 @@ export function useAppActions() {
 
   const handleSaveSpaces = useCallback(async (newSpaces: Space[]) => {
     const currentAllSpaces = useSpaceStore.getState().spaces;
-    const allMergedSpaces = newSpaces;
+    const containsOtherWorkspaces = newSpaces.some(space => space.workspaceId !== activeWorkspaceId);
+    const isFullSnapshot = !activeWorkspaceId || containsOtherWorkspaces;
+    const scopedIncomingSpaces = activeWorkspaceId
+      ? newSpaces.filter(space => space.workspaceId === activeWorkspaceId)
+      : newSpaces;
+    const allMergedSpaces = isFullSnapshot
+      ? newSpaces
+      : [...currentAllSpaces.filter(space => space.workspaceId !== activeWorkspaceId), ...scopedIncomingSpaces];
+    const spacesToSync = isFullSnapshot ? newSpaces : scopedIncomingSpaces;
 
     useSpaceStore.getState().setSpaces(allMergedSpaces);
 
@@ -924,7 +932,7 @@ export function useAppActions() {
              await supabase.from('spaces').delete().in('id', deletedSpaceIds);
           }
 
-          for (const space of allMergedSpaces) {
+          for (const space of spacesToSync) {
             let spaceWsId = space.workspaceId;
             if (!spaceWsId || (!validWsIds.has(spaceWsId) && validWsIds.size > 0)) {
               spaceWsId = activeWorkspaceId || workspaces[0]?.id || spaceWsId;
@@ -944,10 +952,12 @@ export function useAppActions() {
               click_apps: {
                 ...(space.clickApps || {}),
                 spacePreferences: {
+                  ...(space.clickApps?.spacePreferences || {}),
                   description: space.description || '',
                   isFavorite: !!space.isFavorite,
                   isHidden: !!space.isHidden,
                   isArchived: !!space.isArchived,
+                  defaultPermission: space.defaultPermission || space.clickApps?.spacePreferences?.defaultPermission || 'Full edit',
                   listPreferences: Object.fromEntries(currentLists.map(list => [list.id, {
                     isFavorite: !!list.isFavorite,
                     isArchived: !!list.isArchived
@@ -955,7 +965,7 @@ export function useAppActions() {
                 }
               },
               custom_fields_config: space.customFields || [],
-              user_id: userId,
+              user_id: space.user_id || userId,
               is_private: space.isPrivate || false,
               share_settings: space.shareSettings || {}
             });
@@ -981,7 +991,7 @@ export function useAppActions() {
                 name: list.name,
                 space_id: space.id,
                 folder_id: list.folderId || null,
-                user_id: userId,
+                user_id: list.user_id || space.user_id || userId,
                 is_private: list.isPrivate || false,
                 share_settings: list.shareSettings || {},
                 is_favorite: Boolean(list.isFavorite),
@@ -1082,14 +1092,14 @@ export function useAppActions() {
     triggerToast({ id: generateId(), type: 'success', title: 'New List Created', message: 'List added successfully', duration: 4000 });
   }, [handleSaveSpaces, triggerToast]);
 
-  const handleAddFolderToSpace = useCallback((spaceId: string, name: string) => {
+  const handleAddFolderToSpace = useCallback((spaceId: string, name: string, color?: string) => {
     const currentSpaces = useSpaceStore.getState().spaces;
     const updated = currentSpaces.map(s => {
       if (s.id === spaceId) {
         const folders = s.folders || [];
         return {
           ...s,
-          folders: [...folders, { id: `folder-${Date.now()}`, name }]
+          folders: [...folders, { id: `folder-${Date.now()}`, name, color }]
         };
       }
       return s;

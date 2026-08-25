@@ -198,6 +198,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
+      id: 'goto-goals',
+      name: '/goals',
+      label: isVietnamese ? 'Mục tiêu & OKRs' : 'Goals & OKRs',
+      description: isVietnamese ? 'Theo dõi mục tiêu, key results và tiến độ chiến lược' : 'Track objectives, key results, and strategic progress',
+      icon: Target,
+      badge: 'OKR',
+      action: () => {
+        onNavigateTab('goals');
+        addSyncLog('Command: Opened Goals & OKRs');
+      },
+    },
+    {
       id: 'goto-chat',
       name: '/chat',
       label: isVietnamese ? 'Kênh trò chuyện nhóm' : 'Go to Chat Channels',

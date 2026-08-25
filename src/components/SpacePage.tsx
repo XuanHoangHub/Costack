@@ -93,6 +93,20 @@ const VIEW_ICON_MAP: Record<string, React.ElementType> = {
   ai: Bot,
 };
 
+const FOLDER_COLOR_VALUES: Record<string, string> = {
+  amber: '#f59e0b',
+  indigo: '#6366f1',
+  blue: '#3b82f6',
+  emerald: '#10b981',
+  violet: '#8b5cf6',
+  rose: '#f43f5e',
+  cyan: '#06b6d4',
+  sky: '#0ea5e9',
+  sunset: '#f97316',
+};
+
+const resolveFolderColor = (color?: string) => color ? (FOLDER_COLOR_VALUES[color] || color) : '#6366f1';
+
 const createViewTab = (id: string, label: string, viewId: string, settings?: Partial<ViewTabSettings>): SpaceViewTab => ({
   id,
   label,
@@ -127,7 +141,7 @@ interface SpacePageProps {
   members: User[];
   onAddTask: (task: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'>) => void;
   onUpdateTask: (task: Task) => void;
-  onDeleteTask: (id: string) => void;
+  onDeleteTask: (id: string) => void | Promise<void>;
   isOffline: boolean;
   onAddSyncLog: (action: string) => void;
   triggerToast?: (type: any, title: string, message: string) => void;
@@ -153,15 +167,15 @@ interface SpacePageProps {
   onOpenSpaceSettings?: (space: Space) => void;
   onAddListSpace?: (spaceId: string) => void;
   onAddSpace?: () => void;
-  onAddFolderToSpace?: (spaceId: string, name: string) => void;
-  onAddDocToSpace?: (spaceId: string, title: string) => void;
+  onAddFolderToSpace?: (spaceId: string, name: string, color?: string) => void;
+  onAddDocToSpace?: (spaceId: string, title: string, folderId?: string) => void;
   onAddWhiteboardToSpace?: (spaceId: string, name: string) => void;
   onAddListToFolder?: (spaceId: string, folderId: string, name: string) => void;
   onDeleteSpace?: (spaceId: string) => void;
   onOpenAutomations?: () => void;
   onAddDoc?: (d: any) => void;
-  onUpdateDoc?: (d: any) => void;
-  onDeleteDoc?: (id: string) => void;
+  onUpdateDoc?: (d: any) => void | Promise<void>;
+  onDeleteDoc?: (id: string) => void | Promise<void>;
 
   // Dashboard properties
   syncLogs?: SyncLog[];
@@ -193,11 +207,12 @@ export default function SpacePage({
 
 // Local handler to insert space/list context
    const onAddTask = (taskObj: Omit<Task, 'id' | 'createdAt' | 'commentsCount' | 'progress'> & { workspaceId?: string; spaceId?: string; listId?: string }) => {
+     const requestedSpaceId = taskObj.spaceId === 'all-tasks' ? undefined : taskObj.spaceId;
      rawOnAddTask({
+       ...taskObj,
        workspaceId: taskObj.workspaceId || activeWorkspaceId,
-       spaceId: taskObj.spaceId || activeSpaceId || undefined,
+       spaceId: requestedSpaceId || activeSpaceId || undefined,
        listId: taskObj.listId || activeListId || undefined,
-       ...taskObj
      });
    };
 
@@ -215,7 +230,7 @@ export default function SpacePage({
   };
   const guardedDeleteTask = (taskId: string) => {
     if (activeViewProtectedRef.current) return notifyProtectedView();
-    onDeleteTask(taskId);
+    return onDeleteTask(taskId);
   };
 
   // Find active space object
@@ -392,7 +407,7 @@ export default function SpacePage({
       triggerToast?.('success', 'Đã đổi tên', `Đã cập nhật thư mục "${name}"`);
     } else {
       if (onAddFolderToSpace) {
-        onAddFolderToSpace(spaceId, name);
+        onAddFolderToSpace(spaceId, name, color);
       } else {
         const updated = spaces.map(s => {
           if (s.id === spaceId) {
@@ -724,7 +739,8 @@ export default function SpacePage({
     if (triggerToast) triggerToast('success', 'List Renamed', `The list has been successfully renamed to "${newName.trim()}"`);
   };
 
-  const handleDeleteList = (listId: string) => {
+  const handleDeleteList = async (listId: string) => {
+    if (activeViewProtectedRef.current) return notifyProtectedView();
     if (!onSaveSpaces) return;
     const listTasks = tasks.filter(task => task.listId === listId);
     const updatedSpaces = spaces.map(s => {
@@ -736,8 +752,8 @@ export default function SpacePage({
       }
       return s;
     });
+    await Promise.all(listTasks.map(task => Promise.resolve(onDeleteTask(task.id))));
     onSaveSpaces(updatedSpaces);
-    listTasks.forEach(task => guardedDeleteTask(task.id));
     if (setActiveListId) setActiveListId(null);
     if (onAddSyncLog) onAddSyncLog(`Deleted list and ${listTasks.length} linked tasks`);
     if (triggerToast) triggerToast('success', 'Đã xóa danh sách', `Đã xóa danh sách cùng ${listTasks.length} công việc liên quan.`);
@@ -1288,6 +1304,44 @@ export default function SpacePage({
     });
   };
 
+  const handleBulkComplete = () => {
+    if (activeViewProtectedRef.current) return notifyProtectedView();
+    setUndoAction({
+      previousTasks: tasks.filter(t => selectedTaskIds.includes(t.id))
+    });
+    selectedTaskIds.forEach(id => {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        guardedUpdateTask({ ...task, status: 'completed' });
+      }
+    });
+    if (triggerToast) {
+      triggerToast('success', 'Đã hoàn thành', `Đã đánh dấu hoàn thành ${selectedTaskIds.length} công việc.`);
+    }
+    setSelectedTaskIds([]);
+    setTimeout(() => {
+      setUndoAction(null);
+    }, 5000);
+  };
+
+  const handleBulkDuplicate = () => {
+    if (activeViewProtectedRef.current) return notifyProtectedView();
+    const tasksToDup = tasks.filter(t => selectedTaskIds.includes(t.id));
+    tasksToDup.forEach(t => {
+      guardedAddTask({
+        ...t,
+        title: `${t.title} (Bản sao)`,
+        subtasks: (t.subtasks || []).map(st => ({ ...st, id: `sub-${crypto.randomUUID()}` })),
+        tags: t.tags ? [...t.tags] : []
+      });
+    });
+    if (triggerToast) {
+      triggerToast('success', 'Đã nhân bản', `Đã nhân bản ${tasksToDup.length} công việc đã chọn.`);
+    }
+    if (onAddSyncLog) onAddSyncLog(`Bulk duplicated ${tasksToDup.length} tasks`);
+    setSelectedTaskIds([]);
+  };
+
   const handleUndoBulkAction = () => {
     if (undoAction) {
       undoAction.previousTasks.forEach(pt => {
@@ -1392,6 +1446,7 @@ export default function SpacePage({
 
   // Detail Drawer & Quick Modals
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [initialSpaceDocId, setInitialSpaceDocId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Task Form States
@@ -2221,9 +2276,9 @@ export default function SpacePage({
                                 >
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     {isFolderOpen ? (
-                                      <FolderOpen className="w-3.5 h-3.5 shrink-0" style={{ color: folder.color || '#6366f1' }} />
+                                      <FolderOpen className="w-3.5 h-3.5 shrink-0" style={{ color: resolveFolderColor(folder.color) }} />
                                     ) : (
-                                      <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: folder.color || '#6366f1' }} />
+                                      <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: resolveFolderColor(folder.color) }} />
                                     )}
                                     <span className="truncate">{folder.name}</span>
                                     {folder.isArchived && (
@@ -3583,6 +3638,24 @@ export default function SpacePage({
             docs={allDocs}
             activeFolderId={activeFolderId}
             onUpdateSpaceEmoji={(newEmoji) => updateSpaceProperties(activeSpace.id, { emoji: newEmoji }, 'Đã cập nhật biểu tượng không gian.')}
+            onUpdateBookmarks={(bookmarks) => {
+              const currentPreferences = activeSpace.clickApps?.spacePreferences || {};
+              const nextPreferences = activeFolderId
+                ? {
+                    ...currentPreferences,
+                    folderBookmarks: {
+                      ...(currentPreferences.folderBookmarks || {}),
+                      [activeFolderId]: bookmarks,
+                    },
+                  }
+                : { ...currentPreferences, bookmarks };
+              updateSpaceProperties(activeSpace.id, {
+                clickApps: {
+                  ...(activeSpace.clickApps || {}),
+                  spacePreferences: nextPreferences,
+                },
+              });
+            }}
             onOpenList={(listId) => {
               if (setActiveListId) setActiveListId(listId);
               setActiveView('table');
@@ -3608,12 +3681,13 @@ export default function SpacePage({
                 confirmText: 'Tạo tài liệu',
                 onConfirm: (title) => {
                   if (title?.trim() && onAddDocToSpace) {
-                    onAddDocToSpace(activeSpace.id, title.trim());
+                    onAddDocToSpace(activeSpace.id, title.trim(), activeFolderId || undefined);
                   }
                 }
               });
             }}
             onOpenDoc={(docId) => {
+              setInitialSpaceDocId(docId);
               setActiveView('doc');
             }}
           />
@@ -3754,8 +3828,8 @@ export default function SpacePage({
             onDeleteDoc={onDeleteDoc || (() => {})}
             isOffline={isOffline}
             onAddSyncLog={onAddSyncLog}
-            initialSelectedDocId={null}
-            onClearInitialSelectedDocId={() => {}}
+            initialSelectedDocId={initialSpaceDocId}
+            onClearInitialSelectedDocId={() => setInitialSpaceDocId(null)}
             spaceId={activeSpaceId}
             folderId={activeFolderId || null}
             onCreateTaskFromDoc={(title, description, documentId) => onAddTask({
@@ -4155,27 +4229,46 @@ export default function SpacePage({
         )}
       </AnimatePresence>
 
-      {/* Floating Bulk Action Bar (Sticky UI) */}
+      {/* Floating Bulk Action Bar (Unified & Modern) */}
       <AnimatePresence>
         {selectedTaskIds.length > 0 && (
           <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 80, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3.5 px-4.5 py-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md shadow-2xl max-w-[95vw] sm:max-w-full overflow-x-auto scrollbar-none select-none ring-1 ring-indigo-500/10 dark:ring-indigo-400/5"
+            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 sm:gap-3 px-3.5 sm:px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.15),0_0_0_1px_rgba(99,102,241,0.1)] max-w-[95vw] sm:max-w-fit overflow-x-auto scrollbar-none select-none"
           >
             {/* Selection Count Badge */}
-            <div className="flex items-center gap-2.5 pr-4 border-r border-slate-150 dark:border-slate-800 shrink-0">
-              <div className="relative">
-                <span className="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-600 text-white text-[11px] font-black flex items-center justify-center shadow-md shadow-blue-500/10">
-                  {selectedTaskIds.length}
-                </span>
-              </div>
-              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">Đã chọn</span>
+            <div className="flex items-center gap-2 pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
+              <span className="w-5 h-5 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-[10.5px] font-black flex items-center justify-center shadow-xs">
+                {selectedTaskIds.length}
+              </span>
+              <span className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200">Đã chọn</span>
             </div>
 
-            {/* Actions Group */}
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Quick Bulk Complete */}
+            <button
+              onClick={handleBulkComplete}
+              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
+              title="Đánh dấu hoàn thành tất cả"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">Hoàn thành</span>
+            </button>
+
+            {/* Quick Bulk Duplicate */}
+            <button
+              onClick={handleBulkDuplicate}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0"
+              title="Nhân bản các công việc đã chọn"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Nhân bản</span>
+            </button>
+
+            {/* Status, Assignee, Priority Pill Selects */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <BulkStatusSelect onChange={handleBulkStatusChange} />
               <BulkAssigneeSelect 
                 members={members.filter(m => !activeWorkspaceId || m.workspaceIds?.includes(activeWorkspaceId))}
@@ -4184,12 +4277,12 @@ export default function SpacePage({
               <BulkPrioritySelect onChange={handleBulkPriorityChange} />
             </div>
 
-            <div className="w-[1px] h-5 bg-slate-200/85 dark:bg-slate-800/85 shrink-0" />
+            <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800 shrink-0" />
 
             {/* Bulk Delete with confirmation */}
             <button
               onClick={handleBulkDelete}
-              className="px-3.5 py-1.5 text-[11px] font-extrabold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/20 border border-rose-200/40 dark:border-rose-900/30 text-rose-600 dark:text-rose-450 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0"
+              className="px-2.5 py-1.5 text-[11px] font-extrabold rounded-xl bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0"
               title="Xóa tất cả công việc đã chọn"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -4199,8 +4292,8 @@ export default function SpacePage({
             {/* Clear Selection */}
             <button
               onClick={() => setSelectedTaskIds([])}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/85 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer transition-colors shrink-0 active:scale-95"
-              title="Bỏ chọn"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer transition-colors shrink-0 active:scale-95"
+              title="Bỏ chọn tất cả"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -5094,15 +5187,21 @@ export default function SpacePage({
                     triggerConfirm({
                       title: 'Xóa không gian làm việc',
                       description: `Bạn có chắc chắn muốn xóa Space "${space.name}"? Tất cả các thư mục, danh sách và công việc trong Space này cũng sẽ bị xóa vĩnh viễn.`,
-                      onConfirm: () => {
+                      onConfirm: async () => {
                         const updated = spaces.filter(s => s.id !== space.id);
+                        const linkedTasks = tasks.filter(task => task.spaceId === space.id);
+                        const linkedDocs = allDocs.filter(doc => doc.spaceId === space.id);
+                        await Promise.all([
+                          ...linkedTasks.map(task => Promise.resolve(onDeleteTask(task.id))),
+                          ...linkedDocs.map(doc => Promise.resolve(onDeleteDoc?.(doc.id))),
+                        ]);
                         if (onDeleteSpace) onDeleteSpace(space.id);
                         else onSaveSpaces?.(updated);
                         if (activeSpaceId === space.id) {
                           if (setActiveSpaceId) setActiveSpaceId(updated[0]?.id || null);
                           if (setActiveListId) setActiveListId(null);
                         }
-                        onAddSyncLog(`Deleted Space "${space.name}"`);
+                        onAddSyncLog(`Deleted Space "${space.name}" with ${linkedTasks.length} tasks and ${linkedDocs.length} docs`);
                       }
                     });
                   }}
@@ -5677,7 +5776,7 @@ export default function SpacePage({
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div 
                     className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shrink-0 shadow-3xs"
-                    style={{ backgroundColor: (folder.color || '#6366f1') + '20', color: folder.color || '#6366f1' }}
+                    style={{ backgroundColor: `${resolveFolderColor(folder.color)}20`, color: resolveFolderColor(folder.color) }}
                   >
                     <FolderOpen className="w-4 h-4" />
                   </div>
@@ -5840,7 +5939,7 @@ export default function SpacePage({
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10 shadow-3xs" style={{ backgroundColor: folder.color || '#6366f1' }} />
+                    <div className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/10 shadow-3xs" style={{ backgroundColor: resolveFolderColor(folder.color) }} />
                     <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${folderColorMenuOpen === folder.id ? 'rotate-90 text-violet-500' : ''}`} />
                   </div>
                 </button>
@@ -5867,7 +5966,7 @@ export default function SpacePage({
                           setFolderColorMenuOpen(null);
                         }}
                         className={`w-6 h-6 rounded-full cursor-pointer hover:scale-115 transition-transform border ${
-                          folder.color === colorOpt.hex ? 'border-slate-900 dark:border-white ring-2 ring-violet-400' : 'border-transparent'
+                          resolveFolderColor(folder.color) === colorOpt.hex ? 'border-slate-900 dark:border-white ring-2 ring-violet-400' : 'border-transparent'
                         }`}
                         style={{ backgroundColor: colorOpt.hex }}
                         title={colorOpt.name}
@@ -5944,9 +6043,34 @@ export default function SpacePage({
                         };
                       });
 
+                    const clonedWhiteboards = (space.whiteboards || [])
+                      .filter(board => board.folderId === folder.id)
+                      .map(board => ({
+                        ...board,
+                        id: `wb-${crypto.randomUUID()}`,
+                        folderId: newFolderId,
+                      }));
+
                     const updatedFolders = [...(space.folders || []), { ...folder, id: newFolderId, name: newFolderName, isFavorite: false, isArchived: false }];
-                    const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: [...s.lists, ...clonedLists] } : s);
+                    const updated = spaces.map(s => s.id === space.id ? {
+                      ...s,
+                      folders: updatedFolders,
+                      lists: [...s.lists, ...clonedLists],
+                      whiteboards: [...(s.whiteboards || []), ...clonedWhiteboards],
+                    } : s);
                     onSaveSpaces?.(updated);
+
+                    const clonedDocs = allDocs.filter(doc => doc.spaceId === space.id && doc.folderId === folder.id);
+                    clonedDocs.forEach(doc => onAddDoc?.({
+                      title: doc.title,
+                      content: doc.content,
+                      category: doc.category,
+                      updatedBy: currentUser?.name || doc.updatedBy,
+                      isAiGenerated: doc.isAiGenerated,
+                      emoji: doc.emoji,
+                      spaceId: space.id,
+                      folderId: newFolderId,
+                    }));
 
                     // Clone tasks inside folder lists
                     let clonedTaskCount = 0;
@@ -5963,8 +6087,8 @@ export default function SpacePage({
                       });
                     });
 
-                    onAddSyncLog(`Duplicated Folder "${folder.name}" with ${clonedTaskCount} tasks`);
-                    triggerToast?.('success', 'Đã nhân bản thư mục', `Đã tạo "${newFolderName}" cùng ${clonedLists.length} danh sách & ${clonedTaskCount} công việc.`);
+                    onAddSyncLog(`Duplicated Folder "${folder.name}" with ${clonedTaskCount} tasks, ${clonedDocs.length} docs and ${clonedWhiteboards.length} whiteboards`);
+                    triggerToast?.('success', 'Đã nhân bản thư mục', `Đã tạo "${newFolderName}" cùng ${clonedLists.length} danh sách, ${clonedTaskCount} công việc, ${clonedDocs.length} tài liệu và ${clonedWhiteboards.length} bảng trắng.`);
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-2xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 cursor-pointer transition-all duration-150 group/item"
                 >
@@ -6010,17 +6134,21 @@ export default function SpacePage({
                     triggerConfirm({
                       title: 'Xóa thư mục',
                       description: `Bạn có chắc chắn muốn xóa thư mục "${folder.name}" cùng tất cả danh sách bên trong? Tất cả các công việc trong thư mục này cũng sẽ bị xóa vĩnh viễn.`,
-                      onConfirm: () => {
+                      onConfirm: async () => {
                         const removedListIds = new Set(space.lists.filter(item => item.folderId === folder.id).map(item => item.id));
-                        tasks.filter(task => task.listId && removedListIds.has(task.listId)).forEach(task => onDeleteTask(task.id));
+                        const removedTasks = tasks.filter(task => task.listId && removedListIds.has(task.listId));
+                        const movedDocs = allDocs.filter(doc => doc.spaceId === space.id && doc.folderId === folder.id);
+                        await Promise.all(removedTasks.map(task => Promise.resolve(onDeleteTask(task.id))));
+                        await Promise.all(movedDocs.map(doc => Promise.resolve(onUpdateDoc?.({ ...doc, folderId: undefined }))));
                         const updatedFolders = space.folders?.filter(f => f.id !== folder.id) || [];
                         const updatedLists = space.lists?.filter(l => l.folderId !== folder.id) || [];
-                        const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists } : s);
+                        const updatedWhiteboards = (space.whiteboards || []).map(board => board.folderId === folder.id ? { ...board, folderId: undefined } : board);
+                        const updated = spaces.map(s => s.id === space.id ? { ...s, folders: updatedFolders, lists: updatedLists, whiteboards: updatedWhiteboards } : s);
                         onSaveSpaces?.(updated);
                         if (activeFolderId === folder.id) {
                           setActiveFolderId(null);
                         }
-                        onAddSyncLog(`Deleted Folder "${folder.name}"`);
+                        onAddSyncLog(`Deleted Folder "${folder.name}", removed ${removedTasks.length} tasks and moved ${movedDocs.length} docs to Space root`);
                       }
                     });
                   }}

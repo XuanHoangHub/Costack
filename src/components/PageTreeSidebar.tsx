@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Plus, ChevronRight, ChevronDown, Trash2, Star, 
   MoreVertical, Copy, RefreshCw, Archive, Search, Globe2, LockKeyhole,
-  SlidersHorizontal, Sparkles, FolderPlus, FilePlus
+  SlidersHorizontal, Sparkles, FilePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { renderSpaceIcon } from './EmojiIconPicker';
@@ -272,23 +272,27 @@ export default function PageTreeSidebar({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/80 dark:bg-slate-950/60 backdrop-blur-md border-r border-slate-200/70 dark:border-slate-800/70 w-72 shrink-0 select-none font-sans">
+    <div className="flex h-full w-full shrink-0 select-none flex-col border-r border-slate-200/70 bg-gradient-to-b from-slate-50/95 via-slate-50/80 to-white/90 font-sans backdrop-blur-xl dark:border-slate-800/70 dark:from-slate-950/95 dark:via-slate-950/80 dark:to-[#0b0f17]/90">
       
       {/* Header & Primary CTA */}
-      <div className="p-3 pb-2 shrink-0 space-y-2.5">
+      <div className="shrink-0 space-y-3 border-b border-slate-200/60 p-4 pb-3 dark:border-slate-800/60">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center text-white shadow-xs">
-              <FileText className="w-4 h-4" />
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
+              <FileText className="h-4.5 w-4.5" />
+              <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-50 bg-white text-blue-600 shadow-sm dark:border-slate-950 dark:bg-slate-900 dark:text-blue-400">
+                <Sparkles className="h-2.5 w-2.5" />
+              </span>
             </div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-              Tài liệu
-            </h2>
+            <div>
+              <h2 className="text-sm font-black tracking-tight text-slate-900 dark:text-white">Apexa Docs</h2>
+              <p className="mt-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-slate-400">Workspace knowledge</p>
+            </div>
           </div>
 
           <button
             onClick={() => onAddDoc()}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+            className="flex cursor-pointer items-center gap-1 rounded-xl bg-slate-900 px-2.5 py-2 text-[11px] font-black text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-600 hover:shadow-md hover:shadow-blue-500/20 active:translate-y-0 dark:bg-white dark:text-slate-900 dark:hover:bg-blue-500 dark:hover:text-white"
             title="Tạo trang mới"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />

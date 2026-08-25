@@ -4,10 +4,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Activity, AlertCircle, ArrowDownRight, ArrowUpRight, BarChart2, BarChart3, Bot,
-  CheckCircle2, CircleDollarSign, Clock3, CreditCard, Download, FileText, Landmark,
-  Layers, LayoutDashboard, LoaderCircle, PieChart as PieChartIcon, Plus, ReceiptText,
-  RefreshCw, Search, Send, Settings2, ShieldCheck, Sparkles, Target, TrendingDown,
-  TrendingUp, Wallet, WalletCards, X,
+  Building2, Camera, Check, CheckCircle2, CircleDollarSign, Clock3, CreditCard, Download,
+  FileText, Landmark, Layers, LayoutDashboard, LoaderCircle, PieChart as PieChartIcon, Plus,
+  Receipt, ReceiptText, RefreshCw, RotateCcw, ScanLine, Search, Send, Settings2, ShieldCheck,
+  SlidersHorizontal, Sparkles, Tag, Target, TrendingDown, TrendingUp, User, Users, Wallet,
+  WalletCards, X,
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart,
@@ -17,6 +18,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
+import { CategoryManagerModal, type FinanceCategory } from "@/components/finance/CategoryManagerModal";
+import { ReceiptScannerModal } from "@/components/finance/ReceiptScannerModal";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { callAiApi } from "@/lib/aiClient";
 import { getCleanChannel, supabase } from "@/lib/supabaseClient";
@@ -27,12 +30,94 @@ interface FinanceHubProps {
   triggerToast?: (type: any, title: string, message: string) => void;
 }
 
-type FinanceTab = "overview" | "cashbook" | "invoices" | "debts" | "budgets" | "reports" | "ai-agent";
-type ModalType = "profile" | "account" | "transaction" | "invoice" | "debt" | "budget" | "payment" | null;
+export type FinanceTab = "overview" | "cashbook" | "invoices" | "debts" | "budgets" | "reports" | "ai-agent";
+type ModalType = "profile" | "account" | "transaction" | "invoice" | "debt" | "budget" | "payment" | "categories" | "receipt-scan" | null;
 type Currency = "VND" | "USD" | "EUR";
-type EntityType = "individual" | "organization" | "business";
+export type EntityType = "individual" | "organization" | "business";
 
-interface FinanceProfile { entityType: EntityType; displayName: string; currency: Currency }
+export interface FinanceProfile {
+  entityType: EntityType;
+  displayName: string;
+  currency: Currency;
+  enabledTabs: FinanceTab[];
+}
+
+export const DEFAULT_TABS_BY_ENTITY: Record<EntityType, FinanceTab[]> = {
+  individual: ["overview", "cashbook", "reports", "ai-agent"],
+  organization: ["overview", "cashbook", "budgets", "debts", "reports", "ai-agent"],
+  business: ["overview", "cashbook", "invoices", "debts", "budgets", "reports", "ai-agent"],
+};
+
+export const MODULE_METADATA: Array<{
+  id: FinanceTab;
+  label: string;
+  shortDesc: string;
+  icon: React.ElementType;
+  tag?: string;
+  badgeColor?: string;
+  recommendedFor: EntityType[];
+}> = [
+  {
+    id: "overview",
+    label: "Tổng quan dòng tiền",
+    shortDesc: "Chỉ số tài chính tức thời, dự báo dòng tiền và phân bổ số dư tài khoản",
+    icon: LayoutDashboard,
+    recommendedFor: ["individual", "organization", "business"],
+  },
+  {
+    id: "cashbook",
+    label: "Sổ thu chi & Quét AI",
+    shortDesc: "Ghi chép thu chi hàng ngày, quét hóa đơn AI và quản lý danh mục",
+    icon: CircleDollarSign,
+    tag: "Cốt lõi",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    recommendedFor: ["individual", "organization", "business"],
+  },
+  {
+    id: "invoices",
+    label: "Hóa đơn & Thuế VAT",
+    shortDesc: "Hóa đơn mua vào/bán ra, thuế VAT, đối soát và trạng thái thanh toán",
+    icon: ReceiptText,
+    tag: "Doanh nghiệp",
+    badgeColor: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+    recommendedFor: ["business"],
+  },
+  {
+    id: "debts",
+    label: "Theo dõi Công nợ",
+    shortDesc: "Quản lý nợ phải thu, phải trả đối tác, nhắc hạn và phân tích tuổi nợ",
+    icon: Clock3,
+    tag: "Nhóm & DN",
+    badgeColor: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    recommendedFor: ["organization", "business"],
+  },
+  {
+    id: "budgets",
+    label: "Ngân sách & Hạn mức",
+    shortDesc: "Kiểm soát hạn mức chi tiêu định kỳ theo bộ phận hoặc danh mục",
+    icon: Target,
+    tag: "Kế hoạch",
+    badgeColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+    recommendedFor: ["organization", "business"],
+  },
+  {
+    id: "reports",
+    label: "Báo cáo & Phân tích",
+    shortDesc: "Báo cáo cơ cấu thu chi, biểu đồ trực quan và kết quả kinh doanh",
+    icon: BarChart3,
+    recommendedFor: ["individual", "organization", "business"],
+  },
+  {
+    id: "ai-agent",
+    label: "AI Trợ lý tài chính",
+    shortDesc: "Trợ lý phân tích thông minh, cảnh báo rủi ro thanh khoản theo số liệu thật",
+    icon: Sparkles,
+    tag: "AI Smart",
+    badgeColor: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    recommendedFor: ["individual", "organization", "business"],
+  },
+];
+
 interface BankAccount { id: string; bank: string; branch: string; number: string; balance: number; type: string }
 interface Transaction {
   id: string; code: string; type: "income" | "expense"; category: string;
@@ -63,7 +148,12 @@ export interface BudgetCategory {
   status: "under" | "warning" | "exceeded";
 }
 
-const DEFAULT_PROFILE: FinanceProfile = { entityType: "business", displayName: "Hồ sơ tài chính", currency: "VND" };
+const DEFAULT_PROFILE: FinanceProfile = {
+  entityType: "business",
+  displayName: "Hồ sơ tài chính",
+  currency: "VND",
+  enabledTabs: DEFAULT_TABS_BY_ENTITY.business,
+};
 const INPUT = "h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-sm font-medium text-[var(--cu-text-primary)] outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
 const LABEL = "mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]";
 const today = () => new Date().toISOString().slice(0, 10);
@@ -114,6 +204,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   const [debts, setDebts] = useState<DebtRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -151,19 +242,32 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       setUserId(authData.user.id);
-      const [pr, ar, tr, ir, dr, br, pyr] = await Promise.all([
-        supabase.from("finance_profiles").select("entity_type,display_name,currency").eq("workspace_id", workspaceId).maybeSingle(),
+      const [pr, ar, tr, ir, dr, br, pyr, cr] = await Promise.all([
+        supabase.from("finance_profiles").select("entity_type,display_name,currency,enabled_tabs").eq("workspace_id", workspaceId).maybeSingle(),
         supabase.from("finance_accounts").select("id,bank,branch,account_number,balance,account_type").eq("workspace_id", workspaceId).order("created_at"),
         supabase.from("finance_transactions").select("id,code,transaction_type,category,amount,transaction_date,account_id,account_label,partner,note,status").eq("workspace_id", workspaceId).order("transaction_date", { ascending: false }).order("created_at", { ascending: false }),
         supabase.from("finance_invoices").select("id,code,invoice_type,partner_name,tax_code,subtotal,vat_rate,vat_amount,total,paid_amount,issue_date,due_date,status,signed").eq("workspace_id", workspaceId).order("issue_date", { ascending: false }),
         supabase.from("finance_debts").select("id,partner_name,debt_type,total_amount,paid_amount,due_date,status").eq("workspace_id", workspaceId).order("due_date"),
         supabase.from("finance_budgets").select("id,department,category,allocated_amount,spent_amount,period_label,manager,status").eq("workspace_id", workspaceId).order("created_at", { ascending: false }),
         supabase.from("finance_payments").select("id,debt_id,invoice_id,amount,payment_date,payment_method,reference_code,note,created_at").eq("workspace_id", workspaceId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }),
+        supabase.from("finance_categories").select("id,workspace_id,name,type,color,icon,description,sort_order").eq("workspace_id", workspaceId).order("sort_order").order("created_at"),
       ]);
-      const firstError = [pr.error, ar.error, tr.error, ir.error, dr.error, br.error, pyr.error].find(Boolean);
+      const firstError = [pr.error, ar.error, tr.error, ir.error, dr.error, br.error, pyr.error, cr.error].find(Boolean);
       if (firstError) throw firstError;
       const p = pr.data;
-      const nextProfile = p ? { entityType: p.entity_type as EntityType, displayName: p.display_name, currency: p.currency as Currency } : DEFAULT_PROFILE;
+      const entityType = (p?.entity_type as EntityType) || "business";
+      const validTabIds = new Set<FinanceTab>(["overview", "cashbook", "invoices", "debts", "budgets", "reports", "ai-agent"]);
+      const rawTabs = p?.enabled_tabs;
+      const loadedTabs: FinanceTab[] = Array.isArray(rawTabs) && rawTabs.length > 0
+        ? (rawTabs.filter((t: string) => validTabIds.has(t as FinanceTab)) as FinanceTab[])
+        : DEFAULT_TABS_BY_ENTITY[entityType];
+
+      const nextProfile: FinanceProfile = p ? {
+        entityType,
+        displayName: p.display_name,
+        currency: p.currency as Currency,
+        enabledTabs: loadedTabs.length > 0 ? loadedTabs : DEFAULT_TABS_BY_ENTITY[entityType],
+      } : DEFAULT_PROFILE;
       setProfile(nextProfile); setProfileForm(nextProfile);
       setAccounts((ar.data || []).map(r => ({ id: r.id, bank: r.bank, branch: r.branch, number: r.account_number, balance: numberValue(r.balance), type: r.account_type })));
       setTransactions((tr.data || []).map(r => ({ id: r.id, code: r.code, type: r.transaction_type as Transaction["type"], category: r.category, amount: numberValue(r.amount), date: r.transaction_date, accountId: r.account_id, account: r.account_label, partner: r.partner, note: r.note, status: r.status as Transaction["status"] })));
@@ -191,6 +295,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
       setDebts((dr.data || []).map(r => ({ id: r.id, partnerName: r.partner_name, type: r.debt_type as DebtRecord["type"], totalAmount: numberValue(r.total_amount), paidAmount: numberValue(r.paid_amount), remainingAmount: numberValue(r.total_amount) - numberValue(r.paid_amount), dueDate: r.due_date, status: dueStatus(r.due_date) })));
       setBudgets((br.data || []).map(r => ({ id: r.id, department: r.department, category: r.category, allocatedAmount: numberValue(r.allocated_amount), spentAmount: numberValue(r.spent_amount), period: r.period_label, manager: r.manager, status: r.status as BudgetCategory["status"] })));
       setPayments((pyr.data || []).map(r => ({ id: r.id, debtId: r.debt_id, invoiceId: r.invoice_id, amount: numberValue(r.amount), date: r.payment_date, method: r.payment_method as PaymentRecord["method"], reference: r.reference_code || "", note: r.note || "", createdAt: r.created_at })));
+      setCategories((cr.data || []).map(r => ({ id: r.id, workspaceId: r.workspace_id, name: r.name, type: r.type as FinanceCategory["type"], color: r.color || "#6366f1", icon: r.icon || "Tag", description: r.description || "", sortOrder: r.sort_order || 0 })));
       setLastSync(new Date());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải dữ liệu tài chính.");
@@ -203,7 +308,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     setRealtime("connecting");
     const channel = getCleanChannel(`finance:${workspaceId}`);
     const refresh = () => void loadData(false);
-    ["finance_profiles", "finance_accounts", "finance_transactions", "finance_invoices", "finance_debts", "finance_budgets", "finance_payments"].forEach(table => {
+    ["finance_profiles", "finance_accounts", "finance_transactions", "finance_invoices", "finance_debts", "finance_budgets", "finance_payments", "finance_categories"].forEach(table => {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `workspace_id=eq.${workspaceId}` }, refresh);
     });
     channel.subscribe(status => {
@@ -376,8 +481,23 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
   };
 
   const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!userId || !profileForm.displayName.trim()) return;
-    await mutate(async () => { const { error: queryError } = await supabase.from("finance_profiles").upsert({ workspace_id: workspaceId, entity_type: profileForm.entityType, display_name: profileForm.displayName.trim(), currency: profileForm.currency, updated_by: userId }, { onConflict: "workspace_id" }); return { error: queryError }; }, "Đã cập nhật hồ sơ", "Cấu hình đã được đồng bộ theo workspace.");
+    e.preventDefault();
+    if (!userId || !profileForm.displayName.trim()) return;
+    const finalTabs = (profileForm.enabledTabs && profileForm.enabledTabs.length > 0)
+      ? profileForm.enabledTabs
+      : (DEFAULT_TABS_BY_ENTITY[profileForm.entityType] || ["cashbook" as FinanceTab]);
+
+    await mutate(async () => {
+      const { error: queryError } = await supabase.from("finance_profiles").upsert({
+        workspace_id: workspaceId,
+        entity_type: profileForm.entityType,
+        display_name: profileForm.displayName.trim(),
+        currency: profileForm.currency,
+        enabled_tabs: finalTabs,
+        updated_by: userId,
+      }, { onConflict: "workspace_id" });
+      return { error: queryError };
+    }, "Đã cập nhật hồ sơ & module", "Cấu hình tính năng đã được đồng bộ theo workspace.");
   };
   const saveAccount = async (e: React.FormEvent) => {
     e.preventDefault(); if (!userId || !accountForm.bank.trim() || !accountForm.number.trim() || !Number.isFinite(Number(accountForm.balance))) return;
@@ -489,12 +609,46 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
     finally { setAiLoading(false); }
   };
 
+  const enabledModuleSet = useMemo(() => {
+    const tabsList = profile.enabledTabs && profile.enabledTabs.length > 0
+      ? profile.enabledTabs
+      : (DEFAULT_TABS_BY_ENTITY[profile.entityType] || DEFAULT_TABS_BY_ENTITY.business);
+    return new Set(tabsList);
+  }, [profile.enabledTabs, profile.entityType]);
+
+  const visibleTabs = useMemo(() => {
+    return tabs.filter(t => enabledModuleSet.has(t.id));
+  }, [enabledModuleSet]);
+
+  // Safety switch when current activeTab gets disabled
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.some(t => t.id === activeTab)) {
+      setActiveTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs, activeTab]);
+
   const openCreate = () => {
-    if (activeTab === "cashbook") { setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" })); setModal("transaction"); }
-    else if (activeTab === "invoices") setModal("invoice");
-    else if (activeTab === "debts") setModal("debt");
-    else if (activeTab === "budgets") setModal("budget");
-    else setModal("transaction");
+    if (activeTab === "cashbook" || (activeTab === "overview" && enabledModuleSet.has("cashbook"))) {
+      setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" }));
+      setModal("transaction");
+    } else if (activeTab === "invoices" && enabledModuleSet.has("invoices")) {
+      setModal("invoice");
+    } else if (activeTab === "debts" && enabledModuleSet.has("debts")) {
+      setModal("debt");
+    } else if (activeTab === "budgets" && enabledModuleSet.has("budgets")) {
+      setModal("budget");
+    } else if (enabledModuleSet.has("cashbook")) {
+      setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" }));
+      setModal("transaction");
+    } else if (enabledModuleSet.has("invoices")) {
+      setModal("invoice");
+    } else if (enabledModuleSet.has("debts")) {
+      setModal("debt");
+    } else if (enabledModuleSet.has("budgets")) {
+      setModal("budget");
+    } else {
+      setModal("profile");
+    }
   };
 
   if (loading) return <div className="flex h-full items-center justify-center bg-[var(--cu-bg-subtle)]"><div className="text-center"><LoaderCircle className="mx-auto h-7 w-7 animate-spin text-indigo-500" /><p className="mt-3 text-xs font-bold text-[var(--cu-text-tertiary)]">Đang tải sổ tài chính…</p></div></div>;
@@ -516,12 +670,51 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white shadow-lg shadow-indigo-500/20"><WalletCards className="h-5 w-5" /></div>
             <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-base font-black tracking-tight text-[var(--cu-text-primary)]">{profile.displayName}</h1><Badge variant={realtime === "live" ? "success" : realtime === "connecting" ? "warning" : "danger"} dot>{realtime === "live" ? "Realtime" : realtime === "connecting" ? "Đang kết nối" : "Mất realtime"}</Badge></div><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--cu-text-tertiary)]">{profile.currency} · {lastSync ? `Cập nhật ${lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đồng bộ"}</p></div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2"><Button variant="ghost" size="sm" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void loadData(false)}>Làm mới</Button><Button variant="secondary" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCsv} disabled={activeTab === "invoices" ? !invoices.length : activeTab === "debts" ? !debts.length : activeTab === "budgets" ? !budgets.length : !filteredTransactions.length}>Xuất CSV</Button><Button variant="secondary" size="sm" leftIcon={<Settings2 className="h-3.5 w-3.5" />} onClick={() => { setProfileForm(profile); setModal("profile"); }}>Thiết lập</Button><Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openCreate}>Tạo mới</Button></div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void loadData(false)}>Làm mới</Button>
+            {enabledModuleSet.has("cashbook") && (
+              <>
+                <Button variant="secondary" size="sm" leftIcon={<Tag className="h-3.5 w-3.5" />} onClick={() => setModal("categories")}>Danh mục</Button>
+                <Button variant="secondary" size="sm" leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />} onClick={() => setModal("receipt-scan")}>Quét HĐ AI</Button>
+              </>
+            )}
+            <Button variant="secondary" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCsv} disabled={activeTab === "invoices" ? !invoices.length : activeTab === "debts" ? !debts.length : activeTab === "budgets" ? !budgets.length : !filteredTransactions.length}>Xuất CSV</Button>
+            <Button variant="secondary" size="sm" leftIcon={<Settings2 className="h-3.5 w-3.5" />} onClick={() => { setProfileForm(profile); setModal("profile"); }}>Thiết lập</Button>
+            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openCreate}>Tạo mới</Button>
+          </div>
         </div>
       </header>
 
-      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 py-2 [scrollbar-width:none] lg:px-5">
-        {tabs.map(item => { const Icon = item.icon; const selected = activeTab === item.id; return <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${selected ? "bg-indigo-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-[var(--cu-text-primary)]"}`}><Icon className="h-3.5 w-3.5" />{item.label}</button>; })}
+      <nav className="flex shrink-0 items-center justify-between gap-1 overflow-x-auto border-b border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 py-2 [scrollbar-width:none] lg:px-5">
+        <div className="flex items-center gap-1">
+          {visibleTabs.map(item => {
+            const Icon = item.icon;
+            const selected = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+                  selected
+                    ? "bg-indigo-500 text-white shadow-sm"
+                    : "text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-[var(--cu-text-primary)]"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => { setProfileForm(profile); setModal("profile"); }}
+          className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-[var(--cu-border)] px-2.5 text-[11px] font-bold text-[var(--cu-text-tertiary)] transition hover:border-indigo-500 hover:text-indigo-500"
+          title="Tuỳ chỉnh các module tính năng hiển thị"
+        >
+          <SlidersHorizontal className="h-3 w-3" />
+          <span>Tuỳ chỉnh module ({visibleTabs.length}/7)</span>
+        </button>
       </nav>
 
       <main className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
@@ -559,25 +752,35 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             />
           </section>
 
-          {/* CÂN ĐỐI NGHĨA VỤ & CÔNG NỢ */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card padding="md" className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><ArrowDownRight className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải thu</p><p className="mt-0.5 truncate text-base font-black text-emerald-500">{formatMoney(metrics.receivable)}</p></div>
-            </Card>
-            <Card padding="md" className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500"><ArrowUpRight className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải trả</p><p className="mt-0.5 truncate text-base font-black text-rose-500">{formatMoney(metrics.payable)}</p></div>
-            </Card>
-            <Card padding="md" className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500"><AlertCircle className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn</p><p className="mt-0.5 truncate text-base font-black text-amber-500">{formatMoney(metrics.overdue)}</p></div>
-            </Card>
-            <Card padding="md" className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500"><Target className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Ngân sách còn lại</p><p className="mt-0.5 truncate text-base font-black text-indigo-500">{formatMoney(Math.max(0, metrics.budget - metrics.spent))}</p></div>
-            </Card>
-          </section>
+          {/* CÂN ĐỐI NGHĨA VỤ & CÔNG NỢ / NGÂN SÁCH (CHỈ HIỆN KHI MODULE ĐƯỢC BẬT) */}
+          {(enabledModuleSet.has("debts") || enabledModuleSet.has("budgets")) && (
+            <section className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+              enabledModuleSet.has("debts") && enabledModuleSet.has("budgets") ? "lg:grid-cols-4" : enabledModuleSet.has("debts") ? "lg:grid-cols-3" : "lg:grid-cols-1"
+            }`}>
+              {enabledModuleSet.has("debts") && (
+                <>
+                  <Card padding="md" className="flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><ArrowDownRight className="h-5 w-5" /></div>
+                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải thu</p><p className="mt-0.5 truncate text-base font-black text-emerald-500">{formatMoney(metrics.receivable)}</p></div>
+                  </Card>
+                  <Card padding="md" className="flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500"><ArrowUpRight className="h-5 w-5" /></div>
+                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Nợ phải trả</p><p className="mt-0.5 truncate text-base font-black text-rose-500">{formatMoney(metrics.payable)}</p></div>
+                  </Card>
+                  <Card padding="md" className="flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500"><AlertCircle className="h-5 w-5" /></div>
+                    <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Công nợ quá hạn</p><p className="mt-0.5 truncate text-base font-black text-amber-500">{formatMoney(metrics.overdue)}</p></div>
+                  </Card>
+                </>
+              )}
+              {enabledModuleSet.has("budgets") && (
+                <Card padding="md" className="flex items-center gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500"><Target className="h-5 w-5" /></div>
+                  <div className="min-w-0 flex-1"><p className="text-[11px] font-bold text-[var(--cu-text-tertiary)]">Ngân sách còn lại</p><p className="mt-0.5 truncate text-base font-black text-indigo-500">{formatMoney(Math.max(0, metrics.budget - metrics.spent))}</p></div>
+                </Card>
+              )}
+            </section>
+          )}
 
           {noData && <Card padding="none"><EmptyState icon={Landmark} title="Workspace chưa có dữ liệu tài chính" description="Bắt đầu bằng một tài khoản tiền hoặc ngân hàng. Apexa không tạo số liệu mẫu; mọi số liệu hiển thị đến trực tiếp từ cơ sở dữ liệu." action={<Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setModal("account")}>Thêm tài khoản đầu tiên</Button>} /></Card>}
         </div>}
@@ -585,7 +788,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         {/* TAB 2: SỔ THU CHI */}
         {activeTab === "cashbook" && <div className="mx-auto max-w-[1500px] space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">{accounts.map(a => <Card key={a.id} padding="md"><div className="flex items-start justify-between"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500"><CreditCard className="h-4 w-4" /></div><Badge variant="success">Đang dùng</Badge></div><p className="mt-4 truncate text-sm font-black text-[var(--cu-text-primary)]">{a.bank}</p><p className="mt-0.5 truncate text-[11px] text-[var(--cu-text-tertiary)]">{a.number} · {a.branch || a.type}</p><p className="mt-3 text-lg font-black tracking-tight text-[var(--cu-text-primary)]">{formatMoney(a.balance)}</p></Card>)}<button onClick={() => setModal("account")} className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--cu-border-strong)] bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)] transition hover:border-indigo-500 hover:text-indigo-500"><Plus className="h-5 w-5" /><span className="mt-2 text-xs font-bold">Thêm tài khoản</span></button></div>
-          <Card padding="none" className="overflow-hidden"><SectionHeader title="Sổ thu chi" subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ`} aside={<div className="flex flex-wrap items-center justify-end gap-2"><Select ariaLabel="Lọc loại giao dịch" value={transactionFilter} onChange={v => setTransactionFilter(v as typeof transactionFilter)} className="w-32" options={[{ value: "all", label: "Tất cả loại" }, { value: "income", label: "Khoản thu" }, { value: "expense", label: "Khoản chi" }]} /><Select ariaLabel="Lọc thời gian giao dịch" value={transactionPeriod} onChange={v => setTransactionPeriod(v as typeof transactionPeriod)} className="w-32" options={[{ value: "all", label: "Mọi thời gian" }, { value: "30d", label: "30 ngày" }, { value: "90d", label: "90 ngày" }, { value: "year", label: "Năm nay" }]} /><div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} /></div><Button size="sm" onClick={() => { setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" })); setModal("transaction"); }} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button></div>} />{filteredTransactions.length ? <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><TransactionTable rows={filteredTransactions} formatMoney={formatMoney} /></div> : <EmptyState icon={CircleDollarSign} title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"} description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."} action={!transactions.length ? <Button size="sm" onClick={() => setModal("transaction")}>Ghi giao dịch</Button> : undefined} />} </Card>
+          <Card padding="none" className="overflow-hidden"><SectionHeader title="Sổ thu chi" subtitle={`${filteredTransactions.length}/${transactions.length} chứng từ`} aside={<div className="flex flex-wrap items-center justify-end gap-2"><Select ariaLabel="Lọc loại giao dịch" value={transactionFilter} onChange={v => setTransactionFilter(v as typeof transactionFilter)} className="w-32" options={[{ value: "all", label: "Tất cả loại" }, { value: "income", label: "Khoản thu" }, { value: "expense", label: "Khoản chi" }]} /><Select ariaLabel="Lọc thời gian giao dịch" value={transactionPeriod} onChange={v => setTransactionPeriod(v as typeof transactionPeriod)} className="w-32" options={[{ value: "all", label: "Mọi thời gian" }, { value: "30d", label: "30 ngày" }, { value: "90d", label: "90 ngày" }, { value: "year", label: "Năm nay" }]} /><div className="relative"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cu-text-tertiary)]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm chứng từ…" className={`${INPUT} w-52 pl-9`} /></div><Button variant="secondary" size="sm" onClick={() => setModal("categories")} leftIcon={<Tag className="h-3.5 w-3.5" />}>Danh mục</Button><Button variant="secondary" size="sm" onClick={() => setModal("receipt-scan")} leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />}>Quét HĐ AI</Button><Button size="sm" onClick={() => { setTxForm(f => ({ ...f, accountId: f.accountId || accounts[0]?.id || "" })); setModal("transaction"); }} leftIcon={<Plus className="h-4 w-4" />}>Ghi thu/chi</Button></div>} />{filteredTransactions.length ? <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><TransactionTable rows={filteredTransactions} formatMoney={formatMoney} /></div> : <EmptyState icon={CircleDollarSign} title={transactions.length ? "Không có giao dịch phù hợp" : "Chưa có giao dịch"} description={transactions.length ? "Thử thay đổi từ khóa hoặc bộ lọc loại và thời gian." : "Ghi nhận khoản thu hoặc chi đầu tiên. Số dư tài khoản được cập nhật nguyên tử trên hệ thống."} action={!transactions.length ? <Button size="sm" onClick={() => setModal("transaction")}>Ghi giao dịch</Button> : undefined} />} </Card>
         </div>}
 
         {/* TAB 3: HÓA ĐƠN */}
@@ -672,6 +875,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
             compactMoney={compactMoney}
             activeSubTab={reportsChartTab}
             setActiveSubTab={setReportsChartTab}
+            enabledTabs={profile.enabledTabs || DEFAULT_TABS_BY_ENTITY[profile.entityType]}
           />
         )}
 
@@ -679,7 +883,94 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         {activeTab === "ai-agent" && <AiPanel messages={aiMessages} input={aiInput} setInput={setAiInput} loading={aiLoading} onSend={() => void sendAi()} />}
       </main>
 
-      <AnimatePresence>{modal && <FinanceModal title={modalTitle(modal)} onClose={() => { if (!saving) { setModal(null); setPaymentTarget(null); setPaymentForm({ amount: "", date: today(), method: "bank_transfer", reference: "", note: "" }); } }}>{modal === "profile" ? <ProfileForm form={profileForm} setForm={setProfileForm} saving={saving} onSubmit={saveProfile} /> : modal === "account" ? <AccountForm form={accountForm} setForm={setAccountForm} saving={saving} onSubmit={saveAccount} /> : modal === "transaction" ? <TransactionForm form={txForm} setForm={setTxForm} type={transactionType} setType={setTransactionType} accounts={accounts} saving={saving} onSubmit={saveTransaction} onNeedAccount={() => setModal("account")} /> : modal === "invoice" ? <InvoiceForm form={invoiceForm} setForm={setInvoiceForm} saving={saving} onSubmit={saveInvoice} /> : modal === "debt" ? <DebtForm form={debtForm} setForm={setDebtForm} saving={saving} onSubmit={saveDebt} /> : modal === "budget" ? <BudgetForm form={budgetForm} setForm={setBudgetForm} saving={saving} onSubmit={saveBudget} /> : paymentTarget ? <PaymentForm target={paymentTarget} form={paymentForm} setForm={setPaymentForm} payments={payments.filter(payment => paymentTarget.kind === "debt" ? payment.debtId === paymentTarget.record.id : payment.invoiceId === paymentTarget.record.id)} formatMoney={formatMoney} saving={saving} onSubmit={savePayment} /> : null}</FinanceModal>}</AnimatePresence>
+      <AnimatePresence>
+        {modal && (
+          <FinanceModal
+            title={modalTitle(modal)}
+            maxWidth={
+              modal === "receipt-scan"
+                ? "w-[min(95vw,960px)]"
+                : modal === "categories"
+                ? "w-[min(95vw,780px)]"
+                : modal === "profile"
+                ? "w-[min(95vw,720px)]"
+                : "w-[min(95vw,576px)]"
+            }
+            onClose={() => {
+              if (!saving) {
+                setModal(null);
+                setPaymentTarget(null);
+                setPaymentForm({
+                  amount: "",
+                  date: today(),
+                  method: "bank_transfer",
+                  reference: "",
+                  note: "",
+                });
+              }
+            }}
+          >
+            {modal === "profile" ? (
+              <ProfileForm form={profileForm} setForm={setProfileForm} saving={saving} onSubmit={saveProfile} />
+            ) : modal === "account" ? (
+              <AccountForm form={accountForm} setForm={setAccountForm} saving={saving} onSubmit={saveAccount} />
+            ) : modal === "transaction" ? (
+              <TransactionForm
+                form={txForm}
+                setForm={setTxForm}
+                type={transactionType}
+                setType={setTransactionType}
+                accounts={accounts}
+                categories={categories}
+                saving={saving}
+                onSubmit={saveTransaction}
+                onNeedAccount={() => setModal("account")}
+                onOpenCategoryManager={() => setModal("categories")}
+              />
+            ) : modal === "invoice" ? (
+              <InvoiceForm form={invoiceForm} setForm={setInvoiceForm} saving={saving} onSubmit={saveInvoice} />
+            ) : modal === "debt" ? (
+              <DebtForm form={debtForm} setForm={setDebtForm} saving={saving} onSubmit={saveDebt} />
+            ) : modal === "budget" ? (
+              <BudgetForm form={budgetForm} setForm={setBudgetForm} saving={saving} onSubmit={saveBudget} />
+            ) : modal === "categories" ? (
+              <CategoryManagerModal
+                workspaceId={workspaceId}
+                categories={categories}
+                onRefresh={() => loadData(false)}
+                onClose={() => setModal(null)}
+                triggerToast={triggerToast}
+              />
+            ) : modal === "receipt-scan" ? (
+              <ReceiptScannerModal
+                workspaceId={workspaceId}
+                userId={userId}
+                accounts={accounts}
+                categories={categories}
+                formatMoney={formatMoney}
+                onRefresh={() => loadData(false)}
+                onClose={() => setModal(null)}
+                triggerToast={triggerToast}
+                onOpenCategoryManager={() => setModal("categories")}
+              />
+            ) : paymentTarget ? (
+              <PaymentForm
+                target={paymentTarget}
+                form={paymentForm}
+                setForm={setPaymentForm}
+                payments={payments.filter(payment =>
+                  paymentTarget.kind === "debt"
+                    ? payment.debtId === paymentTarget.record.id
+                    : payment.invoiceId === paymentTarget.record.id
+                )}
+                formatMoney={formatMoney}
+                saving={saving}
+                onSubmit={savePayment}
+              />
+            ) : null}
+          </FinanceModal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -893,6 +1184,7 @@ function ReportsAnalyticsDashboard({
   compactMoney,
   activeSubTab,
   setActiveSubTab,
+  enabledTabs = DEFAULT_TABS_BY_ENTITY.business,
 }: {
   metrics: { income: number; expense: number; net: number; cash: number; receivable: number; payable: number; budget: number; spent: number };
   transactions: Transaction[];
@@ -905,14 +1197,27 @@ function ReportsAnalyticsDashboard({
   compactMoney: (amount: number) => string;
   activeSubTab: "pl" | "expense" | "income" | "budget" | "debt";
   setActiveSubTab: (tab: "pl" | "expense" | "income" | "budget" | "debt") => void;
+  enabledTabs?: FinanceTab[];
 }) {
-  const subTabs: Array<{ id: typeof activeSubTab; label: string; icon: React.ElementType }> = [
+  const enabledSet = useMemo(() => new Set(enabledTabs), [enabledTabs]);
+
+  const allSubTabs: Array<{ id: typeof activeSubTab; label: string; icon: React.ElementType; moduleReq?: FinanceTab }> = useMemo(() => [
     { id: "pl", label: "Kết quả Thu chi (P&L)", icon: Activity },
     { id: "expense", label: "Cơ cấu Chi phí", icon: PieChartIcon },
     { id: "income", label: "Cơ cấu Doanh thu", icon: TrendingUp },
-    { id: "budget", label: "Ngân sách vs Thực tế", icon: Target },
-    { id: "debt", label: "Cơ cấu Công nợ & Tuổi nợ", icon: Clock3 },
-  ];
+    { id: "budget", label: "Ngân sách vs Thực tế", icon: Target, moduleReq: "budgets" },
+    { id: "debt", label: "Cơ cấu Công nợ & Tuổi nợ", icon: Clock3, moduleReq: "debts" },
+  ], []);
+
+  const subTabs = useMemo(() => {
+    return allSubTabs.filter(t => !t.moduleReq || enabledSet.has(t.moduleReq));
+  }, [allSubTabs, enabledSet]);
+
+  useEffect(() => {
+    if (subTabs.length > 0 && !subTabs.some(t => t.id === activeSubTab)) {
+      setActiveSubTab(subTabs[0].id);
+    }
+  }, [subTabs, activeSubTab, setActiveSubTab]);
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-4">
@@ -1232,18 +1537,237 @@ function AiPanel({ messages, input, setInput, loading, onSend }: { messages: Arr
   return <div className="mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-sm"><div className="flex items-center gap-3 border-b border-[var(--cu-border)] px-5 py-4"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white"><Bot className="h-5 w-5" /></div><div><h2 className="text-sm font-black text-[var(--cu-text-primary)]">AI phân tích tài chính</h2><p className="text-[11px] text-[var(--cu-text-tertiary)]">Chỉ nhận ngữ cảnh số liệu hiện có</p></div><Badge className="ml-auto" variant="success"><ShieldCheck className="h-3 w-3" /> Dữ liệu thật</Badge></div><div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">{messages.length ? messages.map((m, i) => <div key={i} className={`flex ${m.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${m.sender === "user" ? "bg-indigo-500 text-white" : "bg-[var(--cu-surface-2)] text-[var(--cu-text-secondary)]"}`}>{m.text}</div></div>) : <EmptyState icon={Sparkles} title="Hỏi về dữ liệu tài chính hiện tại" description="Ví dụ: Nhóm chi phí nào đang lớn nhất? Thanh khoản có đủ trả công nợ không?" />}{loading && <div className="flex items-center gap-2 text-xs font-bold text-indigo-500"><LoaderCircle className="h-4 w-4 animate-spin" />Đang phân tích…</div>}</div><div className="flex gap-2 border-t border-[var(--cu-border)] p-4"><input className={INPUT} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") onSend(); }} placeholder="Đặt câu hỏi về số liệu hiện tại…" /><Button aria-label="Gửi" onClick={onSend} disabled={!input.trim() || loading}><Send className="h-4 w-4" /></Button></div></div>;
 }
 
-function FinanceModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><motion.div initial={{ opacity: 0, y: 16, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .98 }} className="max-h-[90dvh] w-[min(95vw,576px)] overflow-y-auto rounded-3xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--cu-border)] bg-[var(--cu-surface)]/95 px-5 py-4 backdrop-blur-xl"><h2 className="text-base font-black text-[var(--cu-text-primary)]">{title}</h2><button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)]"><X className="h-4 w-4" /></button></div><div className="p-5">{children}</div></motion.div></motion.div>;
+function FinanceModal({ title, onClose, maxWidth = "w-[min(95vw,576px)]", children }: { title: string; onClose: () => void; maxWidth?: string; children: React.ReactNode }) {
+  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><motion.div initial={{ opacity: 0, y: 16, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .98 }} className={`max-h-[90dvh] ${maxWidth} overflow-y-auto rounded-3xl border border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-2xl`}><div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--cu-border)] bg-[var(--cu-surface)]/95 px-5 py-4 backdrop-blur-xl"><h2 className="text-base font-black text-[var(--cu-text-primary)]">{title}</h2><button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)]"><X className="h-4 w-4" /></button></div><div className="p-5">{children}</div></motion.div></motion.div>;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className={LABEL}>{label}</span>{children}</label>; }
 function SaveActions({ saving, label = "Lưu thông tin" }: { saving: boolean; label?: string }) { return <div className="flex justify-end border-t border-[var(--cu-border)] pt-4"><Button type="submit" loading={saving} leftIcon={<CheckCircle2 className="h-4 w-4" />}>{label}</Button></div>; }
 
 type ProfileFormState = FinanceProfile;
-function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormState; setForm: React.Dispatch<React.SetStateAction<ProfileFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><Field label="Tên hồ sơ"><input className={INPUT} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Loại hình"><Select className="w-full" ariaLabel="Loại hình" value={form.entityType} onChange={v => setForm(f => ({ ...f, entityType: v as EntityType }))} options={[{ value: "business", label: "Doanh nghiệp" }, { value: "organization", label: "Tổ chức" }, { value: "individual", label: "Cá nhân" }]} /></Field><Field label="Tiền tệ"><Select className="w-full" ariaLabel="Tiền tệ" value={form.currency} onChange={v => setForm(f => ({ ...f, currency: v as Currency }))} options={[{ value: "VND", label: "VND" }, { value: "USD", label: "USD" }, { value: "EUR", label: "EUR" }]} /></Field></div><SaveActions saving={saving} /></form>; }
+function ProfileForm({ form, setForm, saving, onSubmit }: { form: ProfileFormState; setForm: React.Dispatch<React.SetStateAction<ProfileFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) {
+  const currentTabs = useMemo(() => {
+    return form.enabledTabs && form.enabledTabs.length > 0
+      ? form.enabledTabs
+      : DEFAULT_TABS_BY_ENTITY[form.entityType];
+  }, [form.enabledTabs, form.entityType]);
+
+  const enabledSet = useMemo(() => new Set(currentTabs), [currentTabs]);
+
+  const handleSelectEntityType = (entityType: EntityType) => {
+    const defaultTabs = DEFAULT_TABS_BY_ENTITY[entityType];
+    setForm(f => ({
+      ...f,
+      entityType,
+      enabledTabs: defaultTabs,
+    }));
+  };
+
+  const handleToggleTab = (tabId: FinanceTab) => {
+    if (tabId === "cashbook") return;
+    setForm(f => {
+      const active = new Set(f.enabledTabs && f.enabledTabs.length > 0 ? f.enabledTabs : DEFAULT_TABS_BY_ENTITY[f.entityType]);
+      if (active.has(tabId)) {
+        active.delete(tabId);
+      } else {
+        active.add(tabId);
+      }
+      const newTabs = MODULE_METADATA.map(m => m.id).filter(id => active.has(id));
+      return {
+        ...f,
+        enabledTabs: newTabs.length > 0 ? newTabs : ["cashbook"],
+      };
+    });
+  };
+
+  const handleResetToEntityDefaults = () => {
+    setForm(f => ({
+      ...f,
+      enabledTabs: DEFAULT_TABS_BY_ENTITY[f.entityType],
+    }));
+  };
+
+  const entityPresets: Array<{ type: EntityType; label: string; icon: React.ElementType; desc: string; badge: string }> = [
+    {
+      type: "individual",
+      label: "Cá nhân",
+      icon: User,
+      desc: "Gọn gàng: Thu chi hàng ngày, quét hóa đơn AI, báo cáo tài chính",
+      badge: "4 modules",
+    },
+    {
+      type: "organization",
+      label: "Tổ chức / Nhóm",
+      icon: Users,
+      desc: "Đầy đủ: Quản lý quỹ chung, lập ngân sách nhóm, phân bổ công nợ",
+      badge: "6 modules",
+    },
+    {
+      type: "business",
+      label: "Doanh nghiệp",
+      icon: Building2,
+      desc: "Toàn diện: Hóa đơn VAT, đối soát công nợ, định mức ngân sách",
+      badge: "7 modules",
+    },
+  ];
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Tên hồ sơ tài chính">
+          <input
+            className={INPUT}
+            value={form.displayName}
+            onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))}
+            placeholder="Ví dụ: Tài chính cá nhân, Công ty TNHH Apexa..."
+            required
+          />
+        </Field>
+        <Field label="Đơn vị tiền tệ chính">
+          <Select
+            className="w-full"
+            ariaLabel="Tiền tệ"
+            value={form.currency}
+            onChange={v => setForm(f => ({ ...f, currency: v as Currency }))}
+            options={[
+              { value: "VND", label: "VND (₫) - Đồng Việt Nam" },
+              { value: "USD", label: "USD ($) - Đô la Mỹ" },
+              { value: "EUR", label: "EUR (€) - Đồng Euro" },
+            ]}
+          />
+        </Field>
+      </div>
+
+      {/* CHỌN LOẠI HÌNH & GỢI Ý MODULE */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className={LABEL}>1. Loại hình sử dụng (Tự động thiết lập cấu hình)</span>
+        </div>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          {entityPresets.map(preset => {
+            const Icon = preset.icon;
+            const isSelected = form.entityType === preset.type;
+            return (
+              <button
+                key={preset.type}
+                type="button"
+                onClick={() => handleSelectEntityType(preset.type)}
+                className={`relative flex flex-col rounded-2xl border p-3.5 text-left transition ${
+                  isSelected
+                    ? "border-indigo-500 bg-indigo-500/10 shadow-sm ring-1 ring-indigo-500"
+                    : "border-[var(--cu-border)] bg-[var(--cu-surface-2)]/40 hover:border-[var(--cu-border-strong)] hover:bg-[var(--cu-surface-2)]"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                    isSelected ? "bg-indigo-500 text-white" : "bg-[var(--cu-surface)] text-[var(--cu-text-secondary)]"
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                    isSelected ? "bg-indigo-500/20 text-indigo-500" : "bg-[var(--cu-surface)] text-[var(--cu-text-tertiary)]"
+                  }`}>
+                    {preset.badge}
+                  </span>
+                </div>
+                <h4 className="mt-2.5 text-xs font-black text-[var(--cu-text-primary)]">{preset.label}</h4>
+                <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--cu-text-tertiary)]">{preset.desc}</p>
+                {isSelected && (
+                  <div className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-white">
+                    <Check className="h-2.5 w-2.5 stroke-[3]" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* TUỲ CHỈNH BẬT / TẮT MODULE CHI TIẾT */}
+      <div className="space-y-2.5 pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span className={LABEL}>2. Tuỳ biến bật / tắt module tính năng ({enabledSet.size}/7 đang bật)</span>
+            <p className="text-[11px] text-[var(--cu-text-tertiary)]">
+              Chỉ hiển thị các phân hệ bạn cần. Bật thêm hoặc ẩn bớt bất kỳ lúc nào để tối ưu giao diện.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetToEntityDefaults}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--cu-border)] px-2.5 py-1 text-[11px] font-bold text-[var(--cu-text-secondary)] transition hover:border-indigo-500 hover:text-indigo-500"
+            title="Khôi phục các module mặc định của loại hình đã chọn"
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span>Gợi ý theo loại hình</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {MODULE_METADATA.map(mod => {
+            const Icon = mod.icon;
+            const isEnabled = enabledSet.has(mod.id);
+            const isCore = mod.id === "cashbook";
+            return (
+              <div
+                key={mod.id}
+                onClick={() => !isCore && handleToggleTab(mod.id)}
+                className={`relative flex items-start gap-3 rounded-2xl border p-3 transition ${
+                  isCore ? "cursor-default" : "cursor-pointer"
+                } ${
+                  isEnabled
+                    ? "border-indigo-500/40 bg-indigo-500/[0.04] hover:border-indigo-500"
+                    : "border-[var(--cu-border)] bg-[var(--cu-surface-2)]/20 opacity-60 hover:opacity-100"
+                }`}
+              >
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                  isEnabled ? "bg-indigo-500/10 text-indigo-500" : "bg-[var(--cu-surface-2)] text-[var(--cu-text-tertiary)]"
+                }`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-black text-[var(--cu-text-primary)]">{mod.label}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                      mod.tag === "Cốt lõi"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : mod.tag === "Doanh nghiệp"
+                        ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                        : mod.tag === "Nhóm & DN"
+                        ? "bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                        : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+                    }`}>
+                      {mod.tag}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-4 text-[var(--cu-text-tertiary)]">{mod.shortDesc}</p>
+                </div>
+                <div className="shrink-0 pt-0.5">
+                  <div className={`flex h-5 w-5 items-center justify-center rounded-lg border transition ${
+                    isEnabled
+                      ? "border-indigo-500 bg-indigo-500 text-white"
+                      : "border-[var(--cu-border-strong)] bg-[var(--cu-surface)] text-transparent"
+                  }`}>
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <SaveActions saving={saving} label="Lưu thiết lập hồ sơ & module" />
+    </form>
+  );
+}
 type AccountFormState = { bank: string; number: string; branch: string; type: string; balance: string };
 function AccountForm({ form, setForm, saving, onSubmit }: { form: AccountFormState; setForm: React.Dispatch<React.SetStateAction<AccountFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Tên ngân hàng / quỹ"><input className={INPUT} value={form.bank} onChange={e => setForm(f => ({ ...f, bank: e.target.value }))} required /></Field><Field label="Số tài khoản"><input className={INPUT} value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required /></Field><Field label="Chi nhánh"><input className={INPUT} value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))} /></Field><Field label="Số dư mở sổ"><input className={INPUT} type="number" step="0.01" value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} required /></Field></div><Field label="Loại tài khoản"><input className={INPUT} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></Field><SaveActions saving={saving} /></form>; }
 type TxFormState = { accountId: string; date: string; category: string; amount: string; partner: string; note: string };
-function TransactionForm({ form, setForm, type, setType, accounts, saving, onSubmit, onNeedAccount }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; saving: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={320} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ${a.number}` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><Field label="Hạng mục"><input className={INPUT} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} required /></Field><Field label="Số tiền"><input className={INPUT} type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label="Đối tác / Người nhận"><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field><SaveActions saving={saving} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>; }
+function TransactionForm({ form, setForm, type, setType, accounts, categories, saving, onSubmit, onNeedAccount, onOpenCategoryManager }: { form: TxFormState; setForm: React.Dispatch<React.SetStateAction<TxFormState>>; type: "income" | "expense"; setType: (type: "income" | "expense") => void; accounts: BankAccount[]; categories: FinanceCategory[]; saving: boolean; onSubmit: (e: React.FormEvent) => void; onNeedAccount: () => void; onOpenCategoryManager?: () => void }) {
+  const relevantCategories = useMemo(() => categories.filter(c => c.type === type || c.type === "both"), [categories, type]);
+
+  return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-2 rounded-xl bg-[var(--cu-surface-2)] p-1"><button type="button" onClick={() => setType("income")} className={`h-9 rounded-lg text-xs font-black ${type === "income" ? "bg-emerald-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản thu</button><button type="button" onClick={() => setType("expense")} className={`h-9 rounded-lg text-xs font-black ${type === "expense" ? "bg-rose-500 text-white shadow-sm" : "text-[var(--cu-text-tertiary)]"}`}>Khoản chi</button></div>{accounts.length ? <><div className="grid grid-cols-2 gap-3"><Field label="Tài khoản"><Select className="w-full" ariaLabel="Tài khoản" value={form.accountId} onChange={v => setForm(f => ({ ...f, accountId: v }))} placeholder="Chọn tài khoản" menuWidth={320} options={accounts.map(a => ({ value: a.id, label: `${a.bank} · ${a.number}` }))} /></Field><Field label="Ngày"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required /></Field><div><div className="mb-1.5 flex items-center justify-between"><span className={LABEL}>Hạng mục</span>{onOpenCategoryManager && <button type="button" onClick={onOpenCategoryManager} className="text-[10px] font-bold text-indigo-500 hover:underline">+ Quản lý danh mục</button>}</div><div className="relative"><input className={INPUT} list="tx-category-datalist" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Chọn hoặc nhập..." required /><datalist id="tx-category-datalist">{relevantCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</datalist></div></div><Field label="Số tiền"><input className={INPUT} type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required /></Field></div><Field label={type === "income" ? "Khách hàng / Người nộp" : "Đối tác / Người nhận"}><input className={INPUT} value={form.partner} onChange={e => setForm(f => ({ ...f, partner: e.target.value }))} /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></Field><SaveActions saving={saving} label={type === "income" ? "Ghi nhận khoản thu" : "Ghi nhận khoản chi"} /></> : <EmptyState icon={Landmark} title="Cần có tài khoản trước" description="Thêm tài khoản để ghi thu chi và cập nhật số dư chính xác." action={<Button type="button" onClick={onNeedAccount}>Thêm tài khoản</Button>} />}</form>;
+}
 type InvoiceFormState = { type: "out" | "in"; partnerName: string; taxCode: string; subtotal: string; vatRate: string; date: string; dueDate: string };
 function InvoiceForm({ form, setForm, saving, onSubmit }: { form: InvoiceFormState; setForm: React.Dispatch<React.SetStateAction<InvoiceFormState>>; saving: boolean; onSubmit: (e: React.FormEvent) => void }) { return <form onSubmit={onSubmit} className="space-y-4"><div className="grid grid-cols-2 gap-3"><Field label="Loại hóa đơn"><Select className="w-full" ariaLabel="Loại hóa đơn" value={form.type} onChange={v => setForm(f => ({ ...f, type: v as "out" | "in" }))} options={[{ value: "out", label: "Bán ra" }, { value: "in", label: "Mua vào" }]} /></Field><Field label="Ngày hóa đơn"><input className={INPUT} type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></Field></div><Field label="Khách hàng / Nhà cung cấp"><input className={INPUT} value={form.partnerName} onChange={e => setForm(f => ({ ...f, partnerName: e.target.value }))} required /></Field><div className="grid grid-cols-2 gap-3"><Field label="Mã số thuế"><input className={INPUT} value={form.taxCode} onChange={e => setForm(f => ({ ...f, taxCode: e.target.value }))} /></Field><Field label="Hạn thanh toán"><input className={INPUT} type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field><Field label="Tiền trước thuế"><input className={INPUT} type="number" min="0" step="0.01" value={form.subtotal} onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))} required /></Field><Field label="VAT (%)"><input className={INPUT} type="number" min="0" max="100" step="0.1" value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} /></Field></div><SaveActions saving={saving} /></form>; }
 type DebtFormState = { type: "receivable" | "payable"; partnerName: string; totalAmount: string; paidAmount: string; dueDate: string; phone: string; email: string };
@@ -1261,6 +1785,6 @@ function PaymentForm({ target, form, setForm, payments, formatMoney, saving, onS
   const setQuickAmount = (ratio: number) => setForm(current => ({ ...current, amount: String(Math.round(remaining * ratio * 100) / 100) }));
   return <form onSubmit={onSubmit} className="space-y-5"><div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-black text-[var(--cu-text-primary)]">{title}</p><p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-500">{target.kind === "debt" ? "Công nợ" : "Hóa đơn"} · {paymentStage(total, paid)}</p></div><span className="text-sm font-black text-amber-500">{formatMoney(remaining)} còn lại</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--cu-surface)]"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${paymentProgress(total, paid)}%` }} /></div><div className="mt-2 flex justify-between text-[10px] font-semibold text-[var(--cu-text-tertiary)]"><span>Đã trả {formatMoney(paid)}</span><span>Tổng {formatMoney(total)}</span></div></div><div><span className={LABEL}>Số tiền thanh toán</span><div className="grid grid-cols-[1fr_auto] gap-2"><input autoFocus className={INPUT} type="number" min="0.01" max={remaining} step="0.01" value={form.amount} onChange={event => setForm(current => ({ ...current, amount: event.target.value }))} placeholder="Nhập số tiền" required /><div className="flex gap-1"><button type="button" onClick={() => setQuickAmount(.25)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">25%</button><button type="button" onClick={() => setQuickAmount(.5)} className="rounded-xl border border-[var(--cu-border)] px-2.5 text-[10px] font-black text-[var(--cu-text-secondary)] hover:border-indigo-500 hover:text-indigo-500">50%</button><button type="button" onClick={() => setQuickAmount(1)} className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-2.5 text-[10px] font-black text-indigo-500">Tất toán</button></div></div></div><div className="grid grid-cols-2 gap-3"><Field label="Ngày thanh toán"><input className={INPUT} type="date" value={form.date} onChange={event => setForm(current => ({ ...current, date: event.target.value }))} required /></Field><Field label="Phương thức"><Select className="w-full" ariaLabel="Phương thức" value={form.method} onChange={v => setForm(current => ({ ...current, method: v as PaymentRecord["method"] }))} options={[{ value: "bank_transfer", label: "Chuyển khoản" }, { value: "cash", label: "Tiền mặt" }, { value: "card", label: "Thẻ" }, { value: "other", label: "Khác" }]} /></Field></div><Field label="Mã tham chiếu / giao dịch"><input className={INPUT} value={form.reference} onChange={event => setForm(current => ({ ...current, reference: event.target.value }))} placeholder="Không bắt buộc" /></Field><Field label="Ghi chú"><textarea className={`${INPUT} h-20 py-2.5`} value={form.note} onChange={event => setForm(current => ({ ...current, note: event.target.value }))} placeholder="Nội dung đối soát…" /></Field>{payments.length > 0 && <div><p className={LABEL}>Lịch sử thanh toán</p><div className="max-h-40 divide-y divide-[var(--cu-border)] overflow-y-auto rounded-2xl border border-[var(--cu-border)]">{payments.map(payment => <div key={payment.id} className="flex items-center gap-3 px-3.5 py-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500"><CheckCircle2 className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="text-[11px] font-black text-[var(--cu-text-primary)]">{new Date(`${payment.date}T00:00:00`).toLocaleDateString("vi-VN")} · {methodLabel(payment.method)}</p><p className="truncate text-[10px] text-[var(--cu-text-tertiary)]">{payment.reference || payment.note || "Không có mã tham chiếu"}</p></div><span className="text-xs font-black text-emerald-500">{formatMoney(payment.amount)}</span></div>)}</div></div>}<p className="rounded-xl bg-amber-500/10 px-3 py-2 text-[10px] leading-4 text-amber-600 dark:text-amber-400">Thanh toán sẽ cập nhật tiến độ và lưu lịch sử đối soát. Sổ thu chi chỉ thay đổi khi bạn ghi một giao dịch tương ứng.</p><SaveActions saving={saving} label="Ghi nhận thanh toán" /></form>;
 }
-function modalTitle(modal: Exclude<ModalType, null>) { return { profile: "Thiết lập hồ sơ", account: "Thêm tài khoản", transaction: "Ghi nhận thu / chi", invoice: "Tạo hóa đơn", debt: "Thêm công nợ", budget: "Tạo ngân sách", payment: "Ghi nhận thanh toán" }[modal]; }
+function modalTitle(modal: Exclude<ModalType, null>) { return { profile: "Thiết lập hồ sơ", account: "Thêm tài khoản", transaction: "Ghi nhận thu / chi", invoice: "Tạo hóa đơn", debt: "Thêm công nợ", budget: "Tạo ngân sách", payment: "Ghi nhận thanh toán", categories: "Quản lý danh mục Thu & Chi", "receipt-scan": "Quét hóa đơn AI & Thêm khoản chi" }[modal]; }
 
 export default FinanceHub;

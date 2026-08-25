@@ -63,9 +63,11 @@ export class BillingHttpError extends Error {
 export function billingErrorResponse(error: unknown) {
   const status = error instanceof BillingHttpError ? error.status : 500;
   if (status >= 500) console.error('Billing server error:', error);
-  const message = status >= 500
-    ? 'Hệ thống thanh toán tạm thời chưa khả dụng. Vui lòng thử lại sau.'
-    : error instanceof Error ? error.message : 'Billing request failed.';
+  const message = error instanceof BillingHttpError
+    ? error.message
+    : status >= 500
+      ? 'Hệ thống thanh toán tạm thời chưa khả dụng. Vui lòng thử lại sau.'
+      : error instanceof Error ? error.message : 'Billing request failed.';
   return Response.json({ error: message }, { status });
 }
 

@@ -2,10 +2,29 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowRight, BadgeCheck, Building2, Check, CreditCard, Loader2, Rocket, ShieldCheck, Sparkles, X, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  Check,
+  ChevronDown,
+  CreditCard,
+  Crown,
+  HelpCircle,
+  Layers,
+  Loader2,
+  Mail,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { SUGGESTED_PRICES, type BillingCycle, type BillingPlan, type SelfServeBillingPlan } from '@/lib/billing/plans';
+import { PayOSCheckout, type PayOSCheckoutData } from '@/components/billing/PayOSCheckout';
 
 type Entitlement = {
   plan: BillingPlan;
@@ -39,10 +58,18 @@ export interface PricingModalProps {
 
 const zeroDecimalCurrencies = new Set(['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf']);
 
-export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, currentUser, onEntitlementChange, triggerToast, addSyncLog }) => {
+export const PricingModal: React.FC<PricingModalProps> = ({
+  isOpen,
+  onClose,
+  currentUser,
+  onEntitlementChange,
+  triggerToast,
+  addSyncLog,
+}) => {
   const { isVietnamese } = useTranslation();
   const dialogRef = useRef<HTMLElement>(null);
   const [cycle, setCycle] = useState<BillingCycle>('yearly');
+  const [showFaq, setShowFaq] = useState(false);
   const [entitlement, setEntitlement] = useState<Entitlement>({
     plan: currentUser?.isPremium ? 'pro' : 'free',
     status: currentUser?.isPremium ? 'active' : 'inactive',
@@ -53,71 +80,168 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
   const [pricesLoading, setPricesLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<BillingPlan | null>(null);
   const [checking, setChecking] = useState(false);
+  const [manualChecking, setManualChecking] = useState(false);
   const [error, setError] = useState('');
+  const [checkout, setCheckout] = useState<PayOSCheckoutData | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<'pending' | 'expired' | 'cancelled' | 'failed'>('pending');
 
-  const copy = useMemo(() => ({
-    free: {
-      name: 'Free',
-      audience: isVietnamese ? 'Cá nhân bắt đầu' : 'For individuals',
-      description: isVietnamese ? 'Khởi tạo quy trình và khám phá Apexa không rủi ro.' : 'Build your first workflow and explore Apexa risk-free.',
-      features: isVietnamese
-        ? ['Tối đa 5 Spaces', 'Task và dự án không giới hạn', 'Board, List và Docs cơ bản', '3 bảng trắng cộng tác', '100 AI credits mỗi tháng']
-        : ['Up to 5 Spaces', 'Unlimited tasks and projects', 'Core Board, List, and Docs', '3 collaborative whiteboards', '100 monthly AI credits'],
-    },
-    starter: {
-      name: 'Starter',
-      audience: isVietnamese ? 'Nhóm nhỏ 2–10 người' : 'Small teams of 2–10',
-      description: isVietnamese ? 'Mọi thứ cần thiết để cộng tác và giao việc chuyên nghiệp.' : 'Everything small teams need to collaborate and deliver.',
-      features: isVietnamese
-        ? ['Spaces, dự án và whiteboard không giới hạn', 'Calendar và Gantt', '500 AI credits / người / tháng', '1.000 automation mỗi tháng', 'Tích hợp thiết yếu']
-        : ['Unlimited spaces, projects, and whiteboards', 'Calendar and Gantt', '500 AI credits / user / month', '1,000 monthly automations', 'Essential integrations'],
-    },
-    pro: {
-      name: 'Pro',
-      audience: isVietnamese ? 'Đội ngũ đang tăng trưởng' : 'Growing teams',
-      description: isVietnamese ? 'Gói cân bằng tốt nhất giữa năng lực AI, vận hành và chi phí.' : 'The best balance of AI, operations, and cost.',
-      features: isVietnamese
-        ? ['Toàn bộ Starter', 'Apexa AI và báo cáo nâng cao', 'CRM, ERP và Finance workspace', '5.000 automation mỗi tháng', 'Time tracking, export và khách mời']
-        : ['Everything in Starter', 'Apexa AI and advanced reporting', 'CRM, ERP, and Finance workspaces', '5,000 monthly automations', 'Time tracking, export, and guests'],
-    },
-    business: {
-      name: 'Business',
-      audience: isVietnamese ? 'Nhiều phòng ban' : 'Multi-department teams',
-      description: isVietnamese ? 'Kiểm soát, quản trị và khả năng mở rộng cho tổ chức lớn.' : 'Control, governance, and scale for larger organizations.',
-      features: isVietnamese
-        ? ['Toàn bộ Pro', 'Phân quyền và nhiều workspace nâng cao', 'Portfolio, workload và audit log', 'API, webhook và 3.000 AI credits / người', 'Hỗ trợ ưu tiên']
-        : ['Everything in Pro', 'Advanced permissions and multi-workspace', 'Portfolio, workload, and audit log', 'API, webhooks, and 3,000 AI credits / user', 'Priority support'],
-    },
-    enterprise: {
-      name: 'Enterprise',
-      audience: isVietnamese ? 'Tổ chức cần SLA' : 'Organizations needing SLA',
-      description: isVietnamese ? 'Bảo mật, triển khai và hỗ trợ được thiết kế riêng.' : 'Tailored security, deployment, and support.',
-      features: isVietnamese
-        ? ['Toàn bộ Business', 'SSO/SAML, SCIM và quản trị tập trung', 'Chính sách dữ liệu và bảo mật tùy chỉnh', 'SLA và onboarding riêng', 'Customer Success chuyên trách']
-        : ['Everything in Business', 'SSO/SAML, SCIM, and central governance', 'Custom data and security policies', 'Tailored SLA and onboarding', 'Dedicated Customer Success'],
-    },
-  }), [isVietnamese]);
+  const copy = useMemo(
+    () => ({
+      free: {
+        name: 'Free',
+        audience: isVietnamese ? 'Cá nhân' : 'Personal',
+        description: isVietnamese
+          ? 'Khởi tạo quy trình và trải nghiệm các tính năng cốt lõi hoàn toàn miễn phí.'
+          : 'Build your first workflow and explore core features completely free.',
+        features: isVietnamese
+          ? [
+              'Tối đa 5 Spaces làm việc',
+              'Task & dự án không giới hạn',
+              'Board, List & Docs ghi chú',
+              '3 bảng trắng cộng tác Whiteboard',
+              '100 AI credits mỗi tháng',
+            ]
+          : [
+              'Up to 5 active Spaces',
+              'Unlimited tasks & projects',
+              'Core Board, List & Docs',
+              '3 collaborative Whiteboards',
+              '100 monthly AI credits',
+            ],
+      },
+      starter: {
+        name: 'Starter',
+        audience: isVietnamese ? 'Nhóm 2–10 người' : 'Teams of 2–10',
+        description: isVietnamese
+          ? 'Giải pháp hoàn chỉnh để đội ngũ cộng tác mượt mà và quản lý tiến độ.'
+          : 'Complete collaboration toolkit to deliver projects faster.',
+        features: isVietnamese
+          ? [
+              'Spaces & dự án không giới hạn',
+              'Calendar & biểu đồ Gantt tiến độ',
+              '500 AI credits / thành viên / tháng',
+              '1.000 lượt tự động hóa / tháng',
+              'Tích hợp Google Calendar, Notion',
+            ]
+          : [
+              'Unlimited spaces & projects',
+              'Calendar & Gantt timeline',
+              '500 AI credits / user / month',
+              '1,000 monthly automations',
+              'Google Calendar & Notion integration',
+            ],
+      },
+      pro: {
+        name: 'Pro',
+        audience: isVietnamese ? 'Đội ngũ tăng trưởng' : 'Growing teams',
+        description: isVietnamese
+          ? 'Tối ưu toàn diện năng suất làm việc với sức mạnh AI và quản trị đa năng.'
+          : 'Supercharge productivity with cutting-edge AI and advanced workspaces.',
+        features: isVietnamese
+          ? [
+              'Toàn bộ quyền lợi gói Starter',
+              'Apexa AI Chat, Report & Summarizer',
+              'Hệ sinh thái CRM, ERP & Finance',
+              '5.000 lượt tự động hóa / tháng',
+              'Time tracking, KPI & phân quyền khách',
+            ]
+          : [
+              'Everything in Starter',
+              'Apexa AI Chat, Report & Summarizer',
+              'Integrated CRM, ERP & Finance workspaces',
+              '5,000 monthly automations',
+              'Time tracking, KPI & guest permissions',
+            ],
+      },
+      business: {
+        name: 'Business',
+        audience: isVietnamese ? 'Nhiều phòng ban' : 'Multi-department',
+        description: isVietnamese
+          ? 'Kiểm soát, bảo mật chuyên sâu và phân quyền quản trị cho tổ chức lớn.'
+          : 'Enterprise control, deep analytics, and departmental governance.',
+        features: isVietnamese
+          ? [
+              'Toàn bộ quyền lợi gói Pro',
+              'Phân quyền nâng cao theo phòng ban',
+              'Portfolio & Quản lý khối lượng (Workload)',
+              'API, Webhook & 3.000 AI credits / user',
+              'Hỗ trợ ưu tiên 24/7 & chuyên viên đồng hành',
+            ]
+          : [
+              'Everything in Pro',
+              'Advanced role & department permissions',
+              'Portfolio & Workload management',
+              'API, Webhooks & 3,000 AI credits / user',
+              '24/7 Priority support & onboarding',
+            ],
+      },
+      enterprise: {
+        name: 'Enterprise',
+        audience: isVietnamese ? 'Doanh nghiệp lớn' : 'Custom Enterprise',
+        description: isVietnamese
+          ? 'Bảo mật tuyệt đối, triển khai tùy biến, cam kết SLA 99.9% và hỗ trợ 1-1.'
+          : 'Tailored deployment, custom SLAs, SSO/SAML, and dedicated support.',
+        features: isVietnamese
+          ? [
+              'Toàn bộ quyền lợi gói Business',
+              'Đăng nhập SSO / SAML & SCIM',
+              'Chính sách dữ liệu và máy chủ riêng',
+              'Cam kết SLA 99.9% & Onboarding 1-1',
+              'Customer Success Manager chuyên trách',
+            ]
+          : [
+              'Everything in Business',
+              'SSO / SAML & SCIM provisioning',
+              'Custom data retention & isolated hosting',
+              '99.9% SLA & 1-on-1 Onboarding',
+              'Dedicated Customer Success Manager',
+            ],
+      },
+    }),
+    [isVietnamese],
+  );
 
-  const authorizedFetch = useCallback(async (url: string, init?: RequestInit) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error(isVietnamese ? 'Vui lòng đăng nhập để quản lý gói.' : 'Please sign in to manage your plan.');
-    const response = await fetch(url, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, ...(init?.headers || {}) },
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || (isVietnamese ? 'Không thể kết nối hệ thống thanh toán.' : 'Unable to connect to billing.'));
-    return body;
-  }, [isVietnamese]);
+  const authorizedFetch = useCallback(
+    async (url: string, init?: RequestInit) => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token)
+        throw new Error(isVietnamese ? 'Vui lòng đăng nhập để quản lý gói.' : 'Please sign in to manage your plan.');
+      const response = await fetch(url, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          ...(init?.headers || {}),
+        },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(
+          body.error || (isVietnamese ? 'Không thể kết nối hệ thống thanh toán.' : 'Unable to connect to billing.'),
+        );
+      return body;
+    },
+    [isVietnamese],
+  );
 
   const refreshEntitlement = useCallback(async () => {
     setChecking(true);
     try {
       const body = await authorizedFetch('/api/billing/subscription', { method: 'POST' });
-      setEntitlement(body.entitlement);
-      onEntitlementChange?.(body.entitlement);
+      if (body.entitlement) {
+        setEntitlement(body.entitlement);
+        onEntitlementChange?.(body.entitlement);
+      }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : (isVietnamese ? 'Không thể kiểm tra trạng thái gói.' : 'Unable to check your plan.'));
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : isVietnamese
+          ? 'Không thể kiểm tra trạng thái gói.'
+          : 'Unable to check your plan.',
+      );
     } finally {
       setChecking(false);
     }
@@ -141,6 +265,142 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
     }
   }, []);
 
+  const closeEmbeddedCheckout = useCallback(() => {
+    setCheckout(null);
+    setCheckoutStatus('pending');
+    setError('');
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    closeEmbeddedCheckout();
+    onClose();
+  }, [closeEmbeddedCheckout, onClose]);
+
+  // Manual payment verification
+  const checkPaymentStatus = useCallback(
+    async (activeCheckout: PayOSCheckoutData, silent = false) => {
+      setManualChecking(true);
+      setError('');
+      try {
+        const result = await authorizedFetch('/api/billing/checkout', {
+          method: 'PUT',
+          body: JSON.stringify({ orderCode: activeCheckout.orderCode }),
+        });
+        if (result.status === 'paid') {
+          await refreshEntitlement();
+          addSyncLog?.(`Confirmed PayOS order ${activeCheckout.orderCode}`);
+          triggerToast?.(
+            'success',
+            isVietnamese ? 'Thanh toán thành công! 🎉' : 'Payment successful! 🎉',
+            isVietnamese
+              ? `Gói ${copy[activeCheckout.plan].name} đã được kích hoạt thành công.`
+              : `Your ${copy[activeCheckout.plan].name} plan is now active.`,
+          );
+          setCheckout(null);
+          return true;
+        } else if (['cancelled', 'expired', 'failed'].includes(result.status)) {
+          setCheckoutStatus(result.status);
+          setError(
+            isVietnamese
+              ? 'Đơn thanh toán đã bị hủy hoặc hết hạn.'
+              : 'The payment was cancelled or expired.',
+          );
+        } else if (!silent) {
+          triggerToast?.(
+            'info',
+            isVietnamese ? 'Đang chờ thanh toán' : 'Awaiting payment',
+            isVietnamese
+              ? 'Hệ thống chưa nhận được tiền cho đơn này. Vui lòng quét mã VietQR và bấm kiểm tra lại.'
+              : 'Payment not received yet. Please scan the VietQR code to pay.',
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : isVietnamese ? 'Không thể kiểm tra giao dịch.' : 'Unable to check transaction.';
+        setError(msg);
+      } finally {
+        setManualChecking(false);
+      }
+      return false;
+    },
+    [addSyncLog, authorizedFetch, copy, isVietnamese, refreshEntitlement, triggerToast],
+  );
+
+  // Background auto-polling (every 3.5s) while checkout modal is open
+  useEffect(() => {
+    if (!isOpen || !checkout) return;
+    let active = true;
+
+    const poll = async () => {
+      if (!active) return;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const res = await fetch('/api/billing/checkout', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ orderCode: checkout.orderCode }),
+        });
+        if (!active) return;
+        const data = await res.json().catch(() => ({}));
+        if (data?.status === 'paid') {
+          await refreshEntitlement();
+          if (!active) return;
+          addSyncLog?.(`Confirmed PayOS order ${checkout.orderCode}`);
+          triggerToast?.(
+            'success',
+            isVietnamese ? 'Thanh toán thành công! 🎉' : 'Payment successful! 🎉',
+            isVietnamese
+              ? `Gói ${copy[checkout.plan].name} đã được kích hoạt thành công.`
+              : `Your ${copy[checkout.plan].name} plan is now active.`,
+          );
+          setCheckout(null);
+        } else if (['cancelled', 'expired', 'failed'].includes(data?.status)) {
+          setCheckoutStatus(data.status);
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(poll, 3500);
+
+    const handleMessage = (event: MessageEvent) => {
+      const validOrigins = [
+        'https://dev.pay.payos.vn',
+        'https://next.dev.pay.payos.vn',
+        'https://pay.payos.vn',
+        'https://next.pay.payos.vn',
+      ];
+      if (!validOrigins.includes(event.origin) || !active) return;
+      try {
+        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (
+          payload?.type === 'payment_response' &&
+          (payload?.status === 'PAID' || payload?.data?.status === 'PAID')
+        ) {
+          void checkPaymentStatus(checkout, true);
+        } else if (
+          payload?.type === 'payment_response' &&
+          (payload?.status === 'CANCELLED' || payload?.data?.status === 'CANCELLED')
+        ) {
+          setCheckoutStatus('cancelled');
+          setError(isVietnamese ? 'Bạn đã hủy thanh toán PayOS.' : 'You cancelled the PayOS payment.');
+        }
+      } catch {}
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [checkout, checkPaymentStatus, copy, isVietnamese, isOpen, refreshEntitlement, triggerToast, addSyncLog]);
+
   useEffect(() => {
     if (!isOpen) return;
     setError('');
@@ -157,26 +417,92 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     dialogRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') handleModalClose();
+    };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [handleModalClose, isOpen]);
 
   const redirectToBilling = async (plan: BillingPlan, endpoint: string, body?: object) => {
     setLoadingPlan(plan);
     setError('');
     try {
-      const data = await authorizedFetch(endpoint, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+      const data = await authorizedFetch(endpoint, {
+        method: 'POST',
+        body: body ? JSON.stringify(body) : undefined,
+      });
       if (data?.url) {
-        addSyncLog?.(endpoint.includes('portal') ? 'Opened secure billing portal' : `Started PayOS ${plan} ${cycle} checkout`);
+        addSyncLog?.(
+          endpoint.includes('portal') ? 'Opened secure billing portal' : `Started PayOS ${plan} ${cycle} checkout`,
+        );
         window.location.assign(data.url);
       }
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : (isVietnamese ? 'Không thể kết nối hệ thống thanh toán.' : 'Unable to connect to billing.');
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : isVietnamese
+          ? 'Không thể kết nối hệ thống thanh toán.'
+          : 'Unable to connect to billing.';
+      setError(message);
+      triggerToast?.('error', isVietnamese ? 'Thanh toán chưa hoàn tất' : 'Billing not completed', message);
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const startPayOSCheckout = async (plan: SelfServeBillingPlan) => {
+    setLoadingPlan(plan);
+    setError('');
+    try {
+      const data = await authorizedFetch('/api/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan, cycle, returnPath: `${window.location.pathname}${window.location.search}` }),
+      });
+      if (
+        !data?.url
+        || !data?.returnUrl
+        || !Number.isSafeInteger(data?.orderCode)
+        || !Number.isSafeInteger(data?.amount)
+        || typeof data?.description !== 'string'
+        || typeof data?.expiresAt !== 'string'
+        || typeof data?.qrCode !== 'string'
+        || typeof data?.accountNumber !== 'string'
+        || typeof data?.accountName !== 'string'
+        || typeof data?.bin !== 'string'
+      ) {
+        throw new Error(
+          isVietnamese ? 'PayOS trả về thông tin thanh toán không hợp lệ.' : 'PayOS returned invalid checkout details.',
+        );
+      }
+      addSyncLog?.(`Started embedded PayOS ${plan} ${cycle} checkout`);
+      setCheckoutStatus('pending');
+      setCheckout({
+        url: data.url,
+        returnUrl: data.returnUrl,
+        orderCode: data.orderCode,
+        plan,
+        cycle,
+        amount: data.amount,
+        description: data.description,
+        expiresAt: data.expiresAt,
+        qrCode: data.qrCode,
+        accountNumber: data.accountNumber,
+        accountName: data.accountName,
+        bin: data.bin,
+      });
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : isVietnamese
+          ? 'Không thể kết nối hệ thống thanh toán.'
+          : 'Unable to connect to billing.';
       setError(message);
       triggerToast?.('error', isVietnamese ? 'Thanh toán chưa hoàn tất' : 'Billing not completed', message);
     } finally {
@@ -200,145 +526,652 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, cur
       window.location.assign(`mailto:contact@apexa.vn?subject=${encodeURIComponent('Apexa Enterprise consultation')}`);
       return;
     }
-    if (entitlement.provider === 'stripe' && (entitlement.is_pro || ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status))) {
+    if (
+      entitlement.provider === 'stripe' &&
+      (entitlement.is_pro || ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status))
+    ) {
       void redirectToBilling(plan, '/api/billing/portal');
       return;
     }
     if (!billingConfigured || !prices[plan]?.[cycle]) {
-      const message = isVietnamese ? 'Kênh thanh toán PayOS chưa được cấu hình đầy đủ.' : 'PayOS billing is not fully configured yet.';
+      const message = isVietnamese
+        ? 'Kênh thanh toán PayOS chưa được cấu hình đầy đủ.'
+        : 'PayOS billing is not fully configured yet.';
       setError(message);
       triggerToast?.('info', isVietnamese ? 'Gói sắp mở bán' : 'Plan coming soon', message);
       return;
     }
-    void redirectToBilling(plan, '/api/billing/checkout', { plan, cycle });
+    void startPayOSCheckout(plan);
   };
 
   const numberLocale = isVietnamese ? 'vi-VN' : 'en-US';
-  const formatMoney = (amount: number, currency = 'vnd') => new Intl.NumberFormat(numberLocale, {
-    style: 'currency', currency: currency.toUpperCase(), maximumFractionDigits: 0,
-  }).format(amount / (zeroDecimalCurrencies.has(currency.toLowerCase()) ? 1 : 100));
+  const formatMoney = (amount: number, currency = 'vnd') =>
+    new Intl.NumberFormat(numberLocale, {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      maximumFractionDigits: 0,
+    }).format(amount / (zeroDecimalCurrencies.has(currency.toLowerCase()) ? 1 : 100));
 
   const displayPrice = (plan: BillingPlan) => {
-    if (plan === 'free') return { value: formatMoney(0), suffix: isVietnamese ? '/ mãi mãi' : '/ forever' };
-    if (plan === 'enterprise') return { value: isVietnamese ? 'Liên hệ' : 'Custom', suffix: isVietnamese ? 'theo nhu cầu' : 'tailored' };
+    if (plan === 'free') {
+      return {
+        value: formatMoney(0),
+        suffix: isVietnamese ? '/ vĩnh viễn' : '/ forever',
+        rawMonthly: 0,
+        rawTotal: 0,
+        formattedMonthly: formatMoney(0),
+        originalMonthly: null,
+      };
+    }
+    if (plan === 'enterprise') {
+      return {
+        value: isVietnamese ? 'Liên hệ' : 'Custom',
+        suffix: isVietnamese ? 'theo nhu cầu' : 'tailored',
+        rawMonthly: 0,
+        rawTotal: 0,
+        formattedMonthly: isVietnamese ? 'Liên hệ' : 'Custom',
+        originalMonthly: null,
+      };
+    }
+
     const live = prices[plan]?.[cycle];
     const amount = live?.unit_amount ?? SUGGESTED_PRICES[plan][cycle];
-    const intervalCount = live?.interval_count ?? 1;
-    const monthlyAmount = amount / (cycle === 'yearly' ? 12 * intervalCount : intervalCount);
-    return { value: formatMoney(monthlyAmount, live?.currency || 'vnd'), suffix: isVietnamese ? '/ tháng' : '/ month' };
+    const rawMonthlyPrice = prices[plan]?.monthly?.unit_amount ?? SUGGESTED_PRICES[plan].monthly;
+
+    // Clean rounded monthly breakdown (e.g. 149.000 instead of 149.167)
+    const exactMonthly = cycle === 'yearly' ? amount / 12 : amount;
+    const roundedMonthly = Math.round(exactMonthly / 1000) * 1000;
+
+    return {
+      value: formatMoney(roundedMonthly, live?.currency || 'vnd'),
+      suffix: isVietnamese ? '/ tháng' : '/ month',
+      totalValue: formatMoney(amount, live?.currency || 'vnd'),
+      rawMonthly: roundedMonthly,
+      rawTotal: amount,
+      originalMonthly: cycle === 'yearly' ? formatMoney(rawMonthlyPrice, live?.currency || 'vnd') : null,
+    };
   };
 
-  const planOrder: BillingPlan[] = ['free', 'starter', 'pro', 'business', 'enterprise'];
+  // 4 Primary Grid Plans: Free, Starter, Pro, Business (Enterprise is featured below in a VIP luxury banner)
+  const corePlans: SelfServeBillingPlan[] = ['starter', 'pro', 'business'];
   const hasBillingIssue = ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status);
+
+  const cancelCheckout = useCallback(async () => {
+    if (!checkout) return;
+    setManualChecking(true);
+    setError('');
+    try {
+      const result = await authorizedFetch('/api/billing/checkout', {
+        method: 'DELETE',
+        body: JSON.stringify({ orderCode: checkout.orderCode }),
+      });
+      if (result.status === 'paid') {
+        await checkPaymentStatus(checkout, true);
+        return;
+      }
+      setCheckoutStatus('cancelled');
+      addSyncLog?.(`Cancelled PayOS order ${checkout.orderCode}`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : (isVietnamese ? 'Không thể hủy đơn.' : 'Unable to cancel order.'));
+    } finally {
+      setManualChecking(false);
+    }
+  }, [addSyncLog, authorizedFetch, checkPaymentStatus, checkout, isVietnamese]);
+
+  const expireCheckout = useCallback(() => {
+    if (!checkout) return;
+    setCheckoutStatus('expired');
+    void checkPaymentStatus(checkout, true);
+  }, [checkPaymentStatus, checkout]);
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto p-2 sm:p-5">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !loadingPlan && onClose()} className="fixed inset-0 bg-slate-950/75 backdrop-blur-md" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-3 sm:p-5">
+          {/* Ambient Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !loadingPlan && handleModalClose()}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
+          />
+
+          {/* Main Modal Shell */}
           <motion.section
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="pricing-modal-title"
             tabIndex={-1}
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 34 }}
-            className="relative z-10 my-auto w-[min(95vw,1480px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-[28px] border border-white/80 bg-[#f7f8fb] shadow-[0_40px_110px_-30px_rgba(2,6,23,.8)] outline-none dark:border-white/10 dark:bg-slate-950"
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+            className={`relative z-10 my-auto w-full transition-all duration-300 ${
+              checkout
+                ? 'max-w-4xl rounded-3xl border border-slate-200/90 bg-[#f8fafc] shadow-[0_30px_90px_-20px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950'
+                : 'max-w-[1240px] max-h-[92dvh] overflow-y-auto rounded-[32px] border border-slate-200/80 bg-[#f8fafc] shadow-[0_40px_120px_-30px_rgba(2,6,23,0.85)] dark:border-slate-800 dark:bg-slate-950'
+            }`}
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_50%_-30%,rgba(99,102,241,.22),transparent_65%)]" />
-            <button type="button" onClick={onClose} disabled={Boolean(loadingPlan)} aria-label={isVietnamese ? 'Đóng bảng giá' : 'Close pricing'} className="absolute right-4 top-4 z-30 grid min-h-[44px] min-w-[44px] place-items-center rounded-full border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition hover:rotate-90 hover:text-slate-950 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              <X className="h-4 w-4" />
-            </button>
+            {/* Header Ambient Glow */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_50%_0%,rgba(99,102,241,0.2),transparent_70%)]" />
 
-            <header className="relative px-5 pb-7 pt-8 text-center sm:px-10 sm:pt-10">
-              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.16em] text-indigo-700 shadow-sm dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300">
-                <Sparkles className="h-3.5 w-3.5" /> {isVietnamese ? 'Một nền tảng · Mọi quy trình' : 'One platform · Every workflow'}
-              </div>
-              <h2 id="pricing-modal-title" className="mt-4 text-3xl font-black tracking-[-.045em] text-slate-950 dark:text-white sm:text-4xl">
-                {isVietnamese ? 'Chọn gói giúp đội ngũ tăng tốc' : 'Choose the plan that moves your team faster'}
-              </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-xs font-medium leading-5 text-slate-500 dark:text-slate-400 sm:text-sm">
-                {isVietnamese ? 'Bắt đầu miễn phí, nâng cấp khi tạo ra giá trị. Giá rõ ràng, thanh toán VietQR và không tự động gia hạn.' : 'Start free and upgrade as value grows. Clear pricing, VietQR checkout, and no automatic renewal.'}
-              </p>
-              <div className="mx-auto mt-5 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900" role="radiogroup" aria-label={isVietnamese ? 'Chu kỳ thanh toán' : 'Billing cycle'}>
-                {(['monthly', 'yearly'] as const).map((item) => (
-                  <button key={item} type="button" role="radio" aria-checked={cycle === item} onClick={() => setCycle(item)} className={`rounded-lg px-4 py-2 text-[11px] font-extrabold transition ${cycle === item ? 'bg-slate-950 text-white shadow-md dark:bg-white dark:text-slate-950' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
-                    {item === 'monthly' ? (isVietnamese ? 'Hàng tháng' : 'Monthly') : (isVietnamese ? 'Hàng năm · tiết kiệm đến 25%' : 'Yearly · save up to 25%')}
-                  </button>
-                ))}
-              </div>
-            </header>
+            {/* ======================= PRICING GRID VIEW ======================= */}
+            {!checkout && (
+              <>
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={handleModalClose}
+                  disabled={Boolean(loadingPlan)}
+                  aria-label={isVietnamese ? 'Đóng bảng giá' : 'Close pricing'}
+                  className="absolute right-4 top-4 z-30 grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white/90 text-slate-500 shadow-2xs transition hover:bg-slate-100 hover:text-slate-950 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
 
-            <main className="relative px-3 pb-5 sm:px-5 sm:pb-7">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                {planOrder.map((plan) => {
-                  const info = copy[plan];
-                  const price = displayPrice(plan);
-                  const highlighted = plan === 'pro';
-                  const current = plan === 'free'
-                    ? !entitlement.is_pro
-                    : entitlement.is_pro && entitlement.plan === plan;
-                  const canRenew = current && plan !== 'free' && entitlement.provider === 'payos';
-                  const loading = loadingPlan === plan;
-                  return (
-                    <motion.article key={plan} whileHover={{ y: -3 }} className={`relative flex min-h-[450px] flex-col overflow-hidden rounded-[22px] border bg-white p-5 transition dark:bg-slate-900 ${highlighted ? 'border-indigo-500 shadow-[0_18px_45px_-18px_rgba(79,70,229,.65)] ring-1 ring-indigo-500' : 'border-slate-200 shadow-sm dark:border-slate-800'}`}>
-                      {highlighted && <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400" />}
-                      <div className="flex min-h-7 items-center justify-between gap-2">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[.12em] ${highlighted ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
-                          {plan === 'enterprise' ? <Building2 className="h-3 w-3" /> : plan === 'pro' ? <Rocket className="h-3 w-3" /> : plan === 'starter' ? <Zap className="h-3 w-3" /> : null}
-                          {info.audience}
+                {/* Top Header */}
+                <header className="relative px-4 pb-6 pt-8 text-center sm:px-8 sm:pt-10">
+                  <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/90 px-3.5 py-1 text-[11px] font-bold text-indigo-700 shadow-2xs dark:border-indigo-900/80 dark:bg-indigo-950/50 dark:text-indigo-300">
+                    <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                    {isVietnamese ? 'Nâng tầm hiệu suất với Apexa' : 'Supercharge your team with Apexa'}
+                  </div>
+                  <h2
+                    id="pricing-modal-title"
+                    className="mt-3.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl lg:text-4xl"
+                  >
+                    {isVietnamese ? 'Chọn gói hoàn hảo cho quy trình của bạn' : 'Choose the plan designed for your team'}
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm">
+                    {isVietnamese
+                      ? 'Nâng cấp nhanh qua VietQR 24/7 · Không ràng buộc hợp đồng · Tự động kích hoạt sau 3 giây.'
+                      : 'Instant VietQR payment · Zero contracts · Auto-activated in 3 seconds.'}
+                  </p>
+
+                  {/* Interactive Switcher with Animated Pill */}
+                  <div
+                    className="mx-auto mt-5 inline-flex items-center rounded-2xl border border-slate-200/90 bg-white p-1 shadow-2xs dark:border-slate-800 dark:bg-slate-900"
+                    role="radiogroup"
+                    aria-label={isVietnamese ? 'Chu kỳ thanh toán' : 'Billing cycle'}
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={cycle === 'monthly'}
+                      onClick={() => setCycle('monthly')}
+                      className={`relative rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
+                        cycle === 'monthly'
+                          ? 'text-white dark:text-slate-950'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                      }`}
+                    >
+                      {cycle === 'monthly' && (
+                        <motion.div
+                          layoutId="cyclePill"
+                          className="absolute inset-0 rounded-xl bg-slate-950 shadow-xs dark:bg-white"
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10">{isVietnamese ? 'Hàng tháng' : 'Monthly'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={cycle === 'yearly'}
+                      onClick={() => setCycle('yearly')}
+                      className={`relative rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
+                        cycle === 'yearly'
+                          ? 'text-white dark:text-slate-950'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                      }`}
+                    >
+                      {cycle === 'yearly' && (
+                        <motion.div
+                          layoutId="cyclePill"
+                          className="absolute inset-0 rounded-xl bg-slate-950 shadow-xs dark:bg-white"
+                          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-1.5">
+                        {isVietnamese ? 'Hàng năm' : 'Yearly'}
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold transition-colors ${
+                            cycle === 'yearly'
+                              ? 'bg-emerald-400/25 text-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-700'
+                              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                          }`}
+                        >
+                          -25%
                         </span>
-                        {highlighted && <span className="rounded-full bg-indigo-600 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-white">{isVietnamese ? 'Tốt nhất' : 'Best value'}</span>}
-                      </div>
-                      <h3 className="mt-4 text-xl font-black tracking-tight text-slate-950 dark:text-white">{info.name}</h3>
-                      <p className="mt-2 min-h-12 text-[11px] font-medium leading-[18px] text-slate-500 dark:text-slate-400">{info.description}</p>
-                      <div className="mt-5 min-h-[62px]">
-                        <div className="text-[27px] font-black tracking-[-.045em] text-slate-950 dark:text-white">{price.value}</div>
-                        <div className="mt-0.5 text-[9px] font-semibold text-slate-400">{price.suffix}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => selectPlan(plan)}
-                        disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || (plan !== 'free' && plan !== 'enterprise' && pricesLoading)}
-                        className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-[11px] font-extrabold transition disabled:cursor-default disabled:opacity-60 ${highlighted ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-500/20 hover:-translate-y-0.5' : 'border border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'}`}
-                      >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : current ? <BadgeCheck className="h-4 w-4" /> : plan === 'enterprise' ? <Building2 className="h-4 w-4" /> : entitlement.provider === 'stripe' && (entitlement.is_pro || hasBillingIssue) ? <CreditCard className="h-4 w-4" /> : null}
-                        {canRenew
-                          ? (isVietnamese ? `Gia hạn ${info.name}` : `Renew ${info.name}`)
-                          : current
-                          ? (isVietnamese ? 'Gói hiện tại' : 'Current plan')
-                          : plan === 'free' && entitlement.is_pro
-                            ? (isVietnamese ? 'Quản lý gói' : 'Manage plan')
-                            : plan === 'enterprise'
-                              ? (isVietnamese ? 'Liên hệ tư vấn' : 'Contact sales')
-                            : entitlement.provider === 'stripe' && (entitlement.is_pro || hasBillingIssue)
-                                ? (isVietnamese ? 'Đổi gói trong Portal' : 'Change in Portal')
-                                : (isVietnamese ? `Chọn ${info.name}` : `Choose ${info.name}`)}
-                        {!loading && !current && plan !== 'free' && <ArrowRight className="h-3.5 w-3.5" />}
-                      </button>
-                      <div className="my-5 h-px bg-slate-100 dark:bg-slate-800" />
-                      <ul className="space-y-3">
-                        {info.features.map((feature) => (
-                          <li key={feature} className="flex gap-2.5 text-[10px] font-semibold leading-4 text-slate-600 dark:text-slate-300">
-                            <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${highlighted ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'}`}><Check className="h-2.5 w-2.5 stroke-[3]" /></span>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </motion.article>
-                  );
-                })}
-              </div>
+                      </span>
+                    </button>
+                  </div>
+                </header>
 
-              {error && <div role="alert" className="mx-auto mt-4 max-w-2xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-[10px] font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[9px] font-bold text-slate-400">
-                <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-500" /> {isVietnamese ? 'Thanh toán bảo mật qua PayOS · VietQR' : 'Secure PayOS · VietQR payment'}</span>
-                <span>{isVietnamese ? 'Gói trả trước · Không tự động gia hạn' : 'Prepaid access · No automatic renewal'}</span>
-              </div>
-            </main>
+                {/* 4 Cards Grid: Free, Starter, Pro (Hero), Business */}
+                <main className="relative px-3 pb-8 sm:px-6 sm:pb-10">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {/* 1. Free Tier */}
+                    {(() => {
+                      const info = copy.free;
+                      const current = !entitlement.is_pro;
+                      return (
+                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                {info.audience}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                              {info.name}
+                            </h3>
+                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                              {info.description}
+                            </p>
+                            <div className="mt-3 min-h-[56px]">
+                              <div className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                                0 ₫
+                              </div>
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                {isVietnamese ? '/ vĩnh viễn' : '/ forever'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => selectPlan('free')}
+                              disabled={current}
+                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-black text-slate-800 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800/80 dark:text-white dark:hover:bg-slate-800"
+                            >
+                              {current ? (
+                                <>
+                                  <BadgeCheck className="h-4 w-4 text-emerald-500" />
+                                  <span>{isVietnamese ? 'Gói hiện tại' : 'Current plan'}</span>
+                                </>
+                              ) : (
+                                <span>{isVietnamese ? 'Sử dụng miễn phí' : 'Start free'}</span>
+                              )}
+                            </button>
+
+                            <div className="my-4 h-px bg-slate-100 dark:bg-slate-800/80" />
+
+                            <ul className="space-y-2">
+                              {info.features.map((feature) => (
+                                <li
+                                  key={feature}
+                                  className="flex items-start gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    <Check className="h-2 w-2 stroke-[3]" />
+                                  </span>
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </article>
+                      );
+                    })()}
+
+                    {/* 2. Starter Tier */}
+                    {(() => {
+                      const plan = 'starter';
+                      const info = copy[plan];
+                      const price = displayPrice(plan);
+                      const current = entitlement.is_pro && entitlement.plan === plan;
+                      const canRenew = current && entitlement.provider === 'payos';
+                      const loading = loadingPlan === plan;
+                      return (
+                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-950/70 dark:text-blue-300">
+                                <Zap className="h-3 w-3" />
+                                {info.audience}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                              {info.name}
+                            </h3>
+                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                              {info.description}
+                            </p>
+                            <div className="mt-3 min-h-[56px]">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                                  {price.value}
+                                </span>
+                                {price.originalMonthly && (
+                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                    {price.originalMonthly}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                {price.suffix}{' '}
+                                {cycle === 'yearly' && (
+                                  <span className="text-slate-500 dark:text-slate-400">
+                                    ({price.totalValue}/năm)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => selectPlan(plan)}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60"
+                            >
+                              {loading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : current ? (
+                                <BadgeCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              ) : null}
+                              {canRenew
+                                ? isVietnamese
+                                  ? `Gia hạn ${info.name}`
+                                  : `Renew ${info.name}`
+                                : current
+                                ? isVietnamese
+                                  ? 'Gói hiện tại'
+                                  : 'Current plan'
+                                : isVietnamese
+                                ? `Chọn ${info.name}`
+                                : `Choose ${info.name}`}
+                              {!loading && !current && <ArrowRight className="h-3.5 w-3.5" />}
+                            </button>
+
+                            <div className="my-4 h-px bg-slate-100 dark:bg-slate-800/80" />
+
+                            <ul className="space-y-2">
+                              {info.features.map((feature) => (
+                                <li
+                                  key={feature}
+                                  className="flex items-start gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                                    <Check className="h-2 w-2 stroke-[3]" />
+                                  </span>
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </article>
+                      );
+                    })()}
+
+                    {/* 3. Pro Tier (HERO / BEST VALUE) */}
+                    {(() => {
+                      const plan = 'pro';
+                      const info = copy[plan];
+                      const price = displayPrice(plan);
+                      const current = entitlement.is_pro && entitlement.plan === plan;
+                      const canRenew = current && entitlement.provider === 'payos';
+                      const loading = loadingPlan === plan;
+                      return (
+                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white p-5 shadow-[0_20px_50px_-15px_rgba(79,70,229,0.35)] ring-2 ring-indigo-500/20 dark:bg-slate-900 dark:shadow-[0_20px_50px_-15px_rgba(79,70,229,0.5)]">
+                          {/* Top Gradient Stripe */}
+                          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-600 via-purple-500 to-cyan-400" />
+
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
+                                <Rocket className="h-3 w-3 text-indigo-600" />
+                                {info.audience}
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white shadow-2xs">
+                                <Crown className="h-2.5 w-2.5" />
+                                {isVietnamese ? 'Phổ biến nhất' : 'Most Popular'}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                              {info.name}
+                            </h3>
+                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                              {info.description}
+                            </p>
+                            <div className="mt-3 min-h-[56px]">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                                  {price.value}
+                                </span>
+                                {price.originalMonthly && (
+                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                    {price.originalMonthly}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                {price.suffix}{' '}
+                                {cycle === 'yearly' && (
+                                  <span className="text-indigo-600 dark:text-indigo-400">
+                                    ({price.totalValue}/năm)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => selectPlan(plan)}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/25 transition hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5 disabled:opacity-60"
+                            >
+                              {loading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : current ? (
+                                <BadgeCheck className="h-3.5 w-3.5" />
+                              ) : null}
+                              {canRenew
+                                ? isVietnamese
+                                  ? `Gia hạn ${info.name}`
+                                  : `Renew ${info.name}`
+                                : current
+                                ? isVietnamese
+                                  ? 'Gói hiện tại'
+                                  : 'Current plan'
+                                : isVietnamese
+                                ? `Nâng cấp ${info.name}`
+                                : `Upgrade to ${info.name}`}
+                              {!loading && !current && <ArrowRight className="h-3.5 w-3.5" />}
+                            </button>
+
+                            <div className="my-4 h-px bg-slate-100 dark:bg-slate-800/80" />
+
+                            <ul className="space-y-2">
+                              {info.features.map((feature) => (
+                                <li
+                                  key={feature}
+                                  className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                                >
+                                  <span className="mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                    <Check className="h-2 w-2 stroke-[3]" />
+                                  </span>
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </article>
+                      );
+                    })()}
+
+                    {/* 4. Business Tier */}
+                    {(() => {
+                      const plan = 'business';
+                      const info = copy[plan];
+                      const price = displayPrice(plan);
+                      const current = entitlement.is_pro && entitlement.plan === plan;
+                      const canRenew = current && entitlement.provider === 'payos';
+                      const loading = loadingPlan === plan;
+                      return (
+                        <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-amber-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-900/60">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                <Layers className="h-3 w-3" />
+                                {info.audience}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-black tracking-tight text-slate-950 dark:text-white">
+                              {info.name}
+                            </h3>
+                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                              {info.description}
+                            </p>
+                            <div className="mt-3 min-h-[56px]">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                                  {price.value}
+                                </span>
+                                {price.originalMonthly && (
+                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                    {price.originalMonthly}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                {price.suffix}{' '}
+                                {cycle === 'yearly' && (
+                                  <span className="text-slate-500 dark:text-slate-400">
+                                    ({price.totalValue}/năm)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => selectPlan(plan)}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-black text-slate-800 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800/80 dark:text-white dark:hover:bg-slate-800"
+                            >
+                              {loading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : current ? (
+                                <BadgeCheck className="h-3.5 w-3.5 text-emerald-500" />
+                              ) : null}
+                              {canRenew
+                                ? isVietnamese
+                                  ? `Gia hạn ${info.name}`
+                                  : `Renew ${info.name}`
+                                : current
+                                ? isVietnamese
+                                  ? 'Gói hiện tại'
+                                  : 'Current plan'
+                                : isVietnamese
+                                ? `Chọn ${info.name}`
+                                : `Choose ${info.name}`}
+                              {!loading && !current && <ArrowRight className="h-3.5 w-3.5" />}
+                            </button>
+
+                            <div className="my-4 h-px bg-slate-100 dark:bg-slate-800/80" />
+
+                            <ul className="space-y-2">
+                              {info.features.map((feature) => (
+                                <li
+                                  key={feature}
+                                  className="flex items-start gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                                >
+                                  <span className="mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                                    <Check className="h-2 w-2 stroke-[3]" />
+                                  </span>
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </article>
+                      );
+                    })()}
+                  </div>
+
+                  {/* ======================= ENTERPRISE VIP BANNER ======================= */}
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 p-5 text-white shadow-sm dark:border-slate-800">
+                    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                      <div className="max-w-2xl">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">
+                            <Building2 className="h-3 w-3" />
+                            {copy.enterprise.name}
+                          </span>
+                          <span className="text-xs font-medium text-slate-400">
+                            {isVietnamese ? 'Dành cho tổ chức trên 50 người' : 'For organizations > 50 seats'}
+                          </span>
+                        </div>
+                        <h4 className="mt-1.5 text-base font-black tracking-tight text-white">
+                          {isVietnamese
+                            ? 'Cần bảo mật chuyên sâu, SSO/SAML, máy chủ riêng & cam kết SLA?'
+                            : 'Need dedicated security, SSO/SAML, isolated servers & SLA?'}
+                        </h4>
+                        <p className="mt-1 text-xs text-slate-300">
+                          {isVietnamese
+                            ? 'Hỗ trợ xuất hóa đơn VAT, onboarding 1-1, hợp đồng pháp lý và đào tạo nội bộ theo yêu cầu.'
+                            : 'Custom VAT invoicing, 1-on-1 onboarding, and custom enterprise licensing.'}
+                        </p>
+                      </div>
+
+                      <a
+                        href={`mailto:contact@apexa.vn?subject=${encodeURIComponent('Tư vấn gói Apexa Enterprise')}`}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black text-slate-950 shadow-md transition hover:bg-slate-100 hover:scale-105 active:scale-100"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        <span>{isVietnamese ? 'Liên hệ tư vấn 1-1' : 'Contact Sales'}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div
+                      role="alert"
+                      className="mx-auto mt-4 max-w-xl rounded-xl border border-rose-200 bg-rose-50/90 px-3.5 py-2.5 text-center text-xs font-bold text-rose-700 shadow-2xs dark:border-rose-900/80 dark:bg-rose-950/40 dark:text-rose-300"
+                    >
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Trust Badges Strip */}
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-bold text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                      {isVietnamese ? 'Thanh toán bảo mật VietQR qua PayOS' : 'Secure VietQR via PayOS'}
+                    </span>
+                    <span>•</span>
+                    <span>{isVietnamese ? 'Gói trả trước · Không tự động trừ tiền' : 'Prepaid access · No auto-debit'}</span>
+                    <span>•</span>
+                    <span>{isVietnamese ? 'Hỗ trợ xuất hóa đơn VAT điện tử' : 'Official VAT invoice support'}</span>
+                  </div>
+                </main>
+              </>
+            )}
+
+            {checkout && (
+              <PayOSCheckout
+                checkout={checkout}
+                isVietnamese={isVietnamese}
+                planName={copy[checkout.plan].name}
+                status={manualChecking ? 'checking' : checkoutStatus}
+                error={error}
+                onBack={closeEmbeddedCheckout}
+                onClose={handleModalClose}
+                onCheck={() => void checkPaymentStatus(checkout)}
+                onCancel={() => void cancelCheckout()}
+                onExpired={expireCheckout}
+              />
+            )}
           </motion.section>
         </div>
       )}
