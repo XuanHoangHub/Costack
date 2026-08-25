@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -9,6 +10,15 @@ function jsonError(message: string, status: number) {
 }
 
 export async function POST(request: Request) {
+  pruneRateLimitBuckets();
+  const rateLimit = checkRateLimit(request, 'newsletter', 5, 10 * 60_000);
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { ok: false, error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (contentLength > 4096) return jsonError('Payload is too large.', 413);
 
@@ -63,4 +73,3 @@ export async function POST(request: Request) {
     message: locale === 'vi' ? 'Đăng ký thành công. Cảm ơn bạn!' : 'You are subscribed. Thank you!',
   }, { status: 201 });
 }
-

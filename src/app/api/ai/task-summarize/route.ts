@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
-    const { task, assigneeName, model, temperature } = await request.json();
+    const { task, assigneeName, model, temperature } = await readAiJson<any>(request);
     if (!task) {
       return NextResponse.json({ success: false, error: "Thiếu thông tin công việc." }, { status: 400 });
     }

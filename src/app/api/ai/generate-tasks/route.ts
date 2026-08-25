@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { prompt, model, temperature } = await request.json();
+    const { prompt, model, temperature } = await readAiJson<any>(request);
     if (!prompt || !prompt.trim()) {
       return NextResponse.json({ success: false, error: "Prompt không được để trống" }, { status: 400 });
     }

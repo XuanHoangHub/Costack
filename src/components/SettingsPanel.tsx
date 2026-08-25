@@ -196,7 +196,7 @@ export default function SettingsPanel({
 
   const [aiApiKey, setAiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [aiModel, setAiModel] = useState('gemini-2.5-flash');
+  const [aiModel, setAiModel] = useState('gemini-3.6-flash');
   const [aiTemperature, setAiTemperature] = useState(0.7);
   const [aiSearchGrounding, setAiSearchGrounding] = useState(false);
   const [aiDailyBriefingEnabled, setAiDailyBriefingEnabled] = useState(true);
@@ -227,8 +227,16 @@ export default function SettingsPanel({
 
   useEffect(() => {
     setAiApiKey(localStorage.getItem('apexa_gemini_api_key') || '');
-    const savedModel = localStorage.getItem('apexa_ai_model') || 'gemini-2.5-flash';
-    const normalizedModel = (savedModel.includes('3.6') || savedModel.includes('3.5')) ? 'gemini-2.5-flash' : savedModel;
+    const savedModel = localStorage.getItem('apexa_ai_model') || 'gemini-3.6-flash';
+    const supportedModels = new Set([
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ]);
+    const normalizedModel = supportedModels.has(savedModel) ? savedModel : 'gemini-3.6-flash';
     setAiModel(normalizedModel);
     setAiTemperature(Number(localStorage.getItem('apexa_ai_temperature') || 0.7));
     setAiSearchGrounding(localStorage.getItem('apexa_ai_search_grounding') === 'true');
@@ -995,11 +1003,12 @@ export default function SettingsPanel({
                       <label className="space-y-1.5">
                         <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('aiModelLabel') || (isVietnamese ? 'Mô hình AI' : 'AI Model')}</span>
                         <Select value={aiModel} onChange={setAiModel} className="w-full" menuWidth={320} ariaLabel={t('aiModelLabel') || 'AI Model'} options={[
-                          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: isVietnamese ? 'Khuyên dùng · Nhanh & Mạnh mẽ' : 'Recommended · Fast & Powerful' },
-                          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: isVietnamese ? 'Tư duy & Phân tích chuyên sâu' : 'Deep reasoning & analysis' },
-                          { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: isVietnamese ? 'Tối ưu tốc độ phản hồi' : 'Low latency speed' },
-                          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: isVietnamese ? 'Tiêu chuẩn ổn định' : 'Standard Stable' },
-                          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: isVietnamese ? 'Đa nhiệm văn bản dài' : 'Long context windows' },
+                          { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: isVietnamese ? 'Khuyên dùng · Stable mới nhất' : 'Recommended · Latest stable' },
+                          { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: isVietnamese ? 'Phân tích và tác vụ agentic' : 'Analysis and agentic tasks' },
+                          { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', description: isVietnamese ? 'Nhanh và tiết kiệm' : 'Fast and cost-efficient' },
+                          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: isVietnamese ? 'Tư duy chuyên sâu · Stable' : 'Deep reasoning · Stable' },
+                          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: isVietnamese ? 'Cân bằng · Stable' : 'Balanced · Stable' },
+                          { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', description: isVietnamese ? 'Tải lớn · Stable' : 'High throughput · Stable' },
                         ]} />
                       </label>
                       <label className="space-y-1.5">

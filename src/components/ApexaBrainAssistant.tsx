@@ -146,14 +146,15 @@ export default function ApexaBrainAssistant({
     }
   }, []);
 
-  const [activeModelName, setActiveModelName] = useState('Gemini 2.5 Flash');
+  const [activeModelName, setActiveModelName] = useState('Gemini 3.6 Flash');
   useEffect(() => {
     const updateModelName = () => {
-      const raw = (typeof window !== 'undefined' ? localStorage.getItem('apexa_ai_model') : '') || 'gemini-2.5-flash';
-      if (raw.includes('2.5-pro')) setActiveModelName('Gemini 2.5 Pro');
-      else if (raw.includes('2.0')) setActiveModelName('Gemini 2.0 Flash');
-      else if (raw.includes('1.5-pro')) setActiveModelName('Gemini 1.5 Pro');
-      else if (raw.includes('1.5')) setActiveModelName('Gemini 1.5 Flash');
+      const raw = (typeof window !== 'undefined' ? localStorage.getItem('apexa_ai_model') : '') || 'gemini-3.6-flash';
+      if (raw.includes('3.6')) setActiveModelName('Gemini 3.6 Flash');
+      else if (raw.includes('3.5-flash-lite')) setActiveModelName('Gemini 3.5 Flash-Lite');
+      else if (raw.includes('3.5')) setActiveModelName('Gemini 3.5 Flash');
+      else if (raw.includes('2.5-pro')) setActiveModelName('Gemini 2.5 Pro');
+      else if (raw.includes('2.5-flash-lite')) setActiveModelName('Gemini 2.5 Flash-Lite');
       else setActiveModelName('Gemini 2.5 Flash');
     };
     updateModelName();

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { title, description, model, temperature } = await request.json();
+    const { title, description, model, temperature } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const prompt = `Từ công việc "${title}" có mô tả: "${description || 'Không có mô tả chi tiết'}". Hãy phân tích và đề xuất danh sách 3 đến 5 công việc phụ (subtasks) thực tế và khả thi cần hoàn thành.`;

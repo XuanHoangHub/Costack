@@ -130,7 +130,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
     },
     {
       id: 'task-2',
-      title: 'Tích hợp Trợ lý Apexa Brain Copilot (Gemini 2.5 Multi-modal)',
+      title: 'Tích hợp Trợ lý Apexa Brain Copilot (Gemini)',
       column: 'inprogress',
       priority: 'Khẩn cấp',
       dueDate: '15:00',
@@ -142,7 +142,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
     },
     {
       id: 'task-3',
-      title: 'Tối ưu hóa Local-First Cache đạt độ trễ phản hồi < 12ms',
+      title: 'Tối ưu hóa Local-First Cache và hàng đợi đồng bộ',
       column: 'inprogress',
       priority: 'Cao',
       dueDate: 'Ngày mai',
@@ -179,7 +179,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
     },
     {
       id: 'task-2',
-      title: 'Integrate Apexa Brain Copilot (Gemini 2.5 Multi-modal)',
+      title: 'Integrate Apexa Brain Copilot (Gemini)',
       column: 'inprogress',
       priority: 'Urgent',
       dueDate: '3:00 PM',
@@ -191,7 +191,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
     },
     {
       id: 'task-3',
-      title: 'Optimize Local-First Cache for < 12ms response latency',
+      title: 'Optimize Local-First Cache and sync queue',
       column: 'inprogress',
       priority: 'High',
       dueDate: 'Tomorrow',
@@ -556,7 +556,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                 <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   {activeTab === 'board' && (isVietnamese ? '📋 Sprint 14 · Bảng điều phối Kanban' : '📋 Sprint 14 · Kanban Task Board')}
                   {activeTab === 'docs' && (isVietnamese ? '✍️ Smart Docs · Tài liệu kiến trúc Apexa' : '✍️ Smart Docs · Architecture Spec PRD')}
-                  {activeTab === 'ai' && '🧠 Apexa Brain AI Copilot (Gemini 2.5)'}
+                  {activeTab === 'ai' && '🧠 Apexa Brain AI Copilot (Gemini)'}
                   {activeTab === 'analytics' && (isVietnamese ? '📊 Báo cáo vận tốc Sprint & Đo lường KPI' : '📊 Sprint Velocity & Performance Digest')}
                   {activeTab === 'chat' && (isVietnamese ? '💬 Kênh thảo luận #sprint-14-launch' : '💬 Discussion #sprint-14-launch')}
                 </h3>
@@ -734,7 +734,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                       
                       <div className="space-y-1.5 pl-1">
                         {[
-                          { text: isVietnamese ? 'Tối ưu độ trễ phản hồi < 12ms trên IndexedDB local cache' : 'Sub-12ms response latency on local IndexedDB storage', done: true },
+                          { text: isVietnamese ? 'Tối ưu phản hồi trên IndexedDB local cache' : 'Optimize response time on local IndexedDB storage', done: true },
                           { text: isVietnamese ? 'Hỗ trợ nhúng thẻ Kanban Board thời gian thực vào giữa nội dung bài viết' : 'Live embed dynamic Kanban task cards directly inside Markdown blocks', done: true },
                           { text: isVietnamese ? 'Tự động đồng bộ 2 chiều qua Realtime Channels khi online' : 'Two-way bidirectional sync via Realtime Channels on reconnect', done: false },
                         ].map((item, idx) => (
@@ -869,8 +869,8 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                       <div className="space-y-2 text-[10px]">
                         {[
                           { name: 'Continuous Canvas UI Architecture', width: '100%', color: 'from-blue-600 to-indigo-600', status: 'Hoàn tất' },
-                          { name: 'Gemini 2.5 Multi-modal AI Copilot', width: '85%', color: 'from-indigo-600 to-purple-600', status: '85%' },
-                          { name: 'Local-First Cache Sync Engine (< 12ms)', width: '90%', color: 'from-emerald-500 to-teal-600', status: '90%' },
+                          { name: 'Gemini AI Copilot', width: '85%', color: 'from-indigo-600 to-purple-600', status: '85%' },
+                          { name: 'Local-First Cache Sync Engine', width: '90%', color: 'from-emerald-500 to-teal-600', status: '90%' },
                           { name: '2-way Google Calendar Live Sync', width: '70%', color: 'from-amber-500 to-orange-600', status: '70%' },
                         ].map((item, idx) => (
                           <div key={idx} className="space-y-1">
@@ -1071,14 +1071,14 @@ function ComparisonMatrix() {
 
   const comparisonRows = [
     {
-      feature: isVietnamese ? 'Kiến trúc Local-First (Độ trễ < 16ms)' : 'Local-First Architecture (< 16ms Latency)',
+      feature: isVietnamese ? 'Bộ nhớ đệm local-first và hàng đợi đồng bộ' : 'Local-first cache and sync queue',
       apexa: true,
       jira: false,
       notion: false,
       slack: false,
     },
     {
-      feature: isVietnamese ? 'Apexa Brain AI Copilot tích hợp sâu (Gemini 2.5)' : 'Deeply Integrated Native AI Copilot (Gemini 2.5)',
+      feature: isVietnamese ? 'Apexa Brain AI Copilot tích hợp sâu (Gemini)' : 'Deeply integrated Gemini AI Copilot',
       apexa: true,
       jira: false,
       notion: 'Phụ phí riêng',
@@ -1092,7 +1092,7 @@ function ComparisonMatrix() {
       slack: false,
     },
     {
-      feature: isVietnamese ? 'ChatRoom & Audio Huddles theo dự án' : 'In-app Project ChatRoom & Audio Huddles',
+      feature: isVietnamese ? 'ChatRoom theo workspace và dự án' : 'Workspace and project ChatRoom',
       apexa: true,
       jira: false,
       notion: false,
@@ -1106,14 +1106,14 @@ function ComparisonMatrix() {
       slack: false,
     },
     {
-      feature: isVietnamese ? 'Hoạt động Offline 100% không mất dữ liệu' : '100% Seamless Offline Mode Execution',
+      feature: isVietnamese ? 'Tiếp tục các luồng cốt lõi khi kết nối gián đoạn' : 'Core workflows continue during connection loss',
       apexa: true,
       jira: false,
       notion: false,
       slack: false,
     },
     {
-      feature: isVietnamese ? 'Một mức giá duy nhất cho toàn bộ tính năng' : 'Single Unified Subscription (No Hidden Fees)',
+      feature: isVietnamese ? 'Các phân hệ dùng chung một workspace' : 'Modules share one workspace',
       apexa: true,
       jira: false,
       notion: false,
@@ -1130,9 +1130,9 @@ function ComparisonMatrix() {
             <th className="py-3 px-4 font-black uppercase text-[10px] tracking-wider text-indigo-600 dark:text-sky-400 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-t-xl text-center">
               Apexa OS ✨
             </th>
-            <th className="py-3 px-4 font-bold text-center">Jira</th>
-            <th className="py-3 px-4 font-bold text-center">Notion</th>
-            <th className="py-3 px-4 font-bold text-center">Slack</th>
+            <th className="py-3 px-4 font-bold text-center">Project tool</th>
+            <th className="py-3 px-4 font-bold text-center">Docs tool</th>
+            <th className="py-3 px-4 font-bold text-center">Chat tool</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200/60 dark:divide-white/5 font-semibold text-slate-700 dark:text-slate-300">
@@ -1194,28 +1194,28 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       badge: 'SHOTS-GRADE OS 2.0',
       badgeVariant: 'shots-new' as const,
       text: isVietnamese
-        ? 'Apexa OS 2.0 chính thức ra mắt: Tích hợp Trợ lý AI Gemini 2.5 Multi-modal & Kiến trúc Local-First siêu tốc!'
-        : 'Apexa OS 2.0 is live: Integrated with Gemini 2.5 Multi-modal AI Copilot & ultra-fast Local-First engine!',
+        ? 'Apexa OS 2.0 kết nối trợ lý Gemini AI với công việc, tài liệu và kiến trúc local-first.'
+        : 'Apexa OS 2.0 connects Gemini AI with tasks, documents, and a local-first architecture.',
       cta: isVietnamese ? 'Khám phá ngay' : 'Explore now',
       action: onSignUp,
     },
     {
       id: 'local-first',
-      badge: '⚡ SPEED <12MS',
+      badge: '⚡ LOCAL-FIRST',
       badgeVariant: 'info' as const,
       text: isVietnamese
-        ? 'Đồng bộ thời gian thực siêu mượt không độ trễ, lưu trữ Local-First & hoạt động ngoại tuyến 100% không gián đoạn.'
-        : 'Sub-12ms real-time sync with Yjs CRDTs & 100% offline resilience on all platforms.',
+        ? 'Bộ nhớ đệm local-first giúp giao diện phản hồi nhanh và giữ các thay đổi cục bộ khi kết nối gián đoạn.'
+        : 'Local-first caching keeps the interface responsive and preserves local changes during connection loss.',
       cta: isVietnamese ? 'Dùng thử miễn phí' : 'Try for free',
       action: onSignUp,
     },
     {
       id: 'security',
-      badge: '🛡️ ISO 27001 READY',
+      badge: '🛡️ SECURITY BY DESIGN',
       badgeVariant: 'success' as const,
       text: isVietnamese
-        ? 'Bảo mật cấp Doanh nghiệp: Mã hóa AES 256-bit đa tầng, phân quyền Row-Level Security & Sẵn sàng chuẩn SOC-2 Type II.'
-        : 'Enterprise-grade security: AES 256-bit encryption, Row-Level Security & SOC-2 compliance.',
+        ? 'Tách khóa bí mật khỏi trình duyệt, phân quyền Row-Level Security và xác thực chữ ký webhook thanh toán.'
+        : 'Server-only secrets, Row-Level Security, and signed payment webhook verification.',
       cta: isVietnamese ? 'Xem bảo mật' : 'Learn more',
       action: () => {
         router.push('/legal/security');
@@ -1233,11 +1233,11 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
     },
     {
       id: 'free-tier',
-      badge: '🎁 FREE FOREVER',
+      badge: '🎁 FREE PLAN',
       badgeVariant: 'warning' as const,
       text: isVietnamese
-        ? 'Gói Cá nhân & Nhóm nhỏ hoàn toàn miễn phí trọn đời. Bắt đầu ngay không cần thẻ tín dụng!'
-        : 'Free forever plan for individuals & small squads. Get started with no credit card required!',
+        ? 'Bắt đầu với gói Free mà không cần thẻ tín dụng; nâng cấp khi đội ngũ cần thêm quyền lợi.'
+        : 'Start on the Free plan without a credit card and upgrade when your team needs more.',
       cta: isVietnamese ? 'Đăng ký miễn phí' : 'Sign up free',
       action: onSignUp,
     },
@@ -1406,13 +1406,13 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       id: 'free' as BillingPlan,
       name: 'Free',
       desc: isVietnamese ? 'Dành cho cá nhân bắt đầu chuẩn hóa công việc.' : 'For individuals starting to organize their work.',
-      badge: isVietnamese ? 'Miễn phí mãi mãi' : 'Free Forever',
+      badge: isVietnamese ? 'Bắt đầu miễn phí' : 'Start free',
       highlight: false,
       cta: isVietnamese ? 'Bắt đầu miễn phí' : 'Start for Free',
       features: isVietnamese ? [
-        'Tối đa 5 Spaces', 'Task và dự án không giới hạn', 'Board, List và Docs cơ bản', '3 bảng trắng cộng tác', '100 AI credits mỗi tháng'
+        'Tối đa 5 Spaces', 'Task và dự án không giới hạn', 'Board, List và Docs cơ bản', '3 bảng trắng cộng tác', 'Dùng khóa Gemini cá nhân cho AI'
       ] : [
-        'Up to 5 Spaces', 'Unlimited tasks and projects', 'Core Board, List, and Docs', '3 collaborative whiteboards', '100 monthly AI credits'
+        'Up to 5 Spaces', 'Unlimited tasks and projects', 'Core Board, List, and Docs', '3 collaborative whiteboards', 'Use a personal Gemini key for AI'
       ]
     },
     {
@@ -1423,9 +1423,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       highlight: false,
       cta: isVietnamese ? 'Chọn Starter' : 'Choose Starter',
       features: isVietnamese ? [
-        'Không giới hạn Spaces và whiteboard', 'Calendar và Gantt', '500 AI credits / người', '1.000 automation mỗi tháng', 'Tích hợp thiết yếu'
+        'Không giới hạn Spaces và whiteboard', 'Calendar và Gantt', 'AI theo cấu hình workspace', 'Tự động hóa cơ bản', 'Tích hợp thiết yếu'
       ] : [
-        'Unlimited spaces and whiteboards', 'Calendar and Gantt', '500 AI credits / user', '1,000 monthly automations', 'Essential integrations'
+        'Unlimited spaces and whiteboards', 'Calendar and Gantt', 'Workspace-configured AI', 'Core automation', 'Essential integrations'
       ]
     },
     {
@@ -1436,9 +1436,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       highlight: true,
       cta: isVietnamese ? 'Chọn Pro' : 'Choose Pro',
       features: isVietnamese ? [
-        'Toàn bộ Starter', 'Apexa AI và báo cáo nâng cao', 'CRM, ERP và Finance workspace', '5.000 automation mỗi tháng', 'Time tracking, export và khách mời'
+        'Toàn bộ Starter', 'Apexa AI và báo cáo nâng cao', 'CRM, ERP và Finance workspace', 'Tự động hóa nâng cao', 'Time tracking, export và khách mời'
       ] : [
-        'Everything in Starter', 'Apexa AI and advanced reporting', 'CRM, ERP, and Finance workspaces', '5,000 monthly automations', 'Time tracking, export, and guests'
+        'Everything in Starter', 'Apexa AI and advanced reporting', 'CRM, ERP, and Finance workspaces', 'Advanced automation', 'Time tracking, export, and guests'
       ]
     },
     {
@@ -1462,9 +1462,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       highlight: false,
       cta: isVietnamese ? 'Liên hệ tư vấn' : 'Contact Enterprise Team',
       features: isVietnamese ? [
-        'Toàn bộ Business', 'SSO/SAML và SCIM', 'Quản trị dữ liệu tùy chỉnh', 'SLA và onboarding riêng', 'Customer Success chuyên trách'
+        'Toàn bộ Business', 'Đánh giá kiến trúc và phân quyền', 'Chính sách dữ liệu theo yêu cầu', 'SLA và onboarding theo hợp đồng', 'Đầu mối triển khai chuyên trách'
       ] : [
-        'Everything in Business', 'SSO/SAML and SCIM', 'Custom data governance', 'Tailored SLA and onboarding', 'Dedicated Customer Success'
+        'Everything in Business', 'Architecture and access-control review', 'Contract-defined data policies', 'Contract-defined SLA and onboarding', 'Dedicated implementation contact'
       ]
     }
   ], [isVietnamese]);
@@ -1513,8 +1513,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         ? 'Apexa OS có thể sử dụng mượt mà khi mất kết nối Internet (Offline) không?'
         : 'Can Apexa OS work seamlessly when offline without internet connectivity?',
       a: isVietnamese
-        ? 'Hoàn toàn có thể! Apexa OS được xây dựng trên kiến trúc Local-First hiện đại. Bạn có thể tạo việc, ghi chép tài liệu, di chuyển cột Kanban ngay cả khi ở trên máy bay hay mất mạng. Toàn bộ dữ liệu sẽ tự động đồng bộ lên đám mây máy chủ ngay khi có kết nối trở lại mà không mất mát dữ liệu.'
-        : 'Absolutely! Apexa OS is engineered on a modern Local-First architecture. You can create tasks, draft docs, and organize Kanban boards on airplanes or in offline mode. All modifications seamlessly sync with Cloud storage once you are reconnected.'
+        ? 'Apexa lưu nhiều trạng thái làm việc trên thiết bị và có hàng đợi đồng bộ cho các luồng cốt lõi. Khả năng ngoại tuyến phụ thuộc từng phân hệ; các tính năng cloud như AI, thanh toán và cộng tác thời gian thực vẫn cần kết nối mạng.'
+        : 'Apexa stores many working states on-device and queues core sync operations. Offline support varies by module; cloud AI, billing, and real-time collaboration still require a network connection.'
     },
     {
       q: isVietnamese
@@ -1529,16 +1529,16 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         ? 'Tôi có thể chuyển dữ liệu từ các công cụ quản lý công việc khác sang Apexa không?'
         : 'Can I import workspace data from other project management tools?',
       a: isVietnamese
-        ? 'Có! Apexa OS cung cấp công cụ chuyển đổi 1-Click Import. Bạn chỉ cần xuất file JSON/CSV từ công cụ cũ, hệ thống sẽ tự động ánh xạ cấu trúc bảng việc, tài liệu và phân công người phụ trách sang Apexa chỉ trong vài phút.'
-        : 'Yes! Apexa OS provides 1-Click migration tools. Simply upload your CSV or JSON exports from previous tools, and our ingestion wizard maps your boards, docs, and assignees within minutes.'
+        ? 'Apexa hiện hỗ trợ xuất dữ liệu workspace. Nhập tự động từ công cụ khác chưa được mở như một luồng self-service; với dữ liệu cần chuyển đổi, hãy liên hệ đội triển khai để thống nhất định dạng và ánh xạ.'
+        : 'Apexa currently supports workspace export. Automated self-service import from other tools is not yet available; contact the deployment team to agree on format and field mapping for migrations.'
     },
     {
       q: isVietnamese
         ? 'Apexa AI hỗ trợ tiếng Việt và tiếng Anh như thế nào?'
         : 'How fluent is Apexa AI in both Vietnamese and English?',
       a: isVietnamese
-        ? 'Apexa Brain AI được tối ưu hóa dựa trên mô hình Gemini AI đa ngôn ngữ tiên tiến nhất, hỗ trợ tiếng Việt xuất sắc (hiểu từ ngữ chuyên ngành, cách xưng hô, văn phong công sở) cùng tiếng Anh chuẩn xác và hơn 45 ngôn ngữ quốc tế khác.'
-        : 'Apexa Brain AI is powered by state-of-the-art multimodal Gemini AI models, delivering fluent, contextual comprehension in both English and Vietnamese with deep knowledge of technical productivity terms.'
+        ? 'Apexa Brain sử dụng Gemini và được thiết kế để nhận yêu cầu, trả lời bằng tiếng Việt hoặc tiếng Anh theo ngôn ngữ người dùng. Chất lượng đầu ra phụ thuộc mô hình, ngữ cảnh và nội dung đầu vào.'
+        : 'Apexa Brain uses Gemini and is designed to follow the user’s language in Vietnamese or English. Output quality depends on the selected model, context, and input.'
     },
     {
       q: isVietnamese
@@ -1571,7 +1571,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   }, []);
 
   const formatPrice = (planId: string) => {
-    if (planId === 'free') return { value: isVietnamese ? '0 ₫' : '$0', suffix: isVietnamese ? '/ mãi mãi' : '/ forever' };
+    if (planId === 'free') return { value: isVietnamese ? '0 ₫' : '$0', suffix: isVietnamese ? '/ gói Free' : '/ Free plan' };
     if (planId === 'enterprise') return { value: isVietnamese ? 'Liên hệ' : 'Custom', suffix: isVietnamese ? '/ tùy biến SLA' : '/ tailored SLA' };
     const paidPlan = planId as SelfServeBillingPlan;
     const price = billingPrices[paidPlan]?.[billingCycle];
@@ -2049,7 +2049,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       <section id="comparison" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         <FadeInSection>
           <div className="text-center space-y-3 max-w-3xl mx-auto mb-12">
-            <Badge variant="shots">{isVietnamese ? 'SO SÁNH TOÀN DIỆN' : 'HEAD-TO-HEAD COMPARISON'}</Badge>
+            <Badge variant="shots">{isVietnamese ? 'MỨC ĐỘ TÍCH HỢP' : 'INTEGRATION OVERVIEW'}</Badge>
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white font-display text-balance">
               {isVietnamese ? 'Tại sao các đội ngũ chọn Apexa OS?' : 'Why fast-moving teams switch to Apexa OS'}
             </h2>
@@ -2324,7 +2324,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
               </h2>
               <p className="text-xs sm:text-sm font-medium text-white/90 leading-relaxed text-pretty">
                 {isVietnamese
-                  ? 'Đăng ký tài khoản Apexa OS ngay hôm nay để giải phóng 100% tiềm năng làm việc nhóm với sự trợ giúp của AI thế hệ mới.'
+                  ? 'Đăng ký tài khoản Apexa OS để kết nối công việc, tài liệu và cộng tác trong một workspace có trợ lý AI.'
                   : 'Get started with Apexa OS today and unleash your team’s full potential with next-gen collaborative AI.'}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-3">
@@ -2335,7 +2335,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   onClick={onSignUp}
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
-                  {isVietnamese ? 'Dùng thử miễn phí trọn đời' : 'Get Started Free Forever'}
+                  {isVietnamese ? 'Bắt đầu với gói miễn phí' : 'Start with the Free plan'}
                 </Button>
                 <Button
                   variant="glass"

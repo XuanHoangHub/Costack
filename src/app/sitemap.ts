@@ -10,9 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
   return entries.map(({ path, priority }) => ({
     url: `${baseUrl}${path}`,
-    lastModified: new Date('2026-08-20'),
+    lastModified: new Date('2026-08-25'),
     changeFrequency: path ? 'yearly' : 'weekly',
     priority,
   }));
 }
-

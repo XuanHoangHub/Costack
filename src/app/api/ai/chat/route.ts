@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
-    const { message, history, model, temperature, googleSearch } = await request.json();
+    const { message, history, model, temperature, googleSearch } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const systemPrompt = "You are Apexa Brain, the AI assistant integrated into Apexa Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";

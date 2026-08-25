@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 
 export async function POST(request: Request) {
   try {
-    const { tasks, members, model, temperature } = await request.json();
+    const { tasks, members, model, temperature } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const safeTasks = Array.isArray(tasks) ? tasks : [];

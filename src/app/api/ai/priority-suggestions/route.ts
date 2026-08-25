@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { tasks, model, temperature } = await request.json();
+    const { tasks, model, temperature } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const inputTasks = (tasks || []).map((t: any) => ({

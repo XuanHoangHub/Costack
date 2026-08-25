@@ -4299,7 +4299,7 @@ export default function App() {
                           <div className="mt-1 flex items-center gap-1">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100/80 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs">
                               <Sparkles className="w-2.5 h-2.5 text-indigo-500 fill-indigo-500/30" />
-                              {currentUser?.isPremium ? 'Premium Pro' : 'Free Forever'}
+                              {currentUser?.isPremium ? 'Premium Pro' : 'Free plan'}
                             </span>
                           </div>
                         </div>

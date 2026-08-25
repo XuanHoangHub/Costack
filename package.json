@@ -5,8 +5,14 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start",
+    "postbuild": "node scripts/prepare-standalone.mjs",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit --pretty false",
+    "validate:env": "node scripts/validate-env.mjs",
+    "validate:production": "node scripts/validate-env.mjs --production",
+    "audit:schema": "node scripts/audit-schema.mjs",
+    "check": "npm run validate:env && npm run lint && npm run typecheck && npm run build",
     "payos:confirm-webhook": "node scripts/confirm-payos-webhook.mjs"
   },
   "dependencies": {

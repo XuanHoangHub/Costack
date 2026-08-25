@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 import { analyzeTasks, serializeTaskIntelligence } from '@/lib/taskIntelligence';
 import type { Task } from '@/types';
 
 export async function POST(request: Request) {
   try {
-    const { query, tasks, documents, members, model, temperature, googleSearch, now } = await request.json();
+    const { query, tasks, documents, members, model, temperature, googleSearch, now } = await readAiJson<any>(request);
     if (typeof query !== 'string' || !query.trim()) {
       return NextResponse.json({ success: false, error: 'Query is required' }, { status: 400 });
     }

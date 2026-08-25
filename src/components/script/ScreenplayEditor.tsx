@@ -177,7 +177,7 @@ export default function ScreenplayEditor({
     if (activeRevision) {
       setElements(activeRevision.elements);
     }
-  }, [activeRevisionId]);
+  }, [activeRevision]);
 
   // Recalculate Scene Numbers
   const numberedElements = useMemo(() => {

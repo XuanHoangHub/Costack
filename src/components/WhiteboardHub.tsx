@@ -160,7 +160,7 @@ const generateTemplateElements = (type: string): WhiteboardElement[] => {
         { id: `ar-1-${now}`, type: 'rectangle', x: 60, y: 150, width: 130, height: 80, color: '#0ea5e9', text: 'Client Web / App\n(Next.js & React)' },
         { id: `ar-2-${now}`, type: 'rectangle', x: 240, y: 150, width: 130, height: 80, color: '#6366f1', text: 'API Gateway &\nAuth Shield' },
         { id: `ar-3-${now}`, type: 'rectangle', x: 420, y: 70, width: 140, height: 75, color: '#ec4899', text: 'Whiteboard Engine\n(WebSocket Realtime)' },
-        { id: `ar-4-${now}`, type: 'rectangle', x: 420, y: 230, width: 140, height: 75, color: '#f59e0b', text: 'AI Analysis Worker\n(Gemini 2.5 Pro)' },
+        { id: `ar-4-${now}`, type: 'rectangle', x: 420, y: 230, width: 140, height: 75, color: '#f59e0b', text: 'AI Analysis Worker\n(Gemini)' },
         { id: `ar-5-${now}`, type: 'cylinder', x: 620, y: 150, width: 130, height: 85, color: '#10b981', text: 'Supabase Cloud\nPostgreSQL & Storage' },
         { id: `ar-l1-${now}`, type: 'line', x: 190, y: 190, points: { fromId: `ar-1-${now}`, toId: `ar-2-${now}`, fromSocket: 'right', toSocket: 'left' }, color: '#0ea5e9' },
         { id: `ar-l2-${now}`, type: 'line', x: 370, y: 160, points: { fromId: `ar-2-${now}`, toId: `ar-3-${now}`, fromSocket: 'right', toSocket: 'left' }, color: '#ec4899' },

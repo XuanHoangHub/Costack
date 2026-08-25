@@ -290,6 +290,70 @@ html.dark, html.dark body {
   color-scheme: dark;
 }
 
+/* ── Global Typography & Natural Line Wrapping Standards ── */
+* {
+  overflow-wrap: break-word;
+}
+
+/* Headings: automatically balance line breaks so trailing single words never appear */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Paragraphs & text blocks: use pretty to prevent orphaned words on the last line */
+p, li, dd, dt, blockquote, figcaption {
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Inline badges, tags, buttons, icons, pills: prevent awkward line breaks */
+button,
+[role="button"],
+.btn,
+.badge,
+.tag,
+.chip,
+.pill {
+  white-space: nowrap;
+}
+
+/* Numeric & currency values */
+.tabular-nums,
+[data-currency] {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Utility classes for balanced and pretty typography */
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+.text-nowrap,
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.break-words {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+
 /* Fast synchronized theme transition without animating layout or transforms. */
 html.theme-switching :where(body, header, aside, main, section, article, nav, div, button, input, textarea, select, svg, span, p, h1, h2, h3, h4, h5, h6),
 html.theme-switching :where(*::before, *::after) {

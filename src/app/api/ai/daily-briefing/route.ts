@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
 import { analyzeTasks, createLocalBriefing, serializeTaskIntelligence } from '@/lib/taskIntelligence';
 import type { Task } from '@/types';
 
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   let locale: 'vi' | 'en' = 'vi';
 
   try {
-    const body = await request.json();
+    const body = await readAiJson<any>(request);
     const tasks = Array.isArray(body.tasks) ? body.tasks.slice(0, 500) as Task[] : [];
     locale = supportedLocales.has(body.locale) ? body.locale : 'vi';
     const now = typeof body.now === 'string' && !Number.isNaN(Date.parse(body.now)) ? new Date(body.now) : new Date();

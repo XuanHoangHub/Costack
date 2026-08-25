@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
   try {
-    const { title, description, model, temperature } = await request.json();
+    const { title, description, model, temperature } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const prompt = `Hãy phân tích tiêu đề công việc: "${title}" và mô tả chi tiết: "${description || 'Không có mô tả chi tiết'}".

@@ -123,7 +123,7 @@ export default function AddFolderModal({
               )}
             </div>
             <div>
-              <h3 className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight">
+              <h3 className="text-[15px] font-black text-slate-900 dark:text-white tracking-tight text-balance">
                 {isEditing 
                   ? (locale === 'vi' ? 'Đổi tên thư mục' : 'Rename Folder')
                   : isSprintMode 
@@ -132,8 +132,8 @@ export default function AddFolderModal({
               </h3>
               {targetSpace && (
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  <span>{locale === 'vi' ? 'Không gian:' : 'Space:'}</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[11px]">
+                  <span className="whitespace-nowrap">{locale === 'vi' ? 'Không gian:' : 'Space:'}</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 text-[11px] whitespace-nowrap shrink-0">
                     <span>{targetSpace.emoji || '📁'}</span>
                     <span className="truncate max-w-[150px]">{targetSpace.name}</span>
                   </span>

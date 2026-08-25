@@ -12,51 +12,6 @@ import LanguageDropdown from '../LanguageDropdown';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { ApexaAiIcon } from '../ApexaAiIcon';
 
-// Social Media Vector Icons
-const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-  </svg>
-);
-
-const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-  </svg>
-);
-
-const XTwitterIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-const LinkedInIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.6a1.64 1.64 0 1 0 1.64 1.63A1.63 1.63 0 0 0 7.83 6.6z" />
-  </svg>
-);
-
-const YouTubeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-  </svg>
-);
-
-const GitHubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-  </svg>
-);
-
-const DiscordIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-  </svg>
-);
-
 interface LandingFooterProps {
   onSignUp?: () => void;
   onSignIn?: () => void;
@@ -128,7 +83,7 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                   {isVietnamese ? 'Tốc độ Local-First' : 'Local-First Engine'}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium truncate">
-                  {isVietnamese ? 'Độ trễ phản hồi < 12ms' : '< 12ms instant latency'}
+                  {isVietnamese ? 'Bộ nhớ đệm trên thiết bị' : 'On-device cache'}
                 </p>
               </div>
             </div>
@@ -140,10 +95,10 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-black text-white truncate">
-                  {isVietnamese ? 'Bảo mật Cấp Doanh nghiệp' : 'Enterprise Grade'}
+                  {isVietnamese ? 'Bảo mật theo thiết kế' : 'Security by design'}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium truncate">
-                  {isVietnamese ? 'Mã hóa AES 256-bit & RLS' : '256-bit AES & RLS Shield'}
+                  {isVietnamese ? 'HTTPS · RLS · Server-only secrets' : 'HTTPS · RLS · Server-only secrets'}
                 </p>
               </div>
             </div>
@@ -158,12 +113,12 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                   Apexa Brain Copilot
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium truncate">
-                  {isVietnamese ? 'Gemini 2.5 Multi-modal AI' : 'Gemini 2.5 Native AI'}
+                  {isVietnamese ? 'Gemini AI · Việt & Anh' : 'Gemini AI · English & Vietnamese'}
                 </p>
               </div>
             </div>
 
-            {/* 4. High Availability SLA */}
+            {/* 4. Service health */}
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-sky-500/30 transition-colors">
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
                 <Server className="w-5 h-5" />
@@ -172,11 +127,11 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <p className="text-xs font-black text-white truncate">
-                    {isVietnamese ? 'Hoạt động 99.99%' : '99.99% SLA Uptime'}
+                    {isVietnamese ? 'Health check tích hợp' : 'Built-in health check'}
                   </p>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium truncate">
-                  {isVietnamese ? 'Hệ thống vận hành ổn định' : 'All systems operational'}
+                  {isVietnamese ? 'Sẵn sàng cho giám sát uptime' : 'Ready for uptime monitoring'}
                 </p>
               </div>
             </div>
@@ -340,8 +295,7 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
             {/* Official Certification, Trust Badges & Social Links */}
             <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/[0.08]">
               
-              {/* Official Seal: ĐÃ THÔNG BÁO BỘ CÔNG THƯƠNG */}
-              <div className="inline-flex items-center gap-2.5 bg-[#0052a3]/90 hover:bg-[#0052a3] text-white px-3 py-1.5 rounded-xl border border-sky-400/40 shadow-sm select-none transition-all">
+              <Link href="/legal/security" className="inline-flex items-center gap-2.5 bg-[#0052a3]/90 hover:bg-[#0052a3] text-white px-3 py-1.5 rounded-xl border border-sky-400/40 shadow-sm transition-all">
                 <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shrink-0 shadow-xs">
                   <svg className="w-4 h-4 text-[#0052a3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#0052a3" stroke="none" />
@@ -349,33 +303,16 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                   </svg>
                 </div>
                 <div className="flex flex-col text-left leading-tight">
-                  <span className="text-[7.5px] font-black uppercase tracking-wider text-sky-200">ĐÃ THÔNG BÁO</span>
-                  <span className="text-[9px] font-black uppercase tracking-tight text-white">BỘ CÔNG THƯƠNG</span>
+                  <span className="text-[7.5px] font-black uppercase tracking-wider text-sky-200">SECURITY CENTER</span>
+                  <span className="text-[9px] font-black uppercase tracking-tight text-white">{isVietnamese ? 'PHẠM VI KIỂM SOÁT' : 'CONTROL SCOPE'}</span>
                 </div>
-              </div>
+              </Link>
 
-              {/* Social Channels */}
+              {/* Contact channels */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { Icon: GitHubIcon, href: "https://github.com", label: "GitHub", hover: "hover:text-white hover:border-slate-500 hover:bg-slate-800" },
-                  { Icon: DiscordIcon, href: "https://discord.com", label: "Discord", hover: "hover:text-[#5865F2] hover:border-[#5865F2]/50 hover:bg-[#5865F2]/10" },
-                  { Icon: LinkedInIcon, href: "https://linkedin.com", label: "LinkedIn", hover: "hover:text-[#0077b5] hover:border-[#0077b5]/50 hover:bg-[#0077b5]/10" },
-                  { Icon: XTwitterIcon, href: "https://twitter.com", label: "X", hover: "hover:text-white hover:border-slate-400 hover:bg-black" },
-                  { Icon: FacebookIcon, href: "https://facebook.com", label: "Facebook", hover: "hover:text-[#1877F2] hover:border-[#1877F2]/50 hover:bg-[#1877F2]/10" },
-                  { Icon: YouTubeIcon, href: "https://youtube.com", label: "YouTube", hover: "hover:text-[#FF0000] hover:border-[#FF0000]/50 hover:bg-[#FF0000]/10" },
-                  { Icon: InstagramIcon, href: "https://instagram.com", label: "Instagram", hover: "hover:text-[#E4405F] hover:border-[#E4405F]/50 hover:bg-[#E4405F]/10" },
-                ].map((item) => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={item.label}
-                    className={`w-8 h-8 rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xs ${item.hover}`}
-                  >
-                    <item.Icon className="w-3.5 h-3.5" />
-                  </a>
-                ))}
+                <a href="mailto:contact@apexa.vn" className="inline-flex h-8 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-[11px] font-bold text-slate-300 transition hover:border-indigo-400/50 hover:text-white">
+                  <Mail className="h-3.5 w-3.5" /> contact@apexa.vn
+                </a>
               </div>
 
             </div>
@@ -415,7 +352,7 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                 <li>
                   <a href="#features" className="text-slate-400 hover:text-white flex items-center justify-between group transition-colors">
                     <span className="text-indigo-300 font-bold">Apexa Brain AI Copilot</span>
-                    <span className="text-[8px] font-black uppercase px-1.5 py-0.2 rounded bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xs">AI 2.5</span>
+                    <span className="text-[8px] font-black uppercase px-1.5 py-0.2 rounded bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xs">AI</span>
                   </a>
                 </li>
                 <li>
@@ -457,37 +394,37 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
               </div>
               <ul className="space-y-2.5 text-[11.5px] font-medium">
                 <li>
-                  <a href="#solutions" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Quản trị hợp nhất (Unified OS)' : 'Unified Workspace'}
                   </a>
                 </li>
                 <li>
-                  <a href="#solutions" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#pricing" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Doanh nghiệp Quy mô lớn' : 'Enterprise Scale'}
                   </a>
                 </li>
                 <li>
-                  <a href="#solutions" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Đội ngũ Công nghệ & Agile' : 'Tech & Agile Squads'}
                   </a>
                 </li>
                 <li>
-                  <a href="#solutions" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Kinh doanh & Tiếp thị' : 'Sales & Marketing'}
                   </a>
                 </li>
                 <li>
-                  <a href="#solutions" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#testimonials" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Cơ quan & Giáo dục' : 'Agencies & Education'}
                   </a>
                 </li>
                 <li>
-                  <a href="#templates" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#features" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Thư viện mẫu quy trình' : 'Template Library'}
                   </a>
                 </li>
                 <li>
-                  <a href="#integrations" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#features" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Tích hợp & Kết nối' : 'Integrations'}
                   </a>
                 </li>
@@ -504,7 +441,7 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
               </div>
               <ul className="space-y-2.5 text-[11.5px] font-medium">
                 <li>
-                  <a href="#about" className="text-slate-400 hover:text-white transition-colors">
+                  <a href="#features" className="text-slate-400 hover:text-white transition-colors">
                     {isVietnamese ? 'Về chúng tôi' : 'About Apexa'}
                   </a>
                 </li>
@@ -524,23 +461,22 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
                   </a>
                 </li>
                 <li>
-                  <a href="#developers" className="text-slate-400 hover:text-white transition-colors">
-                    Developers & API Docs
+                  <Link href="/legal/security" className="text-slate-400 hover:text-white transition-colors">
+                    {isVietnamese ? 'Trung tâm bảo mật' : 'Security Center'}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/legal/privacy" className="text-slate-400 hover:text-white transition-colors">
+                    {isVietnamese ? 'Quyền riêng tư' : 'Privacy'}
+                  </Link>
+                </li>
+                <li>
+                  <a href="mailto:contact@apexa.vn?subject=Apexa%20OS" className="text-slate-400 hover:text-white flex items-center justify-between group transition-colors">
+                    <span>{isVietnamese ? 'Liên hệ' : 'Contact'}</span>
                   </a>
                 </li>
                 <li>
-                  <a href="#blog" className="text-slate-400 hover:text-white transition-colors">
-                    {isVietnamese ? 'Blog Năng suất & AI' : 'Productivity & AI Blog'}
-                  </a>
-                </li>
-                <li>
-                  <a href="#careers" className="text-slate-400 hover:text-white flex items-center justify-between group transition-colors">
-                    <span>{isVietnamese ? 'Tuyển dụng' : 'Careers'}</span>
-                    <span className="text-[8px] font-black uppercase px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">Hiring</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="#status" className="text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">
+                  <a href="/api/health" className="text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <span>{isVietnamese ? 'Trạng thái hệ thống' : 'System Status'}</span>
                   </a>
@@ -625,7 +561,7 @@ export function LandingFooter({ onSignUp, onSignIn }: LandingFooterProps) {
 
               <div className="pt-2 text-[10px] text-slate-500 flex items-center gap-1 font-medium">
                 <Lock className="w-3 h-3 text-slate-500 shrink-0" />
-                <span>{isVietnamese ? 'Bảo mật 100%. Hủy bất kỳ lúc nào.' : 'Zero spam. Unsubscribe anytime.'}</span>
+                <span>{isVietnamese ? 'Không gửi spam. Có thể hủy đăng ký.' : 'No spam. Unsubscribe anytime.'}</span>
               </div>
 
               {/* Direct Demo / Contact Button */}

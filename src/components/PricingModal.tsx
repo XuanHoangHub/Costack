@@ -99,14 +99,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Task & dự án không giới hạn',
               'Board, List & Docs ghi chú',
               '3 bảng trắng cộng tác Whiteboard',
-              '100 AI credits mỗi tháng',
+              'Dùng khóa Gemini cá nhân cho tính năng AI',
             ]
           : [
               'Up to 5 active Spaces',
               'Unlimited tasks & projects',
               'Core Board, List & Docs',
               '3 collaborative Whiteboards',
-              '100 monthly AI credits',
+              'Use a personal Gemini key for AI features',
             ],
       },
       starter: {
@@ -119,15 +119,15 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           ? [
               'Spaces & dự án không giới hạn',
               'Calendar & biểu đồ Gantt tiến độ',
-              '500 AI credits / thành viên / tháng',
-              '1.000 lượt tự động hóa / tháng',
+              'AI theo cấu hình của workspace',
+              'Tự động hóa quy trình cơ bản',
               'Tích hợp Google Calendar, Notion',
             ]
           : [
               'Unlimited spaces & projects',
               'Calendar & Gantt timeline',
-              '500 AI credits / user / month',
-              '1,000 monthly automations',
+              'AI based on workspace configuration',
+              'Core workflow automation',
               'Google Calendar & Notion integration',
             ],
       },
@@ -142,14 +142,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Toàn bộ quyền lợi gói Starter',
               'Apexa AI Chat, Report & Summarizer',
               'Hệ sinh thái CRM, ERP & Finance',
-              '5.000 lượt tự động hóa / tháng',
+              'Tự động hóa và báo cáo nâng cao',
               'Time tracking, KPI & phân quyền khách',
             ]
           : [
               'Everything in Starter',
               'Apexa AI Chat, Report & Summarizer',
               'Integrated CRM, ERP & Finance workspaces',
-              '5,000 monthly automations',
+              'Advanced automation and reporting',
               'Time tracking, KPI & guest permissions',
             ],
       },
@@ -164,37 +164,37 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Toàn bộ quyền lợi gói Pro',
               'Phân quyền nâng cao theo phòng ban',
               'Portfolio & Quản lý khối lượng (Workload)',
-              'API, Webhook & 3.000 AI credits / user',
-              'Hỗ trợ ưu tiên 24/7 & chuyên viên đồng hành',
+              'API, Webhook và cấu hình AI cho tổ chức',
+              'Hỗ trợ triển khai theo thỏa thuận',
             ]
           : [
               'Everything in Pro',
               'Advanced role & department permissions',
               'Portfolio & Workload management',
-              'API, Webhooks & 3,000 AI credits / user',
-              '24/7 Priority support & onboarding',
+              'API, Webhooks, and organization AI settings',
+              'Implementation support by agreement',
             ],
       },
       enterprise: {
         name: 'Enterprise',
         audience: isVietnamese ? 'Doanh nghiệp lớn' : 'Custom Enterprise',
         description: isVietnamese
-          ? 'Bảo mật tuyệt đối, triển khai tùy biến, cam kết SLA 99.9% và hỗ trợ 1-1.'
-          : 'Tailored deployment, custom SLAs, SSO/SAML, and dedicated support.',
+          ? 'Đánh giá nhu cầu, triển khai tùy biến và phạm vi hỗ trợ theo hợp đồng riêng.'
+          : 'Requirements assessment, tailored deployment, and contract-defined support.',
         features: isVietnamese
           ? [
               'Toàn bộ quyền lợi gói Business',
-              'Đăng nhập SSO / SAML & SCIM',
-              'Chính sách dữ liệu và máy chủ riêng',
-              'Cam kết SLA 99.9% & Onboarding 1-1',
-              'Customer Success Manager chuyên trách',
+              'Đánh giá kiến trúc và phân quyền',
+              'Chính sách dữ liệu theo yêu cầu',
+              'SLA và onboarding theo hợp đồng',
+              'Đầu mối triển khai chuyên trách',
             ]
           : [
               'Everything in Business',
-              'SSO / SAML & SCIM provisioning',
-              'Custom data retention & isolated hosting',
-              '99.9% SLA & 1-on-1 Onboarding',
-              'Dedicated Customer Success Manager',
+              'Architecture and access-control review',
+              'Contract-defined data policies',
+              'Contract-defined SLA and onboarding',
+              'Dedicated implementation contact',
             ],
       },
     }),
@@ -650,7 +650,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
             transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             className={`relative z-10 my-auto w-full transition-all duration-300 ${
               checkout
-                ? 'max-w-4xl rounded-3xl border border-slate-200/90 bg-[#f8fafc] shadow-[0_30px_90px_-20px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950'
+                ? 'max-w-5xl max-h-[94dvh] overflow-y-auto rounded-[32px] border border-slate-200/90 bg-[#f8fafc] shadow-[0_30px_90px_-20px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950'
                 : 'max-w-[1240px] max-h-[92dvh] overflow-y-auto rounded-[32px] border border-slate-200/80 bg-[#f8fafc] shadow-[0_40px_120px_-30px_rgba(2,6,23,0.85)] dark:border-slate-800 dark:bg-slate-950'
             }`}
           >
@@ -679,11 +679,11 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   </div>
                   <h2
                     id="pricing-modal-title"
-                    className="mt-3.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl lg:text-4xl"
+                    className="mt-3.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl lg:text-4xl text-balance"
                   >
                     {isVietnamese ? 'Chọn gói hoàn hảo cho quy trình của bạn' : 'Choose the plan designed for your team'}
                   </h2>
-                  <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm">
+                  <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm text-pretty">
                     {isVietnamese
                       ? 'Nâng cấp nhanh qua VietQR 24/7 · Không ràng buộc hợp đồng · Tự động kích hoạt sau 3 giây.'
                       : 'Instant VietQR payment · Zero contracts · Auto-activated in 3 seconds.'}
@@ -842,20 +842,20 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               {info.description}
                             </p>
                             <div className="mt-3 min-h-[56px]">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap tabular-nums">
                                   {price.value}
                                 </span>
                                 {price.originalMonthly && (
-                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                  <span className="text-xs font-semibold text-slate-400 line-through whitespace-nowrap tabular-nums">
                                     {price.originalMonthly}
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                {price.suffix}{' '}
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap">
+                                <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
-                                  <span className="text-slate-500 dark:text-slate-400">
+                                  <span className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
                                     ({price.totalValue}/năm)
                                   </span>
                                 )}
@@ -940,20 +940,20 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               {info.description}
                             </p>
                             <div className="mt-3 min-h-[56px]">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap tabular-nums">
                                   {price.value}
                                 </span>
                                 {price.originalMonthly && (
-                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                  <span className="text-xs font-semibold text-slate-400 line-through whitespace-nowrap tabular-nums">
                                     {price.originalMonthly}
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                {price.suffix}{' '}
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap">
+                                <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
-                                  <span className="text-indigo-600 dark:text-indigo-400">
+                                  <span className="text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
                                     ({price.totalValue}/năm)
                                   </span>
                                 )}
@@ -966,25 +966,27 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               type="button"
                               onClick={() => selectPlan(plan)}
                               disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
-                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/25 transition hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5 disabled:opacity-60"
+                              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/25 transition hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5 disabled:opacity-60 whitespace-nowrap shrink-0"
                             >
                               {loading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                               ) : current ? (
-                                <BadgeCheck className="h-3.5 w-3.5" />
+                                <BadgeCheck className="h-3.5 w-3.5 shrink-0" />
                               ) : null}
-                              {canRenew
-                                ? isVietnamese
-                                  ? `Gia hạn ${info.name}`
-                                  : `Renew ${info.name}`
-                                : current
-                                ? isVietnamese
-                                  ? 'Gói hiện tại'
-                                  : 'Current plan'
-                                : isVietnamese
-                                ? `Nâng cấp ${info.name}`
-                                : `Upgrade to ${info.name}`}
-                              {!loading && !current && <ArrowRight className="h-3.5 w-3.5" />}
+                              <span>
+                                {canRenew
+                                  ? isVietnamese
+                                    ? `Gia hạn ${info.name}`
+                                    : `Renew ${info.name}`
+                                  : current
+                                  ? isVietnamese
+                                    ? 'Gói hiện tại'
+                                    : 'Current plan'
+                                  : isVietnamese
+                                  ? `Nâng cấp ${info.name}`
+                                  : `Upgrade to ${info.name}`}
+                              </span>
+                              {!loading && !current && <ArrowRight className="h-3.5 w-3.5 shrink-0" />}
                             </button>
 
                             <div className="my-4 h-px bg-slate-100 dark:bg-slate-800/80" />
@@ -993,7 +995,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               {info.features.map((feature) => (
                                 <li
                                   key={feature}
-                                  className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                                  className="flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 break-words text-pretty"
                                 >
                                   <span className="mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                                     <Check className="h-2 w-2 stroke-[3]" />
@@ -1019,32 +1021,32 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                         <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-amber-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-900/60">
                           <div>
                             <div className="flex items-center justify-between">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                <Layers className="h-3 w-3" />
-                                {info.audience}
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 whitespace-nowrap shrink-0">
+                                <Layers className="h-3 w-3 shrink-0" />
+                                <span>{info.audience}</span>
                               </span>
                             </div>
                             <h3 className="mt-3 text-xl font-black tracking-tight text-slate-950 dark:text-white">
                               {info.name}
                             </h3>
-                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 min-h-10 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 text-pretty">
                               {info.description}
                             </p>
                             <div className="mt-3 min-h-[56px]">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-2xl font-black tracking-tight text-slate-950 dark:text-white whitespace-nowrap tabular-nums">
                                   {price.value}
                                 </span>
                                 {price.originalMonthly && (
-                                  <span className="text-xs font-semibold text-slate-400 line-through">
+                                  <span className="text-xs font-semibold text-slate-400 line-through whitespace-nowrap tabular-nums">
                                     {price.originalMonthly}
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                {price.suffix}{' '}
+                              <div className="mt-0.5 text-[11px] font-semibold text-slate-400 whitespace-nowrap">
+                                <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
-                                  <span className="text-slate-500 dark:text-slate-400">
+                                  <span className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
                                     ({price.totalValue}/năm)
                                   </span>
                                 )}
@@ -1114,8 +1116,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                         </div>
                         <h4 className="mt-1.5 text-base font-black tracking-tight text-white">
                           {isVietnamese
-                            ? 'Cần bảo mật chuyên sâu, SSO/SAML, máy chủ riêng & cam kết SLA?'
-                            : 'Need dedicated security, SSO/SAML, isolated servers & SLA?'}
+                            ? 'Cần đánh giá bảo mật, triển khai riêng hoặc SLA theo hợp đồng?'
+                            : 'Need a security review, tailored deployment, or a custom SLA?'}
                         </h4>
                         <p className="mt-1 text-xs text-slate-300">
                           {isVietnamese

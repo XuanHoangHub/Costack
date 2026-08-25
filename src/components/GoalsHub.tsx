@@ -676,11 +676,11 @@ export default function GoalsHub({
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${statusMeta[health].className}`}><HealthIcon className="h-3 w-3" /> {statusMeta[health].label}</span>
-                          <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">{goal.period}</span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] whitespace-nowrap shrink-0 ${statusMeta[health].className}`}><HealthIcon className="h-3 w-3 shrink-0" /> {statusMeta[health].label}</span>
+                          <span className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400 whitespace-nowrap">{goal.period}</span>
                         </div>
-                        <h2 className="text-lg font-black leading-snug text-slate-950 dark:text-white">{goal.title}</h2>
-                        {goal.description && <p className="mt-2 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">{goal.description}</p>}
+                        <h2 className="text-lg font-black leading-snug text-slate-950 dark:text-white break-words text-balance">{goal.title}</h2>
+                        {goal.description && <p className="mt-2 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 break-words text-pretty">{goal.description}</p>}
                       </div>
                       <div className="flex shrink-0 gap-1">
                         <button type="button" onClick={() => openEditGoal(goal)} className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-900"><Edit3 className="h-4 w-4" /></button>
@@ -690,14 +690,14 @@ export default function GoalsHub({
 
                     <div className="mt-5 flex items-center gap-4">
                       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(${goal.color} ${progress * 3.6}deg, rgba(148,163,184,.16) 0deg)` }}>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900 dark:bg-slate-950 dark:text-white">{progress}%</div>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900 dark:bg-slate-950 dark:text-white whitespace-nowrap tabular-nums">{progress}%</div>
                       </div>
                       <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.08em] text-slate-400"><span>{isVietnamese ? 'Tiến độ tổng' : 'Overall progress'}</span><span>{records.length} KR</span></div>
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.08em] text-slate-400"><span className="whitespace-nowrap">{isVietnamese ? 'Tiến độ tổng' : 'Overall progress'}</span><span className="whitespace-nowrap tabular-nums">{records.length} KR</span></div>
                         <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full rounded-full" style={{ backgroundColor: goal.color }} /></div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500">
-                          <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> {daysRemaining >= 0 ? `${daysRemaining} ${isVietnamese ? 'ngày còn lại' : 'days left'}` : `${Math.abs(daysRemaining)} ${isVietnamese ? 'ngày quá hạn' : 'days overdue'}`}</span>
-                          <span className="inline-flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {owner?.name || currentUser.name}</span>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><CalendarDays className="h-3.5 w-3.5 shrink-0" /> {daysRemaining >= 0 ? `${daysRemaining} ${isVietnamese ? 'ngày còn lại' : 'days left'}` : `${Math.abs(daysRemaining)} ${isVietnamese ? 'ngày quá hạn' : 'days overdue'}`}</span>
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap truncate max-w-[200px]"><Users className="h-3.5 w-3.5 shrink-0" /> {owner?.name || currentUser.name}</span>
                         </div>
                       </div>
                     </div>

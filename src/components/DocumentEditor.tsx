@@ -1990,7 +1990,7 @@ export default function DocumentEditor({
                                 )}
                               </div>
                             </div>
-                            <p className={`text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium break-all ${c.is_resolved ? 'line-through text-slate-400' : ''}`}>{c.content}</p>
+                            <p className={`text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium break-words text-pretty ${c.is_resolved ? 'line-through text-slate-400' : ''}`}>{c.content}</p>
                             <div className="flex items-center gap-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity select-none">
                               <button type="button" onClick={() => handleResolveComment(c.id, Boolean(c.is_resolved))} className="px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-1 cursor-pointer">
                                 <CheckCircle2 className="w-3 h-3" /> {c.is_resolved ? 'Mở lại' : 'Giải quyết'}

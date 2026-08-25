@@ -31,13 +31,16 @@ Xem giá trị mẫu an toàn tại [`.env.example`](./.env.example).
 
 ## Database
 
-Áp dụng toàn bộ migration trong `supabase/migrations` theo thứ tự thời gian trước khi deploy web. Migration PayOS tạo sổ đơn hàng, RLS chỉ-đọc theo chủ sở hữu và hàm kích hoạt quyền lợi chỉ dành cho service role.
+Áp dụng migration trong `supabase/migrations` theo thứ tự thời gian trước khi deploy web. Migration PayOS tạo sổ đơn hàng, RLS chỉ-đọc theo chủ sở hữu và hàm kích hoạt quyền lợi chỉ dành cho service role.
+
+> **Điều kiện chặn production hiện tại:** thư mục migration đang chứa các migration bổ sung nhưng chưa có baseline tạo toàn bộ schema lõi (`workspaces`, `members`, `spaces`, `lists`, `tasks`, `docs`, `base_apps`, chat, whiteboard...). Không dùng một database trống cho tới khi baseline đã được tạo từ schema nguồn, kiểm thử bằng `supabase db reset`, review RLS và commit vào `supabase/migrations`. File SQL rời ở root không thay thế cho một lịch sử migration tái lập được.
 
 ```powershell
 npx supabase db push
+npm run audit:schema
 ```
 
-Sau khi áp dụng, chạy Supabase Database Advisors và xác nhận không còn cảnh báo Security/RLS liên quan các bảng trong schema `public`.
+`audit:schema` chỉ kiểm tra sự hiện diện của các bảng qua publishable/anon key và không đọc dữ liệu. Sau khi áp dụng, chạy thêm Supabase Database Advisors và xác nhận không còn cảnh báo Security/RLS liên quan các bảng trong schema `public`.
 
 ## PayOS
 
@@ -60,10 +63,12 @@ Nếu còn người dùng Stripe cũ, giữ webhook Stripe tại `https://YOUR_D
 ## Kiểm tra trước deploy
 
 ```powershell
-npm run lint
-npx tsc --noEmit
-npm run build
+npm run check
+npm run validate:production
+npm run audit:schema
 ```
+
+`validate:production` chỉ kiểm tra sự hiện diện/định dạng cấu hình và không in giá trị bí mật. Chạy dependency audit trong CI hoặc terminal được phép truy cập registry; không bỏ qua kết quả mức high/critical.
 
 Smoke test tối thiểu:
 
@@ -73,6 +78,7 @@ Smoke test tối thiểu:
 - API AI không có session/khóa riêng trả 401 và không dùng server key.
 - Billing không thể tự cấp gói trả phí từ return URL hoặc webhook PayOS sai chữ ký/sai số tiền.
 - Newsletter email hợp lệ được ghi sau khi migration đã áp dụng.
+- `/pricing-preview` trả 404 trong production, trừ khi chủ động đặt `ENABLE_PRICING_PREVIEW=true`.
 
 ## Production
 
@@ -81,4 +87,6 @@ npm run build
 npm start
 ```
 
-Chỉ phát hành sau khi domain HTTPS, OAuth redirect URLs, Supabase RLS, Storage policies, PayOS webhook và backup/monitoring đã được xác nhận trên đúng môi trường production.
+`npm start` chạy standalone server đã tạo bởi `npm run build`; đặt `PORT`/`HOSTNAME` qua biến môi trường nếu cần. Docker image cũng dùng standalone output, chạy bằng user không đặc quyền và có healthcheck tại `/api/health`. Các biến `NEXT_PUBLIC_*` phải được truyền ở build time; khóa Gemini, Supabase service role, PayOS và Stripe chỉ truyền ở runtime.
+
+Chỉ phát hành sau khi domain HTTPS, OAuth redirect URLs, Supabase RLS, Storage policies, PayOS webhook, backup/restore và monitoring đã được xác nhận trên đúng môi trường production. Xem checklist chi tiết tại [`PRODUCTION_CHECKLIST.md`](./PRODUCTION_CHECKLIST.md).

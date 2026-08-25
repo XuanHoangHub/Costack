@@ -620,10 +620,10 @@ export default function SpaceOverviewTab({
                     <Icon className="h-4.5 w-4.5" style={{ color: item.color }} />
                   </div>
                 </div>
-                <div className="mt-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white font-sans">
+                <div className="mt-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white font-sans whitespace-nowrap tabular-nums">
                   {item.value}
                 </div>
-                <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">{item.sub}</p>
+                <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">{item.sub}</p>
               </div>
             );
           })}
@@ -709,7 +709,7 @@ export default function SpaceOverviewTab({
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>Tóm tắt nhanh bằng AI</span>
                 </div>
-                <p className="text-xs font-medium leading-relaxed text-slate-700 dark:text-slate-200">
+                <p className="text-xs font-medium leading-relaxed text-slate-700 dark:text-slate-200 break-words text-pretty">
                   {aiAnalysis ||
                     (locale === 'vi'
                       ? `Space đang hoạt động tốt với ${totalTasksCount} công việc. Nhấn 'Quét AI Space' để nhận nhận xét chi tiết.`

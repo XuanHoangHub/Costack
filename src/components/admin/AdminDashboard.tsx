@@ -1655,8 +1655,8 @@ function Modal({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-white">{title}</h2>
-            <p className="mt-1 break-all text-[11px] font-medium leading-relaxed text-slate-400">{description}</p>
+            <h2 className="text-base font-black text-slate-900 dark:text-white text-balance">{title}</h2>
+            <p className="mt-1 break-words text-pretty text-[11px] font-medium leading-relaxed text-slate-400">{description}</p>
           </div>
           <button
             onClick={onClose}
