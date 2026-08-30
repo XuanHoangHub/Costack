@@ -3,11 +3,13 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 
 export async function POST(request: Request) {
   try {
-    const { tasks, members, model, temperature } = await readAiJson<any>(request);
+    const { tasks, members, productivity, model, temperature } = await readAiJson<any>(request);
     const client = await getAuthorizedGeminiClient(request);
 
     const safeTasks = Array.isArray(tasks) ? tasks : [];
     const safeMembers = Array.isArray(members) ? members : [];
+    const safeFocusSessions = Array.isArray(productivity?.focusSessions) ? productivity.focusSessions.slice(0, 120) : [];
+    const safeHabits = Array.isArray(productivity?.habits) ? productivity.habits.slice(0, 50) : [];
 
     // Calculate aggregated metrics
     const totalT = safeTasks.length;
@@ -16,6 +18,10 @@ export async function POST(request: Request) {
     const urgentT = safeTasks.filter((t: any) => t.priority === 'urgent' || t.priority === 'high').length;
     const totalEst = safeTasks.reduce((acc: number, t: any) => acc + (Number(t.hoursEstimate) || 0), 0);
     const totalLog = safeTasks.reduce((acc: number, t: any) => acc + (Number(t.hoursLogged) || 0), 0);
+    const completedFocusSessions = safeFocusSessions.filter((session: any) => Number(session.durationMinutes) > 0);
+    const focusMinutes = completedFocusSessions.reduce((total: number, session: any) => total + Math.min(480, Math.max(0, Number(session.durationMinutes) || 0)), 0);
+    const habitCheckIns = safeHabits.reduce((total: number, habit: any) => total + Math.min(100000, Math.max(0, Number(habit.checkIns) || 0)), 0);
+    const longestHabitStreak = safeHabits.reduce((max: number, habit: any) => Math.max(max, Math.min(100000, Math.max(0, Number(habit.streak) || 0))), 0);
 
     // Group member performance
     const memberMetrics = safeMembers.map((m: any) => {
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
       };
     });
 
-    const systemInstruction = `Bạn là Trưởng ban Cố vấn Năng suất & Chiến lược Vận hành tối cao của hệ điều hành Apexa OS.
+    const systemInstruction = `Bạn là Trưởng ban Cố vấn Năng suất & Chiến lược Vận hành tối cao của nền tảng Apexa.
 Nhiệm vụ của bạn là xem xét bức tranh tổng thể về tiến độ, thời lượng làm việc (Hours Estimate vs Hours Logged), phân bổ nguồn lực của toàn đội ngũ và viết một BÁO CÁO NĂNG SUẤT TUẦN (WEEKLY PRODUCTIVITY INTELLIGENCE REPORT) thật sâu sắc, thực tế, chuyên nghiệp và truyền cảm hứng.
 Hãy sử dụng định dạng Markdown cao cấp: Tiêu đề rõ ràng, icon trực quan, số liệu in đậm, bảng biểu nếu cần. Giọng văn sắc bén, thẳng thắn, thông minh và khích lệ.`;
 
@@ -39,6 +45,8 @@ Hãy sử dụng định dạng Markdown cao cấp: Tiêu đề rõ ràng, icon 
 - Tổng số lượng công việc: ${totalT} (Đã hoàn thành: ${completedT}, Đang làm: ${inProgressT}, Khẩn cấp/Quan trọng: ${urgentT})
 - Tổng số giờ ước tính: ${totalEst} giờ
 - Tổng số giờ thực tế đã cống hiến: ${totalLog} giờ
+- Phiên tập trung đã ghi nhận: ${completedFocusSessions.length} phiên, tổng ${focusMinutes} phút
+- Thói quen đang theo dõi: ${safeHabits.length}, tổng ${habitCheckIns} lượt check-in, streak dài nhất ${longestHabitStreak} ngày
 - Thống kê chi tiết thành viên:
 ${JSON.stringify(memberMetrics, null, 2)}
 
@@ -47,6 +55,7 @@ Yêu cầu báo cáo bao gồm 4 phần chính bằng Tiếng Việt:
 - Đánh giá tổng quát tỉ lệ hoàn thành nhiệm vụ (${completedT}/${totalT}) và tiến độ sức khỏe dự án tuần này.
 ### 2. Phân Tích Hiệu Suất & Thời Gian (Hours Logged)
 - Nhận định về tổng số giờ ước tính (${totalEst}h) so với tổng số giờ thực tế đã cống hiến (${totalLog}h). Đưa ra phân tích thông thái về việc ước lượng của đội ngũ và tỷ lệ phân phối thời gian tiêu hao.
+- Kết hợp dữ liệu Pomodoro (${focusMinutes} phút) và thói quen (${habitCheckIns} check-in) để nhận định tính ổn định của nhịp làm việc; không suy diễn khi dữ liệu còn ít.
 ### 3. Bản Đồ Đóng Góp Đội Ngũ (Team Patterns)
 - Phân tích chi tiết đóng góp của các thành viên trực thuộc dựa trên lượng task họ làm và số giờ họ log. Đưa ra điểm lưu ý điều phối nhân sự.
 ### 4. Khuyến Nghị Chiến Lược Tuần Tới

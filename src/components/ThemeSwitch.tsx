@@ -58,18 +58,21 @@ export default function ThemeSwitch({
     sm: {
       track: 'w-11 h-6 p-0.5',
       knob: 'w-5 h-5',
+      travel: 'translate-x-5',
       iconSize: 11,
       ambientIconSize: 10,
     },
     md: {
       track: 'w-13 h-7 p-0.5',
       knob: 'w-6 h-6',
+      travel: 'translate-x-6',
       iconSize: 13,
       ambientIconSize: 11,
     },
     lg: {
       track: 'w-15 h-8 p-0.5',
       knob: 'w-7 h-7',
+      travel: 'translate-x-7',
       iconSize: 14,
       ambientIconSize: 12,
     },
@@ -86,7 +89,7 @@ export default function ThemeSwitch({
         onClick={handleToggle}
         className={`
           group relative inline-flex shrink-0 cursor-pointer items-center rounded-full
-          transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2
+          transition-colors duration-150 ease-out focus:outline-none focus-visible:ring-2
           focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2
           ${config.track}
           ${
@@ -101,7 +104,7 @@ export default function ThemeSwitch({
           {/* Sun icon on left */}
           <Sun
             size={config.ambientIconSize}
-            className={`transition-all duration-300 ${
+            className={`transition-all duration-150 ${
               isDark
                 ? 'opacity-35 text-slate-500 scale-75'
                 : 'opacity-0 scale-50'
@@ -111,7 +114,7 @@ export default function ThemeSwitch({
           <div className="flex items-center gap-0.5 ml-auto">
             <Moon
               size={config.ambientIconSize}
-              className={`transition-all duration-300 ${
+              className={`transition-all duration-150 ${
                 isDark
                   ? 'opacity-0 scale-50'
                   : 'opacity-35 text-slate-400 scale-75'
@@ -120,22 +123,16 @@ export default function ThemeSwitch({
           </div>
         </div>
 
-        {/* Sliding Thumb Knob with Spring Physics */}
-        <motion.span
-          layout
-          transition={{
-            type: 'spring',
-            stiffness: 480,
-            damping: 28,
-          }}
+        {/* Sliding Thumb Knob with Isolated CSS Transform */}
+        <span
           className={`
             pointer-events-none relative flex items-center justify-center rounded-full
-            transition-all duration-300
+            transition-all duration-200 ease-out
             ${config.knob}
             ${
               isDark
-                ? 'ml-auto bg-gradient-to-tr from-indigo-600 via-indigo-500 to-indigo-600 text-amber-200 shadow-[0_2px_8px_rgba(99,102,241,0.4),0_1px_2px_rgba(0,0,0,0.2)] border border-indigo-400/40'
-                : 'mr-auto bg-white text-amber-500 shadow-[0_2px_6px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)] border border-slate-200/80'
+                ? `${config.travel} bg-gradient-to-tr from-indigo-600 via-indigo-500 to-indigo-600 text-amber-200 shadow-[0_2px_8px_rgba(99,102,241,0.4),0_1px_2px_rgba(0,0,0,0.2)] border border-indigo-400/40`
+                : 'translate-x-0 bg-white text-amber-500 shadow-[0_2px_6px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.08)] border border-slate-200/80'
             }
           `}
         >
@@ -162,7 +159,7 @@ export default function ThemeSwitch({
               <Sun size={config.iconSize} className="stroke-[2.4] fill-amber-400/20" />
             </motion.div>
           )}
-        </motion.span>
+        </span>
       </button>
 
       {showLabel && (

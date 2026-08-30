@@ -19,7 +19,7 @@ interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-br from-indigo-500 via-indigo-600 to-blue-700 text-white shadow-[var(--cu-shadow-primary)] hover:brightness-105 hover:shadow-[0_16px_32px_-16px_rgba(79,70,229,0.9)] border-white/10 active:scale-[0.98]",
+    "bg-[var(--cu-primary)] text-white shadow-[var(--cu-shadow-primary)] hover:bg-[var(--cu-primary-hover)] hover:shadow-[0_16px_32px_-18px_rgba(79,110,247,0.85)] border-transparent active:scale-[0.98]",
   secondary:
     "bg-[var(--cu-surface)] text-[var(--cu-text-primary)] hover:bg-[var(--cu-surface-2)] border-[var(--cu-border)] hover:border-[var(--cu-border-strong)] shadow-[var(--cu-shadow-xs)] active:scale-[0.98]",
   ghost:
@@ -29,7 +29,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   outline:
     "bg-transparent text-[var(--cu-text-primary)] border-[var(--cu-border-strong)] hover:bg-[var(--cu-primary-subtle)] hover:text-[var(--cu-primary)] hover:border-[var(--cu-primary)]/40 active:scale-[0.98]",
   shots:
-    "bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black shadow-[0_8px_25px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[0_8px_25px_rgba(255,255,255,0.2),inset_0_1px_0_rgba(255,255,255,0.9)] hover:scale-[1.02] active:scale-[0.98] border-transparent transition-all",
+    "bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-500 hover:via-indigo-500 hover:to-indigo-600 text-white font-extrabold shadow-[0_10px_25px_-8px_rgba(79,110,247,0.5)] hover:shadow-[0_14px_30px_-6px_rgba(79,110,247,0.65)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] border-transparent transition-all",
   glass:
     "shots-glass text-slate-800 dark:text-white hover:bg-white/80 dark:hover:bg-slate-800/80 active:scale-[0.98]",
 };
@@ -40,7 +40,7 @@ const sizeStyles: Record<ButtonSize, string> = {
   sm: "min-h-9 px-3.5 py-1.5 text-xs font-semibold gap-1.5 rounded-[var(--cu-radius-md)]",
   md: "min-h-10 px-4 py-2 text-sm font-semibold gap-2 rounded-[var(--cu-radius-lg)]",
   lg: "min-h-11 px-5 py-2.5 text-sm font-bold gap-2.5 rounded-[var(--cu-radius-lg)]",
-  huge: "min-h-13 px-7 py-3.5 text-base font-extrabold gap-3 rounded-full shadow-xl",
+  huge: "min-h-13 px-7 py-3.5 text-base font-extrabold gap-3 rounded-full",
 };
 
 export function Button({

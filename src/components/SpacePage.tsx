@@ -46,52 +46,13 @@ import AddFolderModal from './AddFolderModal';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import PromptModal, { PromptModalConfig } from './PromptModal';
 
-type ViewSettingKey = 'pin' | 'private' | 'protect' | 'autosave' | 'default';
-
-interface ViewTabSettings {
-  pin: boolean;
-  private: boolean;
-  protect: boolean;
-  autosave: boolean;
-  default: boolean;
-}
-
-interface SpaceViewTab {
-  id: string;
-  label: string;
-  viewId: string;
-  icon: React.ElementType;
-  settings: ViewTabSettings;
-}
-
-const DEFAULT_VIEW_SETTINGS: ViewTabSettings = {
-  pin: false,
-  private: false,
-  protect: false,
-  autosave: true,
-  default: false,
-};
-
-const VIEW_ICON_MAP: Record<string, React.ElementType> = {
-  channel: Hash,
-  overview: FileText,
-  list: List,
-  board: Kanban,
-  doc: FileText,
-  calendar: Calendar,
-  table: Table,
-  gantt: GanttChart,
-  whiteboard: Sparkles,
-  dashboard: SlidersHorizontal,
-  timeline: Clock,
-  activity: Activity,
-  workload: Users,
-  mindmap: Brain,
-  team: UserIcon,
-  form: CheckSquare,
-  map: MapIcon,
-  ai: Bot,
-};
+import SpaceViewTabBar, {
+  SpaceViewTab,
+  ViewTabSettings,
+  ViewSettingKey,
+  VIEW_ICON_MAP,
+  DEFAULT_VIEW_SETTINGS,
+} from './SpaceViewTabBar';
 
 const FOLDER_COLOR_VALUES: Record<string, string> = {
   amber: '#f59e0b',
@@ -2944,95 +2905,39 @@ export default function SpacePage({
 
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
 
-              {/* View Switcher Tabs (Segmented Glass Pill Controls) */}
-              <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-[#0c0f18]/90 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-x-auto scrollbar-none max-w-fit shrink-0 shadow-3xs backdrop-blur-md">
-                {[...staticTabs].sort((a, b) => Number(b.settings.pin) - Number(a.settings.pin)).map(tab => {
-                  const TabIcon = tab.icon;
-                  const isActive = activeTabId === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        const proViews = ['gantt', 'timeline', 'workload', 'mindmap', 'ai'];
-                        if (proViews.includes(tab.viewId) && !currentUser?.isPremium) {
-                          onUpgradePremium?.();
-                          return;
-                        }
-                        setActiveTabId(tab.id);
-                        setActiveView(tab.viewId);
-                      }}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                        isActive
-                          ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-300 shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50'
-                      }`}
-                    >
-                      <TabIcon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                      <span>{tab.label}</span>
-                      {tab.settings.private && <Lock className="h-2.5 w-2.5 text-slate-400" aria-label="Chế độ xem riêng tư" />}
-                      {tab.settings.protect && <Shield className="h-2.5 w-2.5 text-amber-500" aria-label="Đã khóa chỉnh sửa" />}
-                      {['gantt', 'timeline', 'workload', 'mindmap', 'ai'].includes(tab.viewId) && !currentUser?.isPremium && (
-                        <span className="text-[7px] font-black text-amber-600 bg-amber-500/10 px-1 py-0.5 rounded-md leading-none shadow-3xs">PRO</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Add View */}
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => {
-                    setShowAddViewMenu(!showAddViewMenu);
-                    setIsSearchViewOpen(true);
-                  }}
-                  className="flex items-center gap-1 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors cursor-pointer"
-                  title="Thêm chế độ xem"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-
-                {showAddViewMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => { setShowAddViewMenu(false); setIsSearchViewOpen(false); setSearchViewQuery(''); }} />
-                    <div className="absolute left-0 top-full mt-1 w-[220px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-2 font-sans select-none">
-                      <div className="relative mb-2">
-                        <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
-                          autoFocus
-                          placeholder="Tìm chế độ xem..."
-                          value={searchViewQuery}
-                          onChange={(e) => setSearchViewQuery(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg pl-7 pr-3 py-1.5 text-[11px] font-semibold outline-none text-slate-800 dark:text-slate-200 focus:border-indigo-500 transition-colors"
-                        />
-                      </div>
-                      <div className="space-y-0.5 max-h-[200px] overflow-y-auto custom-scrollbar">
-                        {POPULAR_VIEWS.filter(v => !searchViewQuery.trim() || v.label.toLowerCase().includes(searchViewQuery.toLowerCase())).map(view => {
-                          const ViewIcon = view.icon;
-                          return (
-                            <button
-                              key={view.id}
-                              onClick={() => {
-                                handleSelectView(view);
-                                setShowAddViewMenu(false);
-                                setIsSearchViewOpen(false);
-                                setSearchViewQuery('');
-                              }}
-                              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 transition-colors text-left cursor-pointer group"
-                            >
-                              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: view.bg }}>
-                                <ViewIcon className="w-3.5 h-3.5" style={{ color: view.color }} />
-                              </div>
-                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{view.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Modern View Switcher Tabs Bar */}
+              <SpaceViewTabBar
+                tabs={staticTabs}
+                onTabsChange={setStaticTabs}
+                activeTabId={activeTabId}
+                onSelectTab={(tabId, viewId) => {
+                  const proViews = ['gantt', 'timeline', 'workload', 'mindmap', 'ai'];
+                  if (proViews.includes(viewId) && !currentUser?.isPremium) {
+                    onUpgradePremium?.();
+                    return;
+                  }
+                  setActiveTabId(tabId);
+                  setActiveView(viewId);
+                }}
+                activeSpace={activeSpace}
+                activeListId={activeListId}
+                currentUser={currentUser}
+                onUpgradePremium={onUpgradePremium}
+                triggerToast={triggerToast}
+                triggerConfirm={triggerConfirm}
+                onOpenFieldsPanel={openFieldsPanel}
+                onExportCsv={() => handleExportViewData('csv')}
+                onOpenTemplates={() => setTemplatesModalOpen(true)}
+                onOpenShareModal={() => {
+                  setSharingTargetType('space');
+                  setSharingTargetId(activeSpace.id);
+                  setSharingTargetName(activeSpace.name);
+                  setSharingTargetIsPrivate(!!activeSpace.isPrivate);
+                  setSharingTargetShareSettings(activeSpace.shareSettings || {});
+                  setSharingModalOpen(true);
+                }}
+                onAddSyncLog={onAddSyncLog}
+              />
 
             </div>
 
@@ -5299,7 +5204,7 @@ export default function SpacePage({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Công việc</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-none mt-0.5">Tạo từng công việc để quản lý tiến độ</p>
+                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Tạo từng công việc để quản lý tiến độ</p>
                 </div>
               </button>
               
@@ -5338,7 +5243,7 @@ export default function SpacePage({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Danh sách</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-none mt-0.5">Theo dõi công việc, dự án và thành viên</p>
+                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Theo dõi công việc, dự án và thành viên</p>
                 </div>
               </button>
               
@@ -5378,7 +5283,7 @@ export default function SpacePage({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sprint</p>
-                  <p className="text-[9.5px] text-slate-400 font-medium leading-none mt-0.5">Lập kế hoạch chu kỳ Sprint mới</p>
+                  <p className="text-[9.5px] text-slate-400 font-medium leading-tight mt-0.5">Lập kế hoạch chu kỳ Sprint mới</p>
                 </div>
               </button>
 

@@ -94,7 +94,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Apexa OS Executive Report - ${timestamp}</title>
+  <title>Apexa Executive Report - ${timestamp}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
     h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
@@ -109,7 +109,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   </style>
 </head>
 <body>
-  <h1>Apexa OS Workspace Executive Report</h1>
+  <h1>Apexa Workspace Executive Report</h1>
   <p><strong>Generated Date:</strong> ${new Date().toLocaleString()}</p>
   <p><strong>Workspace ID:</strong> ${activeWorkspaceId}</p>
   <p><strong>Total Tasks:</strong> ${tasks.length} | <strong>Total Documents:</strong> ${docs.length} | <strong>Members:</strong> ${members.length}</p>

@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const securityHeaders = [
   {
     key: 'X-DNS-Prefetch-Control',
@@ -25,7 +27,7 @@ const securityHeaders = [
       "form-action 'self'",
       "frame-ancestors 'self'",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
+      `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://connect.facebook.net`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
@@ -93,6 +95,9 @@ const nextConfig: NextConfig = {
   deploymentId: process.env.DEPLOYMENT_VERSION,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
+  devIndicators: {
+    position: 'bottom-right',
   },
   experimental: {
     optimizePackageImports: [

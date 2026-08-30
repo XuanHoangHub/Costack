@@ -781,7 +781,7 @@ export default function SettingsPanel({
                 {/* 🌐 Language & Region Setting Card */}
                 <SettingsCard 
                   title={t('languageAndRegion') || (isVietnamese ? 'Ngôn ngữ & Khu vực' : 'Language & Region')} 
-                  description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi linh hoạt giữa Tiếng Việt và Tiếng Anh.' : 'Choose your preferred interface language for Apexa OS.')} 
+                  description={t('languageAndRegionDesc') || (isVietnamese ? 'Chuyển đổi linh hoạt giữa Tiếng Việt và Tiếng Anh.' : 'Choose your preferred interface language for Apexa.')} 
                   icon={Globe2}
                 >
                   <LanguageDropdown variant="cards" />

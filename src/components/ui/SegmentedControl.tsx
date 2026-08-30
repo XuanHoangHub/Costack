@@ -19,6 +19,7 @@ export interface SegmentedControlProps<T extends string = string> {
   layoutIdPrefix?: string;
   className?: string;
   fullWidth?: boolean;
+  ariaLabel?: string;
 }
 
 const sizeStyles = {
@@ -47,12 +48,14 @@ export function SegmentedControl<T extends string = string>({
   layoutIdPrefix = "segmentedControl",
   className = "",
   fullWidth = false,
+  ariaLabel,
 }: SegmentedControlProps<T>) {
   const currentSize = sizeStyles[size];
 
   return (
     <div
       role="tablist"
+      aria-label={ariaLabel}
       className={[
         "relative inline-flex items-center bg-[var(--cu-surface-3)]/70 backdrop-blur-xl border border-[var(--cu-border)] shadow-inner select-none",
         currentSize.container,
@@ -67,6 +70,7 @@ export function SegmentedControl<T extends string = string>({
         return (
           <button
             key={option.id}
+            type="button"
             role="tab"
             aria-selected={isSelected}
             disabled={option.disabled}

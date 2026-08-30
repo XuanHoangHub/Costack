@@ -8,3 +8,5 @@ export { FloatingCommandBar } from "./FloatingCommandBar";
 export { Checkbox } from "./Checkbox";
 export type { CheckboxProps, CheckboxSize, CheckboxVariant } from "./Checkbox";
 export { ApexaAiIcon, ApexaAiAvatar } from "../ApexaAiIcon";
+export { ApexaLogoIcon, ApexaBrand } from "../ApexaLogo";
+

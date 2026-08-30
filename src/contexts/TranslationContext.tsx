@@ -4,10 +4,12 @@ import React, { createContext, useContext, useCallback, useEffect, useMemo, useS
 import { en, vi, Translations } from '../locales';
 
 export type LocaleType = 'vi' | 'en';
+export type LocaleMode = 'vi' | 'en' | 'system';
 
 export interface TranslationContextValue {
   t: (key: string, ...args: unknown[]) => string;
   locale: LocaleType;
+  localeMode: LocaleMode;
   setLocale: (locale: string) => void;
   isVietnamese: boolean;
   isEnglish: boolean;
@@ -16,9 +18,18 @@ export interface TranslationContextValue {
   formatCurrency: (amount: number, currency?: string) => string;
 }
 
+const getSystemLocale = (): LocaleType => {
+  if (typeof navigator !== 'undefined') {
+    const lang = (navigator.language || (navigator as any).userLanguage || '').toLowerCase();
+    if (lang.startsWith('vi')) return 'vi';
+  }
+  return 'en';
+};
+
 const defaultContext: TranslationContextValue = {
   t: (key: string) => key,
   locale: 'vi',
+  localeMode: 'vi',
   setLocale: () => {},
   isVietnamese: true,
   isEnglish: false,
@@ -35,24 +46,31 @@ export function useTranslation() {
 
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<LocaleType>('vi');
+  const [localeMode, setLocaleMode] = useState<LocaleMode>('vi');
 
   // Synchronize locale from localStorage on mount
   useEffect(() => {
     try {
-      const saved = (localStorage.getItem('apexa_locale') || 'vi') as LocaleType;
-      const valid: LocaleType = saved === 'en' ? 'en' : 'vi';
-      setLocaleState(valid);
-      document.documentElement.lang = valid;
+      const savedMode = (localStorage.getItem('apexa_locale_mode') || localStorage.getItem('apexa_locale') || 'vi') as LocaleMode;
+      const validMode: LocaleMode = savedMode === 'system' ? 'system' : savedMode === 'en' ? 'en' : 'vi';
+      setLocaleMode(validMode);
+
+      const effectiveLocale: LocaleType = validMode === 'system' ? getSystemLocale() : validMode;
+      setLocaleState(effectiveLocale);
+      document.documentElement.lang = effectiveLocale;
     } catch {
       // Ignore storage error
     }
 
     const handleExternalChange = () => {
       try {
-        const saved = (localStorage.getItem('apexa_locale') || 'vi') as LocaleType;
-        const valid: LocaleType = saved === 'en' ? 'en' : 'vi';
-        setLocaleState(valid);
-        document.documentElement.lang = valid;
+        const savedMode = (localStorage.getItem('apexa_locale_mode') || localStorage.getItem('apexa_locale') || 'vi') as LocaleMode;
+        const validMode: LocaleMode = savedMode === 'system' ? 'system' : savedMode === 'en' ? 'en' : 'vi';
+        setLocaleMode(validMode);
+
+        const effectiveLocale: LocaleType = validMode === 'system' ? getSystemLocale() : validMode;
+        setLocaleState(effectiveLocale);
+        document.documentElement.lang = effectiveLocale;
       } catch {
         // Ignore
       }
@@ -67,12 +85,17 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const setLocale = useCallback((newLocale: string) => {
-    const validLocale: LocaleType = newLocale === 'en' ? 'en' : 'vi';
-    setLocaleState(validLocale);
+    const validMode: LocaleMode = newLocale === 'system' ? 'system' : newLocale === 'en' ? 'en' : 'vi';
+    const effectiveLocale: LocaleType = validMode === 'system' ? getSystemLocale() : validMode;
+
+    setLocaleMode(validMode);
+    setLocaleState(effectiveLocale);
+
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('apexa_locale', validLocale);
-        document.documentElement.lang = validLocale;
+        localStorage.setItem('apexa_locale_mode', validMode);
+        localStorage.setItem('apexa_locale', effectiveLocale);
+        document.documentElement.lang = effectiveLocale;
         window.dispatchEvent(new Event('apexa-locale-changed'));
       } catch {
         // Ignore storage error
@@ -185,13 +208,14 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const contextValue = useMemo<TranslationContextValue>(() => ({
     t,
     locale,
+    localeMode,
     setLocale,
     isVietnamese: locale === 'vi',
     isEnglish: locale === 'en',
     formatDate,
     formatRelativeTime,
     formatCurrency,
-  }), [t, locale, setLocale, formatDate, formatRelativeTime, formatCurrency]);
+  }), [t, locale, localeMode, setLocale, formatDate, formatRelativeTime, formatCurrency]);
 
   return (
     <TranslationContext.Provider value={contextValue}>

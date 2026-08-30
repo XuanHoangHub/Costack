@@ -3,10 +3,6 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export const THEME_STORAGE_KEY = 'apexa_theme_mode';
 export const LEGACY_THEME_STORAGE_KEY = 'apexa_dark_mode';
 
-const THEME_SWITCH_CLASS = 'theme-switching';
-const THEME_TRANSITION_MS = 180;
-let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
-
 export function getStoredThemePreference(): ThemePreference {
   if (typeof window === 'undefined') return 'system';
 
@@ -31,21 +27,45 @@ export function resolveTheme(preference: ThemePreference): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-/** Apply a resolved theme immediately, with a short transition only for user-triggered changes. */
-export function applyAppTheme(isDark: boolean, persist = true, animate = true) {
+/**
+ * Apply a resolved theme instantaneously across ALL elements simultaneously.
+ * Uses synchronous CSS transition suppression to eliminate any staggered or lagging visual transitions.
+ */
+export function applyAppTheme(isDark: boolean, persist = true, _animate = false) {
   if (typeof document === 'undefined') return;
 
+  // Temporarily disable CSS transitions so all DOM elements switch colors simultaneously in 0ms
+  const css = document.createElement('style');
+  css.appendChild(
+    document.createTextNode(
+      `*, *::before, *::after {
+        -webkit-transition: none !important;
+        -moz-transition: none !important;
+        -o-transition: none !important;
+        -ms-transition: none !important;
+        transition: none !important;
+      }`
+    )
+  );
+  document.head.appendChild(css);
+
   const root = document.documentElement;
-  const changed = root.classList.contains('dark') !== isDark;
-
-  if (changed && animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    root.classList.add(THEME_SWITCH_CLASS);
-  }
-
   root.classList.toggle('dark', isDark);
   root.dataset.theme = isDark ? 'dark' : 'light';
   root.dataset.themeMode = getStoredThemePreference();
   root.style.colorScheme = isDark ? 'dark' : 'light';
+
+  // Force synchronous style reflow so the entire DOM tree updates at the exact same frame
+  (() => window.getComputedStyle(document.body))();
+
+  // Restore normal interactive transitions on the next frame
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (css.parentNode) {
+        css.parentNode.removeChild(css);
+      }
+    });
+  });
 
   if (persist) {
     try {
@@ -54,15 +74,9 @@ export function applyAppTheme(isDark: boolean, persist = true, animate = true) {
       // Applying the theme must never fail just because storage is unavailable.
     }
   }
-
-  if (cleanupTimer !== null) clearTimeout(cleanupTimer);
-  cleanupTimer = setTimeout(() => {
-    root.classList.remove(THEME_SWITCH_CLASS);
-    cleanupTimer = null;
-  }, THEME_TRANSITION_MS);
 }
 
-export function applyThemePreference(preference: ThemePreference, persist = true, animate = true) {
+export function applyThemePreference(preference: ThemePreference, persist = true, _animate = false) {
   if (persist && typeof window !== 'undefined') {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, preference);
@@ -75,6 +89,6 @@ export function applyThemePreference(preference: ThemePreference, persist = true
   }
 
   const isDark = resolveTheme(preference);
-  applyAppTheme(isDark, persist && preference !== 'system', animate);
+  applyAppTheme(isDark, persist && preference !== 'system', _animate);
   return isDark;
 }

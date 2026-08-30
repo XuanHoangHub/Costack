@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# APEXA OS — PRODUCTION MULTI-STAGE DOCKERFILE
+# APEXA — PRODUCTION MULTI-STAGE DOCKERFILE
 # Node.js 20 Alpine with Non-Root Security & Next.js Standalone Optimization
 # ═══════════════════════════════════════════════════════════════════════════════
 

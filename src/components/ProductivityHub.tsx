@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Zap, Calendar, CheckCircle, Sparkles, TrendingUp, Compass, Clock, Award, 
   Smile, Moon, Brain, ChevronRight, Play, Pause, RotateCcw, Volume2, VolumeX,
@@ -24,9 +24,10 @@ interface ProductivityHubProps {
   tasks: Task[];
   members: User[];
   isOffline: boolean;
-  currentUser?: any;
+  currentUser?: User;
   onUpgradePremium?: () => void;
   onAddSyncLog?: (action: string) => void;
+  onOpenTask?: (taskId: string) => void;
   triggerToast?: (type: 'success' | 'info' | 'assignment' | 'deadline' | 'comment' | 'message', title: string, message: string) => void;
 }
 
@@ -46,6 +47,28 @@ interface FocusSession {
   completed: boolean;
 }
 
+type ProductivitySyncState = 'local' | 'syncing' | 'synced' | 'error';
+
+function buildStarterHabits(locale: string): Habit[] {
+  const now = new Date().toISOString();
+  return [
+    { id: 'starter-deep-work', name: locale === 'vi' ? 'Tập trung sâu 90 phút' : '90-minute deep work', history: {}, createdAt: now, streak: 0 },
+    { id: 'starter-plan-day', name: locale === 'vi' ? 'Lập kế hoạch đầu ngày' : 'Plan the day', history: {}, createdAt: now, streak: 0 },
+    { id: 'starter-review', name: locale === 'vi' ? 'Tổng kết cuối ngày' : 'End-of-day review', history: {}, createdAt: now, streak: 0 },
+  ];
+}
+
+function readLocalList<T>(scopedKey: string, legacyKey: string): T[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(scopedKey) || localStorage.getItem(legacyKey);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed as T[] : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ProductivityHub({
   tasks,
   members,
@@ -53,103 +76,120 @@ export default function ProductivityHub({
   currentUser,
   onUpgradePremium,
   onAddSyncLog,
+  onOpenTask,
   triggerToast
 }: ProductivityHubProps) {
   const { t, locale } = useTranslation();
-  // Local storage keys
-  const HABITS_STORAGE_KEY = 'apexa_productivity_habits';
-  const FOCUS_LOG_STORAGE_KEY = 'apexa_productivity_focus_sessions';
+  const productivityOwnerKey = currentUser?.id || currentUser?.email || 'local';
+  const HABITS_STORAGE_KEY = `apexa_productivity_habits:${productivityOwnerKey}`;
+  const FOCUS_LOG_STORAGE_KEY = `apexa_productivity_focus_sessions:${productivityOwnerKey}`;
 
   // State definitions
   const [habits, setHabits] = useState<Habit[]>(() => {
-    try {
-      const stored = localStorage.getItem(HABITS_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-    return [
-      { id: 'h1', name: locale === 'vi' ? 'Đánh giá Code & Thảo luận' : 'Code Review & Discussion', history: {}, createdAt: new Date().toISOString(), streak: 2 },
-      { id: 'h2', name: locale === 'vi' ? 'Đọc tài liệu kỹ thuật' : 'Read Technical Docs', history: {}, createdAt: new Date().toISOString(), streak: 3 },
-      { id: 'h3', name: locale === 'vi' ? 'Tập trung sâu 90 phút' : '90-min Deep Focus', history: {}, createdAt: new Date().toISOString(), streak: 0 },
-      { id: 'h4', name: locale === 'vi' ? 'Uống đủ 2L nước' : 'Drink 2L Water', history: {}, createdAt: new Date().toISOString(), streak: 5 }
-    ];
+    return readLocalList<Habit>(HABITS_STORAGE_KEY, 'apexa_productivity_habits') || buildStarterHabits(locale);
   });
 
   const [focusSessions, setFocusSessions] = useState<FocusSession[]>(() => {
-    try {
-      const stored = localStorage.getItem(FOCUS_LOG_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-    return [
-      { id: 'f1', durationMinutes: 25, type: 'work', timestamp: new Date(Date.now() - 25 * 60 * 1000 * 48).toISOString(), completed: true },
-      { id: 'f2', durationMinutes: 25, type: 'work', timestamp: new Date(Date.now() - 25 * 60 * 1000 * 24).toISOString(), completed: true },
-      { id: 'f3', durationMinutes: 5, type: 'short', timestamp: new Date(Date.now() - 5 * 60 * 1000 * 12).toISOString(), completed: true },
-      { id: 'f4', durationMinutes: 25, type: 'work', timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(), completed: true }
-    ];
+    return readLocalList<FocusSession>(FOCUS_LOG_STORAGE_KEY, 'apexa_productivity_focus_sessions') || [];
   });
 
   const [newHabitName, setNewHabitName] = useState('');
   const [reportText, setReportText] = useState<string>('');
   const [generatingReport, setGeneratingReport] = useState<boolean>(false);
+  const [syncState, setSyncState] = useState<ProductivitySyncState>(isOffline ? 'local' : 'syncing');
   const prevOfflineRef = useRef<boolean>(isOffline);
+  const initialHabitsRef = useRef(habits);
+  const initialFocusSessionsRef = useRef(focusSessions);
 
   // Load habits and focus sessions from Supabase on init (if online)
   useEffect(() => {
     const fetchData = async () => {
-      if (isOffline) return;
+      if (isOffline) {
+        setSyncState('local');
+        return;
+      }
+      setSyncState('syncing');
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
+        if (!session?.user) {
+          setSyncState('local');
+          return;
+        }
+        const userId = session.user.id;
 
-        // 1. Fetch habits
-        const { data: dbHabits } = await supabase
-          .from('habits')
-          .select('*')
-          .eq('user_id', session.user.id);
+        const [habitResult, sessionResult] = await Promise.all([
+          supabase.from('habits').select('id,name,history,streak,created_at').eq('user_id', userId).order('created_at'),
+          supabase.from('focus_sessions').select('id,duration_minutes,type,timestamp,completed').eq('user_id', userId).order('timestamp', { ascending: false }).limit(500),
+        ]);
+        if (habitResult.error) throw habitResult.error;
+        if (sessionResult.error) throw sessionResult.error;
         
-        if (dbHabits && dbHabits.length > 0) {
-          setHabits(dbHabits.map(h => ({
+        if (habitResult.data?.length) {
+          setHabits(habitResult.data.map(h => ({
             id: h.id,
             name: h.name,
             history: h.history || {},
             createdAt: h.created_at || new Date().toISOString(),
             streak: h.streak || 0
           })));
+        } else if (initialHabitsRef.current.length) {
+          const { error } = await supabase.from('habits').upsert(
+            initialHabitsRef.current.map(habit => ({
+              user_id: userId,
+              id: habit.id,
+              name: habit.name,
+              history: habit.history,
+              streak: habit.streak,
+              created_at: habit.createdAt,
+            })),
+            { onConflict: 'user_id,id' },
+          );
+          if (error) throw error;
         }
 
-        // 2. Fetch focus sessions
-        const { data: dbSessions } = await supabase
-          .from('focus_sessions')
-          .select('*')
-          .eq('user_id', session.user.id);
-
-        if (dbSessions && dbSessions.length > 0) {
-          setFocusSessions(dbSessions.map(f => ({
+        if (sessionResult.data?.length) {
+          setFocusSessions(sessionResult.data.map(f => ({
             id: f.id,
             durationMinutes: f.duration_minutes,
-            type: f.type as any,
+            type: f.type as FocusSession['type'],
             timestamp: f.timestamp,
             completed: f.completed
           })));
+        } else if (initialFocusSessionsRef.current.length) {
+          const { error } = await supabase.from('focus_sessions').upsert(
+            initialFocusSessionsRef.current.map(focus => ({
+              user_id: userId,
+              id: focus.id,
+              duration_minutes: focus.durationMinutes,
+              type: focus.type,
+              timestamp: focus.timestamp,
+              completed: focus.completed,
+            })),
+            { onConflict: 'user_id,id' },
+          );
+          if (error) throw error;
         }
+        setSyncState('synced');
       } catch (e) {
         console.error('Lỗi khi tải dữ liệu năng suất từ Supabase:', e);
+        setSyncState('error');
       }
     };
 
-    fetchData();
-  }, [isOffline]);
+    void fetchData();
+  }, [isOffline, productivityOwnerKey]);
 
   // Sync offline local changes to Supabase when coming online
   useEffect(() => {
     if (prevOfflineRef.current && !isOffline) {
       const syncData = async () => {
+        setSyncState('syncing');
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.user) return;
+          if (!session?.user) {
+            setSyncState('local');
+            return;
+          }
           const userId = session.user.id;
 
           // Sync all habits
@@ -161,7 +201,8 @@ export default function ProductivityHub({
               streak: h.streak,
               user_id: userId
             }));
-            await supabase.from('habits').upsert(habitsData);
+            const { error } = await supabase.from('habits').upsert(habitsData, { onConflict: 'user_id,id' });
+            if (error) throw error;
           }
 
           // Sync all focus sessions
@@ -174,18 +215,21 @@ export default function ProductivityHub({
               completed: f.completed,
               user_id: userId
             }));
-            await supabase.from('focus_sessions').upsert(sessionsData);
+            const { error } = await supabase.from('focus_sessions').upsert(sessionsData, { onConflict: 'user_id,id' });
+            if (error) throw error;
           }
           
           if (onAddSyncLog) {
             onAddSyncLog('Bảng năng suất: Đồng bộ thói quen và Pomodoro thành công');
           }
+          setSyncState('synced');
         } catch (e) {
           console.error('Lỗi đồng bộ năng suất:', e);
+          setSyncState('error');
         }
       };
       
-      syncData();
+      void syncData();
     }
     prevOfflineRef.current = isOffline;
   }, [isOffline, habits, focusSessions, onAddSyncLog]);
@@ -203,6 +247,7 @@ export default function ProductivityHub({
     source?: AudioNode;
     gainNode?: GainNode;
     oscillators?: OscillatorNode[];
+    nodes?: AudioNode[];
   }>({});
   const handlePomoCompletedRef = useRef<() => void>(() => {});
 
@@ -225,7 +270,8 @@ export default function ProductivityHub({
         dateStr: `${year}-${month}-${date}`,
         label: i === 6 ? 'CN' : `T${i + 2}`,
         dayNum: day.getDate(),
-        isToday: day.toDateString() === today.toDateString()
+        isToday: day.toDateString() === today.toDateString(),
+        isFuture: day.getTime() > new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime(),
       });
     }
     return days;
@@ -236,11 +282,11 @@ export default function ProductivityHub({
   // Save changes to local storage
   useEffect(() => {
     localStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(habits));
-  }, [habits]);
+  }, [HABITS_STORAGE_KEY, habits]);
 
   useEffect(() => {
     localStorage.setItem(FOCUS_LOG_STORAGE_KEY, JSON.stringify(focusSessions));
-  }, [focusSessions]);
+  }, [FOCUS_LOG_STORAGE_KEY, focusSessions]);
 
   // Pomodoro dynamic tick
   useEffect(() => {
@@ -259,24 +305,12 @@ export default function ProductivityHub({
     return () => clearInterval(timerId);
   }, [pomoActive, timeRemaining]);
 
-  // Handle ambient Soundscape when state changes
-  useEffect(() => {
-    return () => {
-      // Clean up synth nodes on unmount
-      stopSoundscape();
-    };
+  const playSynthesizedSound = useCallback((type: 'spark' | 'bell' | 'fail' = 'spark') => {
+    const player = (window as Window & { playSystemSound?: (sound: string) => void }).playSystemSound;
+    player?.(type === 'bell' ? 'success' : type === 'fail' ? 'toggle' : 'pop');
   }, []);
 
-  // Soft synth sound creator for micro-feedback (disabled)
-  const playSynthesizedSound = (_type?: 'spark' | 'bell' | 'fail') => {};
-
-  // Soundscape management (disabled)
-  const startSoundscape = (_type?: 'rain' | 'alpha' | 'waves') => {
-    stopSoundscape();
-    setActiveSoundscape('none');
-  };
-
-  const stopSoundscape = () => {
+  const stopSoundscape = useCallback((updateState = true) => {
     try {
       if (soundNodesRef.current.source) {
         const src = soundNodesRef.current.source as AudioBufferSourceNode;
@@ -288,16 +322,92 @@ export default function ProductivityHub({
         });
       }
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        void audioContextRef.current.close();
       }
-    } catch (e) {
-      // quiet fail
+    } catch {
+      // Audio nodes may already have stopped during browser teardown.
     }
 
     soundNodesRef.current = {};
     audioContextRef.current = null;
-    setActiveSoundscape('none');
-  };
+    if (updateState) setActiveSoundscape('none');
+  }, []);
+
+  const startSoundscape = useCallback(async (type: 'rain' | 'alpha' | 'waves') => {
+    stopSoundscape();
+    const AudioContextCtor = window.AudioContext
+      || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) {
+      triggerToast?.('info', locale === 'vi' ? 'Không hỗ trợ âm thanh' : 'Audio unavailable', locale === 'vi' ? 'Trình duyệt này không hỗ trợ Web Audio.' : 'This browser does not support Web Audio.');
+      return;
+    }
+
+    try {
+      const context = new AudioContextCtor();
+      audioContextRef.current = context;
+      await context.resume();
+      const master = context.createGain();
+      master.gain.setValueAtTime(0.0001, context.currentTime);
+      master.gain.exponentialRampToValueAtTime(type === 'alpha' ? 0.045 : 0.12, context.currentTime + 0.8);
+      master.connect(context.destination);
+
+      if (type === 'alpha') {
+        const oscillators = [180, 190].map((frequency, index) => {
+          const oscillator = context.createOscillator();
+          const channelGain = context.createGain();
+          const panner = context.createStereoPanner();
+          oscillator.type = 'sine';
+          oscillator.frequency.value = frequency;
+          channelGain.gain.value = 0.45;
+          panner.pan.value = index === 0 ? -0.75 : 0.75;
+          oscillator.connect(channelGain).connect(panner).connect(master);
+          oscillator.start();
+          return oscillator;
+        });
+        soundNodesRef.current = { gainNode: master, oscillators };
+      } else {
+        const bufferLength = context.sampleRate * 3;
+        const buffer = context.createBuffer(1, bufferLength, context.sampleRate);
+        const channel = buffer.getChannelData(0);
+        for (let index = 0; index < bufferLength; index += 1) {
+          channel[index] = Math.random() * 2 - 1;
+        }
+        const source = context.createBufferSource();
+        const filter = context.createBiquadFilter();
+        source.buffer = buffer;
+        source.loop = true;
+        filter.type = type === 'rain' ? 'bandpass' : 'lowpass';
+        filter.frequency.value = type === 'rain' ? 1800 : 520;
+        filter.Q.value = type === 'rain' ? 0.65 : 0.3;
+        source.connect(filter).connect(master);
+
+        const oscillators: OscillatorNode[] = [];
+        const nodes: AudioNode[] = [filter];
+        if (type === 'waves') {
+          const lfo = context.createOscillator();
+          const lfoDepth = context.createGain();
+          lfo.type = 'sine';
+          lfo.frequency.value = 0.11;
+          lfoDepth.gain.value = 0.055;
+          lfo.connect(lfoDepth).connect(master.gain);
+          lfo.start();
+          oscillators.push(lfo);
+          nodes.push(lfoDepth);
+        }
+        source.start();
+        soundNodesRef.current = { source, gainNode: master, oscillators, nodes };
+      }
+
+      setActiveSoundscape(type);
+      triggerToast?.('success', locale === 'vi' ? 'Âm thanh tập trung đã bật' : 'Focus sound enabled', type === 'rain' ? 'Rain ambience' : type === 'alpha' ? 'Alpha 10 Hz binaural ambience' : 'Ocean wave ambience');
+    } catch (error) {
+      console.error('Không thể khởi tạo soundscape:', error);
+      stopSoundscape();
+      triggerToast?.('info', locale === 'vi' ? 'Không thể phát âm thanh' : 'Unable to play audio', locale === 'vi' ? 'Hãy cho phép âm thanh cho trang và thử lại.' : 'Allow audio for this page and try again.');
+    }
+  }, [locale, stopSoundscape, triggerToast]);
+
+  useEffect(() => () => stopSoundscape(false), [stopSoundscape]);
 
   const handlePomoCompleted = () => {
     setPomoActive(false);
@@ -315,6 +425,7 @@ export default function ProductivityHub({
     setFocusSessions(prev => [nextSession, ...prev]);
 
     if (!isOffline) {
+      setSyncState('syncing');
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           supabase.from('focus_sessions').upsert({
@@ -324,11 +435,20 @@ export default function ProductivityHub({
             timestamp: nextSession.timestamp,
             completed: nextSession.completed,
             user_id: session.user.id
-          }).then(({ error }) => {
-            if (error) console.error(error);
+          }, { onConflict: 'user_id,id' }).then(({ error }) => {
+            if (error) {
+              console.error(error);
+              setSyncState('error');
+            } else {
+              setSyncState('synced');
+            }
           });
+        } else {
+          setSyncState('local');
         }
       });
+    } else {
+      setSyncState('local');
     }
 
     if (onAddSyncLog) {
@@ -403,44 +523,28 @@ export default function ProductivityHub({
   // Habit Actions
   const handleToggleHabit = (habitId: string, dateStr: string) => {
     playSynthesizedSound('spark');
-    let updatedHabitObj: any = null;
-    setHabits(prev => prev.map(habit => {
-      if (habit.id !== habitId) return habit;
+    const habit = habits.find(item => item.id === habitId);
+    if (!habit) return;
+    const history = { ...habit.history };
+    if (history[dateStr]) delete history[dateStr];
+    else history[dateStr] = true;
 
-      const history = { ...habit.history };
-      const completed = !history[dateStr];
-      if (completed) {
-        history[dateStr] = true;
-      } else {
-        delete history[dateStr];
-      }
+    let streak = 0;
+    const checkDate = new Date();
+    while (true) {
+      const year = checkDate.getFullYear();
+      const month = String(checkDate.getMonth() + 1).padStart(2, '0');
+      const date = String(checkDate.getDate()).padStart(2, '0');
+      if (!history[`${year}-${month}-${date}`]) break;
+      streak += 1;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
 
-      // Compute streak length
-      let streak = 0;
-      const checkDate = new Date();
-      while (true) {
-        const yr = checkDate.getFullYear();
-        const mo = String(checkDate.getMonth() + 1).padStart(2, '0');
-        const dt = String(checkDate.getDate()).padStart(2, '0');
-        const dStr = `${yr}-${mo}-${dt}`;
-        
-        if (history[dStr]) {
-          streak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-
-      updatedHabitObj = {
-        ...habit,
-        history,
-        streak
-      };
-      return updatedHabitObj;
-    }));
+    const updatedHabitObj: Habit = { ...habit, history, streak };
+    setHabits(current => current.map(item => item.id === habitId ? updatedHabitObj : item));
 
     if (updatedHabitObj && !isOffline) {
+      setSyncState('syncing');
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           supabase.from('habits').upsert({
@@ -449,11 +553,20 @@ export default function ProductivityHub({
             history: updatedHabitObj.history,
             streak: updatedHabitObj.streak,
             user_id: session.user.id
-          }).then(({ error }) => {
-            if (error) console.error('Error syncing habit check-in:', error);
+          }, { onConflict: 'user_id,id' }).then(({ error }) => {
+            if (error) {
+              console.error('Error syncing habit check-in:', error);
+              setSyncState('error');
+            } else {
+              setSyncState('synced');
+            }
           });
+        } else {
+          setSyncState('local');
         }
       });
+    } else if (isOffline) {
+      setSyncState('local');
     }
 
     if (onAddSyncLog) {
@@ -478,6 +591,7 @@ export default function ProductivityHub({
     playSynthesizedSound('spark');
 
     if (!isOffline) {
+      setSyncState('syncing');
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           supabase.from('habits').upsert({
@@ -486,11 +600,20 @@ export default function ProductivityHub({
             history: newHabit.history,
             streak: newHabit.streak,
             user_id: session.user.id
-          }).then(({ error }) => {
-            if (error) console.error('Error syncing new habit:', error);
+          }, { onConflict: 'user_id,id' }).then(({ error }) => {
+            if (error) {
+              console.error('Error syncing new habit:', error);
+              setSyncState('error');
+            } else {
+              setSyncState('synced');
+            }
           });
+        } else {
+          setSyncState('local');
         }
       });
+    } else {
+      setSyncState('local');
     }
 
     if (onAddSyncLog) {
@@ -510,13 +633,23 @@ export default function ProductivityHub({
     playSynthesizedSound('fail');
     
     if (!isOffline) {
+      setSyncState('syncing');
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           supabase.from('habits').delete().eq('id', id).eq('user_id', session.user.id).then(({ error }) => {
-            if (error) console.error('Error deleting habit:', error);
+            if (error) {
+              console.error('Error deleting habit:', error);
+              setSyncState('error');
+            } else {
+              setSyncState('synced');
+            }
           });
+        } else {
+          setSyncState('local');
         }
       });
+    } else {
+      setSyncState('local');
     }
 
     if (onAddSyncLog) {
@@ -547,7 +680,21 @@ export default function ProductivityHub({
     setReportText('');
 
     try {
-      const res = await callAiApi('/api/ai/productivity-report', { tasks, members });
+      const res = await callAiApi('/api/ai/productivity-report', {
+        tasks,
+        members,
+        productivity: {
+          focusSessions: focusSessions
+            .filter(session => session.completed)
+            .slice(0, 120)
+            .map(session => ({ durationMinutes: session.durationMinutes, type: session.type, timestamp: session.timestamp })),
+          habits: habits.map(habit => ({
+            name: habit.name,
+            streak: habit.streak,
+            checkIns: Object.keys(habit.history).length,
+          })),
+        },
+      });
 
       const data = await res.json();
       if (data.success) {
@@ -593,7 +740,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
           'comment',
           locale === 'vi' ? 'Sự cố kết nối AI' : 'AI Connection Issue',
           locale === 'vi'
-            ? 'Gợi ý báo cáo chuyển sang cấu trúc mẫu ngoại bang.'
+            ? 'Báo cáo đã chuyển sang bản phân tích cục bộ từ dữ liệu hiện có.'
             : 'Report suggestions switched to fallback schema.'
         );
       }
@@ -615,32 +762,34 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
   const progressPercent = pomoTotalTime > 0 ? (timeRemaining / pomoTotalTime) * 100 : 0;
   const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
 
-  // Render Eisenhower Matrix categories
-  const getMatrixTasks = () => {
+  // Render Eisenhower Matrix categories from due dates, explicit priority and strategic tags.
+  const matrix = useMemo(() => {
     const urgentImportant: Task[] = [];
     const importantNotUrgent: Task[] = [];
     const urgentNotImportant: Task[] = [];
     const neither: Task[] = [];
+    const urgentBoundary = Date.now() + 48 * 60 * 60 * 1000;
 
-    tasks.forEach(t => {
-      const isUrgent = t.priority === 'urgent' || t.priority === 'high';
-      const isImportant = t.priority === 'high' || t.priority === 'medium';
+    tasks.filter(task => task.status !== 'completed').forEach(task => {
+      const dueTime = task.dueDate ? new Date(task.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      const normalizedTags = (task.tags || []).map(tag => tag.toLowerCase());
+      const isUrgent = task.priority === 'urgent' || (Number.isFinite(dueTime) && dueTime <= urgentBoundary);
+      const isImportant = task.priority === 'urgent' || task.priority === 'high' || task.isMilestone === true
+        || normalizedTags.some(tag => ['important', 'quan trọng', 'strategic', 'chiến lược', 'okr'].includes(tag));
 
       if (isUrgent && isImportant) {
-        urgentImportant.push(t);
+        urgentImportant.push(task);
       } else if (!isUrgent && isImportant) {
-        importantNotUrgent.push(t);
+        importantNotUrgent.push(task);
       } else if (isUrgent && !isImportant) {
-        urgentNotImportant.push(t);
+        urgentNotImportant.push(task);
       } else {
-        neither.push(t);
+        neither.push(task);
       }
     });
 
     return { urgentImportant, importantNotUrgent, urgentNotImportant, neither };
-  };
-
-  const matrix = getMatrixTasks();
+  }, [tasks]);
 
   // Recharts Focus Hours dataset processing
   const getFocusTimeChartData = () => {
@@ -778,9 +927,30 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span
+              role="status"
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-black ${
+                syncState === 'synced'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  : syncState === 'syncing'
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300'
+                    : syncState === 'error'
+                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300'
+                      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${syncState === 'synced' ? 'bg-emerald-500' : syncState === 'syncing' ? 'animate-pulse bg-indigo-500' : syncState === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+              {syncState === 'synced'
+                ? (locale === 'vi' ? 'Đã đồng bộ' : 'Synced')
+                : syncState === 'syncing'
+                  ? (locale === 'vi' ? 'Đang đồng bộ' : 'Syncing')
+                  : syncState === 'error'
+                    ? (locale === 'vi' ? 'Lưu cục bộ' : 'Saved locally')
+                    : (locale === 'vi' ? 'Ngoại tuyến' : 'Offline')}
+            </span>
             <span className="text-xs font-mono font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg">
-              UTC: {new Date().toLocaleTimeString('vi-VN', { hour12: false })}
+              {locale === 'vi' ? 'Giờ địa phương' : 'Local'}: {new Date().toLocaleTimeString(locale === 'vi' ? 'vi-VN' : 'en-US', { hour12: false })}
             </span>
             <button 
               onClick={generateWeeklyProductivityReport}
@@ -996,11 +1166,15 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                 placeholder={locale === 'vi' ? 'Thêm thói quen mới...' : 'Add new habit...'}
                 value={newHabitName}
                 onChange={(e) => setNewHabitName(e.target.value)}
+                maxLength={160}
+                aria-label={locale === 'vi' ? 'Tên thói quen mới' : 'New habit name'}
                 className="text-xs w-56 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
               />
               <button 
                 type="submit"
-                className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs p-2.5 rounded-xl cursor-pointer"
+                disabled={!newHabitName.trim()}
+                aria-label={locale === 'vi' ? 'Thêm thói quen' : 'Add habit'}
+                className="bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs p-2.5 rounded-xl cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="w-4.5 h-4.5" />
               </button>
@@ -1027,6 +1201,13 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/50 dark:divide-slate-800/40">
+                {!habits.length && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-400">
+                      {locale === 'vi' ? 'Chưa có thói quen. Thêm một thói quen nhỏ để bắt đầu chuỗi hôm nay.' : 'No habits yet. Add one small habit to begin today.'}
+                    </td>
+                  </tr>
+                )}
                 {habits.map(habit => (
                   <tr key={habit.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                     <td className="py-4 pl-2">
@@ -1034,7 +1215,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{habit.name}</span>
                         <button 
                           onClick={() => handleDeleteHabit(habit.id, habit.name)}
-                          className="opacity-0 group-hover/habit:opacity-100 transition-opacity p-1 text-slate-300 hover:text-rose-500 cursor-pointer"
+                          className="opacity-0 group-hover/habit:opacity-100 focus:opacity-100 transition-opacity p-1 text-slate-300 hover:text-rose-500 cursor-pointer"
                           title={locale === 'vi' ? 'Gỡ bỏ thói quen' : 'Remove habit'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1048,10 +1229,15 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                         <td key={day.dateStr} className="text-center py-4">
                           <button
                             onClick={() => handleToggleHabit(habit.id, day.dateStr)}
+                            disabled={day.isFuture}
+                            aria-label={`${isCompleted ? (locale === 'vi' ? 'Bỏ đánh dấu' : 'Uncheck') : (locale === 'vi' ? 'Đánh dấu hoàn thành' : 'Mark complete')} ${habit.name} · ${day.dateStr}`}
+                            title={day.isFuture ? (locale === 'vi' ? 'Không thể check-in trước cho ngày tương lai' : 'Future check-ins are disabled') : undefined}
                             className={`w-6 h-6 rounded-full inline-flex items-center justify-center border-2 transition-all cursor-pointer ${
                               isCompleted 
                                 ? 'bg-emerald-500 border-emerald-500 text-white scale-110 shadow-xs' 
-                                : 'border-slate-200 dark:border-slate-800 hover:border-slate-400'
+                                : day.isFuture
+                                  ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-35 dark:border-slate-900 dark:bg-slate-950'
+                                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-400'
                             }`}
                           >
                             {isCompleted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -1095,11 +1281,11 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                   <p className="text-[10px] text-slate-400 italic">Tuyệt vời! Không còn công việc khẩn cấp và quan trọng.</p>
                 ) : (
                   matrix.urgentImportant.map(t => (
-                    <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-rose-100/40 dark:border-slate-800 flex items-center gap-2">
+                    <button type="button" onClick={() => onOpenTask?.(t.id)} key={t.id} className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-rose-100/40 bg-white p-2 text-left text-xs font-semibold transition hover:border-rose-300 hover:shadow-xs dark:border-slate-800 dark:bg-slate-900">
                       <span className="w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
                       <span className="truncate text-slate-700 dark:text-slate-300 flex-1">{t.title}</span>
                       {t.dueDate && <span className="text-[9px] font-mono text-rose-500">Hạn: {t.dueDate}</span>}
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -1116,10 +1302,10 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                   <p className="text-[10px] text-slate-400 italic">Không có công việc trong nhóm này.</p>
                 ) : (
                   matrix.importantNotUrgent.map(t => (
-                    <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-indigo-100/40 dark:border-slate-800 flex items-center gap-2">
+                    <button type="button" onClick={() => onOpenTask?.(t.id)} key={t.id} className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-indigo-100/40 bg-white p-2 text-left text-xs font-semibold transition hover:border-indigo-300 hover:shadow-xs dark:border-slate-800 dark:bg-slate-900">
                       <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shrink-0" />
                       <span className="truncate text-slate-700 dark:text-slate-300 flex-1">{t.title}</span>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -1136,10 +1322,10 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                   <p className="text-[10px] text-slate-400 italic">Không có công việc phụ trong nhóm này.</p>
                 ) : (
                   matrix.urgentNotImportant.map(t => (
-                    <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-amber-100/40 dark:border-slate-800 flex items-center gap-2">
+                    <button type="button" onClick={() => onOpenTask?.(t.id)} key={t.id} className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-amber-100/40 bg-white p-2 text-left text-xs font-semibold transition hover:border-amber-300 hover:shadow-xs dark:border-slate-800 dark:bg-slate-900">
                       <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0" />
                       <span className="truncate text-slate-700 dark:text-slate-300 flex-1">{t.title}</span>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -1156,10 +1342,10 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
                   <p className="text-[10px] text-slate-400 italic">Không có công việc dư thừa hoặc trì hoãn.</p>
                 ) : (
                   matrix.neither.map(t => (
-                    <div key={t.id} className="bg-white dark:bg-slate-900 p-2 rounded-lg text-xs font-semibold border border-slate-200/40 dark:border-slate-800 flex items-center gap-2">
+                    <button type="button" onClick={() => onOpenTask?.(t.id)} key={t.id} className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200/40 bg-white p-2 text-left text-xs font-semibold transition hover:border-slate-400 hover:shadow-xs dark:border-slate-800 dark:bg-slate-900">
                       <span className="w-1.5 h-1.5 bg-slate-400 rounded-full shrink-0" />
                       <span className="truncate text-slate-700 dark:text-slate-300 flex-1">{t.title}</span>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -1322,7 +1508,7 @@ Error contacting Gemini AI center. Please check your API Key or network connecti
             </button>
 
             <button 
-              onClick={stopSoundscape}
+              onClick={() => stopSoundscape()}
               disabled={activeSoundscape === 'none'}
               className="text-xs py-3 px-2 flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200/50 dark:border-slate-800/80 bg-rose-50/10 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 cursor-pointer disabled:opacity-40"
             >

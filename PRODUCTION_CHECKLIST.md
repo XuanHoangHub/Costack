@@ -1,4 +1,5 @@
-# Apexa OS — Production readiness checklist
+# Apexa — Production readiness checklist
+
 
 Checklist này là cổng phát hành, không phải tài liệu marketing. Mỗi mục phải được xác nhận trên đúng project Supabase, domain và kênh PayOS production.
 

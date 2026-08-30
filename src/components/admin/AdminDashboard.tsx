@@ -9,7 +9,7 @@ import {
   Fingerprint, Gauge, GitBranch, Globe2, KeyRound, LayoutDashboard, Loader2, LockKeyhole, MailPlus,
   MoreHorizontal, PackageCheck, RefreshCw, Rocket, Search, ServerCog, Settings, ShieldAlert, ShieldCheck,
   Sparkles, Trash2, UserCheck, UserRoundCog, Users, X, Zap, ArrowUpRight, TrendingUp, Cpu, Server, Shield,
-  PieChart as PieIcon
+  PieChart as PieIcon, Download
 } from 'lucide-react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip,
@@ -23,6 +23,8 @@ import AdminMfaGate from '@/components/admin/AdminMfaGate';
 type TabId = 'overview' | 'users' | 'revenue' | 'versions' | 'system' | 'audit';
 type AccessState = 'checking' | 'authorized' | 'denied' | 'signed-out' | 'error';
 type Pagination = { page: number; perPage: number; total: number; pages: number };
+type VersionAction = 'publish' | 'schedule' | 'rollout' | 'deprecate';
+type VersionActionDialog = { version: AdminVersion; action: Exclude<VersionAction, 'deprecate'> };
 
 const planColors: Record<string, string> = {
   free: '#64748b',
@@ -49,6 +51,40 @@ function formatDate(value?: string | null, includeTime = false) {
   return new Intl.DateTimeFormat('vi-VN', includeTime
     ? { dateStyle: 'medium', timeStyle: 'short' }
     : { dateStyle: 'medium' }).format(new Date(value));
+}
+
+function toLocalDateTime(value: Date) {
+  const localValue = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return localValue.toISOString().slice(0, 16);
+}
+
+function escapeCsvCell(value: unknown) {
+  let text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function exportAuditCsv(entries: AdminAuditEntry[]) {
+  const headers = ['ID', 'Thời gian', 'Hành động', 'Loại mục tiêu', 'Mục tiêu', 'Actor ID', 'Request ID', 'Metadata'];
+  const rows = entries.map((entry) => [
+    entry.id,
+    entry.createdAt,
+    entry.action,
+    entry.targetType,
+    entry.targetId || '',
+    entry.actorId,
+    entry.requestId,
+    entry.metadata,
+  ]);
+  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')}`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `apexa-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function statusTone(status: string) {
@@ -96,17 +132,21 @@ export default function AdminDashboard() {
   const [settings, setSettings] = useState<AdminSetting[]>([]);
   const [audit, setAudit] = useState<AdminAuditEntry[]>([]);
   const [auditCursor, setAuditCursor] = useState<number | null>(null);
+  const [auditFilter, setAuditFilter] = useState('');
   const [search, setSearch] = useState('');
   const [userFilter, setUserFilter] = useState<'all' | 'active' | 'suspended' | 'pro' | 'enterprise'>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [mutation, setMutation] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [realtimeState, setRealtimeState] = useState<'connecting' | 'live' | 'degraded'>('connecting');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [showVersionForm, setShowVersionForm] = useState(false);
   const [versionForm, setVersionForm] = useState({ version: '', title: '', channel: 'stable', releaseNotes: '' });
+  const [versionActionDialog, setVersionActionDialog] = useState<VersionActionDialog | null>(null);
+  const [versionActionForm, setVersionActionForm] = useState({ scheduledAt: '', rolloutPercent: 10 });
   const [profileUser, setProfileUser] = useState<AdminUser | null>(null);
   const [profileDraft, setProfileDraft] = useState({ riskLevel: 'normal', tags: '', note: '' });
   const [confirmAction, setConfirmAction] = useState<{ type: 'suspend' | 'restore' | 'delete'; user: AdminUser } | null>(null);
@@ -202,15 +242,17 @@ export default function AdminDashboard() {
   const loadAudit = useCallback(async (append = false) => {
     setLoading(true);
     try {
-      const suffix = append && auditCursor ? `?before=${auditCursor}` : '';
-      const body = await authorizedFetch(`/api/admin/audit${suffix}`);
+      const params = new URLSearchParams({ limit: '40' });
+      if (append && auditCursor) params.set('before', String(auditCursor));
+      if (auditFilter.trim()) params.set('action', auditFilter.trim());
+      const body = await authorizedFetch(`/api/admin/audit?${params.toString()}`);
       setAudit((current) => append ? [...current, ...body.entries] : body.entries);
       setAuditCursor(body.nextCursor);
       setError('');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Không thể tải audit log.');
     } finally { setLoading(false); }
-  }, [auditCursor, authorizedFetch]);
+  }, [auditCursor, auditFilter, authorizedFetch]);
 
   useEffect(() => { void loadOverview(); }, [loadOverview]);
 
@@ -241,7 +283,6 @@ export default function AdminDashboard() {
     if (activeTab === 'users') void loadUsers(1, search);
     if (activeTab === 'versions') void loadVersions();
     if (activeTab === 'system') void loadSettings();
-    if (activeTab === 'audit') void loadAudit(false);
   }, [access, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -250,12 +291,26 @@ export default function AdminDashboard() {
     return () => window.clearTimeout(timer);
   }, [access, activeTab, search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runMutation = async (key: string, url: string, init: RequestInit, after: () => Promise<void> | void) => {
+  useEffect(() => {
+    if (access !== 'authorized' || activeTab !== 'audit') return;
+    const timer = window.setTimeout(() => void loadAudit(false), 300);
+    return () => window.clearTimeout(timer);
+  }, [access, activeTab, auditFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(''), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const runMutation = async (key: string, url: string, init: RequestInit, after: () => Promise<void> | void, successMessage = 'Đã cập nhật thành công.') => {
     setMutation(key);
     setError('');
+    setNotice('');
     try {
       await authorizedFetch(url, init);
       await after();
+      setNotice(successMessage);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Thao tác không thành công.');
     } finally { setMutation(''); }
@@ -295,10 +350,47 @@ export default function AdminDashboard() {
     });
   };
 
-  const updateVersion = (version: AdminVersion, action: 'publish' | 'deprecate') => {
+  const updateVersion = (version: AdminVersion, action: VersionAction) => {
+    if (action === 'deprecate') {
+      void runMutation(`deprecate-${version.id}`, '/api/admin/versions', {
+        method: 'PATCH', body: JSON.stringify({ id: version.id, action }),
+      }, loadVersions, `Đã ngừng phân phối phiên bản v${version.version}.`);
+      return;
+    }
+    setError('');
+    setVersionActionForm({
+      scheduledAt: version.scheduledAt
+        ? toLocalDateTime(new Date(version.scheduledAt))
+        : toLocalDateTime(new Date(Date.now() + 60 * 60_000)),
+      rolloutPercent: action === 'rollout' ? Math.max(1, version.rolloutPercent) : 10,
+    });
+    setVersionActionDialog({ version, action });
+  };
+
+  const executeVersionAction = () => {
+    if (!versionActionDialog) return;
+    const { version, action } = versionActionDialog;
+    if (action === 'schedule') {
+      const timestamp = new Date(versionActionForm.scheduledAt);
+      if (!versionActionForm.scheduledAt || Number.isNaN(timestamp.getTime()) || timestamp.getTime() <= Date.now()) {
+        setError('Thời gian phát hành phải ở tương lai.');
+        return;
+      }
+    }
+    const body = action === 'schedule'
+      ? { id: version.id, action, scheduledAt: new Date(versionActionForm.scheduledAt).toISOString() }
+      : { id: version.id, action, rolloutPercent: versionActionForm.rolloutPercent };
+    const successMessage = action === 'schedule'
+      ? `Đã lên lịch phiên bản v${version.version}.`
+      : action === 'publish'
+        ? `Đã phát hành phiên bản v${version.version} cho ${versionActionForm.rolloutPercent}% người dùng.`
+        : `Đã cập nhật rollout v${version.version} lên ${versionActionForm.rolloutPercent}%.`;
     void runMutation(`${action}-${version.id}`, '/api/admin/versions', {
-      method: 'PATCH', body: JSON.stringify({ id: version.id, action, rolloutPercent: 100 }),
-    }, loadVersions);
+      method: 'PATCH', body: JSON.stringify(body),
+    }, async () => {
+      setVersionActionDialog(null);
+      await Promise.all([loadVersions(), loadOverview(true)]);
+    }, successMessage);
   };
 
   const saveSetting = (setting: AdminSetting) => {
@@ -527,6 +619,27 @@ export default function AdminDashboard() {
                   <span>{error}</span>
                 </div>
                 <button onClick={() => setError('')} className="cursor-pointer text-rose-400 hover:text-rose-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {notice && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                role="status"
+                aria-live="polite"
+                className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-300/80 bg-emerald-50/80 px-4 py-3.5 text-xs font-bold text-emerald-800 backdrop-blur-md dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
+              >
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <span>{notice}</span>
+                </div>
+                <button onClick={() => setNotice('')} aria-label="Đóng thông báo" className="cursor-pointer text-emerald-400 hover:text-emerald-600">
                   <X className="h-4 w-4" />
                 </button>
               </motion.div>
@@ -1042,6 +1155,9 @@ export default function AdminDashboard() {
               entries={audit}
               loading={loading}
               hasMore={Boolean(auditCursor)}
+              filter={auditFilter}
+              onFilter={setAuditFilter}
+              onExport={() => exportAuditCsv(audit)}
               onMore={() => void loadAudit(true)}
             />
           )}
@@ -1127,6 +1243,99 @@ export default function AdminDashboard() {
             >
               {mutation === 'create-version' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
               Tạo bản nháp phát hành
+            </button>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODAL: ĐIỀU PHỐI PHÁT HÀNH ── */}
+      <AnimatePresence>
+        {versionActionDialog && (
+          <Modal
+            title={
+              versionActionDialog.action === 'schedule'
+                ? `Lên lịch v${versionActionDialog.version.version}`
+                : versionActionDialog.action === 'publish'
+                  ? `Phát hành v${versionActionDialog.version.version}`
+                  : `Điều chỉnh rollout v${versionActionDialog.version.version}`
+            }
+            description={`${versionActionDialog.version.title} · Kênh ${versionActionDialog.version.channel.toUpperCase()}`}
+            onClose={() => { if (!mutation) setVersionActionDialog(null); }}
+          >
+            {versionActionDialog.action === 'schedule' ? (
+              <>
+                <Field label="Thời gian phát hành dự kiến">
+                  <input
+                    type="datetime-local"
+                    min={toLocalDateTime(new Date(Date.now() + 60_000))}
+                    value={versionActionForm.scheduledAt}
+                    onChange={(event) => setVersionActionForm((current) => ({ ...current, scheduledAt: event.target.value }))}
+                    className="admin-input"
+                    autoFocus
+                  />
+                </Field>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  Lịch được lưu theo múi giờ hiện tại của thiết bị và đồng bộ lên máy chủ dưới dạng UTC.
+                </div>
+              </>
+            ) : (
+              <>
+                <Field label="Tỷ lệ người dùng nhận phiên bản">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="1"
+                        max="100"
+                        step="1"
+                        value={versionActionForm.rolloutPercent}
+                        onChange={(event) => setVersionActionForm((current) => ({ ...current, rolloutPercent: Number(event.target.value) }))}
+                        className="h-2 flex-1 cursor-pointer accent-indigo-600"
+                        aria-label="Tỷ lệ rollout"
+                      />
+                      <div className="relative w-24">
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={versionActionForm.rolloutPercent}
+                          onChange={(event) => setVersionActionForm((current) => ({ ...current, rolloutPercent: Math.min(100, Math.max(1, Number(event.target.value) || 1)) }))}
+                          className="admin-input pr-8 text-right font-mono"
+                          aria-label="Phần trăm rollout"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">%</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 transition-all"
+                        style={{ width: `${versionActionForm.rolloutPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </Field>
+                {versionActionDialog.action === 'publish' && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    Phiên bản đang hoạt động trên cùng kênh sẽ được chuyển sang trạng thái deprecated khi phát hành.
+                  </div>
+                )}
+              </>
+            )}
+            <button
+              disabled={Boolean(mutation) || (versionActionDialog.action === 'schedule' && !versionActionForm.scheduledAt)}
+              onClick={executeVersionAction}
+              className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3.5 text-xs font-black text-white shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {mutation === `${versionActionDialog.action}-${versionActionDialog.version.id}`
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : versionActionDialog.action === 'schedule'
+                  ? <Clock3 className="h-4 w-4" />
+                  : <Rocket className="h-4 w-4" />}
+              {versionActionDialog.action === 'schedule'
+                ? 'Xác nhận lịch phát hành'
+                : versionActionDialog.action === 'publish'
+                  ? 'Phát hành theo tỷ lệ đã chọn'
+                  : 'Cập nhật tỷ lệ rollout'}
             </button>
           </Modal>
         )}
@@ -1306,7 +1515,7 @@ function VersionsPanel({
   versions, loading, mutation, onCreate, onAction
 }: {
   versions: AdminVersion[]; loading: boolean; mutation: string; onCreate: () => void;
-  onAction: (version: AdminVersion, action: 'publish' | 'deprecate') => void;
+  onAction: (version: AdminVersion, action: VersionAction) => void;
 }) {
   return (
     <section className="space-y-5">
@@ -1375,26 +1584,48 @@ function VersionsPanel({
               {/* Action Footer */}
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-[10.5px] font-semibold text-slate-400 dark:border-white/[0.06]">
                 <span>
-                  {version.publishedAt ? `Phát hành: ${formatDate(version.publishedAt)}` : `Cập nhật: ${formatDate(version.updatedAt)}`}
+                  {version.status === 'scheduled' && version.scheduledAt
+                    ? `Đã lên lịch: ${formatDate(version.scheduledAt, true)}`
+                    : version.publishedAt
+                      ? `Phát hành: ${formatDate(version.publishedAt)}`
+                      : `Cập nhật: ${formatDate(version.updatedAt)}`}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   {version.status !== 'active' && version.status !== 'deprecated' && (
-                    <button
-                      disabled={Boolean(mutation)}
-                      onClick={() => onAction(version, 'publish')}
-                      className="cursor-pointer rounded-xl bg-emerald-50 px-3.5 py-2 font-black text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
-                    >
-                      Publish
-                    </button>
+                    <>
+                      <button
+                        disabled={Boolean(mutation)}
+                        onClick={() => onAction(version, 'schedule')}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                      >
+                        <Clock3 className="h-3.5 w-3.5" /> {version.status === 'scheduled' ? 'Đổi lịch' : 'Lên lịch'}
+                      </button>
+                      <button
+                        disabled={Boolean(mutation)}
+                        onClick={() => onAction(version, 'publish')}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 font-black text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+                      >
+                        <Rocket className="h-3.5 w-3.5" /> Phát hành
+                      </button>
+                    </>
                   )}
                   {version.status === 'active' && (
-                    <button
-                      disabled={Boolean(mutation)}
-                      onClick={() => onAction(version, 'deprecate')}
-                      className="cursor-pointer rounded-xl bg-amber-50 px-3.5 py-2 font-black text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50"
-                    >
-                      Deprecate
-                    </button>
+                    <>
+                      <button
+                        disabled={Boolean(mutation)}
+                        onClick={() => onAction(version, 'rollout')}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                      >
+                        <Gauge className="h-3.5 w-3.5" /> Rollout
+                      </button>
+                      <button
+                        disabled={Boolean(mutation)}
+                        onClick={() => onAction(version, 'deprecate')}
+                        className="cursor-pointer rounded-xl bg-amber-50 px-3.5 py-2 font-black text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                      >
+                        Ngừng phân phối
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -1566,17 +1797,40 @@ function SettingsPanel({
    PANEL PHỤ: AUDIT LOG BẤT BIẾN
    ══════════════════════════════════════════════════════════════════ */
 function AuditPanel({
-  entries, loading, hasMore, onMore
+  entries, loading, hasMore, filter, onFilter, onExport, onMore
 }: {
-  entries: AdminAuditEntry[]; loading: boolean; hasMore: boolean; onMore: () => void;
+  entries: AdminAuditEntry[]; loading: boolean; hasMore: boolean; filter: string;
+  onFilter: (value: string) => void; onExport: () => void; onMore: () => void;
 }) {
   return (
     <section className="space-y-5">
-      <div>
-        <h2 className="text-xl font-black text-slate-900 dark:text-white">Audit Log bất biến</h2>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-          Keyset Pagination · Giả danh hóa IP (Pseudonymized) · Đối chiếu Request Correlation ID
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white">Audit Log bất biến</h2>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Keyset Pagination · Giả danh hóa IP (Pseudonymized) · Đối chiếu Request Correlation ID
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <label className="relative min-w-72">
+            <span className="sr-only">Lọc theo hành động audit</span>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={filter}
+              onChange={(event) => onFilter(event.target.value)}
+              placeholder="Lọc hành động: version.publish…"
+              className="admin-input h-11 pl-10"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!entries.length}
+            onClick={onExport}
+            className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <Download className="h-4 w-4" /> Xuất CSV ({entries.length})
+          </button>
+        </div>
       </div>
 
       {!entries.length && !loading ? (

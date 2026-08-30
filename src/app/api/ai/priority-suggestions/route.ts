@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       hoursEstimate: t.hoursEstimate || 0,
     }));
 
-    const systemInstruction = `Bạn là Giám đốc Dự án và Chuyên gia tối ưu hóa hiệu suất thông minh của Apexa OS.
+    const systemInstruction = `Bạn là Giám đốc Dự án và Chuyên gia tối ưu hóa hiệu suất thông minh của Apexa.
 Nhiệm vụ của bạn là phân tích danh sách công việc hiện có (đặc biệt chú ý đến DEADLINE và ĐỘ KHÓ tự đánh giá từ mô tả/tên việc/ước lượng thời gian/số lượng công việc phụ) để đưa ra đề xuất ƯU TIÊN hành động tối ưu giúp người dùng tập trung vào các việc quan trọng nhất.
 
 Hãy trả về một phản hồi JSON có cấu trúc chính xác như sau:

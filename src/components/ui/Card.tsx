@@ -14,9 +14,9 @@ const variantStyles = {
   elevated: "cu-card cu-card-elevated border-[var(--cu-border)] bg-[var(--cu-surface)] shadow-[var(--cu-shadow-md)]",
   ghost: "bg-transparent border-transparent shadow-none",
   interactive: "cu-card cu-card-interactive cursor-pointer hover:border-[var(--cu-primary)]/35 hover:-translate-y-0.5 transition-all duration-200",
-  glass: "glass-card-ultra",
-  shots: "shots-glass-card",
-  bento: "shots-glass-card hover:scale-[1.01] hover:shadow-[0_20px_45px_-10px_rgba(37,99,235,0.2)]",
+  glass: "cu-card border-[var(--cu-border)] bg-[color-mix(in_srgb,var(--cu-surface)_88%,transparent)] backdrop-blur-xl",
+  shots: "cu-card border-[var(--cu-border)] bg-[var(--cu-surface)]",
+  bento: "cu-card cu-card-interactive border-[var(--cu-border)] bg-[var(--cu-surface)]",
 };
 
 const radiusStyles = {

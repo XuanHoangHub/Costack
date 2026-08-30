@@ -12,12 +12,13 @@ import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import {
   User, ShieldAlert, Lock, Mail,
   Eye, EyeOff, Check, CheckCircle2, X,
-  ArrowLeft, KeyRound, ShieldCheck, Zap
+  ArrowLeft, KeyRound, ShieldCheck, Zap, Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { resolveAppRole } from '../lib/authRole';
 import { useTranslation } from '../contexts/TranslationContext';
-import LanguageDropdown from './LanguageDropdown';
+import { ApexaLogoIcon } from './ApexaLogo';
+import LanguageSwitch from './LanguageSwitch';
 import LandingPage from './landing/LandingPage';
 
 interface LoginScreenProps {
@@ -44,13 +45,13 @@ function GlowInputField({
   return (
     <div className="space-y-1.5 text-left w-full">
       {label && (
-        <label htmlFor={id} className="block text-xs font-bold text-slate-700 dark:text-slate-300 select-none">
+        <label htmlFor={id} className="block text-[13px] font-bold text-slate-800 dark:text-slate-200 select-none tracking-normal font-sans">
           {label}
         </label>
       )}
       <div className="relative group/input w-full">
         <div className="relative flex items-center">
-          <div className={`pointer-events-none absolute left-3.5 z-10 transition-colors duration-200 ${isFocused ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
+          <div className={`pointer-events-none absolute left-3.5 z-10 transition-colors duration-150 ${isFocused ? 'text-blue-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500'}`}>
             <Icon className="w-4 h-4" />
           </div>
           <input
@@ -69,11 +70,11 @@ function GlowInputField({
             minLength={minLength}
             disabled={disabled}
             spellCheck={type === 'email' ? false : undefined}
-            className={`relative h-[48px] w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} text-xs sm:text-sm rounded-xl bg-slate-50/90 dark:bg-slate-950/70 border transition-all duration-200 font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none ${
+            className={`relative h-[48px] w-full pl-10.5 ${rightElement ? 'pr-11' : 'pr-4'} text-sm rounded-xl bg-slate-50/90 dark:bg-slate-950/70 border transition-all duration-150 font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 tracking-normal ${
               error
-                ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/10 dark:border-rose-700 dark:bg-rose-950/20'
+                ? 'border-rose-500 bg-rose-50/30 dark:border-rose-500 dark:bg-rose-950/20'
                 : isFocused
-                ? 'border-indigo-600 dark:border-indigo-400 bg-white dark:bg-slate-900 ring-4 ring-indigo-500/15 dark:ring-indigo-400/20 shadow-sm'
+                ? 'border-blue-600 dark:border-sky-400 bg-white dark:bg-slate-900'
                 : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
             } disabled:cursor-not-allowed disabled:opacity-60`}
           />
@@ -81,7 +82,7 @@ function GlowInputField({
         </div>
       </div>
       {(error || helperText) && (
-        <p id={descriptionId} className={`px-1 text-[10.5px] font-semibold leading-relaxed ${error ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
+        <p id={descriptionId} className={`px-1 text-xs font-semibold leading-relaxed ${error ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
           {error || helperText}
         </p>
       )}
@@ -639,7 +640,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   };
 
   return (
-    <div className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#f8fafc] dark:bg-[#07090e] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
+    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f7f7f2] dark:bg-[#0a101b] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
@@ -656,7 +657,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={closeAuth}
-              className="fixed inset-0 bg-[#080b16]/80 backdrop-blur-xl"
+              className="fixed inset-0 bg-[#0b1422]/78 backdrop-blur-xl"
             />
 
             <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -674,91 +675,109 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               aria-modal="true"
               aria-labelledby="auth-dialog-title"
               ref={dialogRef}
-              className="relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[960px] overflow-hidden rounded-2xl sm:rounded-[32px] border border-white/10 bg-[#0b1020] shadow-[0_40px_120px_-28px_rgba(8,15,45,0.75)] dark:border-slate-800/80 dark:bg-slate-900 lg:grid-cols-[0.88fr_1.12fr]"
+              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-white/10 bg-[#172a46] shadow-[0_40px_120px_-36px_rgba(8,15,35,0.78)] dark:border-white/10 dark:bg-[#111b2a] lg:grid-cols-[0.88fr_1.12fr]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Product story panel */}
-              <aside className="relative hidden min-h-[660px] overflow-hidden bg-[#0b1020] p-9 text-white lg:flex lg:flex-col lg:justify-between">
-                <div className="pointer-events-none absolute inset-0 opacity-80" style={{ backgroundImage: 'radial-gradient(circle at 20% 15%, rgba(99,102,241,.45), transparent 30%), radial-gradient(circle at 90% 75%, rgba(168,85,247,.28), transparent 34%)' }} />
-                <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
+              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#0b162c] via-[#0d1c3a] to-[#080d1a] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none">
+                {/* Multi-layer Ambient Backlight Glows */}
+                <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-600/25 blur-[100px]" />
+                <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-[100px]" />
+                <div className="pointer-events-none absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
+                {/* Top Branding Header */}
                 <div className="relative z-10 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-indigo-700 shadow-xl shadow-indigo-950/30">
-                    <Zap className="h-5 w-5 fill-current" />
-                  </div>
+                  <ApexaLogoIcon className="h-9 w-9" variant="white" />
                   <div>
-                    <div className="text-sm font-black tracking-tight">Apexa OS</div>
-                    <div className="text-[9px] font-bold uppercase tracking-[0.24em] text-indigo-200/70">{isVietnamese ? 'Hệ điều hành Năng suất & AI' : 'AI Productivity Operating System'}</div>
+                    <div className="text-base font-black tracking-tight text-white font-display">Apexa</div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-sky-300/80">
+                      {isVietnamese ? 'Hệ điều hành năng suất & AI' : 'Next-Gen Productivity OS'}
+                    </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 space-y-7">
+                {/* Core Value Proposition & Live KPI Card */}
+                <div className="relative z-10 space-y-6 my-auto py-4">
                   <div className="space-y-3">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-indigo-100 backdrop-blur-md">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.9)]" />
-                      {isVietnamese ? 'Không gian làm việc AI · Trực tuyến' : 'AI Workspace Engine · Online'}
+                    <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/25 bg-sky-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-sky-300 backdrop-blur-md">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
+                      </span>
+                      {isVietnamese ? 'Không gian làm việc tốc độ cao' : 'High-Velocity Workspace'}
                     </span>
-                    <h3 className="max-w-xs text-[32px] font-black leading-[1.08] tracking-[-0.04em]">
+                    <h3 className="max-w-xs text-[28px] font-black leading-[1.18] tracking-[-0.035em] font-display">
                       {isVietnamese ? (
-                        <>Không gian làm việc thông minh cho <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">đội ngũ hiện đại.</span></>
+                        <>Tối ưu vận hành, <span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">bứt phá năng suất</span> cùng AI.</>
                       ) : (
-                        <>The intelligent workspace for <span className="bg-gradient-to-r from-blue-300 via-sky-300 to-cyan-300 bg-clip-text text-transparent">high-velocity teams.</span></>
+                        <>Supercharge <span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">team velocity</span> with AI.</>
                       )}
                     </h3>
-                    <p className="max-w-sm text-xs font-medium leading-6 text-slate-300/80">
+                    <p className="max-w-sm text-xs font-medium leading-relaxed text-slate-300/90">
                       {isVietnamese
-                        ? 'Quản lý dự án, tài liệu số, giao tiếp thời gian thực và tự động hóa AI — tất cả hợp nhất trong một không gian làm việc liền mạch.'
-                        : 'Manage projects, collaborative docs, real-time team chat, and AI automations—all unified within one seamless workspace.'}
+                        ? 'Hợp nhất quản lý công việc, tài liệu số, CRM và trợ lý AI thông minh trong một nền tảng tốc độ cao duy nhất.'
+                        : 'Unify projects, collaborative docs, CRM, and intelligent AI assistance in a single high-velocity canvas.'}
                     </p>
                   </div>
 
-                  <div className="rounded-[24px] border border-white/10 bg-white/[0.07] p-4 shadow-2xl backdrop-blur-xl">
-                    <div className="mb-4 flex items-center justify-between">
+                  {/* Live Interactive KPI Card */}
+                  <div className="rounded-[22px] border border-white/12 bg-white/[0.05] p-4.5 shadow-2xl backdrop-blur-2xl">
+                    <div className="mb-3.5 flex items-center justify-between">
                       <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{isVietnamese ? 'Hiệu suất vận hành Sprint' : 'Sprint Performance Hub'}</div>
-                        <div className="mt-1 text-sm font-extrabold">{isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}</div>
+                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-sky-300/80">
+                          {isVietnamese ? '⚡ Hiệu suất đội ngũ' : '⚡ Team Velocity Hub'}
+                        </div>
+                        <div className="mt-0.5 text-xs font-extrabold text-white">
+                          {isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}
+                        </div>
                       </div>
-                      <div className="flex -space-x-2">
+                      <div className="flex -space-x-1.5">
                         {['HX', 'MA', 'QB'].map((member, index) => (
-                          <div key={member} className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-[#171c31] text-[8px] font-black ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>{member}</div>
+                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-[#171c31] text-[8px] font-black text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
+                            {member}
+                          </div>
                         ))}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        ['96%', isVietnamese ? 'Mục tiêu đạt' : 'Goal progress'],
-                        ['18/20', isVietnamese ? 'Hoàn thành' : 'Tasks done'],
-                        ['+38%', isVietnamese ? 'Tốc độ nhóm' : 'Velocity boost']
+                        ['98%', isVietnamese ? 'Tiến độ Sprint' : 'Sprint goal'],
+                        ['11.4ms', isVietnamese ? 'Đồng bộ siêu tốc' : 'Instant sync'],
+                        ['+4.8h', isVietnamese ? 'Tiết kiệm/tuần' : 'Saved/week']
                       ].map(([value, label]) => (
-                        <div key={label} className="rounded-2xl border border-white/8 bg-black/15 px-3 py-3">
-                          <div className="text-base font-black tracking-tight">{value}</div>
+                        <div key={label} className="rounded-xl border border-white/8 bg-black/25 px-2.5 py-2.5 text-center">
+                          <div className="text-sm font-black tracking-tight text-white">{value}</div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex items-center gap-2 rounded-2xl bg-emerald-400/10 px-3 py-2.5 text-[10px] font-bold text-emerald-200">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      {isVietnamese ? 'Đồng bộ Local-First & Trợ lý AI sẵn sàng' : 'Local-First sync & AI Copilot active'}
+                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-[10px] font-bold text-emerald-300">
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <span>{isVietnamese ? 'Đồng bộ Local-First & Trợ lý AI sẵn sàng' : 'Local-First sync & AI Assistant ready'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 flex items-center justify-between text-[9px] font-bold text-slate-500">
-                  <span>© {new Date().getFullYear()} Apexa OS</span>
-                  <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-emerald-400" /> {isVietnamese ? 'Bảo mật cấp doanh nghiệp · Mã hóa E2E' : 'Enterprise-grade security · E2E Encrypted'}</span>
+                {/* Reassurance Footer */}
+                <div className="relative z-10 flex items-center justify-between text-[10px] font-semibold text-slate-400 pt-2 border-t border-white/10">
+                  <span>© {new Date().getFullYear()} Apexa Inc.</span>
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                    {isVietnamese ? 'Bảo mật cấp Doanh nghiệp · AES-256' : 'Enterprise Security · AES-256'}
+                  </span>
                 </div>
               </aside>
 
-              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-white px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-slate-900">
+              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-[#fdfdf9] px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-[#111b2a]">
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
 
               {/* Header Actions */}
               <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
-                <LanguageDropdown size="sm" />
+                <LanguageSwitch size="sm" />
                 <button
                   type="button"
                   onClick={closeAuth}
-                  className="rounded-full border border-slate-200/70 bg-white/80 p-2 text-slate-400 shadow-sm backdrop-blur-md transition-all hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-850/80 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  className="cu-touch-target inline-flex items-center justify-center rounded-full border border-slate-200/70 bg-white/80 text-slate-400 shadow-sm backdrop-blur-md transition-all hover:rotate-90 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-850/80 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                   aria-label={isVietnamese ? 'Đóng cửa sổ' : 'Close dialog'}
                 >
                   <X className="w-4.5 h-4.5" />
@@ -768,66 +787,66 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               {/* Card Header with Brand Identity */}
               <div className="relative space-y-3 pr-8 pt-1">
                 <div className="flex items-center gap-2.5 lg:hidden">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-blue-700 to-cyan-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30 ring-2 ring-indigo-500/20 shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-blue-700 to-cyan-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30 shrink-0">
                     <Zap className="w-5 h-5 fill-white" />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <h2 id="auth-dialog-title" className="text-2xl font-black text-slate-900 sm:text-[28px] dark:text-white tracking-[-0.035em] leading-tight">
+                <div className="space-y-1.5">
+                  <h2 id="auth-dialog-title" className="text-[26px] sm:text-[30px] font-bold text-slate-900 dark:text-white tracking-normal leading-snug font-sans">
                     {mfaPendingUser ? (isVietnamese ? 'Xác minh danh tính' : 'Verify your identity') : isForgot ? copy.forgotTitle : isSignUp ? copy.signupTitle : copy.signinTitle}
                   </h2>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                  <p className="text-sm font-normal text-slate-600 dark:text-slate-300 leading-relaxed">
                     {mfaPendingUser ? (isVietnamese ? 'Nhập mã 6 chữ số từ ứng dụng Authenticator để hoàn tất đăng nhập.' : 'Enter the 6-digit code from your authenticator app to finish signing in.') : isForgot ? copy.forgotDescription : isSignUp ? copy.signupDescription : copy.signinDescription}
                   </p>
                 </div>
               </div>
 
-              {/* Segmented Tab Switcher (Sign In vs Sign Up) */}
+              {/* High-Performance Segmented Tab Switcher (Sign In vs Sign Up) */}
               {!isForgot && !mfaPendingUser && (
-                <div role="tablist" aria-label={isVietnamese ? 'Chọn phương thức truy cập' : 'Choose access method'} className="relative p-1 bg-slate-100/90 dark:bg-slate-950/80 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex select-none">
-                  {registrationEnabled && <button
+                <div 
+                  role="tablist" 
+                  aria-label={isVietnamese ? 'Chọn phương thức truy cập' : 'Choose access method'} 
+                  className="relative p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/90 dark:border-slate-800 grid grid-cols-2 select-none"
+                >
+                  {/* Hardware-Accelerated Sliding Pill */}
+                  <div 
+                    aria-hidden="true"
+                    className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.5)] transition-all duration-200 ease-out pointer-events-none ${
+                      isSignUp ? 'left-[calc(50%+2px)]' : 'left-1'
+                    }`}
+                  />
+
+                  {/* Sign In Tab */}
+                  <button
                     type="button"
                     role="tab"
                     aria-selected={!isSignUp}
                     onClick={() => switchAuthMode('signin')}
-                    className={`relative flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`relative z-10 flex min-h-11 items-center justify-center gap-1.5 rounded-xl py-2 text-[13.5px] sm:text-sm font-bold transition-colors duration-150 cursor-pointer ${
                       !isSignUp
-                        ? 'text-indigo-700 dark:text-indigo-100 shadow-xs'
+                        ? 'text-blue-600 dark:text-sky-300 font-extrabold'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
-                    {!isSignUp && (
-                      <motion.div
-                        layoutId="activeAuthPill"
-                        className="absolute inset-0 rounded-xl border border-indigo-100 bg-white shadow-xs dark:border-indigo-500/25 dark:bg-indigo-500/15"
-                        transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                      />
-                    )}
-                    <span className="relative z-10">{copy.signin}</span>
-                  </button>}
+                    <span>{copy.signin}</span>
+                  </button>
 
+                  {/* Sign Up Tab */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={isSignUp}
                     onClick={() => switchAuthMode('signup')}
-                    className={`relative flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`relative z-10 flex min-h-11 items-center justify-center gap-1.5 rounded-xl py-2 text-[13.5px] sm:text-sm font-bold transition-colors duration-150 cursor-pointer ${
                       isSignUp
-                        ? 'text-indigo-700 dark:text-indigo-100 shadow-xs'
+                        ? 'text-blue-600 dark:text-sky-300 font-extrabold'
                         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
-                    {isSignUp && (
-                      <motion.div
-                        layoutId="activeAuthPill"
-                        className="absolute inset-0 rounded-xl border border-indigo-100 bg-white shadow-xs dark:border-indigo-500/25 dark:bg-indigo-500/15"
-                        transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1">
-                      <span>{copy.signup}</span>
-                      <span className="text-[9px] bg-indigo-500/10 dark:bg-indigo-400/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded-md font-extrabold uppercase">{copy.free}</span>
+                    <span>{copy.signup}</span>
+                    <span className="text-[10px] bg-blue-500/10 dark:bg-sky-400/15 text-blue-600 dark:text-sky-300 px-1.5 py-0.5 rounded-full font-black tracking-wide border border-blue-500/20">
+                      {copy.free}
                     </span>
                   </button>
                 </div>
@@ -842,7 +861,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                   </div>
                   <label className="block space-y-1.5">
                     <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mã xác thực' : 'Authentication code'}</span>
-                    <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => { setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }} placeholder="000000" className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-mono text-xl font-black tracking-[0.5em] text-slate-900 outline-none focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                    <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => { setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }} placeholder="000000" className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-mono text-xl font-black tracking-[0.5em] text-slate-900 outline-none focus:border-blue-600 dark:focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
                   </label>
                   {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
                   <button type="submit" disabled={loading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 disabled:opacity-50">
@@ -986,7 +1005,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           disabled={loading}
-                          className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400 cursor-pointer"
                           aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -999,7 +1018,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                         <button
                           type="button"
                           onClick={() => { setAuthMode('forgot'); setPassword(''); clearFeedback(); }}
-                          className="text-[11px] text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer"
+                          className="inline-flex min-h-10 items-center px-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer"
                         >
                           {copy.forgotPassword}
                         </button>
@@ -1125,17 +1144,14 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
                   {/* Remember Me Animated Toggle Switch for Sign In */}
                   {!isSignUp && (
-                    <div
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={rememberMe}
+                      aria-label={copy.remember}
+                      disabled={loading}
                       onClick={() => !loading && setRememberMe(!rememberMe)}
-                      onKeyDown={(e) => {
-                        if (e.key === ' ' || e.key === 'Enter') {
-                          e.preventDefault();
-                          if (!loading) setRememberMe(!rememberMe);
-                        }
-                      }}
-                      className="group flex cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-800/80 dark:bg-slate-950/50 dark:hover:border-slate-700 dark:hover:bg-slate-950/80"
+                      className="group flex min-h-14 w-full cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 text-left transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800/80 dark:bg-slate-950/50 dark:hover:border-slate-700 dark:hover:bg-slate-950/80"
                     >
                       <div className="flex min-w-0 items-center gap-2.5">
                         <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${
@@ -1157,9 +1173,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
                       {/* Animated Switch Button */}
                       <div
-                        role="switch"
-                        aria-checked={rememberMe}
-                        aria-label={copy.remember}
+                        aria-hidden="true"
                         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${
                           rememberMe
                             ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 shadow-sm shadow-blue-500/30'
@@ -1174,7 +1188,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                           }`}
                         />
                       </div>
-                    </div>
+                    </button>
                   )}
 
                   {/* Error and Success Notifications */}
@@ -1253,7 +1267,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       disabled={loading}
                       aria-busy={loading}
                       aria-label={isVietnamese ? 'Tiếp tục với Google' : 'Continue with Google'}
-                      className="flex items-center justify-center gap-2.5 py-2.5 px-4 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex min-h-11 items-center justify-center gap-2.5 px-4 py-2.5 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -1270,7 +1284,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       disabled={loading}
                       aria-busy={loading}
                       aria-label={isVietnamese ? 'Tiếp tục với Facebook' : 'Continue with Facebook'}
-                      className="flex items-center justify-center gap-2.5 py-2.5 px-4 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex min-h-11 items-center justify-center gap-2.5 px-4 py-2.5 text-xs font-bold rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 text-[#1877F2] shrink-0" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />

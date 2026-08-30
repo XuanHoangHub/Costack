@@ -29,6 +29,7 @@ import { resolveAppRole } from '@/lib/authRole';
 import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
 
 import { NavItem } from '@/components/ui';
+import { ApexaAiIcon } from '@/components/ApexaAiIcon';
 import { Select } from '@/components/ui/Select';
 import LoginScreen from '../components/LoginScreen';
 import EmojiIconPicker from '../components/EmojiIconPicker';
@@ -105,7 +106,7 @@ import {
   ChatCircleDots as PhChat,
   FileText as PhFileText,
   Database as PhDatabase,
-  CheckSquare as PhCheckSquare,
+  SquaresFour as PhSquaresFour,
   ChartBar as PhChartBar,
   Target as PhTarget,
   Table as PhTable,
@@ -165,7 +166,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'inbox', 'tasks', 'goals', 'calendar',
+  'dashboard', 'inbox', 'tasks', 'calendar', 'productivity', 'goals',
   'crm', 'erp', 'finance', 'base', 'docs', 'whiteboard', 'chat', 'team'
 ];
 
@@ -340,8 +341,8 @@ export default function App() {
 
     // Accent color sync across stores & CSS custom properties
     const ACCENT_MAP: Record<string, { primary: string; hover: string; light: string; ring: string }> = {
-      indigo: { primary: isDarkMode ? '#3B82F6' : '#2563EB', hover: isDarkMode ? '#60A5FA' : '#1D4ED8', light: isDarkMode ? 'rgba(59, 130, 246, 0.18)' : '#eff6ff', ring: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : 'rgba(37, 99, 235, 0.35)' },
-      ocean: { primary: '#0ea5e9', hover: '#0284c7', light: isDarkMode ? 'rgba(14, 165, 233, 0.18)' : '#e0f2fe', ring: 'rgba(14, 165, 233, 0.35)' },
+      indigo: { primary: isDarkMode ? '#3B82F6' : '#2563EB', hover: isDarkMode ? '#60A5FA' : '#1D4ED8', light: isDarkMode ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF', ring: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : 'rgba(37, 99, 235, 0.3)' },
+      ocean: { primary: '#0284c7', hover: '#0369a1', light: isDarkMode ? 'rgba(14, 165, 233, 0.18)' : '#e0f2fe', ring: 'rgba(14, 165, 233, 0.35)' },
       forest: { primary: '#10b981', hover: '#059669', light: isDarkMode ? 'rgba(16, 185, 129, 0.18)' : '#d1fae5', ring: 'rgba(16, 185, 129, 0.35)' },
       sunset: { primary: '#f43f5e', hover: '#e11d48', light: isDarkMode ? 'rgba(244, 63, 94, 0.18)' : '#ffe4e6', ring: 'rgba(244, 63, 94, 0.35)' },
     };
@@ -1332,7 +1333,8 @@ export default function App() {
         icon: PhTray, 
         count: unreadNotificationsCount
       },
-      tasks: { label: t('space') || 'Space', icon: PhCheckSquare },
+      tasks: { label: t('space') || 'Space', icon: PhSquaresFour },
+      productivity: { label: t('productivity') || (locale === 'vi' ? 'Năng suất' : 'Productivity'), icon: Zap, badge: locale === 'vi' ? 'Mới' : 'New' },
       goals: { label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: PhTarget, badge: locale === 'vi' ? 'Mới' : 'New' },
       calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
       crm: { label: 'CRM', icon: PhHandshake, badge: locale === 'vi' ? 'Mới' : 'New' },
@@ -4043,7 +4045,7 @@ export default function App() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-black text-slate-850 dark:text-slate-100 flex items-center justify-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-500" />
-              <span>Chào mừng bạn đến với Apexa OS!</span>
+              <span>Chào mừng bạn đến với Apexa!</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Hãy thiết lập không gian làm việc cá nhân để bắt đầu.
@@ -4128,9 +4130,12 @@ export default function App() {
 
   return (
     <div
-      className="apexa-app-shell fixed inset-0 flex h-full w-full select-none flex-col overflow-hidden font-sans text-[var(--cu-text-primary)] bg-white dark:bg-[#080A10]"
+      className="apexa-app-shell fixed inset-0 flex h-full w-full select-none flex-col overflow-hidden font-sans text-[var(--cu-text-primary)] bg-[var(--cu-bg)]"
       data-density={uiDensity}
     >
+      <a href="#apexa-main-content" className="apexa-skip-link">
+        {locale === 'vi' ? 'Bỏ qua đến nội dung chính' : 'Skip to main content'}
+      </a>
       
       {/* Subtle ambient background */}
       <div className="liquid-blob blob-1 animate-liquid-1 pointer-events-none opacity-30" />
@@ -4141,8 +4146,12 @@ export default function App() {
         {/* Mobile header trigger & workspace badge (< md screens) */}
         <div className="flex md:hidden items-center gap-2 pl-3 py-2 shrink-0">
           <button
+            type="button"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-1.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
+            aria-label={locale === 'vi' ? 'Mở trình đơn điều hướng' : 'Open navigation menu'}
+            aria-expanded={isMobileSidebarOpen}
+            aria-controls="apexa-mobile-navigation"
+            className="cu-touch-target inline-flex items-center justify-center rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-all border border-slate-200/60 dark:border-slate-800 shadow-3xs"
             title="Mở trình đơn điều hướng"
           >
             <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -4152,7 +4161,8 @@ export default function App() {
             type="button"
             onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
             aria-expanded={showWorkspaceMenu}
-            className="apexa-mobile-workspace flex max-w-[130px] cursor-pointer select-none items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/70 px-2.5 py-1 shadow-3xs dark:border-slate-700/80 dark:bg-slate-800/60"
+            aria-haspopup="menu"
+            className="apexa-mobile-workspace flex min-h-11 max-w-[150px] cursor-pointer select-none items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/70 px-3 py-1 shadow-3xs dark:border-slate-700/80 dark:bg-slate-800/60"
           >
             <div 
               className="w-4.5 h-4.5 rounded-md flex items-center justify-center text-white font-black text-[9px] shrink-0 overflow-hidden shadow-3xs"
@@ -4176,36 +4186,28 @@ export default function App() {
         </div>
 
         {/* Left header switcher section (desktop) */}
-        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-slate-200/60 dark:border-white/[0.08] ${
+        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-white/[0.08] bg-[#0b1322] dark:bg-[#080e1a] ${
           isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-3 py-2 justify-between'
         }`}>
           <div className="flex items-center gap-1.5 relative flex-1 min-w-0 justify-between">
             {isMainSidebarCollapsed ? (
-              <div className="flex items-center justify-center gap-1.5 mx-auto">
-                <button 
-                  onClick={() => setIsMainSidebarCollapsed(false)} 
-                  className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/60 dark:hover:border-white/[0.08]"
-                  title="Mở rộng thanh bên"
-                >
-                  <PanelLeftOpen className="w-4 h-4" />
-                </button>
-
+              <div className="flex items-center justify-center mx-auto">
                 <button
                   type="button" 
                   onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                  className="w-6.5 h-6.5 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-sm shrink-0 select-none overflow-hidden hover:scale-105 transition-all cursor-pointer ring-1 ring-black/5 dark:ring-white/10"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-[10px] shadow-sm shrink-0 select-none overflow-hidden hover:scale-105 transition-all cursor-pointer border border-white/10"
                   style={!currentWorkspace?.logoUrl ? {
-                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                'linear-gradient(135deg, #2563EB, #0284C7)',
+                    background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                                currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                                currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                                'linear-gradient(135deg, #2563eb, #0284c7)',
                   } : undefined}
-                  title={currentWorkspace?.name || 'Workspace'}
+                  title={`${currentWorkspace?.name || 'Apexa'} — Nhấp để đổi workspace`}
                 >
                   {currentWorkspace?.logoUrl ? (
                     <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                   ) : (
-                    <span>{currentWorkspace?.initial || (currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A')}</span>
+                    <ApexaAiIcon className="w-4 h-4" variant="white" />
                   )}
                 </button>
               </div>
@@ -4214,7 +4216,7 @@ export default function App() {
                 {/* Sidebar toggle button (collapse) */}
                 <button 
                   onClick={() => setIsMainSidebarCollapsed(true)} 
-                  className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-all shrink-0 border border-transparent hover:border-slate-200/60 dark:hover:border-white/[0.08]"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-all shrink-0 border border-transparent hover:border-white/[0.08]"
                   title="Thu gọn thanh bên"
                 >
                   <PanelLeftClose className="w-4 h-4" />
@@ -4223,31 +4225,31 @@ export default function App() {
                 {/* Compact Switcher Pill Button */}
                 <button
                   type="button" 
-                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/70 bg-slate-100/60 px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-slate-300/80 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.05] dark:hover:border-white/[0.15] dark:hover:bg-white/[0.09]"
+                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-white/[0.15] hover:bg-white/[0.08]"
                   onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                   aria-expanded={showWorkspaceMenu}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div 
-                      className="w-5 h-5 rounded-lg flex items-center justify-center text-white font-black text-[9.5px] shadow-xs shrink-0 select-none overflow-hidden ring-1 ring-black/5 dark:ring-white/10"
+                      className="w-5.5 h-5.5 rounded-lg flex items-center justify-center text-white font-black text-[9.5px] shadow-xs shrink-0 select-none overflow-hidden border border-white/10"
                       style={!currentWorkspace?.logoUrl ? {
-                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                    'linear-gradient(135deg, #2563EB, #0284C7)',
+                        background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                                    currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                                    currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                                    'linear-gradient(135deg, #2563eb, #0284c7)',
                       } : undefined}
                     >
                       {currentWorkspace?.logoUrl ? (
                         <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                       ) : (
-                        <span>{currentWorkspace?.initial || (currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A')}</span>
+                        <ApexaAiIcon className="w-3 h-3" variant="white" />
                       )}
                     </div>
-                    <span className="font-sans font-bold text-slate-800 dark:text-slate-100 text-[12.5px] tracking-tight truncate flex-1">
-                      {currentWorkspace?.name || 'Avaxa'}
+                    <span className="font-sans font-bold text-white text-[12.5px] tracking-tight truncate flex-1">
+                      {currentWorkspace?.name || 'Apexa'}
                     </span>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-white transition-transform duration-200 group-hover:translate-y-0.5 ml-1" />
                 </button>
 
               </>
@@ -4263,42 +4265,42 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2, type: "spring", stiffness: 380, damping: 26 }}
-                    className={`absolute top-full mt-2 w-[min(92vw,270px)] p-3 bg-white/95 dark:bg-slate-900/95 border border-slate-200/90 dark:border-slate-800/90 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
+                    className={`absolute top-full mt-2 w-[min(92vw,270px)] p-3 bg-[#0f172a]/95 dark:bg-[#090e1a]/95 border border-white/10 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
                   >
                     {/* Active Workspace Hero Card */}
-                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-slate-50/60 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900/90 border border-indigo-100 dark:border-indigo-900/40 shadow-xs group overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-400/5 rounded-full blur-xl pointer-events-none" />
+                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-950/40 via-slate-900 to-slate-900/90 border border-blue-500/30 shadow-xs group overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none" />
                       
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/15 shrink-0 select-none overflow-hidden ring-2 ring-white dark:ring-slate-800 transition-transform duration-300 group-hover:scale-[1.03]"
+                          className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/25 shrink-0 select-none overflow-hidden ring-2 ring-white/20 transition-transform duration-300 group-hover:scale-[1.03]"
                           style={!currentWorkspace?.logoUrl ? {
-                            background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
-                                        currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
-                                        currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                        'linear-gradient(135deg, #FF0033, #CC0022)',
+                            background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
+                                        currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
+                                        currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
+                                        'linear-gradient(135deg, #2563eb, #0284c7)',
                           } : undefined}
                         >
                           {currentWorkspace?.logoUrl ? (
                             <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                           ) : (
-                            <span>{currentWorkspace?.name ? currentWorkspace.name.charAt(0).toUpperCase() : 'A'}</span>
+                            <ApexaAiIcon className="w-6 h-6" variant="white" />
                           )}
                         </div>
 
                         <div className="leading-tight min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-black text-slate-900 dark:text-slate-50 text-[14.5px] truncate tracking-tight">
-                              {currentWorkspace?.name || 'Avaxa'}
+                            <span className="font-bold text-white text-[14px] truncate tracking-tight">
+                              {currentWorkspace?.name || 'Apexa'}
                             </span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0" title="Không gian đang hoạt động">
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </span>
                           </div>
                           
                           <div className="mt-1 flex items-center gap-1">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100/80 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs">
-                              <Sparkles className="w-2.5 h-2.5 text-indigo-500 fill-indigo-500/30" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-sky-300 border border-blue-400/30 shadow-2xs">
+                              <Sparkles className="w-2.5 h-2.5 text-sky-400 fill-sky-400/30" />
                               {currentUser?.isPremium ? 'Premium Pro' : 'Free plan'}
                             </span>
                           </div>
@@ -5288,6 +5290,7 @@ export default function App() {
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             <motion.aside
+              id="apexa-mobile-navigation"
               role="dialog"
               aria-modal="true"
               aria-label="Điều hướng chính"
@@ -5395,84 +5398,120 @@ export default function App() {
       <div className="apexa-workspace-frame relative flex min-h-0 flex-1 flex-row overflow-hidden">
 
       {/* Modern Black Aesthetic Sidebar Navigation */}
-      <aside className={`apexa-desktop-sidebar cu-sidebar relative z-20 hidden shrink-0 cursor-default flex-col justify-between transition-all duration-200 ease-in-out md:flex [&_*]:cursor-default ${
+      <aside className={`apexa-desktop-sidebar cu-sidebar relative z-20 hidden shrink-0 cursor-default flex-col justify-between transition-all duration-200 ease-in-out md:flex ${
         isMainSidebarCollapsed 
-          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3.5 space-y-3' 
-          : 'w-[var(--cu-sidebar-width)] px-2.5 py-3.5 space-y-4'
+          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3 space-y-3' 
+          : 'w-[var(--cu-sidebar-width)] px-3 py-3 space-y-3'
       }`}>
         
-        <div className={`h-full flex flex-col justify-between overflow-hidden ${isMainSidebarCollapsed ? 'space-y-2' : 'space-y-4'}`}>
+        <div className={`h-full flex flex-col justify-between overflow-hidden ${isMainSidebarCollapsed ? 'space-y-2' : 'space-y-3'}`}>
           {/* Scrollable Navigation List */}
-          <div className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-0.5 ${isMainSidebarCollapsed ? 'space-y-1' : 'space-y-0.5'}`}>
+          <div className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-0.5 ${isMainSidebarCollapsed ? 'space-y-0.5' : 'space-y-0.5'}`}>
             {currentUser.id === APEXA_SUPER_ADMIN_UID && (
               <a
                 href="/admin"
-                className={`mb-2 flex items-center rounded-xl border border-indigo-400/20 bg-indigo-500/10 text-indigo-200 transition hover:bg-indigo-500/20 ${isMainSidebarCollapsed ? 'h-10 justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
+                className={`mb-2 flex items-center rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 text-sky-200 transition-all hover:bg-blue-600/25 hover:border-blue-400/50 shadow-xs ${isMainSidebarCollapsed ? 'h-10 justify-center px-2' : 'gap-2.5 px-3 py-2'}`}
                 title="Apexa Control Center"
               >
-                <ShieldCheck className="h-4 w-4 shrink-0" />
-                {!isMainSidebarCollapsed && <span className="text-[11px] font-black">Control Center</span>}
+                <ShieldCheck className="h-4 w-4 shrink-0 text-sky-400" />
+                {!isMainSidebarCollapsed && <span className="text-[11.5px] font-bold">Control Center</span>}
               </a>
             )}
-            {orderedItems.map((item) => {
+
+            {orderedItems.map((item, index) => {
               const isActive = item.id === 'tasks'
                 ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
                 : (activeTab === item.id);
+
+              const CORE_SECTION_IDS = ['dashboard', 'inbox', 'tasks', 'calendar'];
+              const BIZ_SECTION_IDS = ['goals', 'crm', 'base', 'erp', 'finance'];
+              const COLLAB_SECTION_IDS = ['docs', 'whiteboard', 'chat', 'team'];
+
+              let sectionKey = 'core';
+              let sectionLabel = locale === 'vi' ? 'Vận hành' : 'Operations';
+              if (BIZ_SECTION_IDS.includes(item.id)) {
+                sectionKey = 'business';
+                sectionLabel = locale === 'vi' ? 'Kinh doanh & Tài chính' : 'Business & Finance';
+              } else if (COLLAB_SECTION_IDS.includes(item.id)) {
+                sectionKey = 'collab';
+                sectionLabel = locale === 'vi' ? 'Tri thức & Đội ngũ' : 'Collaboration';
+              }
+
+              const prevItem = index > 0 ? orderedItems[index - 1] : null;
+              let prevSectionKey = 'core';
+              if (prevItem) {
+                if (BIZ_SECTION_IDS.includes(prevItem.id)) prevSectionKey = 'business';
+                else if (COLLAB_SECTION_IDS.includes(prevItem.id)) prevSectionKey = 'collab';
+              }
+
+              const isFirstInSection = index === 0 || sectionKey !== prevSectionKey;
+
               return (
-                <NavItem
-                  key={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  shortLabel={getShortLabel(item.label)}
-                  isActive={isActive}
-                  count={item.count}
-                  badge={item.badge}
-                  collapsed={isMainSidebarCollapsed}
-                  style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
-                  onDragStart={(e) => handleDragStart(e, item.id)}
-                  onDragOver={(e) => handleDragOver(e, item.id)}
-                  onDragLeave={handleDragLeave}
-                  onDragEnd={handleDragEnd}
-                  onDrop={(e) => handleDrop(e, item.id)}
-                  onClick={() => {
-                    if (item.id === 'tasks') {
-                      setActiveTab('tasks');
-                      setActiveSpaceId(null);
-                      setActiveListId(null);
-                    } else {
-                      setActiveTab(item.id);
-                      setActiveSpaceId(null);
-                      setActiveListId(null);
-                    }
-                    addSyncLog(`Switched to: ${item.label}`);
-                  }}
-                  dragIndicator={dragOverItemId === item.id && dragOverSide ? (
-                    <div
-                      className={`absolute left-0 right-0 h-[2px] bg-[var(--cu-primary)] pointer-events-none z-30 transition-all ${
-                        dragOverSide === 'top' 
-                          ? 'top-0 -translate-y-1/2' 
-                          : 'bottom-0 translate-y-1/2'
-                      }`}
-                    >
-                      <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[var(--cu-primary)] shadow-[0_0_8px_rgba(123,104,238,0.6)]" />
+                <React.Fragment key={item.id}>
+                  {isFirstInSection && !isMainSidebarCollapsed && (
+                    <div className={`px-2.5 pb-1 uppercase tracking-wider text-[9.5px] font-black text-slate-400 select-none flex items-center justify-between ${index === 0 ? 'pt-1' : 'pt-3'}`}>
+                      <span>{sectionLabel}</span>
                     </div>
-                  ) : undefined}
-                />
+                  )}
+
+                  {isFirstInSection && isMainSidebarCollapsed && index !== 0 && (
+                    <div className="w-5 h-[1px] bg-white/[0.08] my-1.5 mx-auto" />
+                  )}
+
+                  <NavItem
+                    icon={item.icon}
+                    label={item.label}
+                    shortLabel={getShortLabel(item.label)}
+                    isActive={isActive}
+                    count={item.count}
+                    badge={item.badge}
+                    collapsed={isMainSidebarCollapsed}
+                    style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
+                    onDragStart={(e) => handleDragStart(e, item.id)}
+                    onDragOver={(e) => handleDragOver(e, item.id)}
+                    onDragLeave={handleDragLeave}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, item.id)}
+                    onClick={() => {
+                      if (item.id === 'tasks') {
+                        setActiveTab('tasks');
+                        setActiveSpaceId(null);
+                        setActiveListId(null);
+                      } else {
+                        setActiveTab(item.id);
+                        setActiveSpaceId(null);
+                        setActiveListId(null);
+                      }
+                      addSyncLog(`Switched to: ${item.label}`);
+                    }}
+                    dragIndicator={dragOverItemId === item.id && dragOverSide ? (
+                      <div
+                        className={`absolute left-0 right-0 h-[2px] bg-blue-500 pointer-events-none z-30 transition-all ${
+                          dragOverSide === 'top' 
+                            ? 'top-0 -translate-y-1/2' 
+                            : 'bottom-0 translate-y-1/2'
+                        }`}
+                      >
+                        <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+                      </div>
+                    ) : undefined}
+                  />
+                </React.Fragment>
               );
             })}
           </div>
 
           {/* Bottom Sidebar User Profile & Quick Action Widget */}
-          <div className="pt-2.5 pb-1 border-t border-white/[0.08] shrink-0">
+          <div className="pt-2 pb-2 border-t border-white/[0.08] shrink-0">
             {isMainSidebarCollapsed ? (
-              <div className="flex flex-col items-center justify-center">
+              <div className="flex flex-col items-center justify-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="relative group p-0.5 rounded-2xl hover:scale-105 transition-transform cursor-pointer flex items-center justify-center"
+                  className="relative group p-0.5 rounded-xl hover:scale-105 transition-transform cursor-pointer flex items-center justify-center"
                   title={`${currentUser?.name || 'Tài khoản'} — ${accountPresenceLabel}`}
                 >
-                  <div className="relative w-9 h-9 flex items-center justify-center">
+                  <div className="relative w-8 h-8 flex items-center justify-center">
                     {currentUser?.avatar ? (
                       <SignedImage
                         filePath={currentUser.avatar}
@@ -5480,18 +5519,27 @@ export default function App() {
                         alt={currentUser.name}
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/20 text-white font-black text-xs flex items-center justify-center shadow-md group-hover:border-sky-400 group-hover:text-sky-300 transition-all">
-                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'N'}
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 border border-white/20 text-white font-black text-xs flex items-center justify-center shadow-md group-hover:border-sky-400 transition-all">
+                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
                       </div>
                     )}
                     <span
-                      className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#080a0f] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#0b1322] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
                     />
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMainSidebarCollapsed(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer border border-transparent hover:border-white/[0.08]"
+                  title="Mở rộng thanh bên"
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                </button>
               </div>
             ) : (
-              <div className="p-2 rounded-2xl bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.12] transition-all flex items-center justify-between gap-2">
+              <div className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05] transition-all flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
@@ -5501,23 +5549,23 @@ export default function App() {
                     {currentUser?.avatar ? (
                       <SignedImage
                         filePath={currentUser.avatar}
-                        className="w-7 h-7 rounded-lg object-cover bg-slate-800 border border-white/15 shadow-xs"
+                        className="w-8 h-8 rounded-lg object-cover bg-slate-800 border border-white/15 shadow-xs group-hover:border-sky-400 transition-colors"
                         alt={currentUser.name}
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/15 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'N'}
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 border border-white/15 text-white font-bold text-xs flex items-center justify-center shadow-xs group-hover:border-sky-400 transition-colors">
+                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
                       </div>
                     )}
                     <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#090b10] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#0b1322] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-sky-300 transition-colors">
-                      {currentUser?.name}
+                    <p className="text-xs font-bold text-white truncate group-hover:text-sky-300 transition-colors leading-tight">
+                      {currentUser?.name || 'Apexa User'}
                     </p>
-                    <p className="text-[10px] text-zinc-400 truncate">
+                    <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
                       {accountPresenceLabel}
                     </p>
                   </div>
@@ -5526,10 +5574,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsMainSidebarCollapsed(true)}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer shrink-0"
                   title="Thu gọn thanh bên"
                 >
-                  <PanelLeftClose className="w-3.5 h-3.5" />
+                  <PanelLeftClose className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -5546,7 +5594,7 @@ export default function App() {
           const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
-            <main className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden">
+            <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div
                   key={activeTab}
@@ -5730,6 +5778,13 @@ export default function App() {
                       onUpgradePremium={() => setShowPremiumModal(true)}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
+                      onOpenTask={(taskId) => {
+                        const task = currentWorkspaceTasks.find((item) => item.id === taskId);
+                        setActiveTab('tasks');
+                        if (task?.spaceId) setActiveSpaceId(task.spaceId);
+                        if (task?.listId) setActiveListId(task.listId);
+                        setInitialSelectedTaskId(taskId);
+                      }}
                     />
                   )}
 

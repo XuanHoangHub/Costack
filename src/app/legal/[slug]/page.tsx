@@ -13,9 +13,9 @@ const pages: Record<string, LegalPage> = {
   terms: {
     title: 'Điều khoản sử dụng',
     eyebrow: 'Terms of Use',
-    summary: 'Các điều kiện áp dụng khi bạn tạo tài khoản và sử dụng Apexa OS.',
+    summary: 'Các điều kiện áp dụng khi bạn tạo tài khoản và sử dụng Apexa.',
     sections: [
-      { title: '1. Chấp thuận điều khoản', paragraphs: ['Khi tạo tài khoản hoặc tiếp tục sử dụng Apexa OS, bạn xác nhận đã đọc và đồng ý với các điều khoản này. Nếu sử dụng thay mặt tổ chức, bạn xác nhận mình có thẩm quyền chấp thuận thay tổ chức đó.'] },
+      { title: '1. Chấp thuận điều khoản', paragraphs: ['Khi tạo tài khoản hoặc tiếp tục sử dụng Apexa, bạn xác nhận đã đọc và đồng ý với các điều khoản này. Nếu sử dụng thay mặt tổ chức, bạn xác nhận mình có thẩm quyền chấp thuận thay tổ chức đó.'] },
       { title: '2. Tài khoản và bảo mật', paragraphs: ['Bạn chịu trách nhiệm cung cấp thông tin chính xác, bảo vệ thông tin đăng nhập và thông báo khi nghi ngờ tài khoản bị truy cập trái phép. Không chia sẻ tài khoản theo cách làm suy yếu kiểm soát truy cập của workspace.'] },
       { title: '3. Sử dụng được phép', paragraphs: ['Bạn được dùng Apexa để quản lý công việc và dữ liệu hợp pháp của cá nhân hoặc tổ chức.'], bullets: ['Không phát tán mã độc, nội dung trái pháp luật hoặc xâm phạm quyền của người khác.', 'Không dò quét, phá hoại, vượt giới hạn truy cập hoặc gây quá tải dịch vụ.', 'Không sử dụng AI để tạo nội dung gây hại hoặc đưa ra quyết định rủi ro cao mà không có con người kiểm tra.'] },
       { title: '4. Dữ liệu của bạn', paragraphs: ['Bạn giữ quyền sở hữu nội dung đưa vào Apexa. Bạn cho phép hệ thống xử lý nội dung trong phạm vi cần thiết để cung cấp các chức năng đã chọn, bao gồm đồng bộ, tìm kiếm, cộng tác và AI. Bạn có trách nhiệm có quyền hợp pháp đối với dữ liệu mình tải lên.'] },
@@ -43,7 +43,7 @@ const pages: Record<string, LegalPage> = {
   security: {
     title: 'Trung tâm bảo mật',
     eyebrow: 'Security Center',
-    summary: 'Mô hình bảo vệ dữ liệu và phạm vi trách nhiệm khi triển khai Apexa OS.',
+    summary: 'Mô hình bảo vệ dữ liệu và phạm vi trách nhiệm khi triển khai Apexa.',
     sections: [
       { title: 'Kiểm soát đã triển khai', paragraphs: ['Apexa tách khóa công khai dùng trên trình duyệt và khóa bí mật chỉ dùng ở máy chủ. Dữ liệu nhiều tenant được bảo vệ bằng Row Level Security theo người dùng/workspace trong các migration đi kèm. API thanh toán xác thực access token trước khi truy cập PayOS; webhook có kiểm tra chữ ký, đối soát đơn/số tiền và idempotency.'], bullets: ['HTTPS/HSTS và các security header cơ bản ở lớp ứng dụng.', 'RLS và chính sách truy cập trên các bảng dữ liệu được expose.', 'Khóa dịch vụ, PayOS secret và Gemini server key không được đưa vào bundle client.', 'AI dùng khóa máy chủ chỉ sau khi xác thực phiên; người dùng có thể dùng khóa Gemini cá nhân.'] },
       { title: 'Dữ liệu và nhà cung cấp', paragraphs: ['Dữ liệu cloud được lưu trên dự án cơ sở dữ liệu đám mây mà đơn vị triển khai cấu hình. Thanh toán đi qua PayOS. Yêu cầu AI được gửi tới Google Gemini khi người dùng kích hoạt. Chứng nhận của nhà cung cấp hạ tầng không tự động đồng nghĩa Apexa là một sản phẩm đã được chứng nhận độc lập.'] },
@@ -80,7 +80,7 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2 font-black tracking-tight">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white">A</span>
-            Apexa OS
+            Apexa
           </Link>
           <Link href="/" className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900">Quay lại ứng dụng</Link>
         </div>

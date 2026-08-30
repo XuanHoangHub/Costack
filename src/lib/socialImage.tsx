@@ -36,7 +36,7 @@ export function createSocialImage() {
             A
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: -1 }}>Apexa OS</div>
+            <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: -1 }}>Apexa</div>
             <div style={{ marginTop: 4, fontSize: 18, color: '#a5b4fc' }}>AI Productivity Workspace</div>
           </div>
         </div>

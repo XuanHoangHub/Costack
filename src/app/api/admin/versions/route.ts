@@ -17,6 +17,15 @@ export const runtime = 'nodejs';
 
 const semverPattern = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
+function parseRolloutPercent(value: unknown, fallback: number) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const rollout = Number(value);
+  if (!Number.isInteger(rollout) || rollout < 1 || rollout > 100) {
+    throw new AdminHttpError(400, 'Tỷ lệ rollout phải là số nguyên từ 1 đến 100.');
+  }
+  return rollout;
+}
+
 export async function GET(request: Request) {
   try {
     const { admin } = await requireSuperAdmin(request);
@@ -66,10 +75,21 @@ export async function PATCH(request: Request) {
     const id = asTrimmedString(body.id, 64);
     const action = asTrimmedString(body.action, 30);
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new AdminHttpError(400, 'ID phiên bản không hợp lệ.');
+    const { data: currentVersion, error: currentVersionError } = await admin
+      .from('app_versions')
+      .select('id,status,version')
+      .eq('id', id)
+      .maybeSingle();
+    if (currentVersionError) throw currentVersionError;
+    if (!currentVersion) throw new AdminHttpError(404, 'Không tìm thấy phiên bản.');
+    const currentStatus = String(currentVersion.status);
 
     let updated: AdminVersion;
     if (action === 'publish') {
-      const rollout = Math.min(100, Math.max(1, Number(body.rolloutPercent) || 100));
+      if (currentStatus !== 'draft' && currentStatus !== 'scheduled') {
+        throw new AdminHttpError(409, 'Chỉ có thể phát hành phiên bản nháp hoặc đã lên lịch.');
+      }
+      const rollout = parseRolloutPercent(body.rolloutPercent, 100);
       const { data, error } = await admin.rpc('admin_publish_app_version', {
         p_version_id: id,
         p_actor_id: user.id,
@@ -81,11 +101,15 @@ export async function PATCH(request: Request) {
       updated = mapVersion(publishedRow as Record<string, unknown>);
       await writeAdminAudit(admin, request, user.id, 'version.publish', 'app_version', id, { rolloutPercent: rollout, version: updated.version });
     } else if (action === 'deprecate') {
+      if (currentStatus !== 'active') throw new AdminHttpError(409, 'Chỉ phiên bản đang hoạt động mới có thể ngừng phân phối.');
       const { data, error } = await admin.from('app_versions').update({ status: 'deprecated', rollout_percent: 0 }).eq('id', id).select('*').single();
       if (error) throw error;
       updated = mapVersion(data as Record<string, unknown>);
       await writeAdminAudit(admin, request, user.id, 'version.deprecate', 'app_version', id, { version: updated.version });
     } else if (action === 'schedule') {
+      if (currentStatus !== 'draft' && currentStatus !== 'scheduled') {
+        throw new AdminHttpError(409, 'Chỉ có thể lên lịch phiên bản nháp hoặc đã lên lịch.');
+      }
       const scheduledAt = asTrimmedString(body.scheduledAt, 64);
       const timestamp = new Date(scheduledAt);
       if (!scheduledAt || Number.isNaN(timestamp.getTime()) || timestamp.getTime() <= Date.now()) throw new AdminHttpError(400, 'Thời gian phát hành phải ở tương lai.');
@@ -94,7 +118,8 @@ export async function PATCH(request: Request) {
       updated = mapVersion(data as Record<string, unknown>);
       await writeAdminAudit(admin, request, user.id, 'version.schedule', 'app_version', id, { scheduledAt: timestamp.toISOString() });
     } else if (action === 'rollout') {
-      const rollout = Math.min(100, Math.max(1, Number(body.rolloutPercent) || 1));
+      if (currentStatus !== 'active') throw new AdminHttpError(409, 'Chỉ phiên bản đang hoạt động mới có thể điều chỉnh rollout.');
+      const rollout = parseRolloutPercent(body.rolloutPercent, 1);
       const { data, error } = await admin.from('app_versions').update({ rollout_percent: rollout }).eq('id', id).eq('status', 'active').select('*').single();
       if (error) throw error;
       updated = mapVersion(data as Record<string, unknown>);
