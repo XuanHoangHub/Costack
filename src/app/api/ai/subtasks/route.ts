@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -31,14 +31,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, subtasks });
   } catch (error: any) {
     console.error("Subtasks generation error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      subtasks: [
-        "Xem xét tài liệu chi tiết công việc",
-        "Thực hiện các bước triển khai chính",
-        "Kiểm thử và đánh giá kết quả hoàn thiện"
-      ],
-      error: error.message || "Failed to contact Gemini, returned default fallback."
-    });
+    return NextResponse.json(
+      { success: false, subtasks: [], error: getAiErrorMessage(error, 'Lỗi tạo công việc phụ bằng AI') },
+      { status: getAiErrorStatus(error) },
+    );
   }
 }

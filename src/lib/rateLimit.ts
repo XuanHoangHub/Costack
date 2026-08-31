@@ -9,7 +9,7 @@ const buckets = new Map<string, Bucket>();
 function requestIdentity(request: Request) {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   const ip = forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
-  const credential = request.headers.get('authorization') || request.headers.get('x-gemini-api-key') || '';
+  const credential = request.headers.get('authorization') || '';
   return createHash('sha256').update(`${ip}|${credential}`).digest('hex').slice(0, 32);
 }
 

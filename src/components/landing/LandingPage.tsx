@@ -3276,14 +3276,14 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         'Tasks & dự án không giới hạn số lượng',
         'Board Kanban, Danh sách List & Smart Docs',
         '3 Bảng trắng vô cực Whiteboard cộng tác',
-        'Tích hợp Gemini AI với khóa API cá nhân',
+        'Apexa AI chỉ có trên các gói trả phí',
         'Lưu trữ dữ liệu Local-First tức thì 11.4ms'
       ] : [
         'Up to 5 active independent spaces',
         'Unlimited tasks and projects',
         'Core Kanban, List & Smart Docs',
         '3 collaborative infinite whiteboards',
-        'Gemini AI integration with personal key',
+        'Apexa AI is available on paid plans',
         'Instant Local-First 11.4ms data caching'
       ]
     },
@@ -3300,14 +3300,14 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         'Không giới hạn Spaces và Whiteboards',
         'Lịch biểu Sprint & Timeline Gantt trực quan',
         'Đồng bộ 2 chiều Google Calendar & Notion',
-        'Apexa AI tích hợp sẵn theo Workspace',
+        'Toàn bộ Apexa AI · 150 lượt mỗi tháng',
         'Tự động hóa quy trình phân việc cơ bản',
         'Phân quyền thành viên (Admin / Member)'
       ] : [
         'Unlimited Spaces & Whiteboards',
         'Sprint Calendar & visual Gantt Timeline',
         'Two-way Google Calendar & Notion sync',
-        'Workspace-configured Apexa AI',
+        'All Apexa AI tools · 150 requests/month',
         'Core workflow task automation',
         'Member role permissions (Admin / Member)'
       ]
@@ -3323,7 +3323,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       badgeColor: 'text-white bg-gradient-to-r from-indigo-600 to-purple-600',
       features: isVietnamese ? [
         'Toàn bộ quyền lợi của gói Starter',
-        'Gemini AI Copilot Native không phụ phí',
+        'Apexa AI · 2.000 lượt mỗi tháng',
         'Hệ sinh thái CRM, ERP & Finance Workspace',
         'Tự động hóa phân rã PRD thành Tasks 1-Click',
         'Theo dõi thời gian, chấm công & đo lường KPI',
@@ -3331,7 +3331,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         'Phân quyền khách mời (Guest) không tính phí'
       ] : [
         'Everything included in Starter',
-        'Gemini AI Copilot Native without surcharge',
+        'Apexa AI · 2,000 requests per month',
         'Integrated CRM, ERP & Finance workspaces',
         '1-Click automated PRD goal decomposition',
         'Time tracking, attendance & KPI metrics',
@@ -3567,14 +3567,14 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       categoryLabel: isVietnamese ? 'Bảo mật & Kiến trúc' : 'Security & Architecture',
       badgeColor: 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
       q: isVietnamese
-        ? 'Tôi có thể tự mang khóa Gemini API cá nhân (BYOK) vào Apexa không?'
-        : 'Can I bring my own personal Gemini API key (BYOK) into Apexa?',
+        ? 'Apexa có nhận khóa Gemini API cá nhân (BYOK) không?'
+        : 'Does Apexa accept personal Gemini API keys (BYOK)?',
       a: isVietnamese
-        ? 'Chắc chắn rồi! Người dùng ở mọi gói tài khoản (kể cả gói Free) đều có thể cấu hình khóa API cá nhân từ Google AI Studio trong mục Cài đặt để sử dụng toàn bộ tính năng Apexa Brain AI mà không chịu bất kỳ giới hạn nào từ nền tảng.'
-        : 'Yes! Users on any plan (including Free) can plug in their own Google AI Studio Gemini API key in Settings to unlock unlimited AI Brain features.',
+        ? 'Không. Để bảo mật và kiểm soát chi phí nhất quán, Apexa chỉ dùng khóa nhà cung cấp được bảo vệ trên máy chủ. Toàn bộ công cụ Apexa AI được mở từ gói Starter và áp dụng hạn mức theo từng gói đăng ký.'
+        : 'No. For consistent security and cost controls, Apexa uses only provider credentials protected on the server. All Apexa AI tools start with Starter and follow each plan’s monthly allowance.',
       highlights: isVietnamese
-        ? ['Hỗ trợ BYOK linh hoạt', 'Dùng API Key cá nhân miễn phí', 'Không giới hạn hạn mức AI']
-        : ['Flexible BYOK support', 'Free personal API key integration', 'Unlimited personal AI quota']
+        ? ['Không nhận khóa cá nhân', 'Khóa chỉ nằm trên máy chủ', 'Hạn mức rõ ràng theo gói']
+        : ['No personal keys', 'Server-only credentials', 'Clear plan-based allowances']
     },
     {
       id: 'faq-7',
@@ -3585,11 +3585,11 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
         ? 'Các gói Free, Starter, Pro và Enterprise khác nhau như thế nào?'
         : 'What are the key differences between Free, Starter, Pro, and Enterprise plans?',
       a: isVietnamese
-        ? 'Gói Free (0₫ mãi mãi) dành cho cá nhân/freelancer với 5 Spaces. Gói Starter (149k/tháng) mở khóa không giới hạn Spaces và Gantt Timeline cho nhóm nhỏ. Gói Pro (299k/tháng - Khuyên dùng) tích hợp toàn diện Gemini AI Copilot Native, CRM, ERP và Báo cáo Sprint. Gói Enterprise cung cấp bảo mật đa phòng ban, SLA 99.9% Uptime và kỹ sư triển khai riêng.'
-        : 'Free is for individuals with 5 Spaces. Starter unlocks unlimited Spaces & Gantt for small teams. Pro includes native Gemini AI Copilot, CRM, ERP, and Sprint Analytics. Enterprise provides multi-department security, 99.9% Uptime SLA, and dedicated onboarding.',
+        ? 'Gói Free dành cho cá nhân với 5 Spaces và không có AI. Starter mở toàn bộ Apexa AI với 150 lượt/tháng. Pro nâng hạn mức lên 2.000 lượt/tháng, đồng thời có CRM, ERP và báo cáo nâng cao. Business và Enterprise tăng hạn mức, thành viên và năng lực quản trị tổ chức.'
+        : 'Free includes five Spaces without AI. Starter unlocks all Apexa AI tools with 150 monthly requests. Pro raises the allowance to 2,000 and adds CRM, ERP, and advanced reporting. Business and Enterprise expand AI allowance, seats, and organization controls.',
       highlights: isVietnamese
-        ? ['Free 0₫ trọn đời', 'Pro tích hợp full AI & CRM/ERP', 'Enterprise SLA 99.9% Uptime']
-        : ['Free forever for individuals', 'Pro unifies full AI & CRM/ERP', 'Enterprise 99.9% Uptime SLA']
+        ? ['Free không có AI', 'Starter mở toàn bộ AI', 'Hạn mức tăng theo từng gói']
+        : ['No AI on Free', 'Starter unlocks all AI', 'Allowance scales by plan']
     },
     {
       id: 'faq-8',

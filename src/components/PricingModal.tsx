@@ -11,11 +11,13 @@ import {
   CreditCard,
   Crown,
   HelpCircle,
+  Landmark,
   Layers,
   Loader2,
   Mail,
   Rocket,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Users,
   X,
@@ -24,9 +26,10 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { SUGGESTED_PRICES, type BillingCycle, type BillingPlan, type SelfServeBillingPlan } from '@/lib/billing/plans';
-import { PayOSCheckout, type PayOSCheckoutData } from '@/components/billing/PayOSCheckout';
+import { PayOSCheckout, type PaymentReceipt, type PayOSCheckoutData } from '@/components/billing/PayOSCheckout';
+import { CardPaymentSuccess } from '@/components/billing/CardPaymentSuccess';
 
-type Entitlement = {
+export type Entitlement = {
   plan: BillingPlan;
   provider?: 'payos' | 'stripe';
   status: string;
@@ -46,6 +49,8 @@ type BillingPrice = {
 };
 
 type PriceMap = Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, BillingPrice>>>>;
+type PaymentMethod = 'vietqr' | 'momo' | 'card';
+type CardAvailability = Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, boolean>>>>;
 
 export interface PricingModalProps {
   isOpen: boolean;
@@ -77,13 +82,17 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   });
   const [prices, setPrices] = useState<PriceMap>({});
   const [billingConfigured, setBillingConfigured] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr');
+  const [cardAvailability, setCardAvailability] = useState<CardAvailability>({});
   const [pricesLoading, setPricesLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<BillingPlan | null>(null);
   const [checking, setChecking] = useState(false);
   const [manualChecking, setManualChecking] = useState(false);
   const [error, setError] = useState('');
   const [checkout, setCheckout] = useState<PayOSCheckoutData | null>(null);
-  const [checkoutStatus, setCheckoutStatus] = useState<'pending' | 'expired' | 'cancelled' | 'failed'>('pending');
+  const [checkoutStatus, setCheckoutStatus] = useState<'pending' | 'success' | 'expired' | 'cancelled' | 'failed'>('pending');
+  const [paymentReceipt, setPaymentReceipt] = useState<PaymentReceipt | null>(null);
+  const [cardSuccess, setCardSuccess] = useState<{ plan: SelfServeBillingPlan; cycle: BillingCycle } | null>(null);
 
   const copy = useMemo(
     () => ({
@@ -99,14 +108,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Task & dự án không giới hạn',
               'Board, List & Docs ghi chú',
               '3 bảng trắng cộng tác Whiteboard',
-              'Dùng khóa Gemini cá nhân cho tính năng AI',
+              'Không bao gồm Apexa AI',
             ]
           : [
               'Up to 5 active Spaces',
               'Unlimited tasks & projects',
               'Core Board, List & Docs',
               '3 collaborative Whiteboards',
-              'Use a personal Gemini key for AI features',
+              'Apexa AI is not included',
             ],
       },
       starter: {
@@ -119,14 +128,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           ? [
               'Spaces & dự án không giới hạn',
               'Calendar & biểu đồ Gantt tiến độ',
-              'AI theo cấu hình của workspace',
+              'Toàn bộ Apexa AI · 150 lượt/tháng',
               'Tự động hóa quy trình cơ bản',
               'Tích hợp Google Calendar, Notion',
             ]
           : [
               'Unlimited spaces & projects',
               'Calendar & Gantt timeline',
-              'AI based on workspace configuration',
+              'All Apexa AI tools · 150 requests/month',
               'Core workflow automation',
               'Google Calendar & Notion integration',
             ],
@@ -140,14 +149,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         features: isVietnamese
           ? [
               'Toàn bộ quyền lợi gói Starter',
-              'Apexa AI Chat, Report & Summarizer',
+              '2.000 lượt Apexa AI mỗi tháng',
               'Hệ sinh thái CRM, ERP & Finance',
               'Tự động hóa và báo cáo nâng cao',
               'Time tracking, KPI & phân quyền khách',
             ]
           : [
               'Everything in Starter',
-              'Apexa AI Chat, Report & Summarizer',
+              '2,000 Apexa AI requests per month',
               'Integrated CRM, ERP & Finance workspaces',
               'Advanced automation and reporting',
               'Time tracking, KPI & guest permissions',
@@ -164,14 +173,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               'Toàn bộ quyền lợi gói Pro',
               'Phân quyền nâng cao theo phòng ban',
               'Portfolio & Quản lý khối lượng (Workload)',
-              'API, Webhook và cấu hình AI cho tổ chức',
+              'API, Webhook và 10.000 lượt AI/tháng',
               'Hỗ trợ triển khai theo thỏa thuận',
             ]
           : [
               'Everything in Pro',
               'Advanced role & department permissions',
               'Portfolio & Workload management',
-              'API, Webhooks, and organization AI settings',
+              'API, Webhooks, and 10,000 AI requests/month',
               'Implementation support by agreement',
             ],
       },
@@ -233,6 +242,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       if (body.entitlement) {
         setEntitlement(body.entitlement);
         onEntitlementChange?.(body.entitlement);
+        return body.entitlement as Entitlement;
       }
     } catch (requestError) {
       setError(
@@ -245,6 +255,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     } finally {
       setChecking(false);
     }
+    return null;
   }, [authorizedFetch, isVietnamese, onEntitlementChange]);
 
   const refreshPrices = useCallback(async () => {
@@ -255,11 +266,13 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       if (response.ok) {
         setPrices(body.prices || {});
         setBillingConfigured(Boolean(body.configured));
+        setCardAvailability(body.paymentMethods?.card || {});
         if (body.configured) setError('');
       }
     } catch {
       setPrices({});
       setBillingConfigured(false);
+      setCardAvailability({});
     } finally {
       setPricesLoading(false);
     }
@@ -268,11 +281,13 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   const closeEmbeddedCheckout = useCallback(() => {
     setCheckout(null);
     setCheckoutStatus('pending');
+    setPaymentReceipt(null);
     setError('');
   }, []);
 
   const handleModalClose = useCallback(() => {
     closeEmbeddedCheckout();
+    setCardSuccess(null);
     onClose();
   }, [closeEmbeddedCheckout, onClose]);
 
@@ -287,7 +302,20 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           body: JSON.stringify({ orderCode: activeCheckout.orderCode }),
         });
         if (result.status === 'paid') {
-          await refreshEntitlement();
+          const refreshed = await refreshEntitlement();
+          if (!refreshed?.is_pro && result.receipt) {
+            const confirmed: Entitlement = {
+              plan: activeCheckout.plan,
+              provider: 'payos',
+              status: 'active',
+              billing_cycle: activeCheckout.cycle,
+              is_pro: true,
+              cancel_at_period_end: true,
+              current_period_end: result.receipt.periodEnd || undefined,
+            };
+            setEntitlement(confirmed);
+            onEntitlementChange?.(confirmed);
+          }
           addSyncLog?.(`Confirmed PayOS order ${activeCheckout.orderCode}`);
           triggerToast?.(
             'success',
@@ -296,7 +324,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               ? `Gói ${copy[activeCheckout.plan].name} đã được kích hoạt thành công.`
               : `Your ${copy[activeCheckout.plan].name} plan is now active.`,
           );
-          setCheckout(null);
+          setPaymentReceipt(result.receipt || null);
+          setCheckoutStatus('success');
           return true;
         } else if (['cancelled', 'expired', 'failed'].includes(result.status)) {
           setCheckoutStatus(result.status);
@@ -322,12 +351,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       }
       return false;
     },
-    [addSyncLog, authorizedFetch, copy, isVietnamese, refreshEntitlement, triggerToast],
+    [addSyncLog, authorizedFetch, copy, isVietnamese, onEntitlementChange, refreshEntitlement, triggerToast],
   );
 
   // Background auto-polling (every 3.5s) while checkout modal is open
   useEffect(() => {
-    if (!isOpen || !checkout) return;
+    if (!isOpen || !checkout || checkoutStatus === 'success') return;
     let active = true;
 
     const poll = async () => {
@@ -348,8 +377,21 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         if (!active) return;
         const data = await res.json().catch(() => ({}));
         if (data?.status === 'paid') {
-          await refreshEntitlement();
+          const refreshed = await refreshEntitlement();
           if (!active) return;
+          if (!refreshed?.is_pro && data.receipt) {
+            const confirmed: Entitlement = {
+              plan: checkout.plan,
+              provider: 'payos',
+              status: 'active',
+              billing_cycle: checkout.cycle,
+              is_pro: true,
+              cancel_at_period_end: true,
+              current_period_end: data.receipt.periodEnd || undefined,
+            };
+            setEntitlement(confirmed);
+            onEntitlementChange?.(confirmed);
+          }
           addSyncLog?.(`Confirmed PayOS order ${checkout.orderCode}`);
           triggerToast?.(
             'success',
@@ -358,7 +400,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
               ? `Gói ${copy[checkout.plan].name} đã được kích hoạt thành công.`
               : `Your ${copy[checkout.plan].name} plan is now active.`,
           );
-          setCheckout(null);
+          setPaymentReceipt(data.receipt || null);
+          setCheckoutStatus('success');
         } else if (['cancelled', 'expired', 'failed'].includes(data?.status)) {
           setCheckoutStatus(data.status);
         }
@@ -399,13 +442,22 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       clearInterval(interval);
       window.removeEventListener('message', handleMessage);
     };
-  }, [checkout, checkPaymentStatus, copy, isVietnamese, isOpen, refreshEntitlement, triggerToast, addSyncLog]);
+  }, [checkout, checkoutStatus, checkPaymentStatus, copy, isVietnamese, isOpen, onEntitlementChange, refreshEntitlement, triggerToast, addSyncLog]);
 
   useEffect(() => {
     if (!isOpen) return;
     setError('');
     const pendingCycle = window.localStorage.getItem('apexa_pending_upgrade_cycle');
     if (pendingCycle === 'monthly' || pendingCycle === 'yearly') setCycle(pendingCycle);
+    const pendingPlan = window.localStorage.getItem('apexa_pending_upgrade_plan');
+    const cardReturn = window.sessionStorage.getItem('apexa_billing_success_provider') === 'stripe';
+    if (cardReturn && (pendingPlan === 'starter' || pendingPlan === 'pro' || pendingPlan === 'business')) {
+      setCardSuccess({
+        plan: pendingPlan,
+        cycle: pendingCycle === 'monthly' ? 'monthly' : 'yearly',
+      });
+      window.sessionStorage.removeItem('apexa_billing_success_provider');
+    }
     window.localStorage.removeItem('apexa_pending_upgrade_cycle');
     window.localStorage.removeItem('apexa_pending_upgrade_plan');
     void Promise.all([refreshEntitlement(), refreshPrices()]);
@@ -482,6 +534,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       }
       addSyncLog?.(`Started embedded PayOS ${plan} ${cycle} checkout`);
       setCheckoutStatus('pending');
+      setPaymentReceipt(null);
       setCheckout({
         url: data.url,
         returnUrl: data.returnUrl,
@@ -495,6 +548,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         accountNumber: data.accountNumber,
         accountName: data.accountName,
         bin: data.bin,
+        method: paymentMethod === 'momo' ? 'momo' : 'vietqr',
       });
     } catch (requestError) {
       const message =
@@ -508,6 +562,24 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     } finally {
       setLoadingPlan(null);
     }
+  };
+
+  const startCardCheckout = async (plan: SelfServeBillingPlan) => {
+    if (!cardAvailability[plan]?.[cycle]) {
+      const message = isVietnamese
+        ? 'Thanh toán thẻ cho gói và chu kỳ này chưa được cấu hình trên Stripe.'
+        : 'Card payment is not configured for this plan and billing cycle.';
+      setError(message);
+      triggerToast?.('info', isVietnamese ? 'Chưa mở thanh toán thẻ' : 'Card payment unavailable', message);
+      return;
+    }
+    window.localStorage.setItem('apexa_pending_upgrade_plan', plan);
+    window.localStorage.setItem('apexa_pending_upgrade_cycle', cycle);
+    await redirectToBilling(plan, '/api/billing/card-checkout', {
+      plan,
+      cycle,
+      returnPath: `${window.location.pathname}${window.location.search}`,
+    });
   };
 
   const selectPlan = (plan: BillingPlan) => {
@@ -531,6 +603,10 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       (entitlement.is_pro || ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status))
     ) {
       void redirectToBilling(plan, '/api/billing/portal');
+      return;
+    }
+    if (paymentMethod === 'card') {
+      void startCardCheckout(plan);
       return;
     }
     if (!billingConfigured || !prices[plan]?.[cycle]) {
@@ -658,7 +734,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
             <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_50%_0%,rgba(99,102,241,0.2),transparent_70%)]" />
 
             {/* ======================= PRICING GRID VIEW ======================= */}
-            {!checkout && (
+            {!checkout && !cardSuccess && (
               <>
                 {/* Close Button */}
                 <button
@@ -685,8 +761,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   </h2>
                   <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm text-pretty">
                     {isVietnamese
-                      ? 'Nâng cấp nhanh qua VietQR 24/7 · Không ràng buộc hợp đồng · Tự động kích hoạt sau 3 giây.'
-                      : 'Instant VietQR payment · Zero contracts · Auto-activated in 3 seconds.'}
+                      ? 'Nâng cấp nhanh qua VietQR 24/7 · Không ràng buộc hợp đồng · Kích hoạt tự động sau đối soát.'
+                      : 'Instant VietQR payment · Zero contracts · Activated automatically after verification.'}
                   </p>
 
                   {/* Interactive Switcher with Animated Pill */}
@@ -749,6 +825,74 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                     </button>
                   </div>
                 </header>
+
+                <div className="relative mx-auto mb-5 max-w-3xl px-4 sm:px-6">
+                  <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+                    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={isVietnamese ? 'Phương thức thanh toán' : 'Payment method'}>
+                      {([
+                        {
+                          id: 'vietqr' as const,
+                          icon: Landmark,
+                          title: 'VietQR 24/7',
+                          shortTitle: 'VietQR',
+                          detail: isVietnamese ? 'Mọi ngân hàng VN' : 'All VN banks',
+                          enabled: billingConfigured,
+                        },
+                        {
+                          id: 'momo' as const,
+                          icon: Smartphone,
+                          title: 'MoMo',
+                          shortTitle: 'MoMo',
+                          detail: isVietnamese ? 'Quét VietQR' : 'Scan VietQR',
+                          enabled: billingConfigured,
+                        },
+                        {
+                          id: 'card' as const,
+                          icon: CreditCard,
+                          title: isVietnamese ? 'Thẻ quốc tế' : 'Card',
+                          shortTitle: isVietnamese ? 'Thẻ' : 'Card',
+                          detail: 'Visa · Mastercard',
+                          enabled: corePlans.some((plan) => Boolean(cardAvailability[plan]?.[cycle])),
+                        },
+                      ]).map((method) => {
+                        const MethodIcon = method.icon;
+                        const active = paymentMethod === method.id;
+                        return (
+                          <button
+                            key={method.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            disabled={!method.enabled}
+                            onClick={() => setPaymentMethod(method.id)}
+                            className={`flex min-w-0 items-center justify-center gap-2 rounded-xl border px-2 py-2.5 text-left transition sm:px-4 ${
+                              active
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-800 shadow-sm dark:border-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-200'
+                                : 'border-transparent text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/70'
+                            } disabled:cursor-not-allowed disabled:opacity-35`}
+                          >
+                            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${active ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
+                              <MethodIcon className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-[11px] font-black sm:hidden">{method.shortTitle}</span>
+                              <span className="hidden truncate text-xs font-black sm:block">{method.title}</span>
+                              <span className="hidden truncate text-[9px] font-semibold opacity-70 sm:block">{method.detail}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 flex items-center justify-center gap-1.5 px-2 pb-1 text-center text-[10px] font-semibold text-slate-400">
+                      <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                      {paymentMethod === 'card'
+                        ? (isVietnamese ? 'Thanh toán định kỳ bảo mật qua Stripe; quản lý hoặc hủy bất kỳ lúc nào.' : 'Secure recurring billing through Stripe; manage or cancel anytime.')
+                        : paymentMethod === 'momo'
+                          ? (isVietnamese ? 'Mở MoMo, chọn Quét mã và thanh toán qua mã VietQR được tạo riêng cho đơn.' : 'Open MoMo and scan the order-specific VietQR code.')
+                          : (isVietnamese ? 'Chuyển khoản tức thì qua PayOS; gói trả trước, không tự động trừ tiền.' : 'Instant PayOS transfer; prepaid with no automatic debit.')}
+                    </div>
+                  </div>
+                </div>
 
                 {/* 4 Cards Grid: Free, Starter, Pro (Hero), Business */}
                 <main className="relative px-3 pb-8 sm:px-6 sm:pb-10">
@@ -1154,10 +1298,21 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                     <span>•</span>
                     <span>{isVietnamese ? 'Gói trả trước · Không tự động trừ tiền' : 'Prepaid access · No auto-debit'}</span>
                     <span>•</span>
-                    <span>{isVietnamese ? 'Hỗ trợ xuất hóa đơn VAT điện tử' : 'Official VAT invoice support'}</span>
+                    <span>{isVietnamese ? 'Biên nhận thanh toán rõ ràng' : 'Clear payment receipt'}</span>
                   </div>
                 </main>
               </>
+            )}
+
+            {cardSuccess && (
+              <CardPaymentSuccess
+                plan={cardSuccess.plan}
+                cycle={cardSuccess.cycle}
+                periodEnd={entitlement.current_period_end}
+                isVietnamese={isVietnamese}
+                onClose={handleModalClose}
+                onManage={() => void redirectToBilling(cardSuccess.plan, '/api/billing/portal')}
+              />
             )}
 
             {checkout && (
@@ -1167,6 +1322,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 planName={copy[checkout.plan].name}
                 status={manualChecking ? 'checking' : checkoutStatus}
                 error={error}
+                receipt={paymentReceipt}
                 onBack={closeEmbeddedCheckout}
                 onClose={handleModalClose}
                 onCheck={() => void checkPaymentStatus(checkout)}

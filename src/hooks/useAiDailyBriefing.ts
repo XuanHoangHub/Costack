@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Task, User } from '@/types';
-import { callAiApi } from '@/lib/aiClient';
+import { callAiApi, isAiAccessError } from '@/lib/aiClient';
 import { analyzeTasks, createLocalBriefing } from '@/lib/taskIntelligence';
+import { useAuthStore } from '@/store/authStore';
 
 type ToastType = 'assignment' | 'deadline' | 'comment' | 'success' | 'info' | 'message';
 
@@ -37,11 +38,12 @@ export function useAiDailyBriefing({
   triggerToast,
   onAddSyncLog,
 }: UseAiDailyBriefingOptions) {
+  const isPremium = useAuthStore(state => Boolean(state.currentUser?.isPremium));
   const [settingsVersion, setSettingsVersion] = useState(0);
   const runningRef = useRef(false);
 
   const deliverBriefing = useCallback(async () => {
-    if (!workspaceId || !tasks.length || runningRef.current) return;
+    if (!isPremium || !workspaceId || !tasks.length || runningRef.current) return;
     const now = new Date();
     const storageKey = `apexa_ai_daily_briefing_last_${workspaceId}_${currentUserId || 'user'}`;
     if (localStorage.getItem(storageKey) === localDateKey(now)) return;
@@ -72,7 +74,11 @@ export function useAiDailyBriefing({
           headline = data.headline || headline;
           summary = data.summary || summary;
         }
-      } catch {
+      } catch (error) {
+        if (isAiAccessError(error)) {
+          runningRef.current = false;
+          return;
+        }
         // The deterministic local briefing is intentionally retained.
       }
     }
@@ -85,7 +91,7 @@ export function useAiDailyBriefing({
     localStorage.setItem(storageKey, localDateKey(now));
     onAddSyncLog?.(locale === 'vi' ? 'Apexa AI đã gửi bản tin công việc hằng ngày' : 'Apexa AI delivered the daily task briefing');
     runningRef.current = false;
-  }, [currentUserId, isOffline, locale, members, onAddSyncLog, tasks, triggerToast, workspaceId]);
+  }, [currentUserId, isOffline, isPremium, locale, members, onAddSyncLog, tasks, triggerToast, workspaceId]);
 
   useEffect(() => {
     const refreshSettings = () => setSettingsVersion(version => version + 1);
@@ -95,7 +101,7 @@ export function useAiDailyBriefing({
 
   useEffect(() => {
     const settings = readSettings();
-    if (!settings.enabled || !workspaceId || !tasks.length) return;
+    if (!isPremium || !settings.enabled || !workspaceId || !tasks.length) return;
 
     const [hours, minutes] = settings.time.split(':').map(Number);
     const now = new Date();
@@ -103,5 +109,5 @@ export function useAiDailyBriefing({
     const delay = Math.max(1200, scheduled.getTime() - now.getTime());
     const timer = window.setTimeout(deliverBriefing, delay);
     return () => window.clearTimeout(timer);
-  }, [deliverBriefing, settingsVersion, tasks.length, workspaceId]);
+  }, [deliverBriefing, isPremium, settingsVersion, tasks.length, workspaceId]);
 }

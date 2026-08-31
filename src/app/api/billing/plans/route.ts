@@ -4,6 +4,10 @@ import { billingErrorResponse } from '@/lib/billing/server';
 
 export const dynamic = 'force-dynamic';
 
+function stripePriceConfigured(plan: SelfServeBillingPlan, cycle: BillingCycle) {
+  return Boolean(process.env.STRIPE_SECRET_KEY && process.env[`STRIPE_PRICE_${plan.toUpperCase()}_${cycle.toUpperCase()}`]);
+}
+
 function serializePrice(plan: SelfServeBillingPlan, cycle: BillingCycle) {
   return {
     plan,
@@ -25,7 +29,20 @@ export async function GET() {
     }));
 
     return Response.json(
-      { configured: isPayOSConfigured(), provider: 'payos', prices },
+      {
+        configured: isPayOSConfigured(),
+        provider: 'payos',
+        prices,
+        paymentMethods: {
+          vietqr: isPayOSConfigured(),
+          bankTransfer: isPayOSConfigured(),
+          momoVietqr: isPayOSConfigured(),
+          card: Object.fromEntries(SELF_SERVE_PLANS.map((plan) => [
+            plan,
+            Object.fromEntries((['monthly', 'yearly'] as const).map((cycle) => [cycle, stripePriceConfigured(plan, cycle)])),
+          ])),
+        },
+      },
       { headers: { 'Cache-Control': 'private, no-store' } },
     );
   } catch (error) {

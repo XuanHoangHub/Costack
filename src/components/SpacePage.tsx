@@ -260,45 +260,82 @@ export default function SpacePage({
   const [sharingTargetIsPrivate, setSharingTargetIsPrivate] = useState(false);
   const [sharingTargetShareSettings, setSharingTargetShareSettings] = useState<Record<string, 'view' | 'edit'>>({});
 
-  // Access check helpers
+  // Access check helpers (RBAC)
   const hasSpaceAccess = React.useCallback((space: Space) => {
     const cleanCurrentUserId = currentUser?.id;
     const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isWsAdmin = currentUser?.role === 'admin' || activeWorkspace?.membershipRole === 'owner' || activeWorkspace?.membershipRole === 'admin';
+    if (isWsOwner || isWsAdmin) return true;
+
     const isCreator = space.user_id === cleanCurrentUserId;
+    const isGuest = currentUser?.role === 'guest' || activeWorkspace?.membershipRole === 'guest';
+    const hasAccessKey = Boolean(space.shareSettings && space.shareSettings[cleanCurrentUserId]);
+
+    if (isGuest) {
+      return isCreator || hasAccessKey;
+    }
+
     const isPublic = !space.isPrivate;
-    
-    // Check if shared with user
-    const hasAccessKey = space.shareSettings && (space.shareSettings[cleanCurrentUserId] === 'view' || space.shareSettings[cleanCurrentUserId] === 'edit');
-    
-    return isWsOwner || isCreator || isPublic || hasAccessKey;
+    return isCreator || isPublic || hasAccessKey;
   }, [activeWorkspace, currentUser]);
 
   const canEditSpace = React.useCallback((space: Space) => {
     const cleanCurrentUserId = currentUser?.id;
     const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isWsAdmin = currentUser?.role === 'admin' || activeWorkspace?.membershipRole === 'owner' || activeWorkspace?.membershipRole === 'admin';
+    if (isWsOwner || isWsAdmin) return true;
+
     const isCreator = space.user_id === cleanCurrentUserId;
-    const isSharedEditor = space.shareSettings && space.shareSettings[cleanCurrentUserId] === 'edit';
+    const isGuest = currentUser?.role === 'guest' || activeWorkspace?.membershipRole === 'guest';
+    const userShareRole = space.shareSettings ? space.shareSettings[cleanCurrentUserId] : undefined;
+
+    if (userShareRole === 'edit') return true;
+    if (userShareRole === 'view') return false; // Explicit read-only
+
+    if (isGuest) return isCreator;
+
     const isPublic = !space.isPrivate;
-    return isWsOwner || isCreator || isSharedEditor || isPublic;
+    return isCreator || isPublic;
   }, [activeWorkspace, currentUser]);
 
   const hasListAccess = React.useCallback((space: Space, list: any) => {
+    if (!hasSpaceAccess(space)) return false;
     const cleanCurrentUserId = currentUser?.id;
     const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isWsAdmin = currentUser?.role === 'admin' || activeWorkspace?.membershipRole === 'owner' || activeWorkspace?.membershipRole === 'admin';
+    if (isWsOwner || isWsAdmin) return true;
+
     const isCreator = list.user_id === cleanCurrentUserId;
+    const isGuest = currentUser?.role === 'guest' || activeWorkspace?.membershipRole === 'guest';
+    const hasAccessKey = Boolean(list.shareSettings && list.shareSettings[cleanCurrentUserId]);
+
+    if (isGuest) {
+      return isCreator || hasAccessKey;
+    }
+
     const isPublic = !list.isPrivate;
-    const hasAccessKey = list.shareSettings && (list.shareSettings[cleanCurrentUserId] === 'view' || list.shareSettings[cleanCurrentUserId] === 'edit');
-    return hasSpaceAccess(space) && (isWsOwner || isCreator || isPublic || hasAccessKey);
+    return isCreator || isPublic || hasAccessKey;
   }, [currentUser, hasSpaceAccess, activeWorkspace]);
 
   const canEditList = React.useCallback((space: Space, list: any) => {
+    if (!hasSpaceAccess(space)) return false;
     const cleanCurrentUserId = currentUser?.id;
     const isWsOwner = activeWorkspace?.user_id === cleanCurrentUserId;
+    const isWsAdmin = currentUser?.role === 'admin' || activeWorkspace?.membershipRole === 'owner' || activeWorkspace?.membershipRole === 'admin';
+    if (isWsOwner || isWsAdmin) return true;
+
     const isCreator = list.user_id === cleanCurrentUserId;
-    const isSharedEditor = list.shareSettings && list.shareSettings[cleanCurrentUserId] === 'edit';
+    const isGuest = currentUser?.role === 'guest' || activeWorkspace?.membershipRole === 'guest';
+    const userShareRole = list.shareSettings ? list.shareSettings[cleanCurrentUserId] : undefined;
+
+    if (userShareRole === 'edit') return true;
+    if (userShareRole === 'view') return false; // Explicit read-only
+
+    if (isGuest) return isCreator;
+
     const isPublic = !list.isPrivate;
-    return hasSpaceAccess(space) && (isWsOwner || isCreator || isSharedEditor || isPublic);
-  }, [currentUser, hasSpaceAccess, activeWorkspace]);
+    return isCreator || (canEditSpace(space) && isPublic);
+  }, [currentUser, hasSpaceAccess, canEditSpace, activeWorkspace]);
 
   const handleSaveSharingSettings = (newIsPrivate: boolean, newShareSettings: Record<string, 'view' | 'edit'>) => {
     if (sharingTargetType === 'space') {

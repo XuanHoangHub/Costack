@@ -37,7 +37,9 @@ import { useTranslation } from '../contexts/TranslationContext';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
-import { callAiApi } from '../lib/aiClient';
+import { callAiApi, isAiAccessError } from '../lib/aiClient';
+import { useAuthStore } from '../store/authStore';
+import { useUiStore } from '../store/uiStore';
 
 interface SpaceOverviewTabProps {
   space: Space;
@@ -238,6 +240,8 @@ export default function SpaceOverviewTab({
   onUpdateBookmarks
 }: SpaceOverviewTabProps) {
   const { locale } = useTranslation();
+  const isPremium = useAuthStore(state => Boolean(state.currentUser?.isPremium));
+  const setShowPremiumModal = useUiStore(state => state.setShowPremiumModal);
   const [bookmarks, setBookmarks] = useState<SpaceBookmark[]>([]);
   const [showAddBookmarkModal, setShowAddBookmarkModal] = useState(false);
   const [bookmarkTitle, setBookmarkTitle] = useState('');
@@ -422,6 +426,10 @@ export default function SpaceOverviewTab({
   };
 
   const handleRunAiAnalysis = async () => {
+    if (!isPremium) {
+      setShowPremiumModal(true);
+      return;
+    }
     setIsAnalyzing(true);
     const fallbackSummary = locale === 'vi'
       ? `Space "${space.name}" hoàn thành ${completionPercentage}%. Có ${statusCounts.inprogress} việc đang làm, ${statusCounts.review} việc chờ duyệt, ${overdueCount} việc quá hạn và ${highPriorityCount} việc ưu tiên cao. ${overdueCount > 0 ? 'Nên xử lý các việc quá hạn trước, sau đó tập trung vào nhóm ưu tiên cao.' : 'Tiến độ đang đúng hạn; hãy tập trung hoàn tất nhóm ưu tiên cao.'}`
@@ -453,7 +461,11 @@ export default function SpaceOverviewTab({
         locale === 'vi' ? 'Phân tích AI hoàn tất' : 'AI Analysis Complete',
         locale === 'vi' ? 'Đã tổng hợp bức tranh toàn cảnh của Space.' : 'Generated space health brief.'
       );
-    } catch {
+    } catch (error) {
+      if (isAiAccessError(error)) {
+        setIsAnalyzing(false);
+        return;
+      }
       setAiAnalysis(fallbackSummary);
       setIsAnalyzing(false);
       triggerToast?.(

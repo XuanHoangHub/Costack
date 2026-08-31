@@ -166,7 +166,7 @@ const getShortLabel = (label: string) => {
 };
 
 const DEFAULT_SIDEBAR_ORDER = [
-  'dashboard', 'inbox', 'tasks', 'calendar', 'productivity', 'goals',
+  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
   'crm', 'erp', 'finance', 'base', 'docs', 'whiteboard', 'chat', 'team'
 ];
 
@@ -936,9 +936,40 @@ export default function App() {
     setActiveWorkspaceId(id);
     setAccentPreset(w.theme as any);
     setShowWorkspaceMenu(false);
-    setActiveSpaceId(null);
-    setActiveListId(null);
-    addSyncLog(`Switched to workspace: ${w.name}`);
+
+    // Switch active space to the target workspace's first space, or create a starter space
+    const targetWsSpaces = spaces.filter(s => s.workspaceId === id);
+    if (targetWsSpaces.length > 0) {
+      setActiveSpaceId(targetWsSpaces[0].id);
+      setActiveListId(targetWsSpaces[0].lists?.[0]?.id || null);
+    } else {
+      const targetWsTheme = w.theme || 'indigo';
+      const defaultSpace: Space = {
+        id: `sp-${id}-${Date.now()}`,
+        name: `${w.name} Space`,
+        emoji: '🚀',
+        themeColor: targetWsTheme === 'ocean' ? '#0891b2' : targetWsTheme === 'forest' ? '#047857' : targetWsTheme === 'sunset' ? '#e11d48' : '#6366f1',
+        workspaceId: id,
+        lists: [
+          { id: `l-${id}-todo`, name: 'To Do' },
+          { id: `l-${id}-inprogress`, name: 'In Progress' },
+          { id: `l-${id}-completed`, name: 'Completed' }
+        ],
+        statuses: [
+          { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
+          { id: 'inprogress', label: 'In Progress', color: '#3b82f6', type: 'inprogress' },
+          { id: 'review', label: 'In Review', color: '#a855f7', type: 'review' },
+          { id: 'completed', label: 'Complete', color: '#22c55e', type: 'completed' }
+        ],
+        clickApps: { subtasks: true, priorities: true, customFields: true }
+      };
+      handleSaveSpaces([...spaces, defaultSpace]);
+      setActiveSpaceId(defaultSpace.id);
+      setActiveListId(defaultSpace.lists[0].id);
+    }
+
+    addSyncLog(`Đã chuyển sang Không gian làm việc: ${w.name}`, 'workspace');
+    (window as any).playSystemSound?.('workspace');
   };
 
   const openWorkspaceSettings = (w: any) => {
@@ -1190,6 +1221,45 @@ export default function App() {
   const bases = useBaseStore((s) => s.bases);
   const setBases = useBaseStore((s) => s.setBases);
 
+  // Members dataset
+  const members = useMemberStore((s) => s.members);
+  const setMembers = useMemberStore((s) => s.setMembers);
+
+  // Memoized workspace item collections for strict workspace data isolation
+  const currentWorkspaceTasks = useMemo(() => {
+    const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
+    return tasks.filter(t => {
+      if (t.workspaceId) return t.workspaceId === activeWorkspaceId;
+      if (t.spaceId) return workspaceSpaceIds.has(t.spaceId);
+      return false;
+    });
+  }, [tasks, spaces, activeWorkspaceId]);
+
+  const currentWorkspaceDocs = useMemo(() => {
+    const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
+    return docs.filter(d => {
+      if (d.category === 'System') return false;
+      if (d.workspaceId) return d.workspaceId === activeWorkspaceId;
+      if (d.spaceId) return workspaceSpaceIds.has(d.spaceId);
+      return false;
+    });
+  }, [docs, spaces, activeWorkspaceId]);
+
+  const currentWorkspaceBases = useMemo(() => {
+    return bases.filter(b => b.workspaceId === activeWorkspaceId);
+  }, [bases, activeWorkspaceId]);
+
+  const currentWorkspaceMembers = useMemo(() => {
+    return members.filter(m => {
+      if (m.id === currentUser?.id || m.email === currentUser?.email) return true;
+      return m.workspaceIds?.includes(activeWorkspaceId);
+    });
+  }, [members, activeWorkspaceId, currentUser?.id, currentUser?.email]);
+
+  const currentWorkspaceSpaces = useMemo(() => {
+    return spaces.filter(s => s.workspaceId === activeWorkspaceId);
+  }, [spaces, activeWorkspaceId]);
+
   // Toast notification state - consumed from useNotificationStore
   const toasts = useNotificationStore((s) => s.toasts);
   const removeToast = useNotificationStore((s) => s.removeToast);
@@ -1319,32 +1389,93 @@ export default function App() {
   const unreadNotificationsCount = useMemo(() => {
     const now = Date.now();
     const unreadNotifs = notificationsList.filter(
-      n => !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= now)
+      n => (!n.workspaceId || n.workspaceId === activeWorkspaceId) && !n.read && !n.cleared && (!n.snoozedUntil || n.snoozedUntil <= now)
     ).length;
     const unreadInvites = workspaceInvitations?.length || 0;
     return unreadNotifs + unreadInvites;
-  }, [notificationsList, workspaceInvitations]);
+  }, [notificationsList, workspaceInvitations, activeWorkspaceId]);
 
-  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string }>>(() => {
+  const sidebarItemsMeta = useMemo<Record<string, { label: string; icon: React.ComponentType<any>; count?: number; badge?: string; shortcut?: string; description?: string }>>(() => {
     return {
-      dashboard: { label: t('homeOverview') || 'Home Overview', icon: PhHouse },
+      dashboard: { 
+        label: t('homeOverview') || 'Home Overview', 
+        icon: PhHouse,
+        shortcut: '⌘1',
+        description: locale === 'vi' ? 'Tổng quan dự án & tiến độ chung' : 'Workspace overview & metrics',
+      },
       inbox: { 
         label: t('inbox') || 'Inbox', 
         icon: PhTray, 
-        count: unreadNotificationsCount
+        count: unreadNotificationsCount,
+        shortcut: '⌘2',
+        description: locale === 'vi' ? 'Thông báo công việc & lời mời' : 'Notifications & updates',
       },
-      tasks: { label: t('space') || 'Space', icon: PhSquaresFour },
-      productivity: { label: t('productivity') || (locale === 'vi' ? 'Năng suất' : 'Productivity'), icon: Zap, badge: locale === 'vi' ? 'Mới' : 'New' },
-      goals: { label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: PhTarget, badge: locale === 'vi' ? 'Mới' : 'New' },
-      calendar: { label: t('calendarView') || 'Calendar', icon: PhCalendar },
-      crm: { label: 'CRM', icon: PhHandshake, badge: locale === 'vi' ? 'Mới' : 'New' },
-      erp: { label: 'ERP', icon: PhBuildings, badge: 'Enterprise' },
-      finance: { label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', icon: PhBank, badge: 'AMIS' },
-      base: { label: t('base') || 'Avaxa Base', icon: PhDatabase },
-      docs: { label: t('docs') || 'Docs', icon: PhFileText },
-      whiteboard: { label: locale === 'vi' ? 'Bảng trắng' : 'Whiteboard', icon: PhWhiteboard },
-      chat: { label: t('chat') || 'Chat', icon: PhChat },
-      team: { label: locale === 'vi' ? 'Đội nhóm' : 'Team', icon: PhUsers },
+      tasks: { 
+        label: t('space') || 'Space', 
+        icon: PhSquaresFour,
+        shortcut: '⌘3',
+        description: locale === 'vi' ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
+      },
+      calendar: { 
+        label: t('calendarView') || 'Calendar', 
+        icon: PhCalendar,
+        shortcut: '⌘4',
+        description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
+      },
+      goals: { 
+        label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', 
+        icon: PhTarget, 
+        badge: locale === 'vi' ? 'Mới' : 'New',
+        shortcut: '⌘5',
+        description: locale === 'vi' ? 'Chiến lược mục tiêu & đo lường kết quả' : 'Strategic goals & measurable OKRs',
+      },
+      crm: { 
+        label: 'CRM', 
+        icon: PhHandshake, 
+        badge: locale === 'vi' ? 'Mới' : 'New',
+        shortcut: '⌘7',
+        description: locale === 'vi' ? 'Khách hàng tiềm năng & đường ống bán hàng' : 'Leads, deals & customer relationships',
+      },
+      base: { 
+        label: t('base') || 'Avaxa Base', 
+        icon: PhDatabase,
+        shortcut: '⌘8',
+        description: locale === 'vi' ? 'Cơ sở dữ liệu dạng bảng & biểu mẫu' : 'Visual flexible relational databases',
+      },
+      docs: { 
+        label: t('docs') || 'Docs', 
+        icon: PhFileText,
+        shortcut: '⌘9',
+        description: locale === 'vi' ? 'Tài liệu kiến thức, quy trình & Wiki' : 'Collaborative documents & Wiki',
+      },
+      whiteboard: { 
+        label: locale === 'vi' ? 'Bảng trắng' : 'Whiteboard', 
+        icon: PhWhiteboard,
+        description: locale === 'vi' ? 'Bảng vẽ trực quan & sơ đồ ý tưởng' : 'Visual canvas & concept diagramming',
+      },
+      chat: { 
+        label: t('chat') || 'Chat', 
+        icon: PhChat,
+        shortcut: '⌘0',
+        description: locale === 'vi' ? 'Kênh thảo luận & tin nhắn tức thời' : 'Channels & instant messaging',
+      },
+      team: { 
+        label: locale === 'vi' ? 'Đội nhóm' : 'Team', 
+        icon: PhUsers,
+        description: locale === 'vi' ? 'Danh bạ thành viên & phân quyền' : 'Team directory & workspace roles',
+      },
+      erp: { 
+        label: 'ERP', 
+        icon: PhBuildings, 
+        badge: 'Enterprise',
+        description: locale === 'vi' ? 'Hoạch định nguồn lực & vận hành' : 'Enterprise resource management',
+      },
+      finance: { 
+        label: locale === 'vi' ? 'Tài chính & Kế toán' : 'Finance & Accounting', 
+        icon: PhBank, 
+        badge: 'AMIS',
+        description: locale === 'vi' ? 'Thu chi, hóa đơn & báo cáo tài chính' : 'Finance invoicing & accounting',
+      },
     };
   }, [locale, unreadNotificationsCount, t]);
 
@@ -1366,6 +1497,8 @@ export default function App() {
           icon: meta.icon,
           count: meta.count,
           badge: meta.badge,
+          shortcut: meta.shortcut,
+          description: meta.description,
         };
       });
   }, [sidebarOrder, sidebarItemsMeta]);
@@ -1374,22 +1507,20 @@ export default function App() {
   const filteredTasks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
-    const activeTasks = tasks.filter(t => (t as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(t as any).workspaceId));
-    return activeTasks.filter(t => 
+    return currentWorkspaceTasks.filter(t => 
       t.title.toLowerCase().includes(query) || 
       t.description.toLowerCase().includes(query)
     );
-  }, [tasks, activeWorkspaceId, searchQuery]);
+  }, [currentWorkspaceTasks, searchQuery]);
 
   const filteredDocs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
-    const activeDocs = docs.filter(d => ((d as any).workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !(d as any).workspaceId)) && d.category !== 'System');
-    return activeDocs.filter(d => 
+    return currentWorkspaceDocs.filter(d => 
       d.title.toLowerCase().includes(query) || 
       d.content.toLowerCase().includes(query)
     );
-  }, [docs, activeWorkspaceId, searchQuery]);
+  }, [currentWorkspaceDocs, searchQuery]);
 
   const filteredChannels = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1706,7 +1837,6 @@ export default function App() {
     };
   }, [currentUser, isOffline, triggerToast]);
 
-  const members = useMemberStore((s) => s.members);
   const accountPresenceStatus = isOffline
     ? 'offline'
     : (userStatus
@@ -1718,7 +1848,6 @@ export default function App() {
     away: 'Tạm vắng',
     offline: 'Ngoại tuyến',
   }[accountPresenceStatus];
-  const setMembers = useMemberStore((s) => s.setMembers);
 
   // Synchronize dynamic members configuration when current user state loads or toggles
   useEffect(() => {
@@ -1758,38 +1887,6 @@ export default function App() {
       });
     }
   }, [currentUser, setMembers]);
-
-  // Memoized workspace item collections for high rendering performance
-  const currentWorkspaceTasks = useMemo(() => {
-    const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
-    return tasks.filter(t => {
-      if (t.workspaceId) return t.workspaceId === activeWorkspaceId;
-      if (t.spaceId) return workspaceSpaceIds.has(t.spaceId);
-      return workspaces.length === 1 && workspaces[0]?.id === activeWorkspaceId;
-    });
-  }, [tasks, spaces, workspaces, activeWorkspaceId]);
-
-  const currentWorkspaceDocs = useMemo(() => {
-    const workspaceSpaceIds = new Set(spaces.filter(s => s.workspaceId === activeWorkspaceId).map(s => s.id));
-    return docs.filter(d => {
-      if (d.category === 'System') return false;
-      if (d.workspaceId) return d.workspaceId === activeWorkspaceId;
-      if (d.spaceId) return workspaceSpaceIds.has(d.spaceId);
-      return workspaces.length === 1 && workspaces[0]?.id === activeWorkspaceId;
-    });
-  }, [docs, spaces, workspaces, activeWorkspaceId]);
-
-  const currentWorkspaceBases = useMemo(() => {
-    return bases.filter(b => b.workspaceId === activeWorkspaceId || (activeWorkspaceId === 'w2' && !b.workspaceId));
-  }, [bases, activeWorkspaceId]);
-
-  const currentWorkspaceMembers = useMemo(() => {
-    return members.filter(m => m.workspaceIds?.includes(activeWorkspaceId));
-  }, [members, activeWorkspaceId]);
-
-  const currentWorkspaceSpaces = useMemo(() => {
-    return spaces.filter(s => s.workspaceId === activeWorkspaceId);
-  }, [spaces, activeWorkspaceId]);
 
   // Auto-save member workspace mappings to localStorage
   useEffect(() => {
@@ -3969,7 +4066,6 @@ export default function App() {
     { id: 'dashboard', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard, category: 'workspace' },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, category: 'workspace' },
     { id: 'calendar', label: 'Calendar', icon: Calendar, category: 'workspace' },
-    { id: 'productivity', label: 'Productivity', icon: Zap, category: 'workspace' },
     { id: 'goals', label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: Target, category: 'workspace' },
     { id: 'crm', label: 'CRM', icon: Handshake, category: 'workspace' },
     { id: 'base', label: 'Avaxa Base', icon: Database, category: 'workspace' },
@@ -4187,7 +4283,7 @@ export default function App() {
 
         {/* Left header switcher section (desktop) */}
         <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-white/[0.08] bg-[#0b1322] dark:bg-[#080e1a] ${
-          isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-3 py-2 justify-between'
+          isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-2.5 py-2 justify-between'
         }`}>
           <div className="flex items-center gap-1.5 relative flex-1 min-w-0 justify-between">
             {isMainSidebarCollapsed ? (
@@ -4195,19 +4291,19 @@ export default function App() {
                 <button
                   type="button" 
                   onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-[10px] shadow-sm shrink-0 select-none overflow-hidden hover:scale-105 transition-all cursor-pointer border border-white/10"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[11px] shadow-sm shrink-0 select-none overflow-hidden hover:scale-105 hover:border-sky-400/60 transition-all cursor-pointer border border-white/15"
                   style={!currentWorkspace?.logoUrl ? {
                     background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
                                 currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
                                 currentWorkspace?.theme === 'sunset' ? 'linear-gradient(135deg, #f43f5e, #be123c)' :
                                 'linear-gradient(135deg, #2563eb, #0284c7)',
                   } : undefined}
-                  title={`${currentWorkspace?.name || 'Apexa'} — Nhấp để đổi workspace`}
+                  title={`${currentWorkspace?.name || 'Apexa'} — Nhấp để đổi không gian làm việc`}
                 >
                   {currentWorkspace?.logoUrl ? (
                     <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                   ) : (
-                    <ApexaAiIcon className="w-4 h-4" variant="white" />
+                    <ApexaAiIcon className="w-4.5 h-4.5" variant="white" />
                   )}
                 </button>
               </div>
@@ -4225,13 +4321,13 @@ export default function App() {
                 {/* Compact Switcher Pill Button */}
                 <button
                   type="button" 
-                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-white/[0.15] hover:bg-white/[0.08]"
+                  className="apexa-workspace-trigger group flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-left shadow-2xs transition-all duration-200 hover:border-white/[0.16] hover:bg-white/[0.08]"
                   onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                   aria-expanded={showWorkspaceMenu}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div 
-                      className="w-5.5 h-5.5 rounded-lg flex items-center justify-center text-white font-black text-[9.5px] shadow-xs shrink-0 select-none overflow-hidden border border-white/10"
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white font-black text-[10px] shadow-xs shrink-0 select-none overflow-hidden border border-white/10"
                       style={!currentWorkspace?.logoUrl ? {
                         background: currentWorkspace?.theme === 'ocean' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' :
                                     currentWorkspace?.theme === 'forest' ? 'linear-gradient(135deg, #34d399, #059669)' :
@@ -4242,10 +4338,10 @@ export default function App() {
                       {currentWorkspace?.logoUrl ? (
                         <img src={currentWorkspace.logoUrl} className="w-full h-full object-cover" alt="WS Logo" />
                       ) : (
-                        <ApexaAiIcon className="w-3 h-3" variant="white" />
+                        <ApexaAiIcon className="w-3.5 h-3.5" variant="white" />
                       )}
                     </div>
-                    <span className="font-sans font-bold text-white text-[12.5px] tracking-tight truncate flex-1">
+                    <span className="font-sans font-extrabold text-white text-[12.5px] tracking-tight truncate flex-1">
                       {currentWorkspace?.name || 'Apexa'}
                     </span>
                   </div>
@@ -4259,17 +4355,17 @@ export default function App() {
             <AnimatePresence>
               {showWorkspaceMenu && (
                 <>
-                  <div className="fixed inset-0 z-20" onClick={() => setShowWorkspaceMenu(false)} />
+                  <div className="fixed inset-0 z-[110]" onClick={() => setShowWorkspaceMenu(false)} />
                   <motion.div
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.2, type: "spring", stiffness: 380, damping: 26 }}
-                    className={`absolute top-full mt-2 w-[min(92vw,270px)] p-3 bg-[#0f172a]/95 dark:bg-[#090e1a]/95 border border-white/10 rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.5)] backdrop-blur-2xl z-30 space-y-2.5 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-2' : 'left-4'}`}
+                    transition={{ duration: 0.18, type: "spring", stiffness: 420, damping: 28 }}
+                    className={`absolute top-full mt-2.5 w-[280px] p-3.5 bg-[#0a0f1d]/98 border border-white/15 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-[120] space-y-3 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-1' : 'left-3'}`}
                   >
                     {/* Active Workspace Hero Card */}
-                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-950/40 via-slate-900 to-slate-900/90 border border-blue-500/30 shadow-xs group overflow-hidden">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none" />
+                    <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-950/60 via-slate-900 to-slate-900/90 border border-blue-500/35 shadow-xs group overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/15 rounded-full blur-xl pointer-events-none" />
                       
                       <div className="flex items-center gap-3">
                         <div 
@@ -4293,7 +4389,7 @@ export default function App() {
                             <span className="font-bold text-white text-[14px] truncate tracking-tight">
                               {currentWorkspace?.name || 'Apexa'}
                             </span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-400 shrink-0" title="Không gian đang hoạt động">
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0" title="Không gian đang hoạt động">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </span>
                           </div>
@@ -4317,9 +4413,9 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('general');
                         }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-white/10 bg-white/[0.06] text-xs font-bold text-slate-100 hover:bg-white/[0.12] hover:border-white/20 hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
                       >
-                        <Settings className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
+                        <Settings className="w-3.5 h-3.5 text-sky-400 group-hover/btn:rotate-45 transition-transform" />
                         <span>Cài đặt</span>
                       </button>
                       <button
@@ -4329,9 +4425,9 @@ export default function App() {
                           setActiveTab('settings');
                           setActiveSettingsTab('people');
                         }}
-                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-sm group/btn"
+                        className="flex items-center justify-center gap-2 py-2 px-3 rounded-2xl border border-white/10 bg-white/[0.06] text-xs font-bold text-slate-100 hover:bg-white/[0.12] hover:border-white/20 hover:text-white cursor-pointer transition-all duration-150 shadow-xs group/btn"
                       >
-                        <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover/btn:text-indigo-500 transition-colors" />
+                        <Users className="w-3.5 h-3.5 text-sky-400 group-hover/btn:scale-110 transition-transform" />
                         <span>Thành viên</span>
                       </button>
                     </div>
@@ -4339,15 +4435,15 @@ export default function App() {
                     {/* Workspaces list subsection */}
                     {workspaces.filter(w => w.id !== activeWorkspaceId).length > 0 && (
                       <>
-                        <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
+                        <div className="border-t border-white/10 my-1" />
                         <div className="space-y-1.5">
-                          <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                          <div className="px-1 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
                             <span>Không gian khác</span>
-                            <span className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold text-slate-500">
+                            <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[9px] font-extrabold text-slate-200">
                               {workspaces.filter(w => w.id !== activeWorkspaceId).length}
                             </span>
                           </div>
-                          <div className="max-h-[150px] overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
+                          <div className="max-h-[160px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
                             {workspaces.filter(w => w.id !== activeWorkspaceId).map(w => (
                               <button
                                 key={w.id}
@@ -4356,15 +4452,15 @@ export default function App() {
                                   setShowWorkspaceMenu(false);
                                   handleWorkspaceChange(w.id);
                                 }}
-                                className="w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-slate-100/90 hover:to-indigo-50/50 dark:hover:from-slate-800/80 dark:hover:to-slate-800/40 border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700 cursor-pointer transition-all duration-200 text-left group/ws"
+                                className="w-full flex items-center gap-2.5 p-2 rounded-2xl text-xs font-bold text-slate-200 hover:text-white hover:bg-white/[0.08] border border-transparent hover:border-white/10 cursor-pointer transition-all duration-150 text-left group/ws"
                               >
                                 <div 
-                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-2xs group-hover/ws:scale-105 transition-transform duration-200"
+                                  className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-[11px] shrink-0 overflow-hidden shadow-xs ring-1 ring-white/10 group-hover/ws:scale-105 transition-transform"
                                   style={!w.logoUrl ? {
                                     background: w.theme === 'ocean' ? 'linear-gradient(135deg, #33D1FF, #0891b2)' :
                                                 w.theme === 'forest' ? 'linear-gradient(135deg, #10b981, #047857)' :
                                                 w.theme === 'sunset' ? 'linear-gradient(135deg, #FF3366, #e11d48)' :
-                                                'linear-gradient(135deg, #FF0033, #CC0022)',
+                                                'linear-gradient(135deg, #2563EB, #0284c7)',
                                   } : undefined}
                                 >
                                   {w.logoUrl ? (
@@ -4373,8 +4469,8 @@ export default function App() {
                                     <span>{w.initial || w.name.charAt(0).toUpperCase()}</span>
                                   )}
                                 </div>
-                                <span className="truncate flex-1 group-hover/ws:text-indigo-600 dark:group-hover/ws:text-indigo-400 transition-colors font-extrabold">{w.name}</span>
-                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/ws:opacity-100 group-hover/ws:translate-x-0 -translate-x-1 transition-all duration-200 shrink-0" />
+                                <span className="truncate flex-1 font-bold text-slate-200 group-hover/ws:text-white transition-colors">{w.name}</span>
+                                <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/ws:opacity-100 group-hover/ws:translate-x-0 -translate-x-1 transition-all shrink-0" />
                               </button>
                             ))}
                           </div>
@@ -4382,7 +4478,7 @@ export default function App() {
                       </>
                     )}
 
-                    <div className="border-t border-slate-100 dark:border-slate-800/80 my-1.5" />
+                    <div className="border-t border-white/10 my-1" />
 
                     {/* Create workspace button */}
                     <button
@@ -4391,10 +4487,10 @@ export default function App() {
                         setShowWorkspaceMenu(false);
                         setShowAddWorkspaceModal(true);
                       }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer transition-all duration-200 shadow-2xs hover:shadow-md hover:shadow-blue-500/10 group/create"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border-2 border-dashed border-sky-400/40 hover:border-sky-400 bg-sky-500/10 hover:bg-sky-500/20 text-xs font-black text-sky-300 hover:text-white cursor-pointer transition-all duration-200 shadow-xs hover:shadow-md group/create"
                     >
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center group-hover/create:scale-110 transition-transform duration-200">
-                        <Plus className="w-3.5 h-3.5 font-bold text-indigo-600 dark:text-indigo-300" />
+                      <div className="w-5 h-5 rounded-full bg-sky-400/20 border border-sky-400/30 flex items-center justify-center group-hover/create:scale-110 transition-transform">
+                        <Plus className="w-3.5 h-3.5 font-bold text-sky-300 group-hover/create:text-white" />
                       </div>
                       <span>Tạo không gian</span>
                     </button>
@@ -5102,105 +5198,6 @@ export default function App() {
                       </p>
                     </div>
 
-                    {/* Status section */}
-                    <div className="px-2 pt-1 pb-1 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                      {locale === 'vi' ? 'Trạng thái hoạt động' : 'Status'}
-                    </div>
-
-                    {/* Status 2x2 Grid */}
-                    <div className="grid grid-cols-2 gap-1 p-0.5 mb-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void setUserPresenceStatus('online');
-                          setShowStatusMenu(false);
-                          if (pomodoroActive) {
-                            setPomodoroActive(false);
-                            setPomodoroTime(workDuration * 60);
-                            addSyncLog('Changed status: Online (Paused Pomodoro)');
-                          } else {
-                            addSyncLog('Changed status: Online');
-                          }
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                          presencePreference === 'online'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50 shadow-3xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
-                        }`}
-                      >
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-xs" />
-                        <span className="truncate">{locale === 'vi' ? 'Tự động' : 'Online'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void setUserPresenceStatus('busy');
-                          setShowStatusMenu(false);
-                          addSyncLog("Changed status: Focused");
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                          presencePreference === 'focused'
-                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50 shadow-3xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
-                        }`}
-                      >
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 shadow-xs" />
-                        <span className="truncate">{locale === 'vi' ? 'Tập trung' : 'Focus'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void setUserPresenceStatus('away');
-                          setShowStatusMenu(false);
-                          if (pomodoroActive) {
-                            setPomodoroActive(false);
-                            setPomodoroTime(workDuration * 60);
-                            addSyncLog('Changed status: Away (Paused Pomodoro)');
-                          } else {
-                            addSyncLog('Changed status: Away');
-                          }
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                          presencePreference === 'away'
-                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 shadow-3xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
-                        }`}
-                      >
-                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-xs" />
-                        <span className="truncate">{locale === 'vi' ? 'Vắng mặt' : 'Away'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void setUserPresenceStatus('offline');
-                          setShowStatusMenu(false);
-                          if (pomodoroActive) {
-                            setPomodoroActive(false);
-                            setPomodoroTime(workDuration * 60);
-                          }
-                          addSyncLog('Changed status: Appear offline');
-                          (window as any).playSystemSound?.('toggle');
-                        }}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                          presencePreference === 'offline'
-                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300/70 dark:border-slate-700 shadow-3xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 border border-transparent'
-                        }`}
-                      >
-                        <WifiOff className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{locale === 'vi' ? 'Ẩn trạng thái' : 'Invisible'}</span>
-                      </button>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
                     {/* Quick Access Menu Items */}
                     <div className="space-y-0.5">
                       <button
@@ -5400,188 +5397,133 @@ export default function App() {
       {/* Modern Black Aesthetic Sidebar Navigation */}
       <aside className={`apexa-desktop-sidebar cu-sidebar relative z-20 hidden shrink-0 cursor-default flex-col justify-between transition-all duration-200 ease-in-out md:flex ${
         isMainSidebarCollapsed 
-          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3 space-y-3' 
-          : 'w-[var(--cu-sidebar-width)] px-3 py-3 space-y-3'
+          ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-3' 
+          : 'w-[var(--cu-sidebar-width)] px-2.5 py-3'
       }`}>
         
-        <div className={`h-full flex flex-col justify-between overflow-hidden ${isMainSidebarCollapsed ? 'space-y-2' : 'space-y-3'}`}>
-          {/* Scrollable Navigation List */}
-          <div className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-0.5 ${isMainSidebarCollapsed ? 'space-y-0.5' : 'space-y-0.5'}`}>
+        <div className="h-full flex flex-col justify-between overflow-hidden gap-2">
+          {/* Top Quick Actions Pod */}
+          <div className="shrink-0 space-y-1.5">
+            {/* Quick AI & Command Search Trigger Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 80);
+              }}
+              className={`group flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-400 transition-all duration-200 hover:border-indigo-400/40 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-sky-500/10 hover:text-white cursor-pointer ${
+                isMainSidebarCollapsed 
+                  ? 'h-10 w-10 mx-auto justify-center p-0' 
+                  : 'gap-2 px-2.5 py-1.5 w-full justify-between'
+              }`}
+              title="Apexa AI & Tìm kiếm (⌘K)"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400 group-hover:scale-110 group-hover:bg-indigo-500/25 group-hover:text-indigo-300 transition-all">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                {!isMainSidebarCollapsed && (
+                  <span className="truncate text-[12px] font-bold text-slate-300 group-hover:text-white transition-colors">
+                    Tìm kiếm & AI
+                  </span>
+                )}
+              </div>
+              {!isMainSidebarCollapsed && (
+                <kbd className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] font-extrabold text-slate-400 group-hover:text-slate-200">
+                  ⌘K
+                </kbd>
+              )}
+            </button>
+
+            {/* Super Admin Control Center */}
             {currentUser.id === APEXA_SUPER_ADMIN_UID && (
               <a
                 href="/admin"
-                className={`mb-2 flex items-center rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 text-sky-200 transition-all hover:bg-blue-600/25 hover:border-blue-400/50 shadow-xs ${isMainSidebarCollapsed ? 'h-10 justify-center px-2' : 'gap-2.5 px-3 py-2'}`}
-                title="Apexa Control Center"
+                className={`group flex items-center rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-500/15 via-blue-600/10 to-indigo-600/15 text-sky-200 transition-all hover:border-sky-400/60 hover:bg-sky-500/25 hover:text-white shadow-xs ${
+                  isMainSidebarCollapsed ? 'h-10 w-10 mx-auto justify-center p-0' : 'gap-2.5 px-3 py-1.5 w-full'
+                }`}
+                title="Apexa Control Center (Admin)"
               >
-                <ShieldCheck className="h-4 w-4 shrink-0 text-sky-400" />
-                {!isMainSidebarCollapsed && <span className="text-[11.5px] font-bold">Control Center</span>}
+                <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400 group-hover:scale-110 group-hover:bg-sky-500/30 group-hover:text-sky-300 transition-all">
+                  <ShieldCheck className="h-4 w-4" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0a0f1d] animate-pulse" />
+                </div>
+                {!isMainSidebarCollapsed && (
+                  <div className="flex min-w-0 flex-1 items-center justify-between">
+                    <span className="truncate text-[12.5px] font-extrabold tracking-tight text-white">Control Center</span>
+                    <span className="shrink-0 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-300 border border-sky-400/30">Admin</span>
+                  </div>
+                )}
               </a>
             )}
+          </div>
 
-            {orderedItems.map((item, index) => {
+          {/* Scrollable Navigation List */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 pr-0.5">
+            {orderedItems.map((item) => {
               const isActive = item.id === 'tasks'
                 ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
                 : (activeTab === item.id);
 
-              const CORE_SECTION_IDS = ['dashboard', 'inbox', 'tasks', 'calendar'];
-              const BIZ_SECTION_IDS = ['goals', 'crm', 'base', 'erp', 'finance'];
-              const COLLAB_SECTION_IDS = ['docs', 'whiteboard', 'chat', 'team'];
-
-              let sectionKey = 'core';
-              let sectionLabel = locale === 'vi' ? 'Vận hành' : 'Operations';
-              if (BIZ_SECTION_IDS.includes(item.id)) {
-                sectionKey = 'business';
-                sectionLabel = locale === 'vi' ? 'Kinh doanh & Tài chính' : 'Business & Finance';
-              } else if (COLLAB_SECTION_IDS.includes(item.id)) {
-                sectionKey = 'collab';
-                sectionLabel = locale === 'vi' ? 'Tri thức & Đội ngũ' : 'Collaboration';
-              }
-
-              const prevItem = index > 0 ? orderedItems[index - 1] : null;
-              let prevSectionKey = 'core';
-              if (prevItem) {
-                if (BIZ_SECTION_IDS.includes(prevItem.id)) prevSectionKey = 'business';
-                else if (COLLAB_SECTION_IDS.includes(prevItem.id)) prevSectionKey = 'collab';
-              }
-
-              const isFirstInSection = index === 0 || sectionKey !== prevSectionKey;
-
               return (
-                <React.Fragment key={item.id}>
-                  {isFirstInSection && !isMainSidebarCollapsed && (
-                    <div className={`px-2.5 pb-1 uppercase tracking-wider text-[9.5px] font-black text-slate-400 select-none flex items-center justify-between ${index === 0 ? 'pt-1' : 'pt-3'}`}>
-                      <span>{sectionLabel}</span>
+                <NavItem
+                  key={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  shortLabel={getShortLabel(item.label)}
+                  shortcut={item.shortcut}
+                  description={item.description}
+                  isActive={isActive}
+                  count={item.count}
+                  badge={item.badge}
+                  collapsed={isMainSidebarCollapsed}
+                  style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
+                  onDragStart={(e) => handleDragStart(e, item.id)}
+                  onDragOver={(e) => handleDragOver(e, item.id)}
+                  onDragLeave={handleDragLeave}
+                  onDragEnd={handleDragEnd}
+                  onDrop={(e) => handleDrop(e, item.id)}
+                  onClick={() => {
+                    if (item.id === 'tasks') {
+                      setActiveTab('tasks');
+                      setActiveSpaceId(null);
+                      setActiveListId(null);
+                    } else {
+                      setActiveTab(item.id);
+                      setActiveSpaceId(null);
+                      setActiveListId(null);
+                    }
+                    addSyncLog(`Switched to: ${item.label}`);
+                  }}
+                  dragIndicator={dragOverItemId === item.id && dragOverSide ? (
+                    <div
+                      className={`absolute left-0 right-0 h-[2px] bg-blue-500 pointer-events-none z-30 transition-all ${
+                        dragOverSide === 'top' 
+                          ? 'top-0 -translate-y-1/2' 
+                          : 'bottom-0 translate-y-1/2'
+                      }`}
+                    >
+                      <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
                     </div>
-                  )}
-
-                  {isFirstInSection && isMainSidebarCollapsed && index !== 0 && (
-                    <div className="w-5 h-[1px] bg-white/[0.08] my-1.5 mx-auto" />
-                  )}
-
-                  <NavItem
-                    icon={item.icon}
-                    label={item.label}
-                    shortLabel={getShortLabel(item.label)}
-                    isActive={isActive}
-                    count={item.count}
-                    badge={item.badge}
-                    collapsed={isMainSidebarCollapsed}
-                    style={{ opacity: draggedItemId === item.id ? 0.3 : 1 }}
-                    onDragStart={(e) => handleDragStart(e, item.id)}
-                    onDragOver={(e) => handleDragOver(e, item.id)}
-                    onDragLeave={handleDragLeave}
-                    onDragEnd={handleDragEnd}
-                    onDrop={(e) => handleDrop(e, item.id)}
-                    onClick={() => {
-                      if (item.id === 'tasks') {
-                        setActiveTab('tasks');
-                        setActiveSpaceId(null);
-                        setActiveListId(null);
-                      } else {
-                        setActiveTab(item.id);
-                        setActiveSpaceId(null);
-                        setActiveListId(null);
-                      }
-                      addSyncLog(`Switched to: ${item.label}`);
-                    }}
-                    dragIndicator={dragOverItemId === item.id && dragOverSide ? (
-                      <div
-                        className={`absolute left-0 right-0 h-[2px] bg-blue-500 pointer-events-none z-30 transition-all ${
-                          dragOverSide === 'top' 
-                            ? 'top-0 -translate-y-1/2' 
-                            : 'bottom-0 translate-y-1/2'
-                        }`}
-                      >
-                        <div className="absolute left-0 top-1/2 -translate-x-1.5 -translate-y-1/2 w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
-                      </div>
-                    ) : undefined}
-                  />
-                </React.Fragment>
+                  ) : undefined}
+                />
               );
             })}
           </div>
 
-          {/* Bottom Sidebar User Profile & Quick Action Widget */}
-          <div className="pt-2 pb-2 border-t border-white/[0.08] shrink-0">
-            {isMainSidebarCollapsed ? (
-              <div className="flex flex-col items-center justify-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="relative group p-0.5 rounded-xl hover:scale-105 transition-transform cursor-pointer flex items-center justify-center"
-                  title={`${currentUser?.name || 'Tài khoản'} — ${accountPresenceLabel}`}
-                >
-                  <div className="relative w-8 h-8 flex items-center justify-center">
-                    {currentUser?.avatar ? (
-                      <SignedImage
-                        filePath={currentUser.avatar}
-                        className="w-8 h-8 rounded-xl object-cover bg-slate-800 border border-white/20 shadow-md group-hover:border-sky-400 transition-colors"
-                        alt={currentUser.name}
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 border border-white/20 text-white font-black text-xs flex items-center justify-center shadow-md group-hover:border-sky-400 transition-all">
-                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
-                      </div>
-                    )}
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#0b1322] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
-                    />
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsMainSidebarCollapsed(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer border border-transparent hover:border-white/[0.08]"
-                  title="Mở rộng thanh bên"
-                >
-                  <PanelLeftOpen className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05] transition-all flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer group"
-                >
-                  <div className="relative shrink-0">
-                    {currentUser?.avatar ? (
-                      <SignedImage
-                        filePath={currentUser.avatar}
-                        className="w-8 h-8 rounded-lg object-cover bg-slate-800 border border-white/15 shadow-xs group-hover:border-sky-400 transition-colors"
-                        alt={currentUser.name}
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 border border-white/15 text-white font-bold text-xs flex items-center justify-center shadow-xs group-hover:border-sky-400 transition-colors">
-                        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
-                      </div>
-                    )}
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[#0b1322] z-20 ${presenceDotClass(accountPresenceStatus, true)}`}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-sky-300 transition-colors leading-tight">
-                      {currentUser?.name || 'Apexa User'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
-                      {accountPresenceLabel}
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsMainSidebarCollapsed(true)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer shrink-0"
-                  title="Thu gọn thanh bên"
-                >
-                  <PanelLeftClose className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Bottom Sidebar Collapse/Expand Toggle (Only when collapsed) */}
+          {isMainSidebarCollapsed && (
+            <div className="pt-2 pb-1 border-t border-white/[0.08] shrink-0 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIsMainSidebarCollapsed(false)}
+                className="group p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer border border-transparent hover:border-white/10"
+                title="Mở rộng thanh bên"
+              >
+                <PanelLeftOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
+          )}
 
         </div>
       </aside>
@@ -5644,10 +5586,10 @@ export default function App() {
 
                   {activeTab === 'inbox' && (
                     <InboxView
-                      notificationsList={notificationsList}
+                      notificationsList={notificationsList.filter(n => !n.workspaceId || n.workspaceId === activeWorkspaceId)}
                       setNotificationsList={setNotificationsList}
-                      tasks={tasks}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      tasks={currentWorkspaceTasks}
+                      members={currentWorkspaceMembers}
                       workspaces={workspaces}
                       activeWorkspaceId={activeWorkspaceId}
                       onAddTask={handleAddTask}
@@ -5658,7 +5600,7 @@ export default function App() {
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
                       workspaceInvitations={workspaceInvitations}
-                      spaces={spaces}
+                      spaces={currentWorkspaceSpaces}
                       onNavigateToTab={(tab) => setActiveTab(tab as any)}
                       onAcceptInvite={handleAcceptWorkspaceInvite}
                       onDeclineInvite={handleDeclineWorkspaceInvite}
@@ -5668,7 +5610,7 @@ export default function App() {
                   {(activeTab === 'tasks' || activeTab === 'my-tasks') && (
                     <SpacePage
                       tasks={mapTasksToSpaces(currentWorkspaceTasks)}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      members={currentWorkspaceMembers}
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
                       onDeleteTask={handleDeleteTask}
@@ -5721,7 +5663,7 @@ export default function App() {
                       myTasksOnly={activeTab === 'my-tasks'}
                       onOpenSpaceSettings={openSpaceSettings}
                       onAddListSpace={(spaceId) => setShowAddListSpaceId(spaceId)}
-                      allDocs={docs}
+                      allDocs={currentWorkspaceDocs}
                       syncLogs={syncLogs}
                       onNavigate={setActiveTab}
                       onToggleOffline={handleToggleOffline}
@@ -5757,7 +5699,7 @@ export default function App() {
                   {activeTab === 'calendar' && (
                     <CalendarView
                       tasks={mapTasksToSpaces(currentWorkspaceTasks)}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
+                      members={currentWorkspaceMembers}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
                       triggerToast={triggerToast}
@@ -5766,25 +5708,6 @@ export default function App() {
                       spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
                       activeSpaceId={activeSpaceId}
                       activeListId={activeListId}
-                    />
-                  )}
-
-                  {activeTab === 'productivity' && (
-                    <ProductivityHub
-                      tasks={currentWorkspaceTasks}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
-                      isOffline={isOffline}
-                      currentUser={currentUser}
-                      onUpgradePremium={() => setShowPremiumModal(true)}
-                      onAddSyncLog={addSyncLog}
-                      triggerToast={triggerToast}
-                      onOpenTask={(taskId) => {
-                        const task = currentWorkspaceTasks.find((item) => item.id === taskId);
-                        setActiveTab('tasks');
-                        if (task?.spaceId) setActiveSpaceId(task.spaceId);
-                        if (task?.listId) setActiveListId(task.listId);
-                        setInitialSelectedTaskId(taskId);
-                      }}
                     />
                   )}
 
@@ -5830,7 +5753,7 @@ export default function App() {
 
                   {activeTab === 'team' && (
                     <TeamDirectory
-                      members={currentWorkspaceMembers.length ? currentWorkspaceMembers : members}
+                      members={currentWorkspaceMembers}
                       tasks={currentWorkspaceTasks}
                       workspaces={workspaces}
                       activeWorkspaceId={activeWorkspaceId}
@@ -5865,8 +5788,8 @@ export default function App() {
                   {activeTab === 'whiteboard' && (
                     <WhiteboardHub
                       activeWorkspaceId={activeWorkspaceId}
-                      members={members.filter(m => m.workspaceIds?.includes(activeWorkspaceId))}
-                      tasks={tasks}
+                      members={currentWorkspaceMembers}
+                      tasks={currentWorkspaceTasks}
                       isOffline={isOffline}
                       currentUser={currentUser}
                       onUpgradePremium={() => setShowPremiumModal(true)}
@@ -5878,7 +5801,7 @@ export default function App() {
 
                   {activeTab === 'chat' && (
                     <ChatRoom
-                      members={members.filter(m => !m.workspaceIds || m.workspaceIds.length === 0 || m.workspaceIds.includes(activeWorkspaceId))}
+                      members={currentWorkspaceMembers}
                       currentUser={currentUser}
                       isOffline={isOffline}
                       onAddSyncLog={addSyncLog}
@@ -5910,9 +5833,9 @@ export default function App() {
                     <ProfilePage
                       currentUser={currentUser}
                       setCurrentUser={updateCurrentUser}
-                      members={members}
+                      members={currentWorkspaceMembers}
                       setMembers={setMembers}
-                      tasks={tasks}
+                      tasks={currentWorkspaceTasks}
                       isOffline={isOffline}
                       addSyncLog={addSyncLog}
                       onUpdateMember={handleUpdateMember}
@@ -6545,11 +6468,31 @@ export default function App() {
         }}
       />
 
+      <ApexaBrainAssistant
+        tasks={currentWorkspaceTasks}
+        documents={currentWorkspaceDocs}
+        members={currentWorkspaceMembers}
+        isOffline={isOffline}
+        onUpdateTask={handleUpdateTask}
+        onAddTask={handleAddTask}
+        onAddSyncLog={addSyncLog}
+      />
+
       <PricingModal
         isOpen={showPremiumModal}
         onClose={() => setShowPremiumModal(false)}
         currentUser={currentUser}
-        onEntitlementChange={applyEntitlement}
+        onEntitlementChange={(entitlement) => {
+          applyEntitlement(entitlement);
+          updateCurrentUser({
+            ...currentUser,
+            isPremium: entitlement.is_pro,
+            subscriptionPlan: entitlement.plan,
+            billingStatus: entitlement.status,
+            billingCycle: entitlement.billing_cycle,
+            billingPeriodEnd: entitlement.current_period_end,
+          });
+        }}
         triggerToast={triggerToast}
         addSyncLog={addSyncLog}
       />

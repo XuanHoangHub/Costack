@@ -4,7 +4,7 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 export async function POST(request: Request) {
   try {
     const { message, history, model, temperature, googleSearch } = await readAiJson<any>(request);
-    const client = await getAuthorizedGeminiClient(request);
+    const client = await getAuthorizedGeminiClient(request, 512_000);
 
     const systemPrompt = "You are Apexa Brain, the AI assistant integrated into Apexa Productivity OS. You are fluent in English and Vietnamese, professional, helpful, concise, and structured. Always respond in the same language that the user uses or requests.";
 

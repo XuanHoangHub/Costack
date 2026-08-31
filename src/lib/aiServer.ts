@@ -3,6 +3,8 @@ import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import { getGeminiClient } from '@/lib/gemini';
 import { checkRateLimit, pruneRateLimitBuckets } from '@/lib/rateLimit';
+import { getBillingAdmin } from '@/lib/billing/server';
+import { isBillingPlan, isPaidBillingPlan } from '@/lib/billing/plans';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabasePublicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
@@ -39,7 +41,10 @@ export async function readAiJson<T = Record<string, unknown>>(
   }
 }
 
-export async function getAuthorizedGeminiClient(request: Request, maxPayloadSize: number = 512_000) {
+export async function getAuthorizedGeminiClient(
+  request: Request,
+  maxPayloadSize: number = 512_000,
+) {
   pruneRateLimitBuckets();
   const rateLimit = checkRateLimit(request, 'ai', 30, 60_000);
   if (!rateLimit.allowed) {
@@ -52,17 +57,11 @@ export async function getAuthorizedGeminiClient(request: Request, maxPayloadSize
     throw new Error(`AI_PAYLOAD_TOO_LARGE: Nội dung yêu cầu vượt quá giới hạn ${maxPayloadSize >= 1_000_000 ? sizeMb + ' MB' : Math.round(maxPayloadSize / 1024) + ' KB'}.`);
   }
 
-  const customApiKey = request.headers.get('x-gemini-api-key')?.trim();
-  if (customApiKey && customApiKey !== 'your-gemini-api-key') {
-    if (customApiKey.length > 512) throw new Error('AI_BAD_REQUEST: Gemini API Key không hợp lệ.');
-    return getGeminiClient(customApiKey);
-  }
-
   const envKey = process.env.GEMINI_API_KEY;
   const authorization = request.headers.get('authorization');
   const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
   if (!accessToken) {
-    throw new Error('AI_UNAUTHORIZED: Vui lòng đăng nhập hoặc nhập Gemini API Key trong Cài đặt > Cấu hình Apexa AI.');
+    throw new Error('AI_UNAUTHORIZED: Vui lòng đăng nhập để sử dụng Apexa AI.');
   }
 
   if (!supabaseUrl || !supabasePublicKey) {
@@ -76,10 +75,39 @@ export async function getAuthorizedGeminiClient(request: Request, maxPayloadSize
   if (error || !data.user) {
     throw new Error('AI_UNAUTHORIZED: Phiên đăng nhập không hợp lệ hoặc đã hết hạn.');
   }
+  const admin = getBillingAdmin();
+  const { data: subscription, error: subscriptionError } = await admin
+    .from('billing_subscriptions')
+    .select('plan,status,current_period_end')
+    .eq('user_id', data.user.id)
+    .in('status', ['active', 'trialing', 'past_due'])
+    .order('current_period_end', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (subscriptionError) throw subscriptionError;
+  const periodEndMs = subscription?.current_period_end ? Date.parse(subscription.current_period_end) : Number.POSITIVE_INFINITY;
+  const subscriptionIsLive = Boolean(subscription) && (
+    (['active', 'trialing'].includes(subscription?.status || '') && periodEndMs > Date.now())
+    || (subscription?.status === 'past_due' && periodEndMs > Date.now() - 7 * 86_400_000)
+  );
+  const plan = subscriptionIsLive && isBillingPlan(subscription?.plan) ? subscription.plan : 'free';
+  if (!isPaidBillingPlan(plan)) {
+    throw new Error('AI_PLAN_REQUIRED: Apexa AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
+  }
   if (!envKey || envKey === 'your-gemini-api-key') {
     throw new Error('AI_UNAVAILABLE: Apexa Brain chưa được cấu hình API Key trên máy chủ.');
   }
-  return getGeminiClient(envKey);
+
+  const { data: usageData, error: usageError } = await admin.rpc('consume_ai_billing_usage', {
+    p_user_id: data.user.id,
+    p_units: 1,
+  });
+  if (usageError) throw usageError;
+  const usage = Array.isArray(usageData) ? usageData[0] : usageData;
+  if (!usage?.allowed) {
+    throw new Error(`AI_QUOTA_EXCEEDED: Bạn đã dùng hết ${usage?.quota || 0} lượt AI trong tháng của gói ${plan}.`);
+  }
+  return getGeminiClient();
 }
 
 export const getAiErrorStatus = (error: unknown) => {
@@ -88,9 +116,11 @@ export const getAiErrorStatus = (error: unknown) => {
   if (error.message.startsWith('AI_UNAUTHORIZED:')) return 401;
   if (error.message.startsWith('AI_PAYLOAD_TOO_LARGE:')) return 413;
   if (error.message.startsWith('AI_RATE_LIMITED:')) return 429;
+  if (error.message.startsWith('AI_QUOTA_EXCEEDED:')) return 429;
+  if (error.message.startsWith('AI_PLAN_REQUIRED:')) return 403;
   if (error.message.startsWith('AI_UNAVAILABLE:')) return 503;
   return 500;
 };
 
 export const getAiErrorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message.replace(/^AI_(?:BAD_REQUEST|UNAUTHORIZED|PAYLOAD_TOO_LARGE|RATE_LIMITED|UNAVAILABLE):\s*/, '') : fallback;
+  error instanceof Error ? error.message.replace(/^AI_(?:BAD_REQUEST|UNAUTHORIZED|PAYLOAD_TOO_LARGE|RATE_LIMITED|QUOTA_EXCEEDED|PLAN_REQUIRED|UNAVAILABLE):\s*/, '') : fallback;

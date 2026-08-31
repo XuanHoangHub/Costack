@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -60,35 +60,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, tasks: result.tasks || [] });
   } catch (error: any) {
     console.error("Generate tasks error:", error);
-    return NextResponse.json({
-      success: false,
-      tasks: [
-        {
-          title: "Thiết kế & Lên kế hoạch",
-          description: "Phân tích yêu cầu và phác thảo các bước triển khai chi tiết.",
-          priority: "high",
-          hoursEstimate: 4,
-          tags: ["Planning"],
-          subtasks: ["Phân tích yêu cầu", "Lập dàn ý các bước", "Xác nhận với nhóm"]
-        },
-        {
-          title: "Thực thi tính năng chính",
-          description: "Xây dựng các thành phần và tích hợp chức năng theo yêu cầu.",
-          priority: "medium",
-          hoursEstimate: 8,
-          tags: ["Development"],
-          subtasks: ["Phát triển giao diện", "Kết nối dữ liệu", "Xử lý trường hợp biên"]
-        },
-        {
-          title: "Kiểm thử & Bàn giao",
-          description: "Kiểm tra chất lượng, sửa lỗi phát sinh và hoàn thiện.",
-          priority: "low",
-          hoursEstimate: 2,
-          tags: ["QA"],
-          subtasks: ["Kiểm thử chức năng", "Khắc phục lỗi", "Hoàn tất bàn giao"]
-        }
-      ],
-      error: error.message || "Failed to contact Gemini, returned default fallback."
-    });
+    return NextResponse.json(
+      { success: false, tasks: [], error: getAiErrorMessage(error, 'Lỗi tạo kế hoạch công việc bằng AI') },
+      { status: getAiErrorStatus(error) },
+    );
   }
 }

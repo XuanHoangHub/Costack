@@ -210,18 +210,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       },
     },
     {
-      id: 'goto-productivity',
-      name: '/productivity',
-      label: isVietnamese ? 'Trung tâm Năng suất' : 'Productivity Hub',
-      description: isVietnamese ? 'Pomodoro, thói quen, ma trận ưu tiên và báo cáo AI' : 'Pomodoro, habits, priority matrix, and AI reports',
-      icon: Timer,
-      badge: isVietnamese ? 'Năng suất' : 'Productivity',
-      action: () => {
-        onNavigateTab('productivity');
-        addSyncLog('Command: Opened Productivity Hub');
-      },
-    },
-    {
       id: 'goto-chat',
       name: '/chat',
       label: isVietnamese ? 'Kênh trò chuyện nhóm' : 'Go to Chat Channels',

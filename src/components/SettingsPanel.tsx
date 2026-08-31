@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   Activity, AlertTriangle, Archive, Bell, Brain, BriefcaseBusiness, Building2, Check,
   CheckCircle2, CheckSquare, ChevronRight, CircleUserRound, Clipboard, Cloud, Copy,
-  Database, Download, Eye, EyeOff, FileClock, FileText, FolderTree, Globe2, KeyRound, Laptop,
+  Database, Download, FileClock, FileText, FolderTree, Globe2, KeyRound, Laptop,
   LockKeyhole, LogOut, Mail, Menu, MonitorCog, Moon, Palette, Plus,
   RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles,
   Sun, Trash2, Upload, UserRoundCog, Users, UsersRound, Volume2, VolumeX, X,
@@ -16,8 +16,10 @@ import TeamDirectory from './TeamDirectory';
 import LanguageDropdown from './LanguageDropdown';
 import { Select } from './ui/Select';
 import { useAuthStore } from '@/store/authStore';
+import { useUiStore } from '@/store/uiStore';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { supabase } from '@/lib/supabaseClient';
+import { callAiApi } from '@/lib/aiClient';
 import type { ThemePreference } from '@/lib/theme';
 import type { NotificationSettings, SyncLog, Task, User, Workspace } from '@/types';
 import { ApexaAiIcon } from './ApexaAiIcon';
@@ -140,6 +142,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const { t, locale, isVietnamese } = useTranslation();
   const currentUser = useAuthStore(state => state.currentUser);
+  const setShowPremiumModal = useUiStore(state => state.setShowPremiumModal);
 
   const accentOptions: Array<{ id: AccentPreset; name: string; hex: string; className: string }> = useMemo(() => [
     { id: 'indigo', name: isVietnamese ? 'Xanh Apexa (Mặc định)' : 'Apexa Blue (Default)', hex: '#2563EB', className: 'from-blue-600 to-cyan-600' },
@@ -194,8 +197,6 @@ export default function SettingsPanel({
   const [deleteWorkspace, setDeleteWorkspace] = useState<Workspace | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
-  const [aiApiKey, setAiApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
   const [aiModel, setAiModel] = useState('gemini-3.6-flash');
   const [aiTemperature, setAiTemperature] = useState(0.7);
   const [aiSearchGrounding, setAiSearchGrounding] = useState(false);
@@ -215,6 +216,7 @@ export default function SettingsPanel({
   const [mfaEnrollment, setMfaEnrollment] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
+  const [copiedSecret, setCopiedSecret] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -226,7 +228,7 @@ export default function SettingsPanel({
   }, [activeWorkspace]);
 
   useEffect(() => {
-    setAiApiKey(localStorage.getItem('apexa_gemini_api_key') || '');
+    localStorage.removeItem('apexa_gemini_api_key');
     const savedModel = localStorage.getItem('apexa_ai_model') || 'gemini-3.6-flash';
     const supportedModels = new Set([
       'gemini-3.6-flash',
@@ -337,7 +339,10 @@ export default function SettingsPanel({
   };
 
   const saveAiSettings = () => {
-    localStorage.setItem('apexa_gemini_api_key', aiApiKey.trim());
+    if (!currentUser?.isPremium) {
+      setShowPremiumModal(true);
+      return;
+    }
     localStorage.setItem('apexa_ai_model', aiModel);
     localStorage.setItem('apexa_ai_temperature', String(aiTemperature));
     localStorage.setItem('apexa_ai_search_grounding', String(aiSearchGrounding));
@@ -349,20 +354,16 @@ export default function SettingsPanel({
   };
 
   const testAiConnection = async () => {
-    if (!aiApiKey.trim()) {
-      triggerToast?.('warning', t('apiKeyRequired') || 'API Key Required', isVietnamese ? 'Hãy thêm khóa API Gemini trước khi kiểm tra kết nối.' : 'Please add a Gemini API key first.');
+    if (!currentUser?.isPremium) {
+      setShowPremiumModal(true);
       return;
     }
     setTestingAi(true);
     try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-gemini-api-key': aiApiKey.trim() },
-        body: JSON.stringify({ message: 'Only reply: OK', history: [], model: aiModel, temperature: 0 })
-      });
+      const response = await callAiApi('/api/ai/chat', { message: 'Only reply: OK', history: [], model: aiModel, temperature: 0 });
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.error || (isVietnamese ? 'Không thể xác minh khóa API hoặc mô hình đã chọn.' : 'Could not verify API key or model.'));
+        throw new Error(data.error || (isVietnamese ? 'Không thể xác minh dịch vụ AI hoặc mô hình đã chọn.' : 'Could not verify the AI service or selected model.'));
       }
       triggerToast?.('success', t('connectionSuccess') || 'Connected successfully', isVietnamese ? `Mô hình ${aiModel} đã kết nối và sẵn sàng hoạt động.` : `Model ${aiModel} is connected and ready.`);
       onAddSyncLog?.(isVietnamese ? `Đã xác minh kết nối Apexa AI (${aiModel})` : `Verified Apexa AI connection (${aiModel})`);
@@ -952,7 +953,7 @@ export default function SettingsPanel({
                   eyebrow={t('aiCopilotConfig') || (isVietnamese ? 'Lớp trí tuệ' : 'Intelligence Layer')} 
                   title={t('aiCopilotConfig') || (isVietnamese ? 'Cấu hình Apexa AI' : 'Apexa AI Configuration')} 
                   description={t('aiCopilotConfigDesc') || (isVietnamese ? 'Kiểm soát mô hình dùng để tóm tắt, tạo công việc và hỗ trợ năng suất.' : 'Control AI models for task creation, summarization and productivity reports.')} 
-                  action={<div className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-sky-600 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-400">Gemini AI</div>} 
+                  action={<div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${currentUser?.isPremium ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400'}`}>{currentUser?.isPremium ? (isVietnamese ? 'Đã kích hoạt' : 'Active') : (isVietnamese ? 'Yêu cầu gói trả phí' : 'Paid plan required')}</div>} 
                 />
                 
                 <div className="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 dark:border-sky-900/60 dark:from-sky-950/30 dark:via-slate-900 dark:to-blue-950/20">
@@ -961,45 +962,23 @@ export default function SettingsPanel({
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{t('freeApiKeyNotice') || 'Connect your Gemini API Key freely'}</h3>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white">{isVietnamese ? 'AI được Apexa quản lý an toàn' : 'Secure, Apexa-managed AI'}</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                        {t('freeApiKeyNoticeDesc') || 'API keys are stored locally on your device and activate AI assistance, task generation, doc summaries and reporting.'}
+                        {isVietnamese ? 'Khóa nhà cung cấp chỉ tồn tại trên máy chủ. Apexa không nhận, lưu hoặc gửi khóa AI cá nhân từ trình duyệt của người dùng.' : 'Provider credentials stay on the server. Apexa never accepts, stores, or forwards personal AI keys from the browser.'}
                       </p>
-                      <a 
-                        href="https://aistudio.google.com/app/apikey" 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 dark:text-sky-400 underline underline-offset-4"
-                      >
-                        {t('getFreeApiKey') || 'Get free Gemini API Key at Google AI Studio ↗'}
-                      </a>
+                      {!currentUser?.isPremium && <button type="button" onClick={() => setShowPremiumModal(true)} className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl bg-sky-600 px-4 text-xs font-extrabold text-white shadow-sm transition hover:bg-sky-700"><Sparkles className="h-3.5 w-3.5" />{isVietnamese ? 'Xem gói có AI' : 'View AI plans'}</button>}
                     </div>
                   </div>
                 </div>
 
-                <SettingsCard title={t('connectGeminiTitle') || (isVietnamese ? 'Kết nối Gemini API' : 'Gemini API Connection')} description={t('connectGeminiDesc') || (isVietnamese ? 'Cấu hình khóa API và mô hình xử lý cho Apexa AI.' : 'Configure API key and model for Apexa AI.')} icon={Zap}>
+                <SettingsCard title={isVietnamese ? 'Môi trường Apexa AI' : 'Apexa AI Runtime'} description={isVietnamese ? 'Tùy chỉnh cách AI phản hồi trong phạm vi hạn mức của gói đăng ký.' : 'Customize AI responses within your subscription allowance.'} icon={Zap}>
                   <div className="space-y-5">
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('apiKeyLabel') || 'Gemini API Key'}</span>
-                      <div className="relative">
-                        <input 
-                          type={showApiKey ? 'text' : 'password'} 
-                          value={aiApiKey} 
-                          onChange={event => setAiApiKey(event.target.value)} 
-                          placeholder={t('apiKeyPlaceholder') || 'Paste your API key (AIzaSy...)'} 
-                          className={`${inputClass} pr-11 font-mono text-xs`} 
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => setShowApiKey(value => !value)} 
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        >
-                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </label>
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60">
+                      <div className="min-w-0"><p className="text-xs font-extrabold text-slate-800 dark:text-slate-100">{isVietnamese ? 'Thông tin xác thực do máy chủ quản lý' : 'Server-managed credentials'}</p><p className="mt-0.5 text-[11px] leading-5 text-slate-500 dark:text-slate-400">{isVietnamese ? 'Không hỗ trợ khóa API cá nhân (BYOK).' : 'Personal API keys (BYOK) are not supported.'}</p></div>
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"><ShieldCheck className="h-4 w-4" /></div>
+                    </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <fieldset disabled={!currentUser?.isPremium} className="grid gap-4 sm:grid-cols-2 disabled:opacity-50">
                       <label className="space-y-1.5">
                         <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{t('aiModelLabel') || (isVietnamese ? 'Mô hình AI' : 'AI Model')}</span>
                         <Select value={aiModel} onChange={setAiModel} className="w-full" menuWidth={320} ariaLabel={t('aiModelLabel') || 'AI Model'} options={[
@@ -1026,10 +1005,10 @@ export default function SettingsPanel({
                           className="mt-3 w-full accent-sky-500 cursor-pointer" 
                         />
                       </label>
-                    </div>
+                    </fieldset>
 
                     <SettingRow title={t('searchGrounding') || (isVietnamese ? 'Tìm kiếm làm cơ sở (Google Search Grounding)' : 'Google Search Grounding')} description={t('searchGroundingDesc') || (isVietnamese ? 'Cho phép AI tra cứu và cập nhật dữ liệu web thời gian thực khi cần.' : 'Allow AI to browse live web data for accurate context.')} last>
-                      <Toggle checked={aiSearchGrounding} onChange={setAiSearchGrounding} label="Google Search Grounding" />
+                      <Toggle checked={aiSearchGrounding} onChange={setAiSearchGrounding} disabled={!currentUser?.isPremium} label="Google Search Grounding" />
                     </SettingRow>
 
                     <div className="flex flex-wrap justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -1040,7 +1019,7 @@ export default function SettingsPanel({
                         className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       >
                         {testingAi ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-                        {testingAi ? (t('testingAiConnection') || 'Testing...') : (t('testAiConnectionBtn') || (isVietnamese ? 'Kiểm tra kết nối' : 'Test Connection'))}
+                        {testingAi ? (t('testingAiConnection') || 'Testing...') : currentUser?.isPremium ? (isVietnamese ? 'Kiểm tra dịch vụ' : 'Test service') : (isVietnamese ? 'Nâng cấp để kiểm tra' : 'Upgrade to test')}
                       </button>
                       <button 
                         type="button" 
@@ -1048,7 +1027,7 @@ export default function SettingsPanel({
                         className="inline-flex h-9 items-center gap-2 rounded-xl bg-sky-500 hover:bg-sky-600 px-4 text-xs font-extrabold text-white transition-colors shadow-sm cursor-pointer"
                       >
                         <Check className="h-3.5 w-3.5" />
-                        {t('saveSettings') || (isVietnamese ? 'Lưu cấu hình' : 'Save Configuration')}
+                        {currentUser?.isPremium ? (t('saveSettings') || (isVietnamese ? 'Lưu cấu hình' : 'Save Configuration')) : (isVietnamese ? 'Nâng cấp để dùng AI' : 'Upgrade for AI')}
                       </button>
                     </div>
                   </div>
@@ -1056,10 +1035,10 @@ export default function SettingsPanel({
 
                 <SettingsCard title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin công việc hằng ngày' : 'Daily Morning Briefing')} description={t('dailyBriefingToggleDesc') || (isVietnamese ? 'Cho phép Apexa Brain xem xét không gian và gửi một bản tin hành động mỗi ngày.' : 'Automatically analyze overdue and upcoming tasks each morning.')} icon={Brain}>
                   <SettingRow title={t('dailyBriefingToggle') || (isVietnamese ? 'Bản tin AI hằng ngày' : 'Daily AI Briefing')} description={isVietnamese ? 'Rà soát việc quá hạn, đến hạn hôm nay, bị chặn và ưu tiên cao mỗi ngày một lần.' : 'Review overdue, due today, blocked and high priority tasks daily.'}>
-                    <Toggle checked={aiDailyBriefingEnabled} onChange={setAiDailyBriefingEnabled} label="Daily AI Briefing" />
+                    <Toggle checked={aiDailyBriefingEnabled} onChange={setAiDailyBriefingEnabled} disabled={!currentUser?.isPremium} label="Daily AI Briefing" />
                   </SettingRow>
                   <SettingRow title={t('briefingTime') || (isVietnamese ? 'Giờ gửi bản tin' : 'Briefing Time')} description={isVietnamese ? 'Nếu Apexa được mở muộn hơn, bản tin sẽ được gửi trong lần mở ứng dụng tiếp theo.' : 'If opened later, the briefing will show on next launch.'} last>
-                    <input type="time" value={aiDailyBriefingTime} disabled={!aiDailyBriefingEnabled} onChange={event => setAiDailyBriefingTime(event.target.value)} className={`${inputClass} w-36 disabled:opacity-50`} />
+                    <input type="time" value={aiDailyBriefingTime} disabled={!currentUser?.isPremium || !aiDailyBriefingEnabled} onChange={event => setAiDailyBriefingTime(event.target.value)} className={`${inputClass} w-36 disabled:opacity-50`} />
                   </SettingRow>
                 </SettingsCard>
               </>
@@ -1231,25 +1210,55 @@ export default function SettingsPanel({
                   </form>
                 </SettingsCard>
 
-                <SettingsCard title={isVietnamese ? 'Xác thực hai bước' : 'Two-factor Authentication'} description={isVietnamese ? 'Bảo vệ tài khoản bằng mã TOTP từ ứng dụng Authenticator.' : 'Protect your account with TOTP codes from an authenticator app.'} icon={ShieldCheck}>
+                <SettingsCard title={isVietnamese ? 'Xác thực 2 yếu tố (2FA)' : 'Two-factor Authentication (2FA)'} description={isVietnamese ? 'Tùy chọn bảo vệ tài khoản bằng mã OTP 30s từ Google Authenticator, Microsoft Authenticator hoặc 1Password.' : 'Protect your account with 30s TOTP codes from any authenticator app.'} icon={ShieldCheck}>
                   {mfaEnrollment ? (
-                    <div className="grid gap-5 md:grid-cols-[180px_1fr]">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-white">
-                        <img src={mfaEnrollment.qrCode} alt="Authenticator QR code" className="h-full w-full" />
+                    <div className="grid gap-5 md:grid-cols-[180px_1fr] items-center">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-white flex flex-col items-center">
+                        <img src={mfaEnrollment.qrCode} alt="Authenticator QR code" className="h-full w-full object-contain" />
+                        <span className="text-[9.5px] text-slate-400 font-semibold mt-1">{isVietnamese ? 'Quét trong app' : 'Scan in app'}</span>
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-3.5 text-left">
                         <div>
                           <p className="text-sm font-black text-slate-800 dark:text-slate-100">{isVietnamese ? 'Quét mã bằng ứng dụng Authenticator' : 'Scan with your authenticator app'}</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-500">{isVietnamese ? 'Sau khi quét, nhập mã 6 chữ số để hoàn tất.' : 'After scanning, enter the 6-digit code to finish setup.'}</p>
+                          <p className="mt-0.5 text-xs leading-5 text-slate-500">{isVietnamese ? 'Sau khi quét hoặc nhập khóa bí mật, điền mã 6 chữ số để hoàn tất.' : 'After scanning or entering the secret key, enter the 6-digit code to finish.'}</p>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/50">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Mã thiết lập thủ công' : 'Manual setup secret'}</p>
-                          <code className="mt-1 block break-all text-[11px] font-bold text-slate-700 dark:text-slate-300">{mfaEnrollment.secret}</code>
+                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800/60 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Khóa thiết lập thủ công' : 'Manual setup secret'}</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(mfaEnrollment.secret);
+                                setCopiedSecret(true);
+                                triggerToast?.('info', isVietnamese ? 'Đã sao chép khóa bí mật' : 'Secret copied', mfaEnrollment.secret);
+                                setTimeout(() => setCopiedSecret(false), 2500);
+                              }}
+                              className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              {copiedSecret ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedSecret ? (isVietnamese ? 'Đã sao chép' : 'Copied') : (isVietnamese ? 'Sao chép' : 'Copy')}</span>
+                            </button>
+                          </div>
+                          <code className="block break-all text-xs font-mono font-bold text-slate-800 dark:text-slate-200 select-all">{mfaEnrollment.secret}</code>
                         </div>
-                        <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className={`${inputClass} max-w-44 text-center font-mono tracking-[0.35em]`} />
-                        <div className="flex gap-2">
-                          <button type="button" onClick={verifyMfaEnrollment} disabled={mfaBusy || mfaCode.length !== 6} className="h-9 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white disabled:opacity-40">{isVietnamese ? 'Xác minh và bật' : 'Verify and enable'}</button>
-                          <button type="button" onClick={cancelMfaEnrollment} disabled={mfaBusy} className="h-9 rounded-xl border border-slate-200 px-4 text-xs font-extrabold text-slate-600 dark:border-slate-700 dark:text-slate-300">{t('cancel') || 'Cancel'}</button>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">{isVietnamese ? 'Mã 6 chữ số' : '6-digit OTP code'}</label>
+                          <input 
+                            inputMode="numeric" 
+                            autoComplete="one-time-code" 
+                            maxLength={6} 
+                            value={mfaCode} 
+                            onChange={event => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} 
+                            placeholder="000000" 
+                            className={`${inputClass} max-w-48 text-center text-base font-bold font-sans tabular-nums tracking-[0.35em]`} 
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button type="button" onClick={verifyMfaEnrollment} disabled={mfaBusy || mfaCode.length !== 6} className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md disabled:opacity-40 cursor-pointer flex items-center gap-1.5">
+                            {mfaBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                            <span>{isVietnamese ? 'Xác minh và bật 2FA' : 'Verify & Enable 2FA'}</span>
+                          </button>
+                          <button type="button" onClick={cancelMfaEnrollment} disabled={mfaBusy} className="h-9 rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 cursor-pointer">{t('cancel') || 'Cancel'}</button>
                         </div>
                       </div>
                     </div>
@@ -1257,15 +1266,29 @@ export default function SettingsPanel({
                     <div className="space-y-3">
                       {mfaFactors.filter(factor => factor.status === 'verified').map(factor => (
                         <div key={factor.id} className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/15">
-                          <div><p className="text-xs font-black text-emerald-800 dark:text-emerald-300">{factor.friendly_name || 'Authenticator'}</p><p className="mt-1 text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{isVietnamese ? 'Đang hoạt động · TOTP' : 'Active · TOTP'}</p></div>
-                          <button type="button" onClick={() => removeMfaFactor(factor.id)} disabled={mfaBusy} className="h-9 rounded-xl border border-rose-200 bg-white px-3 text-[10px] font-extrabold text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900">{isVietnamese ? 'Gỡ thiết bị' : 'Remove'}</button>
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                              <ShieldCheck className="h-5 w-5" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                                <span>{factor.friendly_name || 'Apexa Authenticator'}</span>
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">Active</span>
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-emerald-600/90 dark:text-emerald-400/80">{isVietnamese ? 'Đang bảo vệ tài khoản bằng mã OTP TOTP.' : 'Account is protected by TOTP OTP.'}</p>
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => removeMfaFactor(factor.id)} disabled={mfaBusy} className="h-9 rounded-xl border border-rose-200 bg-white px-3 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 cursor-pointer">{isVietnamese ? 'Tắt / Gỡ 2FA' : 'Remove 2FA'}</button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div><p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Chưa bật xác thực hai bước' : 'Two-factor authentication is off'}</p><p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Hỗ trợ Google Authenticator, Microsoft Authenticator, 1Password và ứng dụng TOTP tương thích.' : 'Works with Google Authenticator, Microsoft Authenticator, 1Password and compatible TOTP apps.'}</p></div>
-                      <button type="button" onClick={startMfaEnrollment} disabled={mfaBusy} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50"><ShieldCheck className="h-3.5 w-3.5" />{isVietnamese ? 'Thiết lập ngay' : 'Set up now'}</button>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-left">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Chưa kích hoạt xác thực hai bước (Tùy chọn)' : 'Two-factor authentication is off (Optional)'}</p>
+                        <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Hỗ trợ Google Authenticator, Microsoft Authenticator, 1Password, Authy và Apple Keychain.' : 'Works with Google Authenticator, Microsoft Authenticator, 1Password and Apple Keychain.'}</p>
+                      </div>
+                      <button type="button" onClick={startMfaEnrollment} disabled={mfaBusy} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md disabled:opacity-50 cursor-pointer shrink-0"><ShieldCheck className="h-3.5 w-3.5" />{isVietnamese ? 'Kích hoạt ngay' : 'Set up now'}</button>
                     </div>
                   )}
                 </SettingsCard>

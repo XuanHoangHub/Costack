@@ -7,7 +7,7 @@ import {
   CheckCircle2, Clock, Shield, Sparkles, UserCheck, 
   Copy, Check, Crown, Zap, FolderKanban, Flame, 
   ChevronRight, ExternalLink, Activity, Camera, Trash2, RefreshCw, Upload, Image as ImageIcon,
-  Maximize2, Eye, SlidersHorizontal
+  Maximize2, Eye, SlidersHorizontal, Move, RotateCcw
 } from 'lucide-react';
 import { useMemberStore } from '@/store/memberStore';
 import { useTaskStore } from '@/store/taskStore';
@@ -101,11 +101,37 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
     if (typeof window === 'undefined' || !member) return '';
     return member.bannerUrl || member.coverUrl || localStorage.getItem(`apexa_user_banner_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner') : '') || '';
   });
+  const [bannerPosition, setBannerPosition] = useState<{ x: number; y: number }>(() => {
+    if (typeof window === 'undefined' || !member) return { x: 50, y: 50 };
+    try {
+      const saved = localStorage.getItem(`apexa_user_banner_pos_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner_pos') : '');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') return parsed;
+      }
+    } catch (e) {}
+    return { x: 50, y: 50 };
+  });
+  const [isRepositioningBanner, setIsRepositioningBanner] = useState(false);
+  const [isDraggingBanner, setIsDraggingBanner] = useState(false);
+  const dragStartRef = useRef<{ startX: number; startY: number; initPosX: number; initPosY: number } | null>(null);
+  const bannerContainerRef = useRef<HTMLDivElement>(null);
+  const prevBannerPosRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
 
   useEffect(() => {
     if (member) {
       const saved = member.bannerUrl || member.coverUrl || localStorage.getItem(`apexa_user_banner_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner') : '') || '';
       setCustomBannerUrl(saved);
+
+      try {
+        const savedPos = localStorage.getItem(`apexa_user_banner_pos_${member.id}`) || (isOwnProfile ? localStorage.getItem('apexa_user_banner_pos') : '');
+        if (savedPos) {
+          const parsed = JSON.parse(savedPos);
+          if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+            setBannerPosition(parsed);
+          }
+        }
+      } catch (e) {}
     }
   }, [member, isOwnProfile]);
 
@@ -201,9 +227,15 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
     e.stopPropagation();
     if (!member) return;
     setCustomBannerUrl('');
+    setBannerPosition({ x: 50, y: 50 });
+    setIsRepositioningBanner(false);
+    setIsDraggingBanner(false);
+    dragStartRef.current = null;
     localStorage.removeItem(`apexa_user_banner_${member.id}`);
+    localStorage.removeItem(`apexa_user_banner_pos_${member.id}`);
     if (isOwnProfile) {
       localStorage.removeItem('apexa_user_banner');
+      localStorage.removeItem('apexa_user_banner_pos');
     }
     useMemberStore.getState().updateMember({
       ...member,
@@ -218,6 +250,95 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
     }
     setBannerFeedback(isVietnamese ? 'Đã khôi phục ảnh bìa mặc định.' : 'Reverted to default banner.');
     setTimeout(() => setBannerFeedback(''), 3000);
+  };
+
+  const handleBannerMouseDown = (e: React.MouseEvent) => {
+    if (!isRepositioningBanner || bannerFit === 'contain') return;
+    e.preventDefault();
+    setIsDraggingBanner(true);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initPosX: bannerPosition.x,
+      initPosY: bannerPosition.y,
+    };
+  };
+
+  const handleBannerTouchStart = (e: React.TouchEvent) => {
+    if (!isRepositioningBanner || bannerFit === 'contain' || !e.touches[0]) return;
+    setIsDraggingBanner(true);
+    dragStartRef.current = {
+      startX: e.touches[0].clientX,
+      startY: e.touches[0].clientY,
+      initPosX: bannerPosition.x,
+      initPosY: bannerPosition.y,
+    };
+  };
+
+  const handleBannerMouseMove = (e: React.MouseEvent) => {
+    if (!dragStartRef.current || !bannerContainerRef.current) return;
+    const rect = bannerContainerRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const deltaX = e.clientX - dragStartRef.current.startX;
+    const deltaY = e.clientY - dragStartRef.current.startY;
+
+    const newX = Math.max(0, Math.min(100, dragStartRef.current.initPosX - (deltaX / rect.width) * 100));
+    const newY = Math.max(0, Math.min(100, dragStartRef.current.initPosY - (deltaY / rect.height) * 100));
+
+    setBannerPosition({ x: Math.round(newX * 10) / 10, y: Math.round(newY * 10) / 10 });
+  };
+
+  const handleBannerTouchMove = (e: React.TouchEvent) => {
+    if (!dragStartRef.current || !bannerContainerRef.current || !e.touches[0]) return;
+    const rect = bannerContainerRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const deltaX = e.touches[0].clientX - dragStartRef.current.startX;
+    const deltaY = e.touches[0].clientY - dragStartRef.current.startY;
+
+    const newX = Math.max(0, Math.min(100, dragStartRef.current.initPosX - (deltaX / rect.width) * 100));
+    const newY = Math.max(0, Math.min(100, dragStartRef.current.initPosY - (deltaY / rect.height) * 100));
+
+    setBannerPosition({ x: Math.round(newX * 10) / 10, y: Math.round(newY * 10) / 10 });
+  };
+
+  const handleBannerMouseUp = () => {
+    setIsDraggingBanner(false);
+    dragStartRef.current = null;
+  };
+
+  const startRepositionBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    prevBannerPosRef.current = { ...bannerPosition };
+    setIsRepositioningBanner(true);
+    if (bannerFit === 'contain') setBannerFit('cover');
+  };
+
+  const saveBannerPosition = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRepositioningBanner(false);
+    setIsDraggingBanner(false);
+    dragStartRef.current = null;
+    try {
+      if (member?.id) localStorage.setItem(`apexa_user_banner_pos_${member.id}`, JSON.stringify(bannerPosition));
+      if (isOwnProfile) localStorage.setItem('apexa_user_banner_pos', JSON.stringify(bannerPosition));
+    } catch (err) {}
+    setBannerFeedback(isVietnamese ? 'Đã lưu vị trí ảnh bìa 🎯' : 'Banner position saved 🎯');
+    setTimeout(() => setBannerFeedback(''), 3000);
+  };
+
+  const resetBannerCenter = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBannerPosition({ x: 50, y: 50 });
+  };
+
+  const cancelRepositionBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBannerPosition(prevBannerPosRef.current);
+    setIsRepositioningBanner(false);
+    setIsDraggingBanner(false);
+    dragStartRef.current = null;
   };
 
   if (!memberId || !member) return null;
@@ -295,24 +416,46 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           className="relative w-full max-w-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 flex flex-col max-h-[92vh] text-slate-800 dark:text-slate-100"
         >
           {/* Header Banner (Custom image or Mesh gradient) */}
-          <div className="h-52 sm:h-60 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none">
+          <div 
+            ref={bannerContainerRef}
+            onMouseDown={handleBannerMouseDown}
+            onMouseMove={handleBannerMouseMove}
+            onMouseUp={handleBannerMouseUp}
+            onMouseLeave={handleBannerMouseUp}
+            onTouchStart={handleBannerTouchStart}
+            onTouchMove={handleBannerTouchMove}
+            onTouchEnd={handleBannerMouseUp}
+            className={`h-52 sm:h-60 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none transition-all ${
+              isRepositioningBanner 
+                ? (isDraggingBanner ? 'cursor-grabbing ring-2 ring-inset ring-sky-400' : 'cursor-grab ring-2 ring-inset ring-sky-400/80') 
+                : ''
+            }`}
+          >
             {customBannerUrl ? (
               <div 
-                className="relative w-full h-full cursor-pointer overflow-hidden flex items-center justify-center"
-                onClick={() => setLightboxImage({ url: customBannerUrl, title: `${member.name} - Banner HD` })}
-                title={isVietnamese ? 'Nhấp để xem ảnh bìa kích thước đầy đủ (HD)' : 'Click to view full size banner (HD)'}
+                className="relative w-full h-full overflow-hidden flex items-center justify-center pointer-events-none"
               >
                 <SignedImage
                   filePath={customBannerUrl}
                   alt={`${member.name} banner`}
                   style={{
                     imageRendering: '-webkit-optimize-contrast',
-                    objectFit: bannerFit
+                    objectFit: bannerFit,
+                    objectPosition: `${bannerPosition.x}% ${bannerPosition.y}%`,
                   }}
-                  className={`w-full h-full ${bannerFit === 'contain' ? 'object-contain bg-slate-950 p-2' : 'object-cover'} transition-transform duration-500 group-hover:scale-[1.02]`}
+                  className={`w-full h-full ${bannerFit === 'contain' ? 'object-contain bg-slate-950 p-2' : 'object-cover'} pointer-events-none select-none`}
+                  draggable={false}
                 />
                 {/* Subtle top edge vignette for button readability without darkening center logo */}
                 <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+
+                {/* Repositioning Grid Overlay */}
+                {isRepositioningBanner && (
+                  <div className="absolute inset-0 bg-black/15 pointer-events-none flex items-center justify-center">
+                    <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/30 border-t border-dashed border-white/60" />
+                    <div className="absolute inset-y-0 left-1/2 w-[1px] bg-white/30 border-l border-dashed border-white/60" />
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -326,70 +469,121 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </>
             )}
 
-            {/* Banner Actions Overlay: Upload, Fit Toggle, HD View, Remove */}
-            <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  bannerFileInputRef.current?.click();
-                }}
-                disabled={isUploadingBanner}
-                className="px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                title={isVietnamese ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
-              >
-                {isUploadingBanner ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Camera className="w-3.5 h-3.5 text-cyan-300" />
+            {/* Reposition Mode Guide Pill */}
+            {isRepositioningBanner && (
+              <div className="absolute top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-slate-950/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-sky-400/60 text-white text-xs font-bold shadow-2xl animate-fade-in pointer-events-none select-none">
+                <Move className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
+                <span>{isVietnamese ? 'Kéo để căn chỉnh vị trí ảnh bìa' : 'Drag image to reposition banner'}</span>
+              </div>
+            )}
+
+            {/* Reposition Mode Action Controls */}
+            {isRepositioningBanner ? (
+              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-20 animate-fade-in">
+                <button
+                  type="button"
+                  onClick={saveBannerPosition}
+                  className="px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <Check className="w-3.5 h-3.5 text-white" />
+                  <span>{isVietnamese ? 'Lưu vị trí' : 'Save'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={resetBannerCenter}
+                  className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  title={isVietnamese ? 'Căn giữa (50% 50%)' : 'Reset center'}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
+                  <span>{isVietnamese ? 'Căn giữa' : 'Center'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cancelRepositionBanner}
+                  className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <X className="w-3.5 h-3.5 text-rose-300" />
+                  <span>{isVietnamese ? 'Hủy' : 'Cancel'}</span>
+                </button>
+              </div>
+            ) : (
+              /* Regular Banner Actions Overlay: Upload, Reposition, Fit Toggle, HD View, Remove */
+              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    bannerFileInputRef.current?.click();
+                  }}
+                  disabled={isUploadingBanner}
+                  className="px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                  title={isVietnamese ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+                >
+                  {isUploadingBanner ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5 text-cyan-300" />
+                  )}
+                  <span>
+                    {isUploadingBanner
+                      ? (isVietnamese ? 'Đang tải...' : 'Uploading...')
+                      : customBannerUrl
+                        ? (isVietnamese ? 'Đổi ảnh bìa' : 'Change banner')
+                        : (isVietnamese ? 'Tải ảnh bìa' : 'Upload banner')}
+                  </span>
+                </button>
+
+                {customBannerUrl && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={startRepositionBanner}
+                      className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      title={isVietnamese ? 'Kéo thả để căn chỉnh vị trí ảnh bìa' : 'Drag to reposition banner'}
+                    >
+                      <Move className="w-3.5 h-3.5 text-sky-300" />
+                      <span>{isVietnamese ? 'Căn chỉnh' : 'Reposition'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
+                      }}
+                      className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      title={bannerFit === 'cover' ? (isVietnamese ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (isVietnamese ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{bannerFit === 'cover' ? (isVietnamese ? 'Vừa khung' : 'Fit') : (isVietnamese ? 'Phóng đầy' : 'Fill')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxImage({ url: customBannerUrl, title: `${member.name} Banner` });
+                      }}
+                      className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      title={isVietnamese ? 'Xem ảnh gốc độ nét cao (HD)' : 'View original HD image'}
+                    >
+                      <Eye className="w-3.5 h-3.5 text-sky-300" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveBanner}
+                      className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      title={isVietnamese ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove custom banner'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-300" />
+                    </button>
+                  </>
                 )}
-                <span>
-                  {isUploadingBanner
-                    ? (isVietnamese ? 'Đang tải...' : 'Uploading...')
-                    : customBannerUrl
-                      ? (isVietnamese ? 'Đổi ảnh bìa' : 'Change banner')
-                      : (isVietnamese ? 'Tải ảnh bìa' : 'Upload banner')}
-                </span>
-              </button>
-
-              {customBannerUrl && (
-                <>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
-                    }}
-                    className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={bannerFit === 'cover' ? (isVietnamese ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (isVietnamese ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                    <span>{bannerFit === 'cover' ? (isVietnamese ? 'Vừa khung' : 'Fit') : (isVietnamese ? 'Phóng đầy' : 'Fill')}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLightboxImage({ url: customBannerUrl, title: `${member.name} Banner` });
-                    }}
-                    className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={isVietnamese ? 'Xem ảnh gốc độ nét cao (HD)' : 'View original HD image'}
-                  >
-                    <Eye className="w-3.5 h-3.5 text-sky-300" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRemoveBanner}
-                    className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={isVietnamese ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove custom banner'}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-300" />
-                  </button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Feedback notification pill */}
             {bannerFeedback && (

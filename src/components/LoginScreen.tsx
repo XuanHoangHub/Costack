@@ -852,22 +852,38 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 </div>
               )}
 
-              {/* Forgot Password Flow */}
+              {/* MFA 2FA Authentication Flow */}
               {mfaPendingUser ? (
-                <form onSubmit={handleMfaVerify} className="space-y-4" noValidate>
-                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-center dark:border-indigo-900/50 dark:bg-indigo-950/20">
-                    <ShieldCheck className="mx-auto h-7 w-7 text-indigo-600 dark:text-indigo-400" />
-                    <p className="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">{mfaPendingUser.email}</p>
+                <form onSubmit={handleMfaVerify} className="space-y-4 text-left" noValidate>
+                  <div className="rounded-2xl border border-blue-200/80 bg-blue-50/80 dark:border-sky-900/50 dark:bg-sky-950/30 p-4 text-center">
+                    <div className="w-10 h-10 mx-auto rounded-full bg-blue-600/10 dark:bg-sky-400/10 flex items-center justify-center text-blue-600 dark:text-sky-400 mb-2">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Tài khoản được bảo vệ bằng 2FA' : '2FA Protected Account'}</p>
+                    <p className="mt-0.5 text-xs font-black text-slate-900 dark:text-slate-100">{mfaPendingUser.email}</p>
                   </div>
-                  <label className="block space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{isVietnamese ? 'Mã xác thực' : 'Authentication code'}</span>
-                    <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={event => { setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }} placeholder="000000" className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-mono text-xl font-black tracking-[0.5em] text-slate-900 outline-none focus:border-blue-600 dark:focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
-                  </label>
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">{isVietnamese ? 'Mã xác thực 6 chữ số từ ứng dụng Authenticator' : '6-digit Authenticator code'}</span>
+                    <input 
+                      autoFocus 
+                      inputMode="numeric" 
+                      autoComplete="one-time-code" 
+                      maxLength={6} 
+                      value={mfaCode} 
+                      onChange={event => { 
+                        const val = event.target.value.replace(/\D/g, '').slice(0, 6);
+                        setMfaCode(val); 
+                        setError(''); 
+                      }} 
+                      placeholder="000000" 
+                      className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-sans tabular-nums text-2xl font-black tracking-[0.4em] text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15 dark:focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" 
+                    />
+                  </div>
                   {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
-                  <button type="submit" disabled={loading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                  <button type="submit" disabled={loading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all cursor-pointer">
                     {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <ShieldCheck className="h-4 w-4" />}{isVietnamese ? 'Xác minh và đăng nhập' : 'Verify and sign in'}
                   </button>
-                  <button type="button" onClick={cancelMfaLogin} className="w-full py-2 text-xs font-extrabold text-slate-500 hover:text-indigo-600 dark:text-slate-400">{isVietnamese ? 'Quay lại đăng nhập' : 'Back to sign in'}</button>
+                  <button type="button" onClick={cancelMfaLogin} className="w-full py-2 text-xs font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-sky-400 transition-colors cursor-pointer">{isVietnamese ? 'Quay lại đăng nhập' : 'Back to sign in'}</button>
                 </form>
               ) : isForgot ? (
                 <form onSubmit={handleForgotPassword} className="space-y-4" noValidate>

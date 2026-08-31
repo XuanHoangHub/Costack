@@ -399,7 +399,7 @@ export default function TeamManagement({
           <div key={label as string} className="rounded-3xl border border-slate-200/70 bg-white/80 dark:bg-slate-900/80 p-5 shadow-xs backdrop-blur-md dark:border-slate-800/80 flex items-center justify-between transition-all hover:-translate-y-0.5">
             <div className="text-left space-y-1">
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
-              <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">{value}</p>
+              <p className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-sans tabular-nums">{value}</p>
             </div>
             <div className={`p-3 rounded-2xl border shadow-2xs ${colorClass}`}>
               <Users className="h-5 w-5" />
@@ -491,15 +491,15 @@ export default function TeamManagement({
 
                     <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-3 text-center">
                       <div className="p-1.5 rounded-xl bg-slate-50/50 dark:bg-slate-950/30">
-                        <p className="text-sm font-black text-slate-900 dark:text-white font-mono">{metric.memberCount}</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white font-sans tabular-nums">{metric.memberCount}</p>
                         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Thành viên' : 'Members'}</p>
                       </div>
                       <div className="p-1.5 rounded-xl bg-slate-50/50 dark:bg-slate-950/30">
-                        <p className="text-sm font-black text-slate-900 dark:text-white font-mono">{metric.open}</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-white font-sans tabular-nums">{metric.open}</p>
                         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Việc mở' : 'Open Tasks'}</p>
                       </div>
                       <div className="p-1.5 rounded-xl bg-slate-50/50 dark:bg-slate-950/30">
-                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">{metric.completion}%</p>
+                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-sans tabular-nums">{metric.completion}%</p>
                         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{isVietnamese ? 'Xong' : 'Done'}</p>
                       </div>
                     </div>

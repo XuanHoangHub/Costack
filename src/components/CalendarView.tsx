@@ -130,10 +130,12 @@ const VIETNAMESE_HOLIDAYS_2026: Record<string, string> = {
 // Mini Calendar Navigator Subcomponent for Left Sidebar
 function MiniCalendarNavigator({ 
   selectedDate, 
-  onSelectDate 
+  onSelectDate,
+  eventDates = new Set()
 }: { 
   selectedDate: Date; 
   onSelectDate: (d: Date) => void; 
+  eventDates?: Set<string>;
 }) {
   const [navDate, setNavDate] = useState<Date>(new Date(selectedDate));
 
@@ -167,8 +169,8 @@ function MiniCalendarNavigator({
   }, [year, month]);
 
   const monthNames = [
-    'THÁNG 1', 'THÁNG 2', 'THÁNG 3', 'THÁNG 4', 'THÁNG 5', 'THÁNG 6',
-    'THÁNG 7', 'THÁNG 8', 'THÁNG 9', 'THÁNG 10', 'THÁNG 11', 'THÁNG 12'
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
   ];
 
   const formatDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -176,23 +178,25 @@ function MiniCalendarNavigator({
   const selectedStr = formatDateStr(selectedDate);
 
   return (
-    <div className="select-none p-4 font-sans">
-      <div className="mb-3 flex items-center justify-between px-0.5">
-        <span className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-slate-800 dark:text-white">
-          {monthNames[month]} {year}
+    <div className="select-none p-3.5 font-sans">
+      <div className="mb-2.5 flex items-center justify-between px-1">
+        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+          {monthNames[month]} <span className="text-slate-400 dark:text-slate-500 font-normal">{year}</span>
         </span>
-        <div className="flex items-center gap-1 text-slate-400">
+        <div className="flex items-center gap-0.5 text-slate-400">
           <button 
             type="button" 
             onClick={() => setNavDate(new Date(year, month - 1, 1))}
-            className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="Tháng trước"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <button 
             type="button" 
             onClick={() => setNavDate(new Date(year, month + 1, 1))}
-            className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="Tháng sau"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -200,37 +204,41 @@ function MiniCalendarNavigator({
       </div>
 
       {/* Days Grid Header */}
-      <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-400">
-        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
-          <span key={d}>{d}</span>
+      <div className="mb-1 grid grid-cols-7 gap-0.5 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500">
+        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
+          <span key={d} className={i >= 5 ? 'text-indigo-500 dark:text-indigo-400/80' : ''}>{d}</span>
         ))}
       </div>
 
       {/* Mini Days Cells */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {days.map((item, idx) => {
           const dStr = formatDateStr(item.date);
           const isSelected = dStr === selectedStr;
           const isToday = dStr === todayStr;
+          const hasEvents = eventDates.has(dStr);
 
           return (
             <button
               key={idx}
               type="button"
               onClick={() => onSelectDate(item.date)}
-              className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full font-sans text-[10.5px] transition ${
+              className={`relative mx-auto flex h-7 w-7 flex-col items-center justify-center rounded-full font-sans text-[11px] transition cursor-pointer ${
                 isSelected && isToday
-                  ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/30 ring-2 ring-blue-200 dark:ring-blue-900'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
                   : isToday
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
                   : isSelected
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 font-bold ring-1 ring-blue-200 dark:ring-blue-800'
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/80 dark:text-blue-200 font-bold ring-1 ring-blue-300 dark:ring-blue-800'
                   : item.isCurrentMonth
                   ? 'font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                  : 'font-normal text-slate-300 hover:bg-slate-50 dark:text-slate-700 dark:hover:bg-slate-900'
+                  : 'font-normal text-slate-300 hover:bg-slate-50 dark:text-slate-600/70 dark:hover:bg-slate-900'
               }`}
             >
-              {item.date.getDate()}
+              <span>{item.date.getDate()}</span>
+              {hasEvents && !isToday && !isSelected && (
+                <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-blue-500 dark:bg-blue-400" />
+              )}
             </button>
           );
         })}
@@ -269,6 +277,7 @@ export default function CalendarView({
   const [showGcal, setShowGcal] = useState<boolean>(true);
   const [showHolidays, setShowHolidays] = useState<boolean>(true);
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState<boolean>(false);
   
   // Drag and drop states
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -874,12 +883,23 @@ export default function CalendarView({
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
+  // Map of dates with events for MiniCalendarNavigator dot indicators
+  const eventDatesSet = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach(t => { if (t.dueDate) set.add(t.dueDate); });
+    gcalEvents.forEach(e => {
+      const k = eventDateKey(e);
+      if (k) set.add(k);
+    });
+    return set;
+  }, [tasks, gcalEvents]);
+
   const getPriorityStyle = (priority: Priority) => {
     switch (priority) {
-      case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-100 dark:border-rose-800/60' };
-      case 'high': return { bg: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-100 dark:border-orange-800/60' };
-      case 'medium': return { bg: 'bg-indigo-50 dark:bg-indigo-950/40', text: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500', border: 'border-indigo-100 dark:border-indigo-800/60' };
-      default: return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-100 dark:border-slate-800' };
+      case 'urgent': return { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/60' };
+      case 'high': return { bg: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', border: 'border-orange-200 dark:border-orange-800/60' };
+      case 'medium': return { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400', dot: 'bg-blue-500', border: 'border-blue-200 dark:border-blue-800/60' };
+      default: return { bg: 'bg-slate-50 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-slate-800' };
     }
   };
 
@@ -891,111 +911,121 @@ export default function CalendarView({
   }[priority]);
 
   return (
-    <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-[#07090e] dark:text-slate-100">
+    <div className="relative flex h-full w-full flex-row select-none overflow-hidden bg-slate-100/70 font-sans text-slate-800 dark:bg-[#07090e] dark:text-slate-100">
       
       {/* Collapsible Left Sidebar */}
       <AnimatePresence initial={false}>
         {isSidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: '17rem', opacity: 1 }}
+            animate={{ width: '16.5rem', opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 26 }}
-            className="absolute inset-y-0 left-0 z-30 flex w-[17rem] shrink-0 flex-col divide-y divide-slate-100 overflow-y-auto border-r border-slate-200/90 bg-white/98 text-left shadow-2xl backdrop-blur-xl dark:divide-slate-800/80 dark:border-slate-800 dark:bg-[#0a0c11]/98 lg:relative lg:z-auto lg:shadow-none"
+            transition={{ type: 'spring', stiffness: 240, damping: 28 }}
+            className="absolute inset-y-0 left-0 z-30 flex w-[16.5rem] shrink-0 flex-col divide-y divide-slate-200/80 overflow-y-auto border-r border-slate-200/90 bg-white text-left shadow-2xl backdrop-blur-xl dark:divide-slate-800/80 dark:border-slate-800 dark:bg-[#0a0d14] lg:relative lg:z-auto lg:shadow-none"
           >
             {/* Mini Calendar Navigator */}
             <MiniCalendarNavigator 
               selectedDate={currentDate}
               onSelectDate={(d) => setCurrentDate(d)}
+              eventDates={eventDatesSet}
             />
 
             {/* Google Calendar Connection Card */}
-            <div className="relative space-y-2.5 overflow-hidden p-4">
-              
-              <h4 className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>KẾT NỐI LỊCH</span>
-              </h4>
+            <div className="space-y-2.5 p-3.5">
+              <div className="flex items-center justify-between">
+                <h4 className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <RefreshCw className="w-3 h-3" />
+                  <span>KẾT NỐI LỊCH</span>
+                </h4>
+                {gcalConnected && (
+                  <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
                
               {gcalConnected ? (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/70 p-2.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-xs font-extrabold text-blue-600 shadow-sm dark:bg-slate-900">G</div>
-                    <div className="min-w-0">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-2.5 dark:border-emerald-900/60 dark:bg-emerald-950/25">
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white text-xs font-black text-blue-600 shadow-2xs dark:bg-slate-900">
+                      G
+                    </div>
+                    <div className="min-w-0 flex-1">
                       <span className="block truncate text-[11px] font-bold text-slate-800 dark:text-slate-200">{gcalUserEmail}</span>
-                      <span className="mt-0.5 flex items-center gap-1 text-[8px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Đã kết nối</span>
+                      <span className="text-[9.5px] font-medium text-emerald-600 dark:text-emerald-400">{gcalEvents.length} sự kiện đồng bộ</span>
                     </div>
                   </div>
                   <button
                     onClick={handleConnectGcal}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2 text-center text-[10px] font-bold text-slate-500 transition hover:bg-slate-50 hover:text-rose-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-rose-400"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-1.5 text-center text-[10.5px] font-bold text-slate-600 transition hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 cursor-pointer"
                   >
-                    Ngắt kết nối Google Calendar
+                    Ngắt kết nối
                   </button>
                 </div>
               ) : syncingGcal ? (
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between text-[10px] font-black">
-                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">Đang đồng bộ...</span>
-                    <span className="font-mono text-indigo-600 dark:text-indigo-400">{syncProgress}%</span>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[10px] font-bold">
+                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">Đang kết nối Google...</span>
+                    <span className="font-sans font-bold tabular-nums text-blue-600 dark:text-blue-400">{syncProgress}%</span>
                   </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${syncProgress}%` }}
-                      className="h-full bg-indigo-600 rounded-full"
+                      className="h-full bg-blue-600 rounded-full"
                     />
-                  </div>
-                  <div className="bg-slate-900 dark:bg-slate-950 p-2.5 rounded-2xl font-mono text-[8px] text-slate-300 dark:text-slate-400 leading-normal max-h-24 overflow-y-auto space-y-1 scrollbar-none">
-                    {syncLogs.map((log, i) => (
-                      <div key={i} className="truncate">{log}</div>
-                    ))}
                   </div>
                 </div>
               ) : (
                 <button 
                   onClick={handleConnectGcal}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-3 py-2 text-xs font-bold text-white shadow-xs shadow-blue-500/20 transition cursor-pointer active:scale-[0.98]"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
                   <span>Đồng bộ Google Calendar</span>
                 </button>
               )}
             </div>
 
             {/* Filter Toggle Pills */}
-            <div className="space-y-3 p-4">
-              <h4 className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
-                <Filter className="w-3.5 h-3.5" />
+            <div className="space-y-2.5 p-3.5">
+              <h4 className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <Filter className="w-3 h-3" />
                 <span>BỘ LỌC HIỂN THỊ</span>
               </h4>
               
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
-                  { id: 'showTasks', label: 'Công việc', count: tasks.length, color: 'indigo', state: showTasks, setter: setShowTasks },
+                  { id: 'showTasks', label: 'Công việc', count: tasks.length, color: 'blue', state: showTasks, setter: setShowTasks },
                   { id: 'showGcal', label: 'Google Calendar', count: gcalEvents.length, color: 'emerald', state: showGcal, setter: setShowGcal },
-                  { id: 'showHolidays', label: 'Ngày lễ', count: null, color: 'rose', state: showHolidays, setter: setShowHolidays }
+                  { id: 'showHolidays', label: 'Ngày lễ Việt Nam', count: null, color: 'rose', state: showHolidays, setter: setShowHolidays }
                 ].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => item.setter(!item.state)}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
                       item.state
-                        ? 'border-slate-200 bg-white text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                        : 'border-transparent bg-slate-50 text-slate-400 hover:border-slate-200 hover:bg-white dark:bg-slate-900/50 dark:text-slate-500 dark:hover:border-slate-800 dark:hover:bg-slate-900'
+                        ? 'border-slate-200/90 bg-white text-slate-800 shadow-2xs dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-slate-200'
+                        : 'border-transparent bg-slate-50 text-slate-400 hover:border-slate-200 dark:bg-slate-900/40 dark:text-slate-500'
                     }`}
                   >
-                    <span className="flex items-center gap-2.5">
+                    <span className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full ${
                         item.state
-                          ? item.color === 'indigo' ? 'bg-indigo-500' : item.color === 'emerald' ? 'bg-emerald-500' : 'bg-rose-500'
+                          ? item.color === 'blue' ? 'bg-blue-500' : item.color === 'emerald' ? 'bg-emerald-500' : 'bg-rose-500'
                           : 'bg-slate-300 dark:bg-slate-700'
                       }`} />
                       <span>{item.label}</span>
                     </span>
                     {item.count !== null && (
-                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
-                        item.state ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-white text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                      <span className={`rounded-full px-1.5 py-0.2 text-[9.5px] font-bold ${
+                        item.state ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-transparent text-slate-400 dark:text-slate-600'
                       }`}>
                         {item.count}
                       </span>
@@ -1004,36 +1034,105 @@ export default function CalendarView({
                 ))}
               </div>
 
-              {/* Priority Filter */}
-              <div className="space-y-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60">
-                <label className="block text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">Mức ưu tiên</label>
-                <select 
-                  value={priorityFilter} 
-                  onChange={e => setPriorityFilter(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                >
-                  <option value="all">Tất cả mức ưu tiên</option>
-                  <option value="urgent">Khẩn cấp</option>
-                  <option value="high">Cao</option>
-                  <option value="medium">Trung bình</option>
-                  <option value="low">Thấp</option>
-                </select>
+              {/* Priority Filter Custom Dropdown */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Mức ưu tiên</label>
+                
+                <div className="relative font-sans text-left">
+                  <button
+                    type="button"
+                    onClick={() => setIsPriorityMenuOpen(!isPriorityMenuOpen)}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-2xs transition hover:border-blue-400 hover:bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-700 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${
+                        priorityFilter === 'urgent' ? 'bg-rose-500' :
+                        priorityFilter === 'high' ? 'bg-amber-500' :
+                        priorityFilter === 'medium' ? 'bg-blue-500' :
+                        priorityFilter === 'low' ? 'bg-slate-400' : 'bg-slate-300 dark:bg-slate-600'
+                      }`} />
+                      <span className="truncate">
+                        {priorityFilter === 'urgent' ? 'Khẩn cấp' :
+                         priorityFilter === 'high' ? 'Cao' :
+                         priorityFilter === 'medium' ? 'Trung bình' :
+                         priorityFilter === 'low' ? 'Thấp' : 'Tất cả mức ưu tiên'}
+                      </span>
+                    </span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${isPriorityMenuOpen ? 'rotate-180 text-blue-600' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isPriorityMenuOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsPriorityMenuOpen(false)} 
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                          transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute left-0 right-0 top-full mt-1.5 z-50 overflow-hidden rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-[#0c101d]/98 space-y-0.5"
+                        >
+                          {[
+                            { id: 'all', label: 'Tất cả mức ưu tiên', dot: 'bg-slate-300 dark:bg-slate-600' },
+                            { id: 'urgent', label: 'Khẩn cấp', dot: 'bg-rose-500' },
+                            { id: 'high', label: 'Cao', dot: 'bg-amber-500' },
+                            { id: 'medium', label: 'Trung bình', dot: 'bg-blue-500' },
+                            { id: 'low', label: 'Thấp', dot: 'bg-slate-400' },
+                          ].map((opt) => {
+                            const isSelected = priorityFilter === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  setPriorityFilter(opt.id);
+                                  setIsPriorityMenuOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                                  isSelected 
+                                    ? 'bg-blue-50 text-blue-700 font-bold dark:bg-blue-950/50 dark:text-blue-300' 
+                                    : 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-300 dark:hover:bg-slate-800/70'
+                                }`}
+                              >
+                                <span className="flex items-center gap-2 truncate">
+                                  <span className={`h-2 w-2 rounded-full shrink-0 ${opt.dot}`} />
+                                  <span className="truncate">{opt.label}</span>
+                                </span>
+                                {isSelected && <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0 stroke-[2.5]" />}
+                              </button>
+                            );
+                          })}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
             {/* Unscheduled Tasks Card */}
-            <div className="flex min-h-[220px] flex-1 flex-col overflow-hidden p-4">
-              <h4 className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
-                <ListPlus className="w-3.5 h-3.5" />
-                <span>CHƯA XẾP LỊCH ({unscheduledTasks.length})</span>
+            <div className="flex min-h-[200px] flex-1 flex-col overflow-hidden p-3.5">
+              <h4 className="mb-2 flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <ListPlus className="w-3.5 h-3.5" />
+                  <span>CHƯA XẾP LỊCH</span>
+                </span>
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 text-[9.5px] font-bold text-slate-600 dark:text-slate-400">
+                  {unscheduledTasks.length}
+                </span>
               </h4>
               
-              <div className="flex-1 space-y-1.5 overflow-y-auto pr-1 scrollbar-thin lg:max-h-[calc(100vh-450px)] max-h-64">
+              <div className="flex-1 space-y-1.5 overflow-y-auto pr-0.5 scrollbar-thin lg:max-h-[calc(100vh-480px)] max-h-56">
                 {unscheduledTasks.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 dark:text-slate-500 space-y-1.5">
-                    <Check className="w-5 h-5 mx-auto text-emerald-500 stroke-[3px]" />
-                    <p className="text-[10px] font-black text-slate-700 dark:text-slate-300">Tuyệt vời!</p>
-                    <p className="text-[9px]">Tất cả công việc đã được lên lịch.</p>
+                  <div className="py-6 text-center text-slate-400 dark:text-slate-500 space-y-1">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                      <Check className="w-4 h-4 stroke-[3px]" />
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Hoàn tất!</p>
+                    <p className="text-[9.5px]">Tất cả công việc đã có ngày.</p>
                   </div>
                 ) : (
                   unscheduledTasks.map(t => {
@@ -1044,16 +1143,15 @@ export default function CalendarView({
                         draggable
                         onDragStart={e => handleDragStart(e as any, t.id)}
                         onDragEnd={handleDragEnd}
-                        whileHover={{ scale: 1.02, x: 2 }}
-                        className="group flex cursor-grab items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-2.5 transition hover:border-blue-200 hover:bg-blue-50/30 active:cursor-grabbing dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900"
+                        whileHover={{ scale: 1.01, x: 2 }}
+                        className="group flex cursor-grab items-center gap-2 rounded-xl border border-slate-200/90 bg-white p-2 transition hover:border-blue-400 hover:shadow-xs active:cursor-grabbing dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700"
                       >
-                        <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-650 shrink-0 cursor-grab" />
+                        <GripVertical className="w-3.5 h-3.5 text-slate-350 dark:text-slate-600 shrink-0 cursor-grab" />
                         <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-center gap-2 justify-between">
-                            <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{t.title}</span>
-                            <span className={`text-[7.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${style.bg} ${style.text} ${style.border}`}>
-                              {getPriorityLabel(t.priority)}
-                            </span>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">{t.title}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                            <span className="text-[9px] text-slate-400 font-medium capitalize">{getPriorityLabel(t.priority)}</span>
                           </div>
                         </div>
                       </motion.div>
@@ -1062,8 +1160,8 @@ export default function CalendarView({
                 )}
               </div>
               
-              <p className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-slate-50 py-2 text-center text-[9px] font-medium text-slate-400 dark:bg-slate-900/60 dark:text-slate-500">
-                💡 Kéo thả công việc để xếp lịch
+              <p className="mt-2.5 flex items-center justify-center gap-1 rounded-xl bg-slate-100/70 py-1.5 text-center text-[9.5px] font-medium text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
+                💡 Kéo thả vào lịch để đặt ngày
               </p>
             </div>
           </motion.div>
@@ -1074,141 +1172,135 @@ export default function CalendarView({
         <button
           aria-label="Đóng bộ lọc lịch"
           onClick={() => setIsSidebarOpen(false)}
-          className="absolute inset-0 z-20 bg-slate-950/35 backdrop-blur-[1px] lg:hidden"
+          className="absolute inset-0 z-20 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
         />
       )}
 
-      {/* Sidebar Toggle Button */}
-      <button 
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={`absolute top-3 z-40 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 dark:hover:text-blue-300 lg:static lg:h-10 lg:w-5 lg:self-center lg:rounded-l-none lg:rounded-r-xl lg:border-l-0 ${isSidebarOpen ? 'left-[15.9rem]' : 'left-3'}`}
-        title={isSidebarOpen ? "Đóng bộ lọc lịch" : "Mở bộ lọc lịch"}
-      >
-        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
-      </button>
-
       {/* Main Calendar Views */}
-      <div className="relative flex min-w-0 flex-1 flex-col gap-3 overflow-hidden bg-slate-50/70 p-2.5 sm:p-4 dark:bg-[#07090e]">
+      <div className="relative flex min-w-0 flex-1 flex-col gap-2.5 overflow-hidden p-2 sm:p-3.5">
 
         {/* Calendar Navigation Header */}
-        <header className="z-20 shrink-0 rounded-2xl border border-slate-200/80 bg-white/95 py-3 pl-12 pr-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0b0d13]/95 sm:px-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2.5">
-                  <h2 className="truncate text-lg font-extrabold tracking-[-0.03em] text-slate-950 dark:text-white sm:text-xl">
-                    {viewMode === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-                    {viewMode === 'week' && `Tuần ${Math.ceil(currentDate.getDate() / 7)}, ${monthNames[currentDate.getMonth()]}`}
-                    {viewMode === '4day' && `4 ngày tiếp theo`}
-                    {viewMode === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
-                    {viewMode === 'schedule' && `Lịch trình chi tiết`}
-                  </h2>
-                  {gcalConnected ? (
-                    <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 sm:flex">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Đồng bộ trực tiếp
-                    </span>
-                  ) : (
-                    <span className="hidden items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:flex">
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      Chưa kết nối Google
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 hidden text-[11px] font-medium text-slate-400 sm:block">
-                  {filteredTasks.length} công việc · {gcalEvents.length} sự kiện Google
-                </p>
+        <header className="z-20 shrink-0 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xs backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0c0f17]/95">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            
+            {/* Left Nav controls */}
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-300 cursor-pointer"
+                title={isSidebarOpen ? "Ẩn thanh bên" : "Hiện thanh bên"}
+              >
+                <ChevronRight className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Prev / Today / Next Segment */}
+              <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/80 p-0.5 dark:border-slate-800 dark:bg-slate-900">
+                <button 
+                  aria-label="Kỳ trước" 
+                  onClick={handlePrev} 
+                  className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs dark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={handleToday} 
+                  className="h-7 rounded-lg px-2.5 text-[11px] font-bold text-slate-700 transition hover:bg-white hover:shadow-2xs dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Hôm nay
+                </button>
+                <button 
+                  aria-label="Kỳ tiếp theo" 
+                  onClick={handleNext} 
+                  className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-2xs dark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900/80">
-                <button aria-label="Kỳ trước" onClick={handlePrev} className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-sm dark:hover:bg-slate-800 dark:hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-                <button onClick={handleToday} className="h-7 rounded-lg px-3 text-[10px] font-extrabold uppercase tracking-wide text-slate-700 transition hover:bg-white hover:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800">Hôm nay</button>
-                <button aria-label="Kỳ tiếp theo" onClick={handleNext} className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-sm dark:hover:bg-slate-800 dark:hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+              {/* Month/Year Title */}
+              <div className="min-w-0 pl-1">
+                <h2 className="truncate text-base font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-lg">
+                  {viewMode === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
+                  {viewMode === 'week' && `Tuần ${Math.ceil(currentDate.getDate() / 7)}, ${monthNames[currentDate.getMonth()]}`}
+                  {viewMode === '4day' && `4 ngày tiếp theo`}
+                  {viewMode === 'day' && `${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
+                  {viewMode === 'schedule' && `Lịch trình chi tiết`}
+                </h2>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <label className="relative min-w-[180px] flex-1 xl:w-56 xl:flex-none">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            {/* Right Tools & View Switcher */}
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              
+              {/* Search Bar */}
+              <div className="relative min-w-[150px] flex-1 sm:w-48 sm:flex-none">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <input
                   type="search"
                   aria-label="Tìm công việc"
                   placeholder="Tìm công việc..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-900/80 dark:text-white dark:focus:bg-slate-900"
+                  className="h-8 w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-8 pr-2.5 text-xs font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white dark:border-slate-800 dark:bg-slate-900/80 dark:text-white dark:focus:bg-slate-900"
                 />
-              </label>
+              </div>
 
+              {/* View Switcher Segmented */}
+              <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-100/90 p-0.5 dark:border-slate-800 dark:bg-slate-900">
+                {[
+                  { id: 'month', label: 'Tháng' },
+                  { id: 'week', label: 'Tuần' },
+                  { id: '4day', label: '4 ngày' },
+                  { id: 'day', label: 'Ngày' },
+                  { id: 'schedule', label: 'Lịch biểu' }
+                ].map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setViewMode(m.id as any)}
+                    className="relative h-7 shrink-0 rounded-lg px-2.5 text-[11px] font-bold transition cursor-pointer"
+                  >
+                    {viewMode === m.id && (
+                      <motion.div
+                        layoutId="activeViewTab"
+                        className="absolute inset-0 rounded-lg bg-white shadow-2xs dark:bg-slate-800"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className={`relative z-10 ${viewMode === m.id ? 'text-blue-600 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}`}>
+                      {m.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* AI Auto Schedule Button */}
               <button
                 onClick={handleAiAutoSchedule}
                 disabled={isAiScheduling}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"
+                className="flex h-8 items-center gap-1.5 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-2.5 text-xs font-bold text-violet-700 transition hover:border-violet-300 hover:from-violet-100 hover:to-indigo-100 disabled:cursor-wait disabled:opacity-60 dark:border-violet-900/60 dark:from-violet-950/40 dark:to-indigo-950/30 dark:text-violet-300 cursor-pointer"
                 title="Tự động xếp lịch công việc bằng AI"
               >
-                <Sparkles className={`h-4 w-4 ${isAiScheduling ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isAiScheduling ? 'Đang xếp…' : 'Xếp lịch AI'}</span>
+                <Sparkles className={`h-3.5 w-3.5 ${isAiScheduling ? 'animate-spin' : ''}`} />
+                <span className="hidden xl:inline">{isAiScheduling ? 'Đang xếp…' : 'Xếp lịch AI'}</span>
               </button>
 
+              {/* Export ICS Button */}
               <button
                 onClick={handleExportICS}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-white"
+                className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
                 title="Xuất tập tin Lịch (.ics)"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3.5 w-3.5" />
               </button>
 
+              {/* Primary Add Button */}
               <button
                 onClick={() => { setCreateType('task'); handleGridCellClick(formatDateString(currentDate)); }}
-                className="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition hover:bg-blue-700 active:scale-[0.98]"
+                className="flex h-8 items-center gap-1 rounded-xl bg-blue-600 hover:bg-blue-700 px-3 text-xs font-bold text-white shadow-xs shadow-blue-500/20 transition active:scale-[0.98] cursor-pointer"
               >
-                <Plus className="h-4 w-4" />
-                Tạo mới
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tạo mới</span>
               </button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-slate-800/80 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex w-fit items-center rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-              <button
-                onClick={() => setIsMeMode(true)}
-                className={`flex h-7 items-center gap-1.5 rounded-lg px-3 text-[10px] font-bold transition ${isMeMode ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-              >
-                <UserCheck className="h-3.5 w-3.5" /> Của tôi
-              </button>
-              <button
-                onClick={() => setIsMeMode(false)}
-                className={`flex h-7 items-center gap-1.5 rounded-lg px-3 text-[10px] font-bold transition ${!isMeMode ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-              >
-                <Users className="h-3.5 w-3.5" /> Đội ngũ
-              </button>
-            </div>
-
-            <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-              {[
-                { id: 'month', label: 'Tháng' },
-                { id: 'week', label: 'Tuần' },
-                { id: '4day', label: '4 ngày' },
-                { id: 'day', label: 'Ngày' },
-                { id: 'schedule', label: 'Lịch biểu' }
-              ].map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setViewMode(m.id as any)}
-                  className="relative h-7 shrink-0 rounded-lg px-3 text-[10.5px] font-bold transition"
-                >
-                  {viewMode === m.id && (
-                    <motion.div
-                      layoutId="activeViewTab"
-                      className="absolute inset-0 rounded-lg border border-slate-200/70 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className={`relative z-10 ${viewMode === m.id ? 'text-slate-950 dark:text-white' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
-                    {m.label}
-                  </span>
-                </button>
-              ))}
             </div>
           </div>
         </header>
@@ -1216,145 +1308,199 @@ export default function CalendarView({
         {/* Main Grid Content Area */}
         <div className="min-h-0 min-w-0 flex-1 overflow-auto rounded-2xl">
           
-          {/* A. MONTH VIEW */}
+          {/* ============================================================ */}
+          {/* A. MONTH VIEW (Clean Google/Apple Calendar Design) */}
+          {/* ============================================================ */}
           {viewMode === 'month' && (
-            <div
-              className="grid h-full min-h-[600px] min-w-full md:min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-slate-800"
-              style={{ gridTemplateRows: `36px repeat(${Math.ceil(daysInMonth.length / 7)}, minmax(80px, 1fr))` }}
-            >
-              {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'].map(header => (
-                <div key={header} className="flex items-center justify-center bg-slate-50 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 dark:bg-[#0b0d13] dark:text-slate-500">
-                  <span className="hidden md:inline">{header}</span>
-                  <span className="md:hidden">{header.replace('THỨ ', 'T').replace('CHỦ NHẬT', 'CN')}</span>
-                </div>
-              ))}
+            <div className="flex h-full min-h-[600px] min-w-full md:min-w-[760px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800/80 dark:bg-[#0b0e17]">
               
-              {daysInMonth.map((day, idx) => {
-                const dateStr = formatDateString(day.date);
-                const dayTasks = getFilteredTasksForDate(dateStr);
-                const dayEvents = getFilteredEventsForDate(dateStr);
-                const isToday = formatDateString(new Date()) === dateStr;
-                const isDragOver = activeDragOverDate === dateStr;
-                const holidayName = showHolidays ? VIETNAMESE_HOLIDAYS_2026[dateStr] : null;
-
-                return (
+              {/* Weekday Row */}
+              <div className="grid grid-cols-7 border-b border-slate-200/80 bg-slate-50/90 dark:border-slate-800/80 dark:bg-[#0d121f] h-9 shrink-0">
+                {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'].map((header) => (
                   <div 
-                    key={idx}
-                    onDragOver={e => handleDragOver(e, dateStr)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={e => handleDrop(e, dateStr)}
-                    onClick={() => handleGridCellClick(dateStr)}
-                    className={`group relative flex min-h-0 flex-col gap-1.5 overflow-hidden bg-white p-2 text-left transition duration-150 dark:bg-[#090b10] ${
-                      day.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'bg-slate-50/90 text-slate-400 dark:bg-[#06080c] dark:text-slate-600'
-                    } ${isToday ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''} ${isDragOver ? 'z-10 bg-blue-50 ring-2 ring-inset ring-blue-500/50 dark:bg-blue-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-900/70'}`}
+                    key={header} 
+                    className="flex items-center justify-center text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"
                   >
-                    {/* Day Number Header */}
-                    <div className="flex h-7 items-center justify-between">
-                      <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold transition-colors ${
-                        isToday ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' : 'text-slate-600 group-hover:text-slate-950 dark:text-slate-400 dark:group-hover:text-white'
-                      }`}>{day.date.getDate()}</span>
-                      
-                      <button
-                        aria-label={`Tạo mới ngày ${dateStr}`}
-                        onClick={(e) => { e.stopPropagation(); handleGridCellClick(dateStr); }}
-                        className="grid h-6 w-6 translate-y-0.5 place-items-center rounded-lg text-slate-400 opacity-0 transition hover:bg-blue-50 hover:text-blue-600 group-hover:translate-y-0 group-hover:opacity-100 dark:hover:bg-blue-950/40 dark:hover:text-blue-300"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Scrollable event lists in cell */}
-                    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-0.5 scrollbar-none">
-                      {/* Vietnamese Holiday Pill Badge */}
-                      {holidayName && (
-                        <div className="flex min-h-6 items-center gap-1.5 truncate rounded-md border border-rose-100 bg-rose-50 px-2 text-[9.5px] font-semibold text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
-                          <span className="truncate">{holidayName}</span>
-                        </div>
-                      )}
-
-                      {/* Google Calendar Events */}
-                      {dayEvents.map((evt, i) => (
-                        <motion.div 
-                          layoutId={evt.id}
-                          key={evt.id || i}
-                          draggable
-                          onDragStart={e => handleDragStart(e as any, evt.id, 'google-event')}
-                          onDragEnd={handleDragEnd}
-                          onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
-                          whileHover={{ scale: 1.02 }}
-                          className="flex min-h-6 cursor-grab items-center gap-1.5 truncate rounded-md border-l-2 px-2 text-[9.5px] font-semibold transition hover:brightness-95 active:cursor-grabbing"
-                          style={{
-                            backgroundColor: `${evt.color || '#2563EB'}14`,
-                            borderLeftColor: evt.color || '#2563EB',
-                            color: evt.color || '#2563EB',
-                          }}
-                        >
-                          <Globe className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{evt.summary}</span>
-                        </motion.div>
-                      ))}
-
-                      {/* Apexa Tasks */}
-                      {dayTasks.map(task => {
-                        const style = getPriorityStyle(task.priority);
-                        return (
-                          <motion.div 
-                            layoutId={task.id}
-                            key={task.id}
-                            draggable
-                            onDragStart={e => handleDragStart(e as any, task.id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
-                            whileHover={{ scale: 1.02 }}
-                            className={`flex min-h-6 cursor-grab items-center gap-1.5 truncate rounded-md border border-l-[3px] px-2 text-[9.5px] font-semibold transition active:cursor-grabbing ${
-                              task.status === 'completed' 
-                                ? 'border-emerald-100 bg-emerald-50 text-emerald-600 line-through dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-400'
-                                : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-800'
-                            }`}
-                            style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#2563EB' : '#94a3b8' } as any}
-                          >
-                            <span className="truncate">{task.title}</span>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
+                    <span className="hidden md:inline">{header}</span>
+                    <span className="md:hidden">{header.replace('THỨ ', 'T').replace('CHỦ NHẬT', 'CN')}</span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+              
+              {/* Day Cells Grid */}
+              <div 
+                className="grid flex-1 grid-cols-7 gap-px bg-slate-200/80 dark:bg-slate-800/70"
+                style={{ gridTemplateRows: `repeat(${Math.ceil(daysInMonth.length / 7)}, minmax(95px, 1fr))` }}
+              >
+                {daysInMonth.map((day, idx) => {
+                  const dateStr = formatDateString(day.date);
+                  const dayTasks = getFilteredTasksForDate(dateStr);
+                  const dayEvents = getFilteredEventsForDate(dateStr);
+                  const isToday = formatDateString(new Date()) === dateStr;
+                  const isDragOver = activeDragOverDate === dateStr;
+                  const holidayName = showHolidays ? VIETNAMESE_HOLIDAYS_2026[dateStr] : null;
+
+                  const totalItems = (holidayName ? 1 : 0) + dayEvents.length + dayTasks.length;
+                  const maxDisplay = 3;
+                  const overflowCount = Math.max(0, totalItems - maxDisplay);
+
+                  return (
+                    <div 
+                      key={idx}
+                      onDragOver={e => handleDragOver(e, dateStr)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={e => handleDrop(e, dateStr)}
+                      onClick={() => handleGridCellClick(dateStr)}
+                      className={`group relative flex min-h-0 flex-col gap-1 overflow-hidden bg-white dark:bg-[#0b0e17] text-slate-900 dark:text-slate-100 p-1.5 text-left transition duration-150 cursor-pointer ${
+                        isDragOver ? 'z-10 bg-blue-50/80 dark:bg-blue-950/40 ring-2 ring-inset ring-blue-500' : 'hover:bg-slate-50/80 dark:hover:bg-[#121827]'
+                      }`}
+                    >
+                      {/* Day Number Header */}
+                      <div className="flex h-6 items-center justify-between">
+                        <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold transition-colors ${
+                          isToday 
+                            ? 'bg-blue-600 text-white shadow-xs font-black' 
+                            : day.isCurrentMonth
+                            ? 'text-slate-700 group-hover:text-blue-600 dark:text-slate-300 dark:group-hover:text-blue-400 font-semibold'
+                            : 'text-slate-400 dark:text-slate-600 font-normal'
+                        }`}>
+                          {day.date.getDate()}
+                        </span>
+                        
+                        <button
+                          aria-label={`Tạo mới ngày ${dateStr}`}
+                          onClick={(e) => { e.stopPropagation(); handleGridCellClick(dateStr); }}
+                          className="grid h-5 w-5 place-items-center rounded-md text-slate-400 opacity-0 transition hover:bg-blue-100 hover:text-blue-600 group-hover:opacity-100 dark:hover:bg-blue-950/60 dark:hover:text-blue-300 cursor-pointer"
+                          title="Thêm công việc / sự kiện"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Event / Task Pills in Cell */}
+                      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden pr-0.5">
+                        
+                        {/* Vietnamese Holiday Pill Banner */}
+                        {holidayName && (
+                          <div 
+                            className="flex min-h-[22px] items-center gap-1.5 truncate rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 text-[10px] font-bold dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50 shadow-3xs"
+                            title={holidayName}
+                          >
+                            <Flag className="h-2.5 w-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span className="truncate">{holidayName}</span>
+                          </div>
+                        )}
+
+                        {/* Google Calendar Events */}
+                        {dayEvents.slice(0, holidayName ? 2 : 3).map((evt, i) => (
+                          <motion.div 
+                            layoutId={evt.id}
+                            key={evt.id || i}
+                            draggable
+                            onDragStart={e => handleDragStart(e as any, evt.id, 'google-event')}
+                            onDragEnd={handleDragEnd}
+                            onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
+                            whileHover={{ scale: 1.01 }}
+                            className="flex min-h-[22px] cursor-grab items-center gap-1.5 truncate rounded-md bg-blue-50 text-blue-900 border border-blue-200/80 px-2 text-[10px] font-semibold transition hover:brightness-105 active:cursor-grabbing dark:bg-blue-950/50 dark:text-blue-200 dark:border-blue-800/50 shadow-3xs"
+                            title={evt.summary}
+                          >
+                            <Globe className="h-2.5 w-2.5 shrink-0 text-blue-500 dark:text-blue-400" />
+                            <span className="truncate">{evt.summary}</span>
+                          </motion.div>
+                        ))}
+
+                        {/* Apexa Tasks */}
+                        {dayTasks.slice(0, Math.max(0, maxDisplay - (holidayName ? 1 : 0) - dayEvents.length)).map(task => {
+                          const style = getPriorityStyle(task.priority);
+                          const isCompleted = task.status === 'completed';
+
+                          return (
+                            <motion.div 
+                              layoutId={task.id}
+                              key={task.id}
+                              draggable
+                              onDragStart={e => handleDragStart(e as any, task.id)}
+                              onDragEnd={handleDragEnd}
+                              onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
+                              whileHover={{ scale: 1.01 }}
+                              className={`flex min-h-[22px] cursor-grab items-center gap-1.5 truncate rounded-md border px-2 text-[10px] font-semibold transition active:cursor-grabbing shadow-3xs ${
+                                isCompleted 
+                                  ? 'border-emerald-200 bg-emerald-50/70 text-slate-400 line-through dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-slate-500'
+                                  : task.priority === 'urgent'
+                                  ? 'border-rose-200 bg-rose-50/80 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300'
+                                  : task.priority === 'high'
+                                  ? 'border-amber-200 bg-amber-50/80 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300'
+                                  : task.priority === 'medium'
+                                  ? 'border-blue-200 bg-blue-50/80 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300'
+                                  : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300'
+                              }`}
+                              title={task.title}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
+                              ) : (
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />
+                              )}
+                              <span className="truncate flex-1">{task.title}</span>
+                            </motion.div>
+                          );
+                        })}
+
+                        {/* Overflow Counter */}
+                        {overflowCount > 0 && (
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); setCurrentDate(day.date); setViewMode('day'); }}
+                            className="mt-auto flex items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800/80 py-0.5 text-[9.5px] font-bold text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700 transition cursor-pointer"
+                          >
+                            +{overflowCount} việc khác
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* B. WEEK VIEW & D. 4-DAY VIEW & C. DAY VIEW (Hourly grids) */}
+          {/* ============================================================ */}
+          {/* B. WEEK VIEW & 4-DAY VIEW & DAY VIEW (Hourly Grids) */}
+          {/* ============================================================ */}
           {(viewMode === 'week' || viewMode === '4day' || viewMode === 'day') && (
-            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-slate-800 dark:bg-[#090b10] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[300px] md:min-w-[650px]'}`}>
+            <div className={`relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800/80 dark:bg-[#0b0e17] ${viewMode === 'day' ? 'min-w-0' : 'min-w-[320px] md:min-w-[680px]'}`}>
               
               {/* Header Days Row */}
-              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800`}>
-                <div className="bg-slate-50 py-3 text-center text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:bg-[#0b0d13] dark:text-slate-500">Giờ</div>
-                {
-                  (viewMode === 'week' ? daysInWeek : viewMode === '4day' ? getDays4Day(currentDate) : [currentDate]).map((day, idx) => {
-                    const dateStr = formatDateString(day);
-                    const isToday = formatDateString(new Date()) === dateStr;
-                    return (
-                      <div key={idx} className={`flex flex-col items-center justify-center gap-1 bg-slate-50 py-2.5 text-center dark:bg-[#0b0d13] ${isToday ? 'bg-blue-50/70 dark:bg-blue-950/20' : ''}`}>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                          <span className="hidden md:inline">{['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}</span>
-                          <span className="md:hidden">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][day.getDay() === 0 ? 6 : day.getDay() - 1]}</span>
-                        </span>
-                        <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${isToday ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' : 'text-slate-700 dark:text-slate-200'}`}>
-                          {day.getDate()}
-                        </span>
-                      </div>
-                    );
-                  })
-                }
+              <div className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px border-b border-slate-200/80 bg-slate-100 dark:border-slate-800/80 dark:bg-slate-800/80`}>
+                <div className="bg-slate-50/90 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:bg-[#0f1424] dark:text-slate-500">
+                  Giờ
+                </div>
+                {(viewMode === 'week' ? daysInWeek : viewMode === '4day' ? getDays4Day(currentDate) : [currentDate]).map((day, idx) => {
+                  const dateStr = formatDateString(day);
+                  const isToday = formatDateString(new Date()) === dateStr;
+
+                  return (
+                    <div 
+                      key={idx} 
+                      className="flex flex-col items-center justify-center gap-0.5 py-2 text-center transition bg-slate-50/90 dark:bg-[#0f1424]"
+                    >
+                      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][day.getDay() === 0 ? 6 : day.getDay() - 1]}
+                      </span>
+                      <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${
+                        isToday ? 'bg-blue-600 text-white shadow-xs font-black' : 'text-slate-800 dark:text-slate-200 font-semibold'
+                      }`}>
+                        {day.getDate()}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Time grid body */}
-              <div className="relative h-[calc(100vh-350px)] min-h-[480px] divide-y divide-slate-100 overflow-y-auto scrollbar-none dark:divide-slate-800">
+              <div className="relative h-[calc(100vh-320px)] min-h-[460px] divide-y divide-slate-100 overflow-y-auto scrollbar-none dark:divide-slate-800/80">
                 
-                {/* 🔴 Current time line indicator */}
+                {/* 🔴 Live Current Time Red Indicator Bar */}
                 {(() => {
                   const todayStr = formatDateString(new Date());
                   const activeDays = viewMode === 'week' ? daysInWeek : viewMode === '4day' ? getDays4Day(currentDate) : [currentDate];
@@ -1363,7 +1509,7 @@ export default function CalendarView({
                   if (todayIdx !== -1) {
                     const currentHour = now.getHours();
                     const currentMin = now.getMinutes();
-                    const topOffset = currentHour * 52 + (currentMin / 60) * 52; // each hour is 52px
+                    const topOffset = currentHour * 54 + (currentMin / 60) * 54;
                     const gridColumnsCount = activeDays.length + 1;
                     const leftOffsetPercent = (todayIdx + 1) * (100 / gridColumnsCount);
                     const columnWidthPercent = 100 / gridColumnsCount;
@@ -1381,7 +1527,7 @@ export default function CalendarView({
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
                         </span>
-                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs border-t border-dashed border-rose-400 dark:border-rose-700" />
+                        <div className="flex-1 h-0.5 bg-rose-500 shadow-2xs border-t border-rose-500" />
                       </div>
                     );
                   }
@@ -1389,10 +1535,10 @@ export default function CalendarView({
                 })()}
 
                 {hours.map(hour => (
-                  <div key={hour} className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800`}>
+                  <div key={hour} className={`grid ${viewMode === 'week' ? 'grid-cols-8' : viewMode === '4day' ? 'grid-cols-5' : 'grid-cols-2'} gap-px bg-slate-100 dark:bg-slate-800/60`}>
                     
                     {/* Time Label column */}
-                    <div className="border-r border-slate-100 bg-white py-4 pr-3.5 text-right font-mono text-[9px] font-medium text-slate-400 dark:border-slate-800 dark:bg-[#090b10] dark:text-slate-500">
+                    <div className="border-r border-slate-100 bg-white py-3.5 pr-3 text-right font-sans text-xs font-semibold tracking-tight tabular-nums text-slate-500 dark:border-slate-800/80 dark:bg-[#0b0e17] dark:text-slate-400 select-none">
                       {`${String(hour).padStart(2, '0')}:00`}
                     </div>
 
@@ -1401,12 +1547,10 @@ export default function CalendarView({
                       const dateStr = formatDateString(day);
                       const isDragOver = activeDragOverDate === dateStr && activeDragOverHour === hour;
                       
-                      // Filter events for this hour
                       const hourEvents = getFilteredEventsForDate(dateStr).filter(e => {
                         return Number(eventTime(e, 'start').split(':')[0]) === hour;
                       });
 
-                      // Filter tasks mapped to this hour (via custom_fields)
                       const hourTasks = getFilteredTasksForDate(dateStr).filter(t => {
                         const schedHour = t.custom_fields?.scheduledHour !== undefined ? Number(t.custom_fields.scheduledHour) : 9;
                         return schedHour === hour;
@@ -1419,8 +1563,8 @@ export default function CalendarView({
                           onDragLeave={handleDragLeave}
                           onDrop={e => handleDrop(e, dateStr, hour)}
                           onClick={() => handleGridCellClick(dateStr, hour)}
-                          className={`relative flex min-h-[52px] flex-col gap-1 bg-white p-1.5 transition duration-150 dark:bg-[#090b10] ${
-                            isDragOver ? 'z-10 bg-blue-50 ring-2 ring-inset ring-blue-500/40 dark:bg-blue-950/20' : 'hover:bg-slate-50 dark:hover:bg-slate-900'
+                          className={`relative flex min-h-[54px] flex-col gap-1 bg-white p-1.5 transition duration-150 dark:bg-[#0b0e17] cursor-pointer ${
+                            isDragOver ? 'z-10 bg-blue-100/60 ring-2 ring-inset ring-blue-500 dark:bg-blue-950/40' : 'hover:bg-slate-50/80 dark:hover:bg-[#121827]'
                           }`}
                         >
                           {hourEvents.map((evt, idx) => (
@@ -1431,16 +1575,18 @@ export default function CalendarView({
                               onDragStart={e => handleDragStart(e as any, evt.id, 'google-event')}
                               onDragEnd={handleDragEnd}
                               onClick={e => { e.stopPropagation(); setSelectedTask(evt); }}
-                              whileHover={{ scale: 1.02 }}
-                              className="flex min-h-6 cursor-grab items-center gap-1.5 truncate rounded-md border-l-2 px-2 text-[9.5px] font-semibold transition hover:brightness-95 active:cursor-grabbing"
-                              style={{ backgroundColor: `${evt.color || '#2563EB'}14`, borderLeftColor: evt.color || '#2563EB', color: evt.color || '#2563EB' }}
+                              whileHover={{ scale: 1.01 }}
+                              className="flex min-h-[24px] cursor-grab items-center gap-1.5 truncate rounded-md border-l-[3px] border-l-blue-500 bg-blue-50 px-2 text-[10px] font-bold text-blue-900 transition hover:brightness-105 active:cursor-grabbing dark:bg-blue-950/60 dark:text-blue-200 shadow-3xs"
                             >
-                              <Globe className="h-3 w-3 shrink-0" />
+                              <Globe className="h-3 w-3 shrink-0 text-blue-500" />
                               <span className="truncate">{evt.summary}</span>
                             </motion.div>
                           ))}
+
                           {hourTasks.map(task => {
                             const style = getPriorityStyle(task.priority);
+                            const isCompleted = task.status === 'completed';
+
                             return (
                               <motion.div 
                                 layoutId={task.id}
@@ -1449,23 +1595,20 @@ export default function CalendarView({
                                 onDragStart={e => handleDragStart(e as any, task.id)}
                                 onDragEnd={handleDragEnd}
                                 onClick={e => { e.stopPropagation(); setSelectedTask(task); }}
-                                whileHover={{ scale: 1.02 }}
-                                className={`flex min-h-6 cursor-grab items-center gap-1.5 truncate rounded-md border border-l-[3px] px-2 text-[9.5px] font-semibold transition active:cursor-grabbing ${
-                                  task.status === 'completed' 
-                                    ? 'border-emerald-100 bg-emerald-50 text-emerald-600 line-through dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-400'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-800'
+                                whileHover={{ scale: 1.01 }}
+                                className={`flex min-h-[24px] cursor-grab items-center gap-1.5 truncate rounded-md border border-l-[3px] px-2 text-[10px] font-bold transition active:cursor-grabbing shadow-3xs ${
+                                  isCompleted 
+                                    ? 'border-emerald-200 bg-emerald-50 text-slate-400 line-through dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-slate-500'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-blue-400 dark:border-slate-700/60 dark:bg-[#131929] dark:text-slate-200 dark:hover:border-blue-700'
                                 }`}
-                                style={{ borderLeftColor: style.dot.includes('bg-rose-500') ? '#f43f5e' : style.dot.includes('bg-orange-500') ? '#f97316' : style.dot.includes('bg-indigo-500') ? '#2563EB' : '#94a3b8' } as any}
+                                style={{ borderLeftColor: isCompleted ? '#10b981' : task.priority === 'urgent' ? '#f43f5e' : task.priority === 'high' ? '#f97316' : task.priority === 'medium' ? '#3b82f6' : '#94a3b8' }}
                               >
-                                {task.status === 'completed' ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                {isCompleted ? (
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
                                 ) : (
-                                  <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                                 )}
                                 <span className="truncate flex-1">{task.title}</span>
-                                {task.assigneeId && (
-                                  <span className="text-[7.5px] px-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md font-bold uppercase select-none">{members.find(m => m.id === task.assigneeId)?.name.substring(0, 2)}</span>
-                                )}
                               </motion.div>
                             );
                           })}
@@ -1478,9 +1621,11 @@ export default function CalendarView({
             </div>
           )}
 
-          {/* E. SCHEDULE (AGENDA) VIEW */}
+          {/* ============================================================ */}
+          {/* C. SCHEDULE (AGENDA) VIEW */}
+          {/* ============================================================ */}
           {viewMode === 'schedule' && (
-            <div className="flex max-h-[calc(100vh-280px)] flex-col gap-5 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-4 text-left dark:border-slate-800 dark:bg-[#090b10] sm:p-5">
+            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-4 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-4 text-left dark:border-slate-800/80 dark:bg-[#0b0e17] sm:p-5 shadow-xs">
               {(() => {
                 const allItems: { date: string; dateObj: Date; items: any[] }[] = [];
                 const today = new Date(currentDate);
@@ -1506,7 +1651,7 @@ export default function CalendarView({
                   return (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 py-16 text-center text-slate-400 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-500">
                       <CalendarDays className="w-10 h-10 mx-auto text-slate-350 dark:text-slate-600 mb-2" />
-                      <h4 className="text-sm font-black text-slate-700 dark:text-slate-300">Lịch trình trống</h4>
+                      <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Lịch trình trống</h4>
                       <p className="text-xs mt-1">Không có công việc hoặc sự kiện nào trong 2 tuần tới.</p>
                     </div>
                   );
@@ -1515,19 +1660,19 @@ export default function CalendarView({
                 return allItems.map((group, idx) => {
                   const isToday = formatDateString(new Date()) === group.date;
                   return (
-                    <div key={idx} className="space-y-3">
+                    <div key={idx} className="space-y-2.5">
                       <div className="flex items-center gap-2.5 select-none">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          isToday ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                          isToday ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                         }`}>
                           {isToday ? 'Hôm nay' : ['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'][group.dateObj.getDay() === 0 ? 6 : group.dateObj.getDay() - 1]}
                         </span>
-                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
                           {group.dateObj.getDate()} {monthNames[group.dateObj.getMonth()]}, {group.dateObj.getFullYear()}
                         </h4>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pl-2">
                         {group.items.map((item, itemIdx) => {
                           const isGoogleEvent = !!item.isGoogleEvent;
                           const style = !isGoogleEvent ? getPriorityStyle(item.priority) : null;
@@ -1537,28 +1682,28 @@ export default function CalendarView({
                               key={item.id || itemIdx}
                               onClick={() => setSelectedTask(item)}
                               whileHover={{ scale: 1.01 }}
-                              className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-3.5 transition hover:border-blue-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-800"
+                              className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200/90 bg-white p-3 transition hover:border-blue-400 hover:shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700"
                             >
-                              <div className="space-y-1.5 min-w-0 flex-1">
+                              <div className="space-y-1 min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                                    isGoogleEvent ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                                  <span className={`text-[8.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                    isGoogleEvent ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                                   }`}>
                                     {isGoogleEvent ? 'Sự kiện' : 'Công việc'}
                                   </span>
                                   {!isGoogleEvent && style && (
-                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${style.bg} ${style.text} ${style.border} border`}>
+                                    <span className={`text-[8.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${style.bg} ${style.text} ${style.border} border`}>
                                       {getPriorityLabel(item.priority)}
                                     </span>
                                   )}
                                 </div>
-                                <h5 className="text-xs font-black text-slate-800 dark:text-slate-200 leading-snug truncate">{item.summary || item.title}</h5>
-                                {item.description && <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1">{item.description}</p>}
+                                <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-snug truncate">{item.summary || item.title}</h5>
+                                {item.description && <p className="text-[10.5px] text-slate-400 dark:text-slate-500 line-clamp-1">{item.description}</p>}
                               </div>
 
                               <div className="text-right shrink-0 flex flex-col justify-between h-full space-y-2">
-                                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono flex items-center gap-0.5">
-                                  <Clock className="w-3 h-3 text-slate-400" />
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 font-sans tabular-nums tracking-tight flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
                                   {isGoogleEvent 
                                     ? new Date(item.start.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) 
                                     : `${item.custom_fields?.scheduledHour || 9}:00`
@@ -2111,7 +2256,7 @@ export default function CalendarView({
                         type="time"
                         value={quickStartTime}
                         onChange={e => setQuickStartTime(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-mono text-xs font-bold outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 transition-all"
+                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-sans text-xs font-bold tabular-nums outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 transition-all"
                       />
                     </div>
 
@@ -2125,7 +2270,7 @@ export default function CalendarView({
                         type="time"
                         value={quickEndTime}
                         onChange={e => setQuickEndTime(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-mono text-xs font-bold outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 transition-all"
+                        className="w-full px-3 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-sans text-xs font-bold tabular-nums outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 transition-all"
                       />
                     </div>
 

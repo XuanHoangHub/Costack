@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Task, User, Workspace, WorkspaceInvitation } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SignedImage from './SignedImage';
-import { callAiApi } from '@/lib/aiClient';
+import { callAiApi, isAiAccessError } from '@/lib/aiClient';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { ApexaAiIcon } from './ApexaAiIcon';
 
@@ -427,7 +427,8 @@ export default function InboxView({
         // Fallback friendly summary
         setAiDigestText(`Chào ${currentUser?.name || 'bạn'}! Hôm nay bạn có ${inboxStats.important} thông báo quan trọng và ${productivityStats.totalAssigned} công việc được giao cần xử lý. Tỉ lệ hoàn thành hiện tại đạt ${productivityStats.completionRate}%. Hãy ưu tiên các đầu việc có mức khẩn cấp cao!`);
       }
-    } catch {
+    } catch (error) {
+      if (isAiAccessError(error)) return;
       setAiDigestText(`Chào ${currentUser?.name || 'bạn'}! Bạn đang có ${inboxStats.unread} thông báo chưa đọc trong Hộp thư Apexa. Hãy kiểm tra các thông báo được giao và cập nhật tiến độ công việc để duy trì hiệu suất cao nhất.`);
     } finally {
       setAiDigestLoading(false);

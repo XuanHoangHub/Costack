@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { BillingCycle, BillingPlan } from '@/lib/billing/plans';
 import { useAuthStore } from '@/store/authStore';
 import { useMemberStore } from '@/store/memberStore';
+import { useUiStore } from '@/store/uiStore';
 
 export type BillingEntitlement = {
   plan: BillingPlan;
@@ -15,6 +16,12 @@ export type BillingEntitlement = {
   cancel_at_period_end?: boolean;
   current_period_end?: string;
   trial_end?: string;
+  limits?: {
+    maxSpaces: number | null;
+    maxMembers: number | null;
+    monthlyAiRequests: number;
+  };
+  capabilities?: string[];
 };
 
 export function useBillingEntitlement() {
@@ -23,12 +30,24 @@ export function useBillingEntitlement() {
   const applyEntitlement = useCallback((entitlement: BillingEntitlement) => {
     const current = useAuthStore.getState().currentUser;
     if (!current) return;
-    if (current.isPremium !== entitlement.is_pro) {
-      useAuthStore.getState().setCurrentUser({ ...current, isPremium: entitlement.is_pro });
-    }
+    useAuthStore.getState().setCurrentUser({
+      ...current,
+      isPremium: entitlement.is_pro,
+      subscriptionPlan: entitlement.plan,
+      billingStatus: entitlement.status,
+      billingCycle: entitlement.billing_cycle,
+      billingPeriodEnd: entitlement.current_period_end,
+    });
     const member = useMemberStore.getState().members.find(item => item.id === 'user' || item.userId === current.id);
-    if (member && member.isPremium !== entitlement.is_pro) {
-      useMemberStore.getState().updateMember({ ...member, isPremium: entitlement.is_pro });
+    if (member) {
+      useMemberStore.getState().updateMember({
+        ...member,
+        isPremium: entitlement.is_pro,
+        subscriptionPlan: entitlement.plan,
+        billingStatus: entitlement.status,
+        billingCycle: entitlement.billing_cycle,
+        billingPeriodEnd: entitlement.current_period_end,
+      });
     }
   }, []);
 
@@ -46,6 +65,9 @@ export function useBillingEntitlement() {
   }, [applyEntitlement]);
 
   useEffect(() => {
+    // Purge credentials left by legacy BYOK builds. Current AI requests use
+    // only Apexa's server-side provider credential.
+    window.localStorage.removeItem('apexa_gemini_api_key');
     void refresh();
     const url = new URL(window.location.href);
     const billing = url.searchParams.get('billing');
@@ -54,9 +76,18 @@ export function useBillingEntitlement() {
       const timer = window.setInterval(async () => {
         attempts += 1;
         const entitlement = await refresh();
-        if (entitlement?.is_pro || attempts >= 8) window.clearInterval(timer);
+        if (entitlement?.is_pro) {
+          window.clearInterval(timer);
+          if (url.searchParams.get('provider') === 'stripe') {
+            window.sessionStorage.setItem('apexa_billing_success_provider', 'stripe');
+            useUiStore.getState().setShowPremiumModal(true);
+          }
+        } else if (attempts >= 8) {
+          window.clearInterval(timer);
+        }
       }, 1500);
       url.searchParams.delete('billing');
+      url.searchParams.delete('provider');
       url.searchParams.delete('session_id');
       url.searchParams.delete('code');
       url.searchParams.delete('id');
@@ -68,6 +99,7 @@ export function useBillingEntitlement() {
     }
     if (billing === 'canceled' || billing === 'portal_return') {
       url.searchParams.delete('billing');
+      url.searchParams.delete('provider');
       url.searchParams.delete('code');
       url.searchParams.delete('id');
       url.searchParams.delete('cancel');

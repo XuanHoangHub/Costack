@@ -1,5 +1,5 @@
 import { APIError } from '@payos/node';
-import { isSelfServeBillingPlan, type BillingCycle } from '@/lib/billing/plans';
+import { BILLING_PLAN_RANK, isBillingPlan, isSelfServeBillingPlan, type BillingCycle, type SelfServeBillingPlan } from '@/lib/billing/plans';
 import {
   cancelPayOSPaymentLink,
   createPayOSOrderCode,
@@ -82,6 +82,39 @@ function getCheckoutUrls(request: Request, returnPath: unknown) {
   return { returnUrl: successUrl.toString(), cancelUrl: cancelUrl.toString() };
 }
 
+async function readPaidReceipt(userId: string, orderCode: number) {
+  const admin = getBillingAdmin();
+  const [{ data: order, error: orderError }, { data: subscription, error: subscriptionError }] = await Promise.all([
+    admin
+      .from('billing_orders')
+      .select('order_code,plan,billing_cycle,amount,currency,paid_at,payment_reference,status')
+      .eq('user_id', userId)
+      .eq('order_code', orderCode)
+      .maybeSingle(),
+    admin
+      .from('billing_subscriptions')
+      .select('plan,status,current_period_end')
+      .eq('user_id', userId)
+      .eq('provider', 'payos')
+      .maybeSingle(),
+  ]);
+  if (orderError) throw orderError;
+  if (subscriptionError) throw subscriptionError;
+  if (!order || order.status !== 'paid') return null;
+  return {
+    orderCode: order.order_code,
+    plan: order.plan,
+    cycle: order.billing_cycle,
+    amount: order.amount,
+    currency: order.currency,
+    paidAt: order.paid_at,
+    reference: order.payment_reference,
+    periodEnd: subscription?.current_period_end || null,
+    subscriptionStatus: subscription?.status || 'active',
+    provider: 'payos' as const,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const { user } = await requireBillingUser(request);
@@ -90,17 +123,27 @@ export async function POST(request: Request) {
     if (!isSelfServeBillingPlan(body?.plan)) {
       throw new BillingHttpError(400, 'Gói thanh toán không hợp lệ.');
     }
-    const plan = body.plan;
+    const plan: SelfServeBillingPlan = body.plan;
     const admin = getBillingAdmin();
     const { data: liveSubscription, error } = await admin
       .from('billing_subscriptions')
-      .select('provider,status')
+      .select('provider,status,plan,current_period_end')
       .eq('user_id', user.id)
       .in('status', ['trialing', 'active', 'past_due', 'unpaid', 'paused', 'incomplete'])
       .maybeSingle();
     if (error) throw error;
     if (liveSubscription?.provider === 'stripe') {
       throw new BillingHttpError(409, 'Bạn đang có gói Stripe. Hãy quản lý gói đó trong Billing Portal trước khi chuyển sang PayOS.');
+    }
+    if (
+      liveSubscription?.provider === 'payos'
+      && isBillingPlan(liveSubscription.plan)
+      && BILLING_PLAN_RANK[plan] < BILLING_PLAN_RANK[liveSubscription.plan]
+    ) {
+      throw new BillingHttpError(
+        409,
+        `Gói ${liveSubscription.plan} của bạn vẫn còn hiệu lực. Không thể hạ gói bằng một đơn trả trước mới; vui lòng chờ hết hạn hoặc liên hệ hỗ trợ.`,
+      );
     }
 
     const { returnUrl, cancelUrl } = getCheckoutUrls(request, body?.returnPath);
@@ -235,7 +278,10 @@ export async function PUT(request: Request) {
     if (orderError) throw orderError;
     if (!order) throw new BillingHttpError(404, 'Không tìm thấy đơn hàng.');
     if (order.status === 'paid') {
-      return Response.json({ status: 'paid', processed: false }, { headers: { 'Cache-Control': 'private, no-store' } });
+      return Response.json(
+        { status: 'paid', processed: false, receipt: await readPaidReceipt(user.id, orderCode) },
+        { headers: { 'Cache-Control': 'private, no-store' } },
+      );
     }
     if (order.status !== 'pending') {
       return Response.json({ status: order.status, processed: false }, { headers: { 'Cache-Control': 'private, no-store' } });
@@ -266,7 +312,11 @@ export async function PUT(request: Request) {
       if (error) throw error;
       const result = Array.isArray(data) ? data[0] : data;
       return Response.json(
-        { status: 'paid', processed: Boolean(result?.processed) },
+        {
+          status: 'paid',
+          processed: Boolean(result?.processed),
+          receipt: await readPaidReceipt(user.id, orderCode),
+        },
         { headers: { 'Cache-Control': 'private, no-store' } },
       );
     }

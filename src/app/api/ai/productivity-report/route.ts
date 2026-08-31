@@ -4,7 +4,7 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 export async function POST(request: Request) {
   try {
     const { tasks, members, productivity, model, temperature } = await readAiJson<any>(request);
-    const client = await getAuthorizedGeminiClient(request);
+    const client = await getAuthorizedGeminiClient(request, 512_000);
 
     const safeTasks = Array.isArray(tasks) ? tasks : [];
     const safeMembers = Array.isArray(members) ? members : [];

@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Task, User } from '../types';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../contexts/TranslationContext';
-import { callAiApi } from '@/lib/aiClient';
+import { callAiApi, isAiAccessError } from '@/lib/aiClient';
 
 interface ProductivityHubProps {
   tasks: Task[];
@@ -713,10 +713,11 @@ export default function ProductivityHub({
       }
     } catch (err: any) {
       console.error(err);
+      if (isAiAccessError(err)) return;
       setReportText(
         locale === 'vi'
           ? `### Báo Cáo Hiệu Năng Vận Hành
-Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini. Vui lòng kiểm tra lại API Key hoặc kết nối mạng của bạn.
+Lỗi khi liên hệ Apexa AI. Vui lòng thử lại hoặc kiểm tra gói đăng ký và kết nối mạng.
 
 **Các thông số ghi nhận nhanh:**
 - **Tổng số việc đang vận hành**: ${tasks.length}
@@ -725,7 +726,7 @@ Lỗi khi liên hệ với trung tâm phân tích trí tuệ nhân tạo Gemini.
 - **Đồng hồ ước tính**: ${tasks.reduce((acc, t) => acc + (t.hoursEstimate || 0), 0)} giờ
 - **Thời gian đã thực hiện**: ${tasks.reduce((acc, t) => acc + (t.hoursLogged || 0), 0)} giờ.`
           : `### Operations Performance Report
-Error contacting Gemini AI center. Please check your API Key or network connection.
+Error contacting Apexa AI. Please retry or check your subscription and network connection.
 
 **Metrics overview:**
 - **Total active tasks**: ${tasks.length}

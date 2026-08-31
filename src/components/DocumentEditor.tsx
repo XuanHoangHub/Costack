@@ -14,7 +14,7 @@ import { supabase, getCleanChannel } from '../supabaseClient';
 import { 
   Bold, Italic, Strikethrough, Code, Sparkles, Image as ImageIcon,
   MessageSquare, User, Send, CheckSquare, List, ListOrdered, Quote, Heading1, Heading2, Heading3,
-  Download, FileText, Copy, X, History, Share2, Globe2, LockKeyhole,
+  Download, FileText, Copy, X, History, Share2, Globe2, LockKeyhole, Link2, Check,
   RotateCcw, RotateCw, UserPlus, CheckCircle2, ListTodo, ShieldCheck, Pilcrow, Minus, Wand2, Eye,
   Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2,
   Film, Clapperboard, Cloud, CloudOff, WifiOff, LoaderCircle
@@ -271,6 +271,7 @@ export default function DocumentEditor({
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [shareRole, setShareRole] = useState<'editor' | 'commenter' | 'viewer'>('editor');
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
+  const [copiedDocLink, setCopiedDocLink] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -2038,22 +2039,53 @@ export default function DocumentEditor({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 text-left font-sans select-none"
+              className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 text-left font-sans select-none"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-indigo-500" />
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Quyền truy cập & Chia sẻ</h3>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-blue-600 dark:text-sky-400 flex items-center justify-center">
+                    <ShieldCheck className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">Quyền truy cập & Chia sẻ tài liệu</h3>
+                    <p className="text-[11px] text-slate-400 font-bold truncate max-w-[260px]">{docDetails.title || 'Tài liệu không tên'}</p>
+                  </div>
                 </div>
-                <button type="button" onClick={() => setShowShareMenu(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                <button type="button" onClick={() => setShowShareMenu(false)} className="w-7 h-7 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">✕</button>
               </div>
 
+              {/* Quick Copy Link Bar */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Link2 className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input 
+                    readOnly 
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/docs/${documentId}` : ''} 
+                    className="w-full text-xs font-mono text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none select-all truncate" 
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window === 'undefined') return;
+                    navigator.clipboard.writeText(`${window.location.origin}/docs/${documentId}`);
+                    setCopiedDocLink(true);
+                    setTimeout(() => setCopiedDocLink(false), 2500);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs"
+                >
+                  {copiedDocLink ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedDocLink ? 'Đã chép' : 'Sao chép link'}</span>
+                </button>
+              </div>
+
+              {/* Public/Private Publish Toggle */}
               <button type="button" onClick={togglePublished} className="w-full flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 p-3.5 text-left cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
                 <span className="flex items-center gap-3">
                   {docDetails.is_published ? <Globe2 className="w-5 h-5 text-emerald-500" /> : <LockKeyhole className="w-5 h-5 text-slate-400" />}
                   <span>
-                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">{docDetails.is_published ? 'Đã xuất bản (Công khai)' : 'Riêng tư'}</span>
-                    <span className="block text-[10px] text-slate-400">{docDetails.is_published ? 'Bất kỳ ai có liên kết đều có thể đọc.' : 'Chỉ những thành viên được cấp quyền mới xem được.'}</span>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">{docDetails.is_published ? 'Đã xuất bản (Công khai qua liên kết)' : 'Riêng tư (Chỉ thành viên được cấp quyền)'}</span>
+                    <span className="block text-[10px] text-slate-400">{docDetails.is_published ? 'Bất kỳ ai có liên kết đều có thể đọc tài liệu này.' : 'Chỉ những cộng tác viên được mời mới truy cập được.'}</span>
                   </span>
                 </span>
                 <span className={`w-9 h-5 rounded-full p-0.5 transition-colors ${docDetails.is_published ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}>
@@ -2061,47 +2093,59 @@ export default function DocumentEditor({
                 </span>
               </button>
 
-              <div className="flex gap-2">
-                <Select
-                  value={selectedCollaboratorId}
-                  onChange={v => setSelectedCollaboratorId(v)}
-                  options={members.filter(member => resolveAuthUserId(member) && resolveAuthUserId(member) !== authUserId).map(member => ({ value: member.id, label: member.name }))}
-                  className="min-w-0 flex-1"
-                  size="sm"
-                  placeholder="Chọn thành viên..."
-                  ariaLabel="Thành viên chia sẻ"
-                  menuWidth={280}
-                />
-                <Select
-                  value={shareRole}
-                  onChange={v => setShareRole(v)}
-                  options={[
-                    { value: 'editor', label: 'Chỉnh sửa' },
-                    { value: 'commenter', label: 'Bình luận' },
-                    { value: 'viewer', label: 'Chỉ xem' }
-                  ]}
-                  className="w-32"
-                  size="sm"
-                  ariaLabel="Quyền chia sẻ"
-                />
-                <button type="button" onClick={addCollaborator} disabled={!selectedCollaboratorId} className="px-3.5 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-40 font-bold text-xs flex items-center gap-1 cursor-pointer hover:bg-indigo-700 transition-colors">
-                  <UserPlus className="w-3.5 h-3.5" /> Thêm
-                </button>
+              {/* Add Collaborator Form */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-[10.5px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
+                  Thêm cộng tác viên
+                </label>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedCollaboratorId}
+                    onChange={v => setSelectedCollaboratorId(v)}
+                    options={members.filter(member => resolveAuthUserId(member) && resolveAuthUserId(member) !== authUserId).map(member => ({ value: member.id, label: member.name }))}
+                    className="min-w-0 flex-1"
+                    size="sm"
+                    placeholder="Chọn thành viên Workspace..."
+                    ariaLabel="Thành viên chia sẻ"
+                    menuWidth={280}
+                  />
+                  <Select
+                    value={shareRole}
+                    onChange={v => setShareRole(v)}
+                    options={[
+                      { value: 'editor', label: 'Chỉnh sửa (Editor)' },
+                      { value: 'commenter', label: 'Bình luận (Commenter)' },
+                      { value: 'viewer', label: 'Chỉ xem (Viewer)' }
+                    ]}
+                    className="w-40"
+                    size="sm"
+                    ariaLabel="Quyền chia sẻ"
+                  />
+                  <button type="button" onClick={addCollaborator} disabled={!selectedCollaboratorId} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shadow-2xs shrink-0">
+                    <UserPlus className="w-3.5 h-3.5" /> Thêm
+                  </button>
+                </div>
               </div>
 
+              {/* List of Collaborators */}
               {collaborators.length > 0 && (
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {collaborators.map(collaborator => {
-                    const member = members.find(memberItem => resolveAuthUserId(memberItem) === collaborator.user_id);
-                    return (
-                      <div key={collaborator.id} className="flex items-center justify-between rounded-xl px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
-                        <span>{member?.name || 'Thành viên'} <span className="text-slate-400 font-semibold">· {collaborator.role}</span></span>
-                        <button type="button" onClick={() => removeCollaborator(collaborator.id)} className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2 pt-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block">
+                    Cộng tác viên ({collaborators.length})
+                  </span>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                    {collaborators.map(collaborator => {
+                      const member = members.find(memberItem => resolveAuthUserId(memberItem) === collaborator.user_id);
+                      return (
+                        <div key={collaborator.id} className="flex items-center justify-between rounded-xl px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="truncate">{member?.name || 'Thành viên'} <span className="text-slate-400 font-semibold">· {collaborator.role === 'editor' ? 'Chỉnh sửa' : collaborator.role === 'commenter' ? 'Bình luận' : 'Chỉ xem'}</span></span>
+                          <button type="button" onClick={() => removeCollaborator(collaborator.id)} className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer" title="Gỡ cộng tác viên">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </motion.div>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedGeminiClient, readAiJson, resolveModel } from '@/lib/aiServer';
+import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJson, resolveModel } from '@/lib/aiServer';
 import { Type } from "@google/genai";
 
 export async function POST(request: Request) {
@@ -32,6 +32,9 @@ Dựa trên ý nghĩa ngữ cảnh và các từ khoá, hãy gợi ý các nhãn
     return NextResponse.json({ success: true, tags });
   } catch (error: any) {
     console.error("AI Tags suggestion error:", error);
-    return NextResponse.json({ success: false, tags: [], error: error.message || "Lỗi khi gợi ý nhãn bằng AI" });
+    return NextResponse.json(
+      { success: false, tags: [], error: getAiErrorMessage(error, 'Lỗi khi gợi ý nhãn bằng AI') },
+      { status: getAiErrorStatus(error) },
+    );
   }
 }

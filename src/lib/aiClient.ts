@@ -1,14 +1,41 @@
+import { useAuthStore } from '@/store/authStore';
+import { useUiStore } from '@/store/uiStore';
+
+export class AiAccessError extends Error {
+  readonly code = 'AI_PLAN_REQUIRED';
+
+  constructor() {
+    super('Apexa AI chỉ dành cho tài khoản trả phí. Vui lòng nâng cấp gói để tiếp tục.');
+    this.name = 'AiAccessError';
+  }
+}
+
+export const isAiAccessError = (error: unknown): error is AiAccessError =>
+  error instanceof AiAccessError || (error instanceof Error && error.message.includes('Apexa AI chỉ dành cho tài khoản trả phí'));
+
+function requirePaidAiAccess() {
+  if (typeof window === 'undefined') return;
+  const currentUser = useAuthStore.getState().currentUser;
+  if (currentUser?.isPremium) return;
+  useUiStore.getState().setShowPremiumModal(true);
+  throw new AiAccessError();
+}
+
 /**
- * Helper to call Apexa AI APIs with dynamic client-side settings (model, temperature, search grounding).
+ * Calls Apexa's managed AI service. Personal/BYOK credentials are never read
+ * or forwarded; the browser sends only the signed-in Supabase session.
  */
 export async function callAiApi(endpoint: string, body: Record<string, unknown> = {}) {
-  let savedApiKey = "";
   let savedModel = "";
   let savedTemp = "";
   let searchGrounding = false;
 
+  requirePaidAiAccess();
+
   if (typeof window !== "undefined") {
-    savedApiKey = localStorage.getItem("apexa_gemini_api_key") || "";
+    // Remove credentials saved by older BYOK builds. Apexa AI is managed
+    // server-side and never accepts a user-provided provider key.
+    localStorage.removeItem("apexa_gemini_api_key");
     savedModel = localStorage.getItem("apexa_ai_model") || "";
     savedTemp = localStorage.getItem("apexa_ai_temperature") || "";
     searchGrounding = localStorage.getItem("apexa_ai_search_grounding") === "true";
@@ -18,11 +45,7 @@ export async function callAiApi(endpoint: string, body: Record<string, unknown> 
     "Content-Type": "application/json",
   };
 
-  if (savedApiKey) {
-    headers["x-gemini-api-key"] = savedApiKey;
-  }
-
-  if (!savedApiKey && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     const { supabase } = await import('@/lib/supabaseClient');
     const { data } = await supabase.auth.getSession();
     if (data.session?.access_token) {
@@ -47,6 +70,11 @@ export async function callAiApi(endpoint: string, body: Record<string, unknown> 
     body: JSON.stringify(requestBody),
   });
 
+  if (response.status === 403) {
+    useUiStore.getState().setShowPremiumModal(true);
+    throw new AiAccessError();
+  }
+
   return response;
 }
 
@@ -63,6 +91,7 @@ export async function generateSubtasksWithAi(title: string, description?: string
       }
     }
   } catch (err) {
+    if (isAiAccessError(err)) throw err;
     console.warn("AI subtask generation fallback:", err);
   }
 

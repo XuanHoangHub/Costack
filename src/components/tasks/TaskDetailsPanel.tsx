@@ -54,7 +54,7 @@ import {
   Link as LinkIcon,
   ChevronRight, ChevronsLeft, ChevronsRight,
   Hourglass, AlertTriangle, Folder, Download, Copy,
-  FileDown, FileCode, Share2
+  FileDown, FileCode, Share2, Link2
 } from 'lucide-react';
 
 // ── Priority accent mapping ──
@@ -224,6 +224,7 @@ export default function TaskDetailsPanel({
       transition: { type: 'tween', duration: 0.28, ease: 'easeOut' }
     };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
+  const [showSharePopover, setShowSharePopover] = useState(false);
   const [showLinkTaskDropdown, setShowLinkTaskDropdown] = useState(false);
   const [showLinkDocDropdown, setShowLinkDocDropdown] = useState(false);
   const [showBlockedByDropdown, setShowBlockedByDropdown] = useState(false);
@@ -1816,14 +1817,88 @@ export default function TaskDetailsPanel({
                   Đã tạo {new Date(task.createdAt || Date.now()).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' })}
                 </span>
 
-                {/* Share Button */}
-                <button 
-                  onClick={copyTaskLink}
-                  className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-3xs sm:mr-1"
-                >
-                  <Users className="w-3.5 h-3.5 text-slate-455 dark:text-slate-400" />
-                  <span className="hidden sm:inline">Chia sẻ</span>
-                </button>
+                {/* Share Button & Popover */}
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setShowSharePopover(!showSharePopover)}
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-blue-50/80 hover:bg-blue-100/80 dark:bg-sky-950/40 dark:hover:bg-sky-950/70 border border-blue-200/60 dark:border-sky-800/50 text-[11px] font-bold text-blue-700 dark:text-sky-400 transition-all cursor-pointer shadow-3xs sm:mr-1"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{isVietnamese ? 'Chia sẻ' : 'Share'}</span>
+                  </button>
+
+                  {showSharePopover && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSharePopover(false)} />
+                      <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3.5 text-left space-y-3 font-sans animate-fade-in select-none">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            {isVietnamese ? 'Chia sẻ công việc' : 'Share Task'}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500">
+                            ID: {task.id.slice(-6)}
+                          </span>
+                        </div>
+
+                        {/* Direct URL Copy */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-slate-400 block">
+                            {isVietnamese ? 'Liên kết trực tiếp' : 'Direct Link'}
+                          </label>
+                          <div className="flex items-center gap-1.5 p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                            <Link2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <input 
+                              readOnly 
+                              value={createTaskLink()} 
+                              className="w-full text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none select-all truncate" 
+                            />
+                            <button
+                              type="button"
+                              onClick={() => { copyTaskLink(); setShowSharePopover(false); }}
+                              className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black shrink-0 cursor-pointer shadow-2xs"
+                            >
+                              {isVietnamese ? 'Chép' : 'Copy'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Quick Markdown Copy */}
+                        <button
+                          type="button"
+                          onClick={() => { copyTaskAsMarkdown(); setShowSharePopover(false); }}
+                          className="w-full py-2 px-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <FileCode className="w-3.5 h-3.5 text-blue-500" />
+                            <span>{isVietnamese ? 'Sao chép dạng Markdown' : 'Copy as Markdown'}</span>
+                          </span>
+                          <Copy className="w-3 h-3 text-slate-400" />
+                        </button>
+
+                        {/* Assignees quick view */}
+                        {(task.assigneeIds && task.assigneeIds.length > 0) && (
+                          <div className="pt-1 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                            <span className="text-[9.5px] font-black uppercase text-slate-400 block">
+                              {isVietnamese ? 'Thành viên được giao việc' : 'Assigned Members'}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                              {task.assigneeIds.map(id => {
+                                const m = members.find(mem => mem.id === id || mem.userId === id);
+                                return m ? (
+                                  <span key={id} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10.5px] font-bold text-slate-700 dark:text-slate-300">
+                                    <SignedImage filePath={m.avatar} className="w-4 h-4 rounded-full object-cover" alt={m.name} />
+                                    <span className="truncate max-w-[120px]">{m.name}</span>
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 {/* More Options Menu */}
                 <div className="relative flex items-center">

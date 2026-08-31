@@ -4,7 +4,7 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 export async function POST(request: Request) {
   try {
     const { title, content, action, model, temperature } = await readAiJson<any>(request);
-    const client = await getAuthorizedGeminiClient(request);
+    const client = await getAuthorizedGeminiClient(request, 512_000);
 
     let instruction = "";
     if (action === "summarize") {

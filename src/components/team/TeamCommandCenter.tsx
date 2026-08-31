@@ -192,7 +192,7 @@ export function TeamCommandCenter({
                 </span>
                 <span className="text-[11px] font-bold text-slate-300">{isVietnamese ? 'Chỉ số vận hành' : 'Operating Health'}</span>
               </div>
-              <span className="text-xs font-black text-emerald-400 ml-auto font-mono">{teamHealth}/100</span>
+              <span className="text-xs font-black text-emerald-400 ml-auto font-sans tabular-nums">{teamHealth}/100</span>
             </div>
           </div>
         </div>
@@ -259,7 +259,7 @@ export function TeamCommandCenter({
                   <div className={`p-2 rounded-xl shadow-2xs ${item.iconClass}`}>
                     <item.icon className="h-4 w-4" />
                   </div>
-                  <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{item.value}</p>
+                  <p className="text-xl font-extrabold text-slate-900 dark:text-white font-sans tabular-nums">{item.value}</p>
                 </div>
                 <p className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-400 text-left">{item.label}</p>
               </div>
@@ -295,7 +295,7 @@ export function TeamCommandCenter({
                   <div key={department} className="text-left">
                     <div className="mb-1.5 flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                       <span>{getDeptLabel(department, isVietnamese)}</span>
-                      <span className="text-slate-400 font-mono">{count} {isVietnamese ? 'người' : 'members'} · {percentage}%</span>
+                      <span className="text-slate-400 font-sans font-semibold tabular-nums">{count} {isVietnamese ? 'người' : 'members'} · {percentage}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                       <div 
@@ -352,7 +352,7 @@ export function TeamCommandCenter({
                 <div className="min-w-0 flex-1 text-left">
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <span className="truncate text-xs font-extrabold text-slate-800 dark:text-slate-200">{item.member.name}</span>
-                    <span className={`text-[10.5px] font-black font-mono ${item.capacity > 90 ? 'text-rose-500' : item.capacity > 70 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                    <span className={`text-[10.5px] font-extrabold font-sans tabular-nums ${item.capacity > 90 ? 'text-rose-500' : item.capacity > 70 ? 'text-amber-500' : 'text-emerald-500'}`}>
                       {item.assigned.length} {isVietnamese ? 'việc' : 'tasks'} · {item.capacity}%
                     </span>
                   </div>

@@ -26,6 +26,7 @@ import {
   Zap,
   Crown,
 } from 'lucide-react';
+import { PaymentSuccess } from '@/components/billing/PaymentSuccess';
 
 export type PayOSCheckoutData = {
   url: string;
@@ -40,9 +41,23 @@ export type PayOSCheckoutData = {
   accountNumber: string;
   accountName: string;
   bin: string;
+  method?: 'vietqr' | 'momo';
 };
 
-type CheckoutStatus = 'pending' | 'checking' | 'expired' | 'cancelled' | 'failed';
+export type PaymentReceipt = {
+  orderCode: number;
+  plan: 'starter' | 'pro' | 'business';
+  cycle: 'monthly' | 'yearly';
+  amount: number;
+  currency: string;
+  paidAt?: string | null;
+  reference?: string | null;
+  periodEnd?: string | null;
+  subscriptionStatus?: string;
+  provider: 'payos';
+};
+
+type CheckoutStatus = 'pending' | 'checking' | 'success' | 'expired' | 'cancelled' | 'failed';
 
 type PayOSCheckoutProps = {
   checkout: PayOSCheckoutData;
@@ -50,6 +65,7 @@ type PayOSCheckoutProps = {
   planName: string;
   status: CheckoutStatus;
   error?: string;
+  receipt?: PaymentReceipt | null;
   onBack: () => void;
   onClose: () => void;
   onCheck: () => void;
@@ -179,6 +195,7 @@ export function PayOSCheckout({
   planName,
   status,
   error,
+  receipt,
   onBack,
   onClose,
   onCheck,
@@ -405,6 +422,18 @@ export function PayOSCheckout({
   }, [checkout.plan]);
 
   const PlanIcon = planBadgeTheme.icon;
+
+  if (status === 'success') {
+    return (
+      <PaymentSuccess
+        checkout={checkout}
+        receipt={receipt}
+        planName={planName}
+        isVietnamese={isVietnamese}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="relative max-h-[92dvh] overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -636,7 +665,7 @@ export function PayOSCheckout({
                       step: '03',
                       title: isVietnamese ? 'Kiểm tra & Xác nhận' : 'Verify & Confirm',
                       desc: isVietnamese
-                        ? 'Số tiền và nội dung chuyển khoản được điền tự động 100%. Xác nhận chuyển tiền, gói Apexa sẽ kích hoạt ngay sau 3 giây.'
+                        ? 'Số tiền và nội dung chuyển khoản được điền tự động. Xác nhận chuyển tiền, gói Apexa sẽ kích hoạt ngay sau khi đối soát.'
                         : 'Amount & transfer note are auto-filled. Confirm payment to activate Apexa immediately.',
                     },
                   ].map((item) => (
@@ -719,7 +748,7 @@ export function PayOSCheckout({
                   {formattedAmount}
                 </div>
                 <div className="text-[10px] font-medium text-slate-300">
-                  {isVietnamese ? 'Bao gồm VAT · Kích hoạt tài khoản tức thì' : 'VAT included · Instant account activation'}
+                  {isVietnamese ? 'Số tiền niêm yết · Kích hoạt sau đối soát' : 'Listed amount · Activated after verification'}
                 </div>
               </div>
 
@@ -856,8 +885,8 @@ export function PayOSCheckout({
                 </div>
                 <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
                   {isVietnamese
-                    ? 'Hệ thống tự động đồng bộ hóa mỗi 3 giây. Sau khi chuyển tiền xong, bạn có thể bấm nút bên dưới để xác nhận ngay.'
-                    : 'System automatically checks every 3 seconds. After transferring, you can click below to verify immediately.'}
+                    ? 'Hệ thống tự động kiểm tra định kỳ. Sau khi chuyển tiền xong, bạn có thể bấm nút bên dưới để xác nhận ngay.'
+                    : 'The system checks periodically. After transferring, click below to verify immediately.'}
                 </p>
               </div>
             </div>
@@ -907,12 +936,12 @@ export function PayOSCheckout({
               {
                 icon: ShieldCheck,
                 title: isVietnamese ? 'Bảo mật PayOS' : 'PayOS Secured',
-                desc: isVietnamese ? 'Mã hóa 256-bit' : '256-bit SSL',
+                desc: isVietnamese ? 'Chữ ký webhook' : 'Signed webhook',
               },
               {
                 icon: CheckCircle2,
                 title: isVietnamese ? 'Kích hoạt tức thì' : 'Instant Upgrade',
-                desc: isVietnamese ? 'Tự động 3s' : 'Auto 3s',
+                desc: isVietnamese ? 'Sau đối soát' : 'After verification',
               },
             ].map((item) => {
               const BadgeIcon = item.icon;

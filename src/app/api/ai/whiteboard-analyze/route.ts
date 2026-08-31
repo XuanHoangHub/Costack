@@ -5,7 +5,7 @@ import { Type } from "@google/genai";
 export async function POST(request: Request) {
   try {
     const { image, mode, prompt, model, temperature } = await readAiJson<any>(request, 8_388_608);
-    const client = await getAuthorizedGeminiClient(request);
+    const client = await getAuthorizedGeminiClient(request, 8_388_608);
 
     if (!image) {
       return NextResponse.json({ success: false, error: "Image is required" }, { status: 400 });

@@ -1,3 +1,5 @@
+import type { BillingCycle, BillingPlan } from '@/lib/billing/plans';
+
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskStatus = 'todo' | 'inprogress' | 'review' | 'completed';
 
@@ -22,6 +24,10 @@ export interface User {
   skills?: string[];
   joinedDate?: string;
   isPremium?: boolean;
+  subscriptionPlan?: BillingPlan;
+  billingStatus?: string;
+  billingCycle?: BillingCycle;
+  billingPeriodEnd?: string;
 }
 
 export interface WorkspaceInvitation {

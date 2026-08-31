@@ -8,7 +8,7 @@ Apexa là workspace năng suất Việt–Anh xây dựng trên Next.js 16, Reac
 - Node.js tương thích với Next.js 16
 - Một dự án Supabase đã bật Auth, Database, Realtime và Storage theo nhu cầu
 - Tài khoản PayOS đã có kênh thanh toán nếu mở bán gói trả phí
-- Gemini API key dùng trên server hoặc khóa riêng do người dùng cung cấp
+- Gemini API key chỉ dùng trên server; ứng dụng không hỗ trợ khóa riêng của người dùng (BYOK)
 
 ## Cấu hình local
 
@@ -25,7 +25,7 @@ Các biến bắt buộc cho production:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`: kết nối Supabase phía client.
 - `SUPABASE_SECRET_KEY`: chỉ dùng ở Route Handler phía server; không thêm tiền tố `NEXT_PUBLIC_`.
 - `NEXT_PUBLIC_APP_URL`: origin HTTPS chính thức, không có dấu `/` cuối.
-- `GEMINI_API_KEY`: Gemini key dùng cho người dùng đã đăng nhập.
+- `GEMINI_API_KEY`: khóa Gemini server-only dùng cho tài khoản có gói trả phí; tuyệt đối không thêm tiền tố `NEXT_PUBLIC_`.
 - `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`: thông tin kênh PayOS, chỉ dùng trên server.
 
 Xem giá trị mẫu an toàn tại [`.env.example`](./.env.example).
@@ -76,7 +76,7 @@ Smoke test tối thiểu:
 - Landing desktop/mobile không tràn ngang; menu, CTA và auth modal hoạt động.
 - Email/password và OAuth giữ đúng Supabase user UUID.
 - `/legal/terms`, `/legal/privacy`, `/legal/security`, `/robots.txt`, `/sitemap.xml` trả HTTP 200.
-- API AI không có session/khóa riêng trả 401 và không dùng server key.
+- API AI không có session trả 401; tài khoản Free trả 403; header khóa AI cá nhân bị bỏ qua và không bao giờ được dùng.
 - Billing không thể tự cấp gói trả phí từ return URL hoặc webhook PayOS sai chữ ký/sai số tiền.
 - Newsletter email hợp lệ được ghi sau khi migration đã áp dụng.
 - `/pricing-preview` trả 404 trong production, trừ khi chủ động đặt `ENABLE_PRICING_PREVIEW=true`.

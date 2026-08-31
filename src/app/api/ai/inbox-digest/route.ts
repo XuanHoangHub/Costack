@@ -4,7 +4,7 @@ import { getAuthorizedGeminiClient, getAiErrorMessage, getAiErrorStatus, readAiJ
 export async function POST(request: Request) {
   try {
     const { userName, notifications, tasksCount, model, temperature } = await readAiJson<any>(request);
-    const client = await getAuthorizedGeminiClient(request);
+    const client = await getAuthorizedGeminiClient(request, 512_000);
 
     const safeNotifications = Array.isArray(notifications) ? notifications : [];
     const notifSummary = safeNotifications.map((n: any) => ({

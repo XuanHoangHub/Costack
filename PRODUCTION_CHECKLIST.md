@@ -27,6 +27,13 @@ Checklist này là cổng phát hành, không phải tài liệu marketing. Mỗ
 - [ ] Supabase Site URL và toàn bộ redirect URL chỉ trỏ tới domain tin cậy.
 - [ ] PayOS webhook production đúng `/api/billing/webhook`; thử chữ ký sai, số tiền sai, callback lặp và thanh toán hủy.
 - [ ] `npm run payos:confirm-webhook` hoàn tất sau khi domain HTTPS hoạt động.
+- [ ] Migration `20260831111852_production_billing_entitlements.sql` đã được áp dụng; thử hạn mức seat và AI bằng hai tài khoản riêng.
+- [ ] Gọi một API `/api/ai/*` không có session trả `401`, kể cả khi cố gửi header `x-gemini-api-key`.
+- [ ] Tài khoản Free gọi API AI trả `403`; Starter/Pro/Business dùng được và bị chặn đúng khi hết quota tháng.
+- [ ] Trình duyệt không còn trường nhập khóa AI cá nhân và tự xóa khóa `apexa_gemini_api_key` từ các phiên bản cũ.
+- [ ] Thanh toán PayOS thật đã đi hết luồng `pending → paid → receipt`; gói, thời hạn và `members.is_premium` được cập nhật sau webhook và khi reconcile dự phòng.
+- [ ] Nếu bán bằng thẻ: cấu hình đủ `STRIPE_PRICE_*`, webhook Stripe production đúng `/api/billing/stripe-webhook`, bật phương thức mong muốn trong Stripe Dashboard và thử thanh toán/hủy/gia hạn bằng test clock.
+- [ ] Thử downgrade bị chặn khi gói PayOS cao hơn còn hiệu lực; thử renewal nối tiếp đúng `current_period_end` và webhook lặp không cộng thêm thời hạn.
 - [ ] Google Calendar refresh token và quyền tối thiểu đã được kiểm tra; lỗi tích hợp không làm mất dữ liệu local.
 - [ ] Secrets chỉ tồn tại ở runtime/server; không xuất hiện trong source map, browser bundle hoặc log.
 

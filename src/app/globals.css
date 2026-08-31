@@ -674,6 +674,24 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
   background: rgba(156, 163, 175, 0.45);
 }
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 @keyframes orbit-clockwise {
   0% { transform: rotate(0deg) translateX(65px) rotate(0deg); }
   100% { transform: rotate(360deg) translateX(65px) rotate(-360deg); }

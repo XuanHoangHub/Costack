@@ -166,7 +166,7 @@ function DashboardOverview({
       }
     } catch (err: any) {
       console.error(err);
-      setReportError(err.message || (locale === 'vi' ? "Đã xảy ra lỗi khi kết nối Gemini. Vui lòng kiểm tra khóa API." : "An error occurred connecting to Gemini. Please check your API key."));
+      setReportError(err.message || (locale === 'vi' ? "Không thể kết nối Apexa AI. Vui lòng thử lại hoặc kiểm tra gói đăng ký." : "Could not connect to Apexa AI. Please retry or check your subscription."));
     } finally {
       setIsGenerating(false);
     }
@@ -552,16 +552,16 @@ function DashboardOverview({
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-blue-400/15 blur-3xl dark:bg-blue-500/10" />
         <div className="pointer-events-none absolute -bottom-24 left-[40%] h-60 w-60 rounded-full bg-indigo-300/15 blur-3xl dark:bg-indigo-500/10" />
         
-        <div className="relative z-10 max-w-3xl space-y-1.5">
+        <div className="relative z-10 flex-1 min-w-0 space-y-1.5">
           {/* Heading */}
-          <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.2]">
-            <span className="mr-2 inline-block">{greetingIcon}</span>
-            {greeting},{' '}
-            <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 dark:from-indigo-400 dark:via-sky-300 dark:to-cyan-300 bg-clip-text text-transparent">
+          <h1 className="text-xl sm:text-2xl md:text-[26px] lg:text-[28px] xl:text-[32px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-snug">
+            <span className="mr-2 inline-block shrink-0">{greetingIcon}</span>
+            <span className="inline whitespace-nowrap">{greeting}, </span>
+            <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 dark:from-indigo-400 dark:via-sky-300 dark:to-cyan-300 bg-clip-text text-transparent inline">
               {currentUser?.name || (locale === 'vi' ? 'bạn' : 'there')}
             </span>
           </h1>
-          <p className="max-w-2xl text-sm font-medium leading-relaxed text-slate-500 dark:text-zinc-400 sm:text-[14.5px]">
+          <p className="max-w-2xl text-xs sm:text-sm font-medium leading-relaxed text-slate-500 dark:text-zinc-400 sm:text-[14.5px]">
             {locale === 'vi'
               ? dashboardScope === 'mine'
                 ? `Không gian ưu tiên cá nhân của bạn trong ${workspaceName || 'workspace hiện tại'}.`

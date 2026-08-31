@@ -8,7 +8,7 @@ import {
   Mic, MicOff, Globe, Volume2, VolumeX, Copy
 } from 'lucide-react';
 import { Task, Document, User } from '../types';
-import { callAiApi } from '@/lib/aiClient';
+import { callAiApi, isAiAccessError } from '@/lib/aiClient';
 
 interface ApexaBrainAssistantProps {
   tasks: Task[];
@@ -22,6 +22,7 @@ interface ApexaBrainAssistantProps {
 
 import { useTranslation } from '../contexts/TranslationContext';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
 import { ApexaAiIcon, ApexaAiAvatar } from './ApexaAiIcon';
 
 type TabType = 'query' | 'summarize' | 'subtasks' | 'generate-tasks';
@@ -37,6 +38,8 @@ export default function ApexaBrainAssistant({
 }: ApexaBrainAssistantProps) {
   const { t, locale } = useTranslation();
   const appActiveTab = useUiStore((s) => s.activeTab);
+  const setShowPremiumModal = useUiStore((s) => s.setShowPremiumModal);
+  const isPremium = useAuthStore((s) => Boolean(s.currentUser?.isPremium));
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('query');
   const [loading, setLoading] = useState(false);
@@ -239,6 +242,7 @@ export default function ApexaBrainAssistant({
       }
     } catch (err: any) {
       console.error(err);
+      if (isAiAccessError(err)) return;
       setIsAiFallbackActive(true);
       // Fallback response with beautiful markdown formatting
       setResponseText(`### Task Progress Analysis (Local Fallback)
@@ -247,7 +251,7 @@ Based on current information, here is a quick summary:
 - ⚠️ **Urgency Level**: You have **${tasks.filter(t => t.priority === 'urgent' || t.priority === 'high').length}** High/Urgent priority tasks.
 - 👥 **Resource Allocation**: **${members.length}** members are actively assigned.
 
-*Hint: Please check your API key configuration or network connection to get the best synchronized results.*`);
+*Hint: Apexa AI requires a paid plan and an online connection.*`);
     } finally {
       setLoading(false);
       if (!customQuery) setQueryInput('');
@@ -290,6 +294,7 @@ Based on current information, here is a quick summary:
         throw new Error(data.error);
       }
     } catch (err) {
+      if (isAiAccessError(err)) return;
       // Local fallback
       setIsAiFallbackActive(true);
       let fallbackText = `### Document Analysis: ${doc.title}\n\n`;
@@ -340,6 +345,7 @@ Based on current information, here is a quick summary:
         throw new Error("Zero list");
       }
     } catch (err) {
+      if (isAiAccessError(err)) return;
       setIsAiFallbackActive(true);
       setSuggestedSubtasks([
         "Sketch breakthrough designs for the project",
@@ -434,6 +440,7 @@ Based on current information, here is a quick summary:
       }
     } catch (err) {
       console.error(err);
+      if (isAiAccessError(err)) return;
       setIsAiFallbackActive(true);
       setGeneratedTasks([
         {
@@ -596,6 +603,10 @@ Based on current information, here is a quick summary:
         <motion.button
           id="btn_apexa_ai_float"
           onClick={() => {
+            if (!isPremium) {
+              setShowPremiumModal(true);
+              return;
+            }
             setIsOpen(!isOpen);
             // Default selections if unselected
             if (documents.length > 0 && !selectedDocId) setSelectedDocId(documents[0].id);
@@ -718,7 +729,7 @@ Based on current information, here is a quick summary:
                   <div className="p-3.5 mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 dark:text-amber-300 flex items-start gap-2 shadow-xs leading-normal shrink-0">
                     <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <strong>Chế độ dự phòng:</strong> Chưa cấu hình khóa API Gemini hoặc kết nối ngoại tuyến. Bạn có thể thêm khóa tại <strong>Cài đặt &gt; Cấu hình Apexa AI</strong> để sử dụng AI trực tuyến.
+                      <strong>Chế độ dự phòng:</strong> Apexa AI cần gói trả phí và kết nối mạng. Hãy nâng cấp gói để sử dụng AI trực tuyến.
                     </div>
                   </div>
                 )}
