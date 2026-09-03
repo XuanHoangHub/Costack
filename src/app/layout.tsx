@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import InlineHeadScript from "@/components/InlineHeadScript";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
@@ -114,6 +115,7 @@ export default function RootLayout({
         <TranslationProvider>
           {children}
         </TranslationProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
