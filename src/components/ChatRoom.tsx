@@ -948,13 +948,14 @@ ${channelMessagesText}`;
       if (!session?.user?.id) return;
 
       const defaults = [
-        { id: `${workspaceId}:general`, workspace_id: workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', channel_type: 'public', created_by: session.user.id },
-        { id: `${workspaceId}:apexa-brain-ai`, workspace_id: workspaceId, name: 'apexa-brain-ai', description: 'Trợ lý AI của workspace.', channel_type: 'public', created_by: session.user.id }
+        { id: `${workspaceId}:general`, workspace_id: workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', channel_type: 'public', created_by: session.user.id }
       ];
       const { error } = await supabase.from('chat_channels').upsert(defaults, { onConflict: 'id', ignoreDuplicates: true });
       if (error) {
         console.warn('[ChatRoom] Note on ensuring default channels:', error.message || error);
       }
+      // Purge any legacy brain-ai channels
+      await supabase.from('chat_channels').delete().in('name', ['avaxa-brain-ai', 'apexa-brain-ai']).eq('workspace_id', workspaceId);
     } catch (err) {
       console.warn('[ChatRoom] Exception in ensureDefaultChannels:', err);
     }
@@ -964,8 +965,7 @@ ${channelMessagesText}`;
   useEffect(() => {
     let active = true;
     const defaultChannels: ChatChannel[] = [
-      { id: `${workspaceId}:general`, workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' },
-      { id: `${workspaceId}:apexa-brain-ai`, workspaceId, name: 'apexa-brain-ai', description: 'Trợ lý AI của workspace.', type: 'public' }
+      { id: `${workspaceId}:general`, workspaceId, name: 'general', description: 'Kênh thảo luận chung cho tất cả thành viên.', type: 'public' }
     ];
 
     const loadChannels = async () => {
@@ -987,14 +987,16 @@ ${channelMessagesText}`;
         if (!active) return;
 
         const loaded: ChatChannel[] = (data && data.length > 0)
-          ? data.map((channel: any) => ({
-              id: channel.id,
-              workspaceId: channel.workspace_id,
-              name: channel.name,
-              description: channel.description || '',
-              type: channel.channel_type,
-              dmKey: channel.dm_key || undefined
-            }))
+          ? data
+              .filter((channel: any) => channel.name !== 'avaxa-brain-ai' && channel.name !== 'apexa-brain-ai' && !channel.id.includes('brain-ai'))
+              .map((channel: any) => ({
+                id: channel.id,
+                workspaceId: channel.workspace_id,
+                name: channel.name,
+                description: channel.description || '',
+                type: channel.channel_type,
+                dmKey: channel.dm_key || undefined
+              }))
           : defaultChannels;
 
         // Ensure default channels exist in loaded array if missing
@@ -2294,10 +2296,10 @@ ${channelMessagesText}`;
   }
 
   return (
-    <div className="flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#07080c] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
+    <div className="flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#000000] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
       {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
-      <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#07080c] flex flex-col justify-between shrink-0 text-left ${
+      <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#0a0a0a] flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
         <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
@@ -2365,7 +2367,7 @@ ${channelMessagesText}`;
                 </button>
               </div>
               <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && c.id !== `${workspaceId}:apexa-brain-ai` && !c.id.includes(':space-')).map(c => {
+                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && !c.name.includes('brain-ai') && !c.id.includes('brain-ai') && !c.id.includes(':space-')).map(c => {
                   const isActive = c.id === activeChannelId;
                   const isDefault = c.id === `${workspaceId}:general` || c.id === `${workspaceId}:project-planning` || c.id === `${workspaceId}:design-review`;
                   
@@ -2528,7 +2530,7 @@ ${channelMessagesText}`;
         </div>
 
         {/* Sidebar Footer Bar */}
-        <div className="relative px-4 py-2.5 bg-slate-100/30 dark:bg-[#07080c] border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 text-slate-400 dark:text-slate-500 select-none">
+        <div className="relative px-4 py-2.5 bg-slate-100/30 dark:bg-[#0a0a0a] border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 text-slate-400 dark:text-slate-500 select-none">
           <div className="flex items-center gap-3">
             <button 
               type="button" 
@@ -2596,7 +2598,7 @@ ${channelMessagesText}`;
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
-        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-[#07080c] ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
+        className={`flex-1 flex flex-col justify-between relative bg-white dark:bg-[#000000] ${isDragOver ? 'ring-2 ring-indigo-400 ring-inset' : ''} ${
           isMobileChatActive ? 'flex' : 'hidden md:flex'
         }`}
         onDragOver={handleDragOver}
@@ -2617,7 +2619,7 @@ ${channelMessagesText}`;
         )}
         
         {/* Chat header */}
-        <header className="relative z-30 flex shrink-0 flex-col border-b border-slate-200/70 bg-white/80 shadow-xs backdrop-blur-xl dark:border-slate-800/80 dark:bg-[#07080d]/80">
+        <header className="relative z-30 flex shrink-0 flex-col border-b border-slate-200/70 bg-white/80 shadow-xs backdrop-blur-xl dark:border-slate-800/80 dark:bg-[#0a0a0a]/85">
           {/* Top row */}
           <div className="flex min-h-[68px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3.5">
@@ -3137,7 +3139,7 @@ ${channelMessagesText}`;
                       />
                       <div className="flex gap-2 text-[9px] font-bold">
                         <button onClick={() => handleEditMessage(msg.id, editVal)} className="text-indigo-650 hover:underline cursor-pointer">Lưu thay đổi</button>
-                        <button onClick={() => setEditingMsgId(null)} className="text-slate-400 hover:underline cursor-pointer">Cancel</button>
+                        <button onClick={() => setEditingMsgId(null)} className="text-slate-400 hover:underline cursor-pointer">Hủy</button>
                       </div>
                     </div>
                   ) : (
@@ -3613,7 +3615,7 @@ ${channelMessagesText}`;
         )}
 
                 {/* ── MESSENGER-STANDARD CHAT INPUT AREA ── */}
-        <div className="px-3.5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] bg-white/90 dark:bg-[#07080d]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
+        <div className="px-3.5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] bg-white/90 dark:bg-[#0a0a0a]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
           <form onSubmit={handleSendMessage} className="relative flex flex-col gap-2 max-w-7xl mx-auto select-text">
 
             {/* Reply Preview Bar */}
@@ -4054,7 +4056,7 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0a0a0a] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -4202,7 +4204,7 @@ ${channelMessagesText}`;
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 320, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#080a0f] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
+            className="border-l border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0a0a0a] flex flex-col justify-between shrink-0 text-left overflow-hidden absolute md:relative right-0 inset-y-0 z-40 h-full backdrop-blur-xl md:backdrop-blur-none"
           >
             <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
               <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
@@ -4320,11 +4322,11 @@ ${channelMessagesText}`;
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description</label>
-                <textarea 
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Mô tả</label>
+                <textarea
                   value={newChannelDesc}
                   onChange={e => setNewChannelDesc(e.target.value)}
-                  placeholder="Mô tả ngắn mục đích của kênh..." 
+                  placeholder="Mô tả ngắn mục đích của kênh..."
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold h-20 resize-none"
                 />
               </div>
@@ -4347,19 +4349,11 @@ ${channelMessagesText}`;
               </div>
 
               <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
-                <button 
-                  type="button"
-                  onClick={() => setShowCreateChannelModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
-                >
-                  Cancel
+                <button type="button" onClick={() => setShowCreateChannelModal(false)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer">
+                  Hủy
                 </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
-                  style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
-                >
-                  Create
+                <button type="submit" className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer" style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}>
+                  Tạo kênh
                 </button>
               </div>
             </form>
@@ -4402,25 +4396,25 @@ ${channelMessagesText}`;
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Mô tả</label>
                 <textarea 
                   value={renameChannelDesc}
                   onChange={e => setRenameChannelDesc(e.target.value)}
-                  placeholder="Briefly describe what this channel is for..." 
+                  placeholder="Mô tả ngắn mục đích của kênh..." 
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 outline-none bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:border-indigo-500 font-semibold h-20 resize-none"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2 text-xs font-bold">
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={() => setShowRenameModal(false)}
                   className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button 
-                  type="submit"
+                  type="submit" 
                   className="px-4 py-2 rounded-xl text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start), var(--apexa-gradient-end))' }}
                 >

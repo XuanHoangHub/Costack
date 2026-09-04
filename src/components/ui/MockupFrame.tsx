@@ -25,7 +25,7 @@ const backgroundGradients: Record<MockupBackground, string> = {
   aurora: "shots-gradient-aurora",
   midnight: "shots-gradient-midnight",
   cyber: "shots-gradient-cyber",
-  "clean-dark": "bg-[#090a0f]",
+  "clean-dark": "bg-[#000000]",
   "clean-light": "bg-slate-100",
 };
 
@@ -71,7 +71,7 @@ export function MockupFrame({
           className={[
             "relative mx-auto rounded-2xl overflow-hidden border border-white/20 dark:border-white/10",
             shadow ? "shadow-[0_25px_70px_rgba(0,0,0,0.45)]" : "",
-            "bg-slate-900/90 dark:bg-[#0c0e17]/95 backdrop-blur-2xl text-slate-100",
+            "bg-slate-900/90 dark:bg-[#121212]/95 backdrop-blur-2xl text-slate-100",
             innerClassName,
           ]
             .filter(Boolean)

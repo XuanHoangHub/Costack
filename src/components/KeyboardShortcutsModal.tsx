@@ -35,7 +35,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
       items: [
         { label: vi ? 'Tìm kiếm & Command Center' : 'Search & Command Center', keys: ['Ctrl', 'K'] },
         { label: vi ? 'Mở danh sách lệnh' : 'Open command list', keys: ['/'] },
-        { label: vi ? 'Trang tổng quan' : 'Home overview', keys: ['H'] },
+        { label: 'Dashboard', keys: ['H'] },
         { label: 'Inbox', keys: ['I'] },
         { label: vi ? 'Phân tích' : 'Dashboards & analytics', keys: ['D'] },
         { label: vi ? 'Thu gọn/mở sidebar' : 'Toggle sidebar', keys: ['Ctrl', '\\'] },
@@ -80,7 +80,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose, locale = 'en' 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ duration: 0.16 }}
-            className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#0b0c14]/95"
+            className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/80 bg-white/95 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#181818]/95"
           >
             <div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-4 dark:border-slate-800">
               <div className="flex items-center gap-3">

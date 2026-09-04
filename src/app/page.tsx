@@ -10,6 +10,7 @@ import { disconnectUserPresence, setUserPresenceStatus, useUserPresence } from '
 import { presenceDotClass, uiStatusToPresence } from '@/lib/presence';
 import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notificationPolicy';
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
+import { checkAndFirePendingReminders } from '@/lib/notificationManager';
 import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
 import { useUiStore } from '@/store/uiStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -64,28 +65,62 @@ const ComponentLoading = () => (
   </div>
 );
 
+// Resilient loader with auto-retry and chunk recovery
+const retryLoader = <T,>(importFn: () => Promise<T>): (() => Promise<T>) => {
+  return () => {
+    const run = (retries = 2, delay = 300): Promise<T> => {
+      return importFn().catch((err: any) => {
+        const isChunkError =
+          err?.name === 'ChunkLoadError' ||
+          err?.message?.includes('Loading chunk') ||
+          err?.message?.includes('missing:') ||
+          err?.message?.includes('Failed to fetch dynamically imported module');
+
+        if (isChunkError && retries > 0) {
+          return new Promise((resolve) => setTimeout(resolve, delay)).then(() =>
+            run(retries - 1, delay * 2)
+          );
+        }
+
+        if (isChunkError && typeof window !== 'undefined') {
+          const key = 'chunk_reload_lock';
+          const lastReload = Number(sessionStorage.getItem(key) || 0);
+          if (Date.now() - lastReload > 8000) {
+            sessionStorage.setItem(key, String(Date.now()));
+            window.location.reload();
+            return new Promise<T>(() => {});
+          }
+        }
+
+        throw err;
+      });
+    };
+    return run();
+  };
+};
+
 // Dynamic heavy sub-system components for optimal bundle code-splitting
-const DashboardOverview = dynamic(() => import('../components/DashboardOverview'), { loading: ComponentLoading });
-const SpacePage = dynamic(() => import('../components/SpacePage'), { loading: ComponentLoading });
-const CalendarView = dynamic(() => import('../components/CalendarView'), { loading: ComponentLoading });
-const Whiteboard = dynamic(() => import('../components/Whiteboard'), { loading: ComponentLoading, ssr: false });
-const WhiteboardHub = dynamic(() => import('../components/WhiteboardHub'), { loading: ComponentLoading, ssr: false });
-const ChatRoom = dynamic(() => import('../components/ChatRoom'), { loading: ComponentLoading });
-const TeamDirectory = dynamic(() => import('../components/TeamDirectory'), { loading: ComponentLoading });
-const ApexaBrainAssistant = dynamic(() => import('../components/ApexaBrainAssistant'), { loading: ComponentLoading, ssr: false });
-const SettingsPanel = dynamic(() => import('../components/SettingsPanel'), { loading: ComponentLoading });
-const ProfilePage = dynamic(() => import('../components/ProfilePage'), { loading: ComponentLoading });
-const ProductivityHub = dynamic(() => import('../components/ProductivityHub'), { loading: ComponentLoading });
-const WorkspaceSettingsModal = dynamic(() => import('../components/WorkspaceSettingsModal'), { loading: ComponentLoading });
-const BaseHub = dynamic(() => import('../components/BaseHub'), { loading: ComponentLoading });
-const CRMWorkspace = dynamic(() => import('../components/CRMWorkspace'), { loading: ComponentLoading });
-const InboxView = dynamic(() => import('../components/InboxView'), { loading: ComponentLoading });
-const AnalyticsHub = dynamic(() => import('../components/AnalyticsHub'), { loading: ComponentLoading, ssr: false });
-const KeyboardShortcutsModal = dynamic(() => import('../components/KeyboardShortcutsModal'));
-const AddListModal = dynamic(() => import('../components/AddListModal'));
-const FinanceHub = dynamic(() => import('../components/FinanceHub'), { loading: ComponentLoading });
-const ERPHub = dynamic(() => import('../components/ERPHub'), { loading: ComponentLoading });
-const GoalsHub = dynamic(() => import('../components/GoalsHub'), { loading: ComponentLoading });
+const DashboardOverview = dynamic(retryLoader(() => import('../components/DashboardOverview')), { loading: ComponentLoading });
+const SpacePage = dynamic(retryLoader(() => import('../components/SpacePage')), { loading: ComponentLoading, ssr: false });
+const CalendarView = dynamic(retryLoader(() => import('../components/CalendarView')), { loading: ComponentLoading });
+const Whiteboard = dynamic(retryLoader(() => import('../components/Whiteboard')), { loading: ComponentLoading, ssr: false });
+const WhiteboardHub = dynamic(retryLoader(() => import('../components/WhiteboardHub')), { loading: ComponentLoading, ssr: false });
+const ChatRoom = dynamic(retryLoader(() => import('../components/ChatRoom')), { loading: ComponentLoading });
+const TeamDirectory = dynamic(retryLoader(() => import('../components/TeamDirectory')), { loading: ComponentLoading });
+const ApexaBrainAssistant = dynamic(retryLoader(() => import('../components/ApexaBrainAssistant')), { loading: ComponentLoading, ssr: false });
+const SettingsPanel = dynamic(retryLoader(() => import('../components/SettingsPanel')), { loading: ComponentLoading });
+const ProfilePage = dynamic(retryLoader(() => import('../components/ProfilePage')), { loading: ComponentLoading });
+const ProductivityHub = dynamic(retryLoader(() => import('../components/ProductivityHub')), { loading: ComponentLoading });
+const WorkspaceSettingsModal = dynamic(retryLoader(() => import('../components/WorkspaceSettingsModal')), { loading: ComponentLoading });
+const BaseHub = dynamic(retryLoader(() => import('../components/BaseHub')), { loading: ComponentLoading });
+const CRMWorkspace = dynamic(retryLoader(() => import('../components/CRMWorkspace')), { loading: ComponentLoading });
+const InboxView = dynamic(retryLoader(() => import('../components/InboxView')), { loading: ComponentLoading });
+const AnalyticsHub = dynamic(retryLoader(() => import('../components/AnalyticsHub')), { loading: ComponentLoading, ssr: false });
+const KeyboardShortcutsModal = dynamic(retryLoader(() => import('../components/KeyboardShortcutsModal')));
+const AddListModal = dynamic(retryLoader(() => import('../components/AddListModal')));
+const FinanceHub = dynamic(retryLoader(() => import('../components/FinanceHub')), { loading: ComponentLoading });
+const ERPHub = dynamic(retryLoader(() => import('../components/ERPHub')), { loading: ComponentLoading });
+const GoalsHub = dynamic(retryLoader(() => import('../components/GoalsHub')), { loading: ComponentLoading });
 
 import { 
   Briefcase, MessageSquare, Edit3, Users, 
@@ -1400,52 +1435,44 @@ export default function App() {
       dashboard: { 
         label: t('homeOverview') || 'Home Overview', 
         icon: PhHouse,
-        shortcut: '⌘1',
         description: locale === 'vi' ? 'Tổng quan dự án & tiến độ chung' : 'Workspace overview & metrics',
       },
       inbox: { 
         label: t('inbox') || 'Inbox', 
         icon: PhTray, 
         count: unreadNotificationsCount,
-        shortcut: '⌘2',
         description: locale === 'vi' ? 'Thông báo công việc & lời mời' : 'Notifications & updates',
       },
       tasks: { 
         label: t('space') || 'Space', 
         icon: PhSquaresFour,
-        shortcut: '⌘3',
         description: locale === 'vi' ? 'Không gian làm việc & danh sách việc' : 'Spaces, lists & task tracking',
       },
       calendar: { 
         label: t('calendarView') || 'Calendar', 
         icon: PhCalendar,
-        shortcut: '⌘4',
         description: locale === 'vi' ? 'Lịch trình, mốc thời gian & deadline' : 'Calendar & milestone deadlines',
       },
       goals: { 
         label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', 
         icon: PhTarget, 
         badge: locale === 'vi' ? 'Mới' : 'New',
-        shortcut: '⌘5',
         description: locale === 'vi' ? 'Chiến lược mục tiêu & đo lường kết quả' : 'Strategic goals & measurable OKRs',
       },
       crm: { 
         label: 'CRM', 
         icon: PhHandshake, 
         badge: locale === 'vi' ? 'Mới' : 'New',
-        shortcut: '⌘7',
         description: locale === 'vi' ? 'Khách hàng tiềm năng & đường ống bán hàng' : 'Leads, deals & customer relationships',
       },
       base: { 
         label: t('base') || 'Avaxa Base', 
         icon: PhDatabase,
-        shortcut: '⌘8',
         description: locale === 'vi' ? 'Cơ sở dữ liệu dạng bảng & biểu mẫu' : 'Visual flexible relational databases',
       },
       docs: { 
         label: t('docs') || 'Docs', 
         icon: PhFileText,
-        shortcut: '⌘9',
         description: locale === 'vi' ? 'Tài liệu kiến thức, quy trình & Wiki' : 'Collaborative documents & Wiki',
       },
       whiteboard: { 
@@ -1456,7 +1483,6 @@ export default function App() {
       chat: { 
         label: t('chat') || 'Chat', 
         icon: PhChat,
-        shortcut: '⌘0',
         description: locale === 'vi' ? 'Kênh thảo luận & tin nhắn tức thời' : 'Channels & instant messaging',
       },
       team: { 
@@ -1801,6 +1827,15 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [currentUser, tasks, triggerToast, activeWorkspaceId]);
+
+  // Periodic standard task reminder worker
+  useEffect(() => {
+    checkAndFirePendingReminders();
+    const interval = setInterval(() => {
+      checkAndFirePendingReminders();
+    }, 20_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Global Supabase Realtime subscription for chat message notifications
   // This runs independently of ChatRoom mount state so notifications work across all tabs
@@ -3426,10 +3461,10 @@ export default function App() {
   };
 
   const getTaskAssigneeIds = (task: Partial<Task> | any) => {
+    if (Array.isArray(task?.assigneeIds)) return task.assigneeIds.filter(Boolean);
+    if (Array.isArray(task?.assignee_ids)) return task.assignee_ids.filter(Boolean);
     const fromCustom = task?.custom_fields?.assigneeIds;
-    if (Array.isArray(fromCustom)) return fromCustom;
-    if (Array.isArray(task?.assigneeIds)) return task.assigneeIds;
-    if (Array.isArray(task?.assignee_ids)) return task.assignee_ids;
+    if (Array.isArray(fromCustom)) return fromCustom.filter(Boolean);
     return task?.assigneeId ? [task.assigneeId] : [];
   };
 
@@ -3586,6 +3621,20 @@ export default function App() {
     if (updated.status === 'completed' && !updated.completedAt) {
       updated = { ...updated, completedAt: new Date().toISOString() };
     }
+
+    const finalAssigneeIds = Array.isArray(updated.assigneeIds)
+      ? updated.assigneeIds
+      : (updated.assigneeId ? [updated.assigneeId] : []);
+
+    updated = {
+      ...updated,
+      assigneeIds: finalAssigneeIds,
+      assigneeId: finalAssigneeIds[0] || undefined,
+      custom_fields: {
+        ...(updated.custom_fields || {}),
+        assigneeIds: finalAssigneeIds
+      }
+    };
 
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
 
@@ -4226,7 +4275,7 @@ export default function App() {
 
   return (
     <div
-      className="apexa-app-shell fixed inset-0 flex h-full w-full select-none flex-col overflow-hidden font-sans text-[var(--cu-text-primary)] bg-[var(--cu-bg)]"
+      className="apexa-app-shell fixed inset-0 flex h-full w-full select-none flex-col overflow-hidden font-sans text-[var(--cu-text-primary)] bg-white dark:bg-[var(--cu-bg)]"
       data-density={uiDensity}
     >
       <a href="#apexa-main-content" className="apexa-skip-link">
@@ -4282,7 +4331,7 @@ export default function App() {
         </div>
 
         {/* Left header switcher section (desktop) */}
-        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-white/[0.08] bg-[#0b1322] dark:bg-[#080e1a] ${
+        <div className={`apexa-header-sidebar hidden md:flex items-center shrink-0 transition-all duration-200 ease-in-out relative border-r border-white/[0.08] bg-[#09090b] dark:bg-[#09090b] ${
           isMainSidebarCollapsed ? 'w-[var(--cu-sidebar-collapsed)] px-2 py-2 justify-center' : 'w-[var(--cu-sidebar-width)] px-2.5 py-2 justify-between'
         }`}>
           <div className="flex items-center gap-1.5 relative flex-1 min-w-0 justify-between">
@@ -4361,7 +4410,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.18, type: "spring", stiffness: 420, damping: 28 }}
-                    className={`absolute top-full mt-2.5 w-[280px] p-3.5 bg-[#0a0f1d]/98 border border-white/15 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.7)] backdrop-blur-2xl z-[120] space-y-3 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-1' : 'left-3'}`}
+                    className={`absolute top-full mt-2.5 w-[280px] p-3.5 bg-[#09090b]/98 border border-white/15 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl z-[120] space-y-3 text-left origin-top-left ${isMainSidebarCollapsed ? 'left-1' : 'left-3'}`}
                   >
                     {/* Active Workspace Hero Card */}
                     <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-950/60 via-slate-900 to-slate-900/90 border border-blue-500/35 shadow-xs group overflow-hidden">
@@ -4674,31 +4723,28 @@ export default function App() {
           </div>
 
           {/* Centered Global Search Bar trigger button for desk screens - beautified Pill */}
-          <div className="apexa-search-slot relative mx-4 hidden w-64 max-w-md lg:block lg:w-80 2xl:w-[28rem]">
+          <div className="apexa-search-slot relative mx-3 hidden w-60 max-w-md lg:block lg:w-72 2xl:w-80">
             <button
               type="button"
               onClick={() => {
                 setIsSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
-              className="apexa-search-trigger cu-search-bar flex w-full cursor-pointer items-center justify-between px-4 py-1.5 text-[12px] font-medium text-[var(--cu-text-muted)] outline-none hover:text-[var(--cu-text-secondary)]"
-              aria-label="Tìm công việc, tài liệu hoặc không gian"
+              className="group flex h-8.5 w-full cursor-pointer select-none items-center justify-between rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs text-slate-500 shadow-3xs transition-all duration-150 hover:border-slate-300 hover:bg-slate-50/80 hover:text-slate-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+              aria-label={locale === 'vi' ? 'Tìm kiếm công việc, tài liệu hoặc không gian' : 'Search tasks, docs, or spaces'}
             >
               <span className="flex min-w-0 items-center gap-2 truncate">
-                <Search className="h-3.5 w-3.5 shrink-0 text-slate-450 dark:text-slate-500" />
-                <span className="truncate font-semibold tracking-tight">Tìm công việc, tài liệu, không gian...</span>
+                <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-colors" />
+                <span className="truncate font-medium">{locale === 'vi' ? 'Tìm công việc, tài liệu...' : 'Search tasks, docs, spaces...'}</span>
               </span>
-              <kbd className="apexa-search-shortcut flex shrink-0 select-none items-center gap-0.5 rounded-md border border-slate-200/50 bg-slate-100/80 px-1.5 py-0.5 font-mono text-[9px] font-extrabold text-slate-500 shadow-3xs dark:border-slate-700/50 dark:bg-slate-800/80 dark:text-slate-400">
-                <span>⌘</span><span>K</span>
-              </kbd>
             </button>
           </div>
 
-          <div className="apexa-header-actions flex shrink-0 items-center gap-1 sm:gap-2 md:gap-3 pr-2 sm:pr-3">
+          <div className="apexa-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
             <button
               type="button"
               onClick={() => setShowKeyboardShortcuts(true)}
-              className="apexa-header-icon-button hidden h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-400 transition-all hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700/80 dark:bg-slate-800/60 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300 xl:flex"
+              className="apexa-header-icon-button hidden h-8.5 w-8.5 items-center justify-center rounded-xl border border-slate-200/80 bg-white/70 text-slate-400 shadow-3xs transition-all hover:border-indigo-300/80 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300 xl:flex cursor-pointer"
               title={locale === 'vi' ? 'Phím tắt (?)' : 'Keyboard shortcuts (?)'}
               aria-label={locale === 'vi' ? 'Mở bảng phím tắt' : 'Open keyboard shortcuts'}
             >
@@ -4737,14 +4783,14 @@ export default function App() {
                 <div className="relative">
                   <button
                     onClick={() => setShowDisplayOptionsMenu(!showDisplayOptionsMenu)}
-                    className={`apexa-header-date-button text-[10.5px] font-black tabular-nums font-sans hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border select-none transition-all cursor-pointer group active:scale-95 ${
+                    className={`apexa-header-date-button h-8.5 text-[11.5px] font-bold tabular-nums font-sans hidden xl:inline-flex items-center gap-1.5 px-3 rounded-xl border select-none transition-all cursor-pointer group active:scale-95 shadow-3xs ${
                       showDisplayOptionsMenu
-                        ? 'bg-white dark:bg-slate-800 border-indigo-300/80 dark:border-indigo-500/50 text-indigo-600 dark:text-indigo-300 shadow-md shadow-indigo-500/10'
-                        : 'bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/60 hover:border-indigo-300/70 dark:hover:border-indigo-500/40 hover:shadow-md hover:shadow-indigo-500/10'
+                        ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
+                        : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
                     }`}
                     title={locale === 'vi' ? 'Tùy chọn hiển thị & Định dạng thời gian' : 'Display Options & Date Format'}
                   >
-                    <Calendar className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:rotate-12 transition-transform" />
+                    <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0 group-hover:rotate-12 transition-transform" />
                     {dateFormat === 'clock' && (
                       <span className="relative flex h-1.5 w-1.5 shrink-0" title={locale === 'vi' ? 'Đang cập nhật realtime' : 'Updating live'}>
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -4752,7 +4798,7 @@ export default function App() {
                       </span>
                     )}
                     <span>{formattedDate}</span>
-                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-all group-hover:text-slate-600 dark:group-hover:text-slate-200 ${showDisplayOptionsMenu ? 'rotate-180 text-indigo-500 group-hover:text-indigo-600 dark:text-indigo-300' : ''}`} />
+                    <ChevronDown className={`w-3 h-3 text-slate-400 transition-all group-hover:text-slate-600 dark:group-hover:text-zinc-300 ${showDisplayOptionsMenu ? 'rotate-180 text-blue-500 group-hover:text-blue-600 dark:text-sky-300' : ''}`} />
                   </button>
 
                   {/* Display Options & Date Format Popover Menu */}
@@ -4928,34 +4974,38 @@ export default function App() {
                 whileHover={{ scale: 1.02, y: -0.5 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowPremiumModal(true)}
-                className="apexa-premium-button relative hidden cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl px-3 py-1.5 text-[10.5px] font-black text-white shadow-md transition-all 2xl:flex"
-                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)' }}
+                className="apexa-premium-button relative hidden h-8.5 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl px-3 text-[11px] font-bold text-white shadow-xs transition-all 2xl:flex bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
               >
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>Nâng cấp Premium</span>
-                <span className="absolute inset-0 w-full h-full bg-white/20 transform -skew-x-12 translate-x-full group-hover:translate-x-[-100%] transition-transform duration-1000 ease-out" />
+                <Sparkles className="w-3.5 h-3.5 animate-pulse shrink-0" />
+                <span className="tracking-tight">{locale === 'vi' ? 'Nâng cấp PRO' : 'Upgrade PRO'}</span>
               </motion.button>
             )}
+
+            <div className="hidden xl:block h-4 w-px bg-slate-200/80 dark:bg-white/10 mx-0.5" />
 
             {/* Language Selector Dropdown */}
             <LanguageDropdown size="md" className="apexa-header-language" />
 
             {/* Quick 1-Click Dark Mode Toggle Switch */}
-            <ThemeSwitch size="md" className="apexa-header-theme" />
+            <ThemeSwitch size="sm" className="apexa-header-theme" />
 
             {/* 🔔 Notification Center Dropdown & Badge Manager */}
             <div className="apexa-header-notifications relative">
               <button 
                 ref={notificationsButtonRef}
                 onClick={() => setShowNotificationsMenu(!showNotificationsMenu)}
-                className="apexa-header-icon-button relative cursor-pointer rounded-xl border border-transparent p-2 text-slate-400 transition-colors hover:border-slate-200/50 hover:bg-slate-100/80 hover:text-slate-700 dark:hover:border-slate-700/50 dark:hover:bg-slate-800/80 dark:hover:text-slate-200"
+                className={`apexa-header-icon-button h-8.5 w-8.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-3xs ${
+                  showNotificationsMenu
+                    ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
+                    : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
+                }`}
                 title="Cài đặt thông báo"
                 aria-label="Mở trung tâm thông báo"
                 aria-expanded={showNotificationsMenu}
               >
-                <Bell className="w-4.5 h-4.5" />
+                <Bell className="w-4 h-4" />
                 {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 bg-rose-500 border border-white dark:border-slate-900 rounded-full text-[9px] font-black text-white items-center justify-center animate-pulse shadow-sm">
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 bg-rose-500 border-2 border-white dark:border-[#09090b] rounded-full text-[8.5px] font-black text-white items-center justify-center shadow-xs">
                     {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
                   </span>
                 )}
@@ -5129,6 +5179,8 @@ export default function App() {
               </AnimatePresence>
             </div>
 
+            <div className="hidden sm:block h-4 w-px bg-slate-200/80 dark:bg-white/10 mx-0.5" />
+
             {/* Interactive Connected User Badge and Status Switcher */}
             <div className="relative font-sans text-left">
               <button
@@ -5137,39 +5189,34 @@ export default function App() {
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
                 aria-expanded={showStatusMenu}
                 aria-label={`Tài khoản ${currentUser.name} — ${accountPresenceLabel}`}
-                className={`apexa-profile-trigger cursor-pointer shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border rounded-2xl transition-all select-none shadow-3xs ${
-                  currentUser.isPremium ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-slate-200/60 dark:border-slate-800/60'
+                className={`apexa-profile-trigger cursor-pointer shrink-0 flex items-center gap-2 h-8.5 px-2 bg-white/70 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] border rounded-xl transition-all select-none shadow-3xs ${
+                  showStatusMenu
+                    ? 'border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15'
+                    : currentUser.isPremium 
+                      ? 'border-amber-500/40 hover:border-amber-500/60' 
+                      : 'border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/15'
                 }`}
               >
-                <div className="relative shrink-0 flex">
-                  {/* Glowing border ring for premium users */}
-                  <div className={`absolute -inset-0.5 rounded-xl opacity-75 blur-3xs transition-all duration-300 ${
-                    currentUser.isPremium ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-transparent'
-                  }`} />
-                  <SignedImage filePath={currentUser.avatar} className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/50 dark:border-slate-800/50 shadow-3xs transition-all relative z-10" alt={currentUser.name} />
+                <div className="relative shrink-0 flex items-center">
+                  <SignedImage filePath={currentUser.avatar} className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 object-cover border border-slate-200/60 dark:border-white/10 shadow-3xs transition-all relative z-10" alt={currentUser.name} />
                   {/* Status indicator absolute dot on avatar */}
-                  <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white dark:border-slate-900 z-20 ${
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-[#09090b] z-20 ${
                     presenceDotClass(accountPresenceStatus, true)
                   }`} title={accountPresenceLabel} />
                 </div>
                 
-                <div className="text-left hidden sm:flex flex-col select-none justify-center pr-1 relative z-10">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-[12.5px] text-slate-800 dark:text-slate-100 leading-none truncate max-w-[95px] tracking-tight">
-                      {currentUser.name}
-                    </span>
-                    {currentUser.isPremium ? (
-                      <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase">PRO</span>
-                    ) : (
-                      <span className="text-[7.5px] font-black tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase font-mono">FREE</span>
-                    )}
-                  </div>
-                  <span className="mt-1 text-[9px] font-semibold leading-none text-slate-500 dark:text-slate-400">
-                    {accountPresenceLabel}
+                <div className="text-left hidden sm:flex items-center gap-1.5 select-none justify-center pr-0.5 relative z-10">
+                  <span className="font-bold text-[12px] text-slate-800 dark:text-zinc-100 leading-none truncate max-w-[85px] tracking-tight">
+                    {currentUser.name}
                   </span>
+                  {currentUser.isPremium ? (
+                    <span className="text-[7.5px] font-black tracking-widest bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-md leading-none shadow-xs uppercase">PRO</span>
+                  ) : (
+                    <span className="text-[7.5px] font-black tracking-widest bg-slate-200/80 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 px-1 py-0.5 rounded-md leading-none uppercase font-mono">FREE</span>
+                  )}
                 </div>
 
-                <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform duration-250 shrink-0 relative z-10" />
+                <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 shrink-0 relative z-10 ${showStatusMenu ? 'rotate-180 text-blue-500 dark:text-sky-400' : ''}`} />
               </button>
               
               {/* Dropdown status content menu */}
@@ -5403,7 +5450,7 @@ export default function App() {
         
         <div className="h-full flex flex-col justify-between overflow-hidden gap-2">
           {/* Top Quick Actions Pod */}
-          <div className="shrink-0 space-y-1.5">
+          <div className="shrink-0 space-y-1">
             {/* Quick AI & Command Search Trigger Pill */}
             <button
               type="button"
@@ -5411,47 +5458,42 @@ export default function App() {
                 setIsSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 80);
               }}
-              className={`group flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-400 transition-all duration-200 hover:border-indigo-400/40 hover:bg-gradient-to-r hover:from-indigo-500/10 hover:to-sky-500/10 hover:text-white cursor-pointer ${
+              className={`group flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-300 transition-all duration-150 hover:border-white/[0.14] hover:bg-white/[0.06] hover:text-white cursor-pointer ${
                 isMainSidebarCollapsed 
-                  ? 'h-10 w-10 mx-auto justify-center p-0' 
-                  : 'gap-2 px-2.5 py-1.5 w-full justify-between'
+                  ? 'h-9 w-9 mx-auto justify-center p-0' 
+                  : 'h-[38px] gap-2.5 px-2.5 py-1.5 w-full justify-between'
               }`}
-              title="Apexa AI & Tìm kiếm (⌘K)"
+              title={locale === 'vi' ? 'Apexa AI & Tìm kiếm' : 'Apexa AI & Search'}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400 group-hover:scale-110 group-hover:bg-indigo-500/25 group-hover:text-indigo-300 transition-all">
-                  <Sparkles className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400 group-hover:bg-indigo-500/25 group-hover:text-indigo-300 transition-all">
+                  <Sparkles className="h-4 w-4" />
                 </div>
                 {!isMainSidebarCollapsed && (
-                  <span className="truncate text-[12px] font-bold text-slate-300 group-hover:text-white transition-colors">
-                    Tìm kiếm & AI
+                  <span className="truncate text-[13px] font-medium text-slate-300 group-hover:text-white transition-colors">
+                    {locale === 'vi' ? 'Tìm kiếm & AI' : 'Search & AI'}
                   </span>
                 )}
               </div>
-              {!isMainSidebarCollapsed && (
-                <kbd className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] font-extrabold text-slate-400 group-hover:text-slate-200">
-                  ⌘K
-                </kbd>
-              )}
             </button>
 
             {/* Super Admin Control Center */}
             {currentUser.id === APEXA_SUPER_ADMIN_UID && (
               <a
                 href="/admin"
-                className={`group flex items-center rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-500/15 via-blue-600/10 to-indigo-600/15 text-sky-200 transition-all hover:border-sky-400/60 hover:bg-sky-500/25 hover:text-white shadow-xs ${
-                  isMainSidebarCollapsed ? 'h-10 w-10 mx-auto justify-center p-0' : 'gap-2.5 px-3 py-1.5 w-full'
+                className={`group flex items-center rounded-xl border border-sky-500/25 bg-sky-500/10 text-sky-200 transition-all hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-white ${
+                  isMainSidebarCollapsed ? 'h-9 w-9 mx-auto justify-center p-0' : 'h-[38px] gap-2.5 px-2.5 py-1.5 w-full'
                 }`}
                 title="Apexa Control Center (Admin)"
               >
-                <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400 group-hover:scale-110 group-hover:bg-sky-500/30 group-hover:text-sky-300 transition-all">
+                <div className="relative flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-300 transition-all">
                   <ShieldCheck className="h-4 w-4" />
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0a0f1d] animate-pulse" />
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 ring-1 ring-[#09090b] animate-pulse" />
                 </div>
                 {!isMainSidebarCollapsed && (
                   <div className="flex min-w-0 flex-1 items-center justify-between">
-                    <span className="truncate text-[12.5px] font-extrabold tracking-tight text-white">Control Center</span>
-                    <span className="shrink-0 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-300 border border-sky-400/30">Admin</span>
+                    <span className="truncate text-[13px] font-semibold text-white">Control Center</span>
+                    <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-300 bg-sky-500/20 border border-sky-400/30">Admin</span>
                   </div>
                 )}
               </a>
@@ -5529,14 +5571,14 @@ export default function App() {
       </aside>
 
       {/* Main workspace layout wrapper */}
-      <div className="apexa-content-shell relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="apexa-content-shell relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-transparent">
         
 
         {(() => {
           const isSpaceTab = activeTab === 'tasks' || activeTab === 'my-tasks' || activeTab === 'goals' || activeTab === 'chat' || activeTab === 'docs' || activeTab === 'inbox' || activeTab === 'calendar' || activeTab === 'settings' || activeTab === 'finance';
           
           return (
-            <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden">
+            <main id="apexa-main-content" tabIndex={-1} className="apexa-main-canvas cu-content-area relative h-full w-full flex-1 overflow-hidden bg-white dark:bg-transparent">
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.div
                   key={activeTab}
@@ -5914,92 +5956,68 @@ export default function App() {
               className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" 
             />
             <motion.div 
-              initial={{ scale: 0.92, y: 20, opacity: 0 }} 
+              initial={{ scale: 0.95, y: 14, opacity: 0 }} 
               animate={{ scale: 1, y: 0, opacity: 1 }} 
-              exit={{ scale: 0.92, y: 20, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="relative w-full max-w-[540px] rounded-[28px] bg-white dark:bg-[#0c0e18] border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 text-left font-sans select-none shadow-[0_32px_80px_-12px_rgba(99,102,241,0.18),0_0_0_1px_rgba(99,102,241,0.04)]"
+              exit={{ scale: 0.95, y: 14, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              className="relative w-full max-w-[480px] rounded-3xl bg-[#09090b]/98 border border-white/10 overflow-hidden z-10 text-left font-sans select-none shadow-[0_30px_90px_rgba(0,0,0,0.85)] backdrop-blur-2xl max-h-[90vh] flex flex-col"
             >
-              {/* ── Animated Gradient Top Strip ── */}
+              {/* Top Accent Light Line */}
               <div 
-                className="h-1.5 w-full"
-                style={{
-                  backgroundImage: {
-                    indigo: 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1)',
-                    rose: 'linear-gradient(90deg, #ec4899, #f472b6, #fb7185, #ec4899)',
-                    sky: 'linear-gradient(90deg, #0ea5e9, #38bdf8, #7dd3fc, #0ea5e9)',
-                    emerald: 'linear-gradient(90deg, #10b981, #34d399, #6ee7b7, #10b981)',
-                    amber: 'linear-gradient(90deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b)',
-                    sunset: 'linear-gradient(90deg, #f97316, #fb923c, #fdba74, #f97316)',
-                  }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] || 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 3s linear infinite',
-                }}
-              />
-              <style>{`@keyframes shimmer { 0% { background-position: 0% 50% } 100% { background-position: 200% 50% } }`}</style>
-
-              {/* ── Dynamic Theme Ambient Glow ── */}
-              <div 
+                className="h-1 w-full shrink-0 transition-all duration-300"
                 style={{
                   background: {
-                    indigo: 'radial-gradient(ellipse at top right, rgba(99, 102, 241, 0.08), transparent 65%)',
-                    rose: 'radial-gradient(ellipse at top right, rgba(236, 72, 153, 0.08), transparent 65%)',
-                    sky: 'radial-gradient(ellipse at top right, rgba(14, 165, 233, 0.08), transparent 65%)',
-                    emerald: 'radial-gradient(ellipse at top right, rgba(16, 185, 129, 0.08), transparent 65%)',
-                    amber: 'radial-gradient(ellipse at top right, rgba(245, 158, 11, 0.08), transparent 65%)',
-                    sunset: 'radial-gradient(ellipse at top right, rgba(249, 115, 22, 0.08), transparent 65%)',
-                  }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset']
+                    indigo: 'linear-gradient(90deg, #38bdf8, #2563eb, #6366f1)',
+                    rose: 'linear-gradient(90deg, #fb7185, #e11d48, #be123c)',
+                    sky: 'linear-gradient(90deg, #38bdf8, #0284c7, #0369a1)',
+                    emerald: 'linear-gradient(90deg, #34d399, #059669, #047857)',
+                    amber: 'linear-gradient(90deg, #fbbf24, #d97706, #b45309)',
+                    sunset: 'linear-gradient(90deg, #fb923c, #ea580c, #c2410c)',
+                  }[newSpaceColor as 'indigo' | 'rose' | 'sky' | 'emerald' | 'amber' | 'sunset'] || 'linear-gradient(90deg, #38bdf8, #2563eb)'
                 }}
-                className="absolute inset-0 pointer-events-none transition-all duration-700" 
               />
 
-              <div className="p-6 md:p-7 relative z-10">
+              {/* Modal Body with Custom Scrollbar */}
+              <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 relative z-10">
                 {/* ── Close Button ── */}
                 <button 
                   type="button"
                   onClick={() => setShowAddSpaceModal(false)} 
-                  className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-slate-700/80 flex items-center justify-center transition-all active:scale-90 cursor-pointer z-20 backdrop-blur-sm"
+                  className="absolute top-4 sm:top-5 right-4 sm:right-5 w-7 h-7 rounded-xl bg-white/[0.05] text-zinc-400 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-all cursor-pointer z-20"
+                  aria-label="Đóng cửa sổ"
                 >
                   <X className="w-4 h-4" />
                 </button>
 
-                <form onSubmit={handleAddSpace} className="space-y-5 relative z-10">
+                <form onSubmit={handleAddSpace} className="space-y-4 relative z-10">
                   {/* ── Header ── */}
-                  <div className="space-y-2 pr-8">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-[17px] font-extrabold text-slate-900 dark:text-white tracking-tight">
-                          {t('createSpace') || (locale === 'vi' ? 'Tạo Space mới' : 'Create Space')}
-                        </h3>
-                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                          {t('selectSpaceTemplate') || (locale === 'vi' ? 'Tổ chức đội nhóm, phòng ban & dự án.' : 'Organize teams, departments & projects.')}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-3 pr-8">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-400 text-white flex items-center justify-center shadow-xs shadow-sky-500/20 shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white tracking-tight">
+                        {t('createSpace') || (locale === 'vi' ? 'Tạo Không gian mới' : 'Create Space')}
+                      </h3>
+                      <p className="text-[11px] font-medium text-zinc-400 mt-0.5">
+                        {locale === 'vi' ? 'Không gian làm việc & quản lý dự án' : 'Workspaces & team project hubs'}
+                      </p>
                     </div>
                   </div>
 
-                  {/* ── Template Presets ── */}
-                  <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
-                      {t('spaceTemplateTitle') || (locale === 'vi' ? 'Bắt đầu nhanh' : 'Quick Start')}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
+                  {/* ── Template Presets (Compact Chips) ── */}
+                  <div className="space-y-1.5">
+                    <span className="text-[9.5px] font-black uppercase text-zinc-400 tracking-wider block">
+                      {t('spaceTemplateTitle') || (locale === 'vi' ? 'Mẫu gợi ý' : 'Quick Templates')}
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                       {[
-                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Backlog', iconBg: 'bg-indigo-500/10 text-indigo-500' },
-                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Campaigns & Content', iconBg: 'bg-rose-500/10 text-rose-500' },
-                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System & Reviews', iconBg: 'bg-sky-500/10 text-sky-500' },
-                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Hiring & Operations', iconBg: 'bg-emerald-500/10 text-emerald-500' }
+                        { name: locale === 'vi' ? 'Phát triển phần mềm' : 'Software Development', icon: 'Laptop', color: 'indigo', desc: 'Sprint & Code', iconBg: 'bg-blue-500/15 text-sky-400' },
+                        { name: locale === 'vi' ? 'Marketing & Chiến dịch' : 'Marketing & Campaign', icon: 'Rocket', color: 'rose', desc: 'Content & Ads', iconBg: 'bg-rose-500/15 text-rose-400' },
+                        { name: locale === 'vi' ? 'Thiết kế UX/UI' : 'UX/UI Design', icon: 'Palette', color: 'sky', desc: 'Design System', iconBg: 'bg-sky-500/15 text-sky-300' },
+                        { name: locale === 'vi' ? 'Vận hành & HR' : 'Operations & HR', icon: 'Zap', color: 'emerald', desc: 'Tuyển dụng & Ops', iconBg: 'bg-emerald-500/15 text-emerald-400' }
                       ].map((tpl) => {
                         const isActive = newSpaceName === tpl.name;
-                        const colorAccentMap: Record<string, string> = {
-                          indigo: 'border-indigo-500/60 bg-indigo-50/60 dark:bg-indigo-950/20 ring-1 ring-indigo-500/10',
-                          rose: 'border-rose-500/60 bg-rose-50/60 dark:bg-rose-950/20 ring-1 ring-rose-500/10',
-                          sky: 'border-sky-500/60 bg-sky-50/60 dark:bg-sky-950/20 ring-1 ring-sky-500/10',
-                          emerald: 'border-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/20 ring-1 ring-emerald-500/10',
-                        };
                         return (
                           <button
                             key={tpl.name}
@@ -6010,61 +6028,81 @@ export default function App() {
                               setNewSpaceColor(tpl.color);
                               setNewSpaceDescription(tpl.desc);
                             }}
-                            className={`group relative p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex items-center gap-3 ${
+                            className={`group p-2 sm:p-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer flex items-center gap-2.5 ${
                               isActive
-                                ? (colorAccentMap[tpl.color] || colorAccentMap.indigo)
-                                : 'border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                                ? 'border-sky-500/50 bg-sky-500/10 text-white ring-1 ring-sky-500/20'
+                                : 'border-white/[0.08] bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06] text-zinc-300'
                             }`}
                           >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${tpl.iconBg}`}>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tpl.iconBg}`}>
                               {(() => {
                                 const iconMap: Record<string, React.ReactNode> = {
-                                  'Laptop': <Database className="w-4 h-4" />,
-                                  'Rocket': <Zap className="w-4 h-4" />,
-                                  'Palette': <Sliders className="w-4 h-4" />,
-                                  'Zap': <Users className="w-4 h-4" />,
+                                  'Laptop': <Database className="w-3.5 h-3.5" />,
+                                  'Rocket': <Zap className="w-3.5 h-3.5" />,
+                                  'Palette': <Sliders className="w-3.5 h-3.5" />,
+                                  'Zap': <Users className="w-3.5 h-3.5" />,
                                 };
-                                return iconMap[tpl.icon] || <Sparkles className="w-4 h-4" />;
+                                return iconMap[tpl.icon] || <Sparkles className="w-3.5 h-3.5" />;
                               })()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <span className="block text-[11.5px] font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">{tpl.name}</span>
-                              <span className="block text-[9.5px] font-medium text-slate-400 dark:text-slate-500 truncate mt-0.5">{tpl.desc}</span>
+                              <span className="block text-[11px] font-bold text-white truncate leading-tight">{tpl.name}</span>
+                              <span className="block text-[9px] font-medium text-zinc-400 truncate mt-0.5">{tpl.desc}</span>
                             </div>
-                            {isActive && (
-                              <div className="absolute top-2 right-2">
-                                <Check className="w-3.5 h-3.5 text-indigo-500" />
-                              </div>
-                            )}
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* ── Icon & Theme Color ── */}
-                  <div className="grid grid-cols-12 gap-4">
-                    <div className="col-span-4 space-y-2 text-left">
-                      <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
-                        {t('iconEmoji') || (locale === 'vi' ? 'Biểu tượng' : 'Icon')}
-                      </label>
-                      <div>
+                  {/* ── Space Name & Identity Card ── */}
+                  <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
+                    <div className="flex items-center gap-3">
+                      {/* Icon Picker Trigger */}
+                      <div className="shrink-0">
                         <EmojiIconPicker
                           value={newSpaceEmoji || 'Package'}
                           onChange={setNewSpaceEmoji}
                         />
                       </div>
+
+                      {/* Space Name Input */}
+                      <div className="flex-1 min-w-0">
+                        <label className="text-[9.5px] font-black uppercase text-zinc-400 tracking-wider block mb-1">
+                          {t('spaceName') || (locale === 'vi' ? 'Tên Space' : 'Space Name')} *
+                        </label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={newSpaceName} 
+                          onChange={e => setNewSpaceName(e.target.value)} 
+                          placeholder={locale === 'vi' ? 'Ví dụ: Kỹ thuật, Marketing, HR...' : 'e.g. Engineering, Marketing, HR'} 
+                          className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-white/10 bg-white/[0.04] focus:bg-black/50 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-white outline-none transition-all placeholder:text-zinc-500"
+                        />
+                      </div>
                     </div>
 
-                    <div className="col-span-8 space-y-2 text-left">
-                      <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
-                        {t('themeColor') || (locale === 'vi' ? 'Màu chủ đề' : 'Theme Color')}
-                      </label>
-                      <div className="flex items-center gap-2 mt-0.5">
+                    {/* Description Input */}
+                    <div>
+                      <input 
+                        type="text" 
+                        value={newSpaceDescription} 
+                        onChange={e => setNewSpaceDescription(e.target.value)} 
+                        placeholder={locale === 'vi' ? 'Mô tả ngắn về mục đích không gian này (không bắt buộc)...' : 'Brief description of this space (optional)...'} 
+                        className="w-full px-3 py-1.5 text-[11px] font-medium rounded-xl border border-white/[0.06] bg-white/[0.02] focus:bg-black/50 focus:border-sky-500 text-zinc-200 outline-none transition-all placeholder:text-zinc-600"
+                      />
+                    </div>
+
+                    {/* Color Swatches */}
+                    <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+                      <span className="text-[9.5px] font-bold text-zinc-400">
+                        {locale === 'vi' ? 'Màu chủ đề' : 'Color theme'}
+                      </span>
+                      <div className="flex items-center gap-2">
                         {[
-                          { key: 'indigo', hex: '#6366f1', label: 'Indigo' },
-                          { key: 'rose', hex: '#ec4899', label: 'Rose' },
-                          { key: 'sky', hex: '#0ea5e9', label: 'Sky' },
+                          { key: 'indigo', hex: '#38bdf8', label: 'Sky Blue' },
+                          { key: 'rose', hex: '#f43f5e', label: 'Rose' },
+                          { key: 'sky', hex: '#0284c7', label: 'Ocean' },
                           { key: 'emerald', hex: '#10b981', label: 'Emerald' },
                           { key: 'amber', hex: '#f59e0b', label: 'Amber' },
                           { key: 'sunset', hex: '#f97316', label: 'Orange' },
@@ -6073,84 +6111,45 @@ export default function App() {
                             key={col.key}
                             type="button"
                             onClick={() => setNewSpaceColor(col.key)}
-                            className="group flex flex-col items-center gap-1"
+                            className={`w-5 h-5 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                              newSpaceColor === col.key 
+                                ? 'ring-2 ring-white ring-offset-2 ring-offset-[#09090b] scale-110' 
+                                : 'opacity-60 hover:opacity-100 hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: col.hex }}
+                            title={col.label}
+                            aria-label={col.label}
                           >
-                            <div
-                              className={`w-7 h-7 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer relative ${
-                                newSpaceColor === col.key 
-                                  ? 'ring-2 ring-offset-2 dark:ring-offset-[#0c0e18] scale-110 shadow-lg' 
-                                  : 'opacity-70 hover:opacity-100 hover:scale-105'
-                              }`}
-                              style={{
-                                backgroundColor: col.hex,
-                                ...(newSpaceColor === col.key ? { boxShadow: `0 4px 14px -2px ${col.hex}40` } : {})
-                              }}
-                            >
-                              {newSpaceColor === col.key && <Check className="w-3.5 h-3.5 text-white stroke-[3px] drop-shadow-sm" />}
-                            </div>
-                            <span className={`text-[8px] font-bold transition-colors ${newSpaceColor === col.key ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-600'}`}>
-                              {col.label}
-                            </span>
+                            {newSpaceColor === col.key && <Check className="w-3 h-3 text-white stroke-[3px]" />}
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  {/* ── Space Name Input ── */}
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
-                      {t('spaceName') || (locale === 'vi' ? 'Tên Space' : 'Space Name')}
-                    </label>
-                    <div className="relative group">
-                      <input 
-                        type="text" 
-                        required 
-                        value={newSpaceName} 
-                        onChange={e => setNewSpaceName(e.target.value)} 
-                        placeholder={locale === 'vi' ? 'Ví dụ: Marketing, Kỹ thuật, HR...' : 'e.g. Marketing, Engineering, HR'} 
-                        className="w-full px-4 py-2.5 text-[13px] rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50/80 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-950 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-slate-900 dark:text-white font-bold transition-all placeholder:text-slate-350 placeholder:font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  {/* ── Description ── */}
-                  <div className="space-y-2 text-left">
-                    <label className="text-[10px] font-black uppercase text-slate-400/80 dark:text-slate-500 tracking-[0.08em] block">
-                      {t('descriptionOptional') || (locale === 'vi' ? 'Mô tả (không bắt buộc)' : 'Description (optional)')}
-                    </label>
-                    <input 
-                      type="text" 
-                      value={newSpaceDescription} 
-                      onChange={e => setNewSpaceDescription(e.target.value)} 
-                      placeholder={locale === 'vi' ? 'Nhập mô tả ngắn gọn cho Space...' : 'Provide a brief description...'} 
-                      className="w-full px-4 py-2.5 text-[13px] rounded-xl border border-slate-200 dark:border-slate-800 outline-none bg-slate-50/80 dark:bg-slate-900/60 focus:bg-white dark:focus:bg-slate-950 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-slate-900 dark:text-white font-semibold transition-all placeholder:text-slate-350 placeholder:font-medium"
-                    />
-                  </div>
-
-                  {/* ── Settings Cards ── */}
-                  <div className="space-y-2">
+                  {/* ── Settings: Permissions & Privacy ── */}
+                  <div className="space-y-1.5">
                     {/* Permission Row */}
-                    <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-900/60 dark:to-slate-900/30 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-colors hover:border-slate-300/60 dark:hover:border-slate-700/60">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
-                          <Users className="w-4.5 h-4.5" />
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
+                          <Users className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-left min-w-0">
-                          <span className="block text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền truy cập' : 'Default Permission')}
+                          <span className="block text-[11.5px] font-bold text-zinc-100 leading-tight truncate">
+                            {t('defaultPermission') || (locale === 'vi' ? 'Quyền thành viên' : 'Default Permission')}
                           </span>
-                          <span className="block text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                            {t('defaultPermissionDesc') || (locale === 'vi' ? 'Vai trò ban đầu cho thành viên' : 'Initial role for workspace members')}
+                          <span className="block text-[9.5px] font-medium text-zinc-400 mt-0.5 truncate">
+                            {locale === 'vi' ? 'Quyền ban đầu cho thành viên' : 'Initial role for members'}
                           </span>
                         </div>
                       </div>
                       
-                      <div className="relative shrink-0 ml-3">
+                      <div className="relative shrink-0 ml-2">
                         <button
                           type="button"
                           onClick={() => setShowSpacePermissionMenu(!showSpacePermissionMenu)}
-                          className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 rounded-xl text-[11px] px-3 py-1.5 text-slate-800 dark:text-slate-200 font-extrabold outline-none hover:border-indigo-400 dark:hover:border-indigo-600 cursor-pointer shadow-2xs hover:shadow-sm transition-all group/permBtn"
+                          className="flex items-center gap-1.5 bg-white/[0.06] border border-white/10 rounded-lg text-[11px] px-2.5 py-1 text-zinc-200 font-bold outline-none hover:bg-white/10 hover:border-white/20 cursor-pointer shadow-3xs transition-all"
                         >
                           <span>
                             {newSpacePermission === 'Full edit' ? (locale === 'vi' ? 'Toàn quyền sửa' : 'Full edit') :
@@ -6158,7 +6157,7 @@ export default function App() {
                              newSpacePermission === 'Read only' ? (locale === 'vi' ? 'Chỉ xem' : 'Read only') :
                              (locale === 'vi' ? 'Chỉ bình luận' : 'Comment only')}
                           </span>
-                          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover/permBtn:text-indigo-500 transition-transform duration-200 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-150 ${showSpacePermissionMenu ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
@@ -6166,17 +6165,17 @@ export default function App() {
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setShowSpacePermissionMenu(false)} />
                               <motion.div
-                                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                                initial={{ opacity: 0, y: -4, scale: 0.96 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                                transition={{ duration: 0.15, type: 'spring', stiffness: 400, damping: 28 }}
-                                className="absolute right-0 top-full mt-1.5 w-52 p-1.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl backdrop-blur-xl z-50 space-y-0.5 text-left"
+                                exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                                transition={{ duration: 0.12 }}
+                                className="absolute right-0 top-full mt-1.5 w-48 p-1 bg-[#121217] border border-white/15 rounded-xl shadow-2xl backdrop-blur-xl z-50 space-y-0.5 text-left"
                               >
                                 {[
-                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access to view and edit', descVi: 'Toàn quyền quản lý & chỉnh sửa' },
-                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit content & tasks', descVi: 'Chỉnh sửa nội dung & công việc' },
-                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only access', descVi: 'Chỉ có quyền xem nội dung' },
-                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can view and post comments', descVi: 'Xem và bình luận công việc' },
+                                  { value: 'Full edit', labelEn: 'Full edit', labelVi: 'Toàn quyền sửa', descEn: 'Full access', descVi: 'Toàn quyền quản lý' },
+                                  { value: 'Edit only', labelEn: 'Edit only', labelVi: 'Chỉ chỉnh sửa', descEn: 'Can edit content', descVi: 'Chỉnh sửa nội dung' },
+                                  { value: 'Read only', labelEn: 'Read only', labelVi: 'Chỉ xem', descEn: 'View-only', descVi: 'Chỉ xem' },
+                                  { value: 'Comment only', labelEn: 'Comment only', labelVi: 'Chỉ bình luận', descEn: 'Can comment', descVi: 'Bình luận' },
                                 ].map((opt) => {
                                   const isSelected = newSpacePermission === opt.value;
                                   return (
@@ -6187,21 +6186,21 @@ export default function App() {
                                         setNewSpacePermission(opt.value);
                                         setShowSpacePermissionMenu(false);
                                       }}
-                                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer ${
+                                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
                                         isSelected 
-                                          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-extrabold' 
-                                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-bold'
+                                          ? 'bg-blue-600/20 text-sky-400 font-bold' 
+                                          : 'hover:bg-white/[0.06] text-zinc-300 font-medium'
                                       }`}
                                     >
                                       <div>
                                         <div className="text-[11px] leading-tight">
                                           {locale === 'vi' ? opt.labelVi : opt.labelEn}
                                         </div>
-                                        <div className="text-[9px] font-normal text-slate-400 dark:text-slate-500 mt-0.5">
+                                        <div className="text-[8.5px] text-zinc-400 mt-0.5">
                                           {locale === 'vi' ? opt.descVi : opt.descEn}
                                         </div>
                                       </div>
-                                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2 stroke-[3]" />}
+                                      {isSelected && <Check className="w-3 h-3 text-sky-400 shrink-0 ml-2 stroke-[3]" />}
                                     </button>
                                   );
                                 })}
@@ -6213,17 +6212,17 @@ export default function App() {
                     </div>
 
                     {/* Private Toggle */}
-                    <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-900/60 dark:to-slate-900/30 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl transition-colors hover:border-slate-300/60 dark:hover:border-slate-700/60">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-rose-500/15 text-rose-500' : 'bg-slate-200/60 dark:bg-slate-800/60 text-slate-400'}`}>
-                          <Lock className="w-4.5 h-4.5" />
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${newSpaceIsPrivate ? 'bg-amber-500/15 text-amber-400' : 'bg-white/[0.06] text-zinc-400'}`}>
+                          <Lock className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-left min-w-0">
-                          <span className="block text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
-                            {t('makePrivateSpace') || (locale === 'vi' ? 'Space Riêng tư' : 'Make Private Space')}
+                          <span className="block text-[11.5px] font-bold text-zinc-100 leading-tight truncate">
+                            {t('makePrivateSpace') || (locale === 'vi' ? 'Không gian riêng tư' : 'Private Space')}
                           </span>
-                          <span className="block text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                            {t('makePrivateSpaceDesc') || (locale === 'vi' ? 'Chỉ bạn và người được mời mới truy cập' : 'Only you and invited members can access')}
+                          <span className="block text-[9.5px] font-medium text-zinc-400 mt-0.5 truncate">
+                            {locale === 'vi' ? 'Chỉ bạn và người được mời xem được' : 'Only invited members can access'}
                           </span>
                         </div>
                       </div>
@@ -6231,13 +6230,15 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setNewSpaceIsPrivate(!newSpaceIsPrivate)}
-                        className={`w-11 h-[26px] flex items-center rounded-full p-[3px] cursor-pointer transition-all duration-300 outline-none shrink-0 ${
-                          newSpaceIsPrivate ? 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-md shadow-blue-500/20' : 'bg-slate-200 dark:bg-slate-800'
+                        className={`w-9 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-200 outline-none shrink-0 ${
+                          newSpaceIsPrivate ? 'bg-blue-600' : 'bg-zinc-800 border border-white/10'
                         }`}
+                        aria-pressed={newSpaceIsPrivate}
+                        aria-label="Bật chế độ riêng tư"
                       >
                         <div 
-                          className={`bg-white w-5 h-5 rounded-full transform transition-all duration-300 ease-out shadow-sm ${
-                            newSpaceIsPrivate ? 'translate-x-[18px]' : 'translate-x-0'
+                          className={`bg-white w-4 h-4 rounded-full transform transition-transform duration-200 ease-out shadow-xs ${
+                            newSpaceIsPrivate ? 'translate-x-4' : 'translate-x-0'
                           }`}
                         />
                       </button>
@@ -6245,21 +6246,21 @@ export default function App() {
                   </div>
 
                   {/* ── Footer Actions ── */}
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                     <button 
                       type="button" 
                       onClick={() => setShowAddSpaceModal(false)}
-                      className="px-5 py-2.5 rounded-xl text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer active:scale-95"
+                      className="h-8.5 px-4 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
                     >
                       {t('cancel') || (locale === 'vi' ? 'Hủy' : 'Cancel')}
                     </button>
                     
                     <button 
                       type="submit" 
-                      className="group px-6 py-2.5 rounded-xl text-[12px] font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.97] shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
+                      className="h-8.5 px-5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                     >
                       <span>{t('createSpace') || (locale === 'vi' ? 'Tạo Space' : 'Create Space')}</span>
-                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </form>

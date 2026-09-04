@@ -7,7 +7,8 @@ import {
   CheckCircle2, TrendingUp,
   Activity, FileText, Bot, Clock, Sparkles, AlertCircle,
   PieChart as PieIcon, ListTodo, Flame, Zap, X, Database, WifiOff, ArrowUpRight, Calendar,
-  UserRound, UsersRound, Pin, ArrowRight
+  UserRound, UsersRound, Pin, ArrowRight, Settings2, Download, LockKeyhole,
+  Crown, BarChart3, LineChart, ShieldCheck, Target, CalendarDays, RotateCcw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -18,6 +19,17 @@ import { callAiApi } from '@/lib/aiClient';
 import { SegmentedControl } from '@/components/ui';
 
 type DashboardScope = 'workspace' | 'mine';
+type DashboardRange = 7 | 30 | 90;
+type DashboardChartMode = 'area' | 'bar';
+type DashboardWidgetKey = 'focus' | 'kpis' | 'charts' | 'execution' | 'ai';
+
+const DEFAULT_DASHBOARD_WIDGETS: Record<DashboardWidgetKey, boolean> = {
+  focus: true,
+  kpis: true,
+  charts: true,
+  execution: true,
+  ai: true,
+};
 
 interface DashboardOverviewProps {
   tasks: Task[];
@@ -88,13 +100,36 @@ function DashboardOverview({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [reportError, setReportError] = useState<string>('');
   const [dashboardScope, setDashboardScope] = useState<DashboardScope>('workspace');
+  const [dashboardRange, setDashboardRange] = useState<DashboardRange>(30);
+  const [chartMode, setChartMode] = useState<DashboardChartMode>('area');
+  const [showDashboardSettings, setShowDashboardSettings] = useState(false);
+  const [visibleWidgets, setVisibleWidgets] = useState<Record<DashboardWidgetKey, boolean>>(DEFAULT_DASHBOARD_WIDGETS);
 
   useEffect(() => {
     try {
       const savedScope = localStorage.getItem('apexa_dashboard_scope');
       if (savedScope === 'workspace' || savedScope === 'mine') setDashboardScope(savedScope);
+      const savedPreferences = localStorage.getItem('apexa_dashboard_preferences');
+      if (savedPreferences) {
+        const preferences = JSON.parse(savedPreferences);
+        if ([7, 30, 90].includes(preferences.range)) setDashboardRange(preferences.range);
+        if (preferences.chartMode === 'area' || preferences.chartMode === 'bar') setChartMode(preferences.chartMode);
+        if (preferences.widgets) {
+          setVisibleWidgets({ ...DEFAULT_DASHBOARD_WIDGETS, ...preferences.widgets });
+        }
+      }
     } catch (e) {}
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('apexa_dashboard_preferences', JSON.stringify({
+        range: dashboardRange,
+        chartMode,
+        widgets: visibleWidgets,
+      }));
+    } catch (e) {}
+  }, [chartMode, dashboardRange, visibleWidgets]);
 
   const currentUserIds = useMemo(() => new Set(
     [currentUser?.id, currentUser?.userId].filter(Boolean) as string[]
@@ -119,6 +154,59 @@ function DashboardOverview({
   const handleScopeChange = (scope: DashboardScope) => {
     setDashboardScope(scope);
     try { localStorage.setItem('apexa_dashboard_scope', scope); } catch (e) {}
+  };
+
+  const handleRangeChange = (range: DashboardRange) => {
+    if (range === 90 && !currentUser?.isPremium) {
+      onUpgradePremium?.();
+      return;
+    }
+    setDashboardRange(range);
+  };
+
+  const toggleWidget = (widget: DashboardWidgetKey) => {
+    setVisibleWidgets((current) => ({ ...current, [widget]: !current[widget] }));
+  };
+
+  const resetDashboardPreferences = () => {
+    setDashboardRange(30);
+    setChartMode('area');
+    setVisibleWidgets(DEFAULT_DASHBOARD_WIDGETS);
+    triggerToast?.(
+      'success',
+      locale === 'vi' ? 'Đã đặt lại Dashboard' : 'Dashboard reset',
+      locale === 'vi' ? 'Bố cục và bộ lọc đã trở về mặc định.' : 'Layout and filters were restored to defaults.',
+    );
+  };
+
+  const exportDashboardCsv = () => {
+    const headers = ['ID', 'Title', 'Status', 'Priority', 'Assignee', 'Start date', 'Due date', 'Estimated hours', 'Logged hours'];
+    const memberMap = new Map(members.map((member) => [member.id, member.name]));
+    const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = scopedTasks.map((task) => [
+      task.id,
+      task.title,
+      task.status,
+      task.priority,
+      memberMap.get(task.assigneeId || '') || '',
+      task.startDate || '',
+      task.dueDate || '',
+      task.hoursEstimate || 0,
+      task.hoursLogged || 0,
+    ]);
+    const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(escapeCell).join(',')).join('\n')}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `apexa-dashboard-${getLocalDateKey(new Date())}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    triggerToast?.(
+      'success',
+      locale === 'vi' ? 'Đã xuất dữ liệu' : 'Export complete',
+      locale === 'vi' ? `${scopedTasks.length} công việc đã được xuất ra CSV.` : `${scopedTasks.length} tasks were exported to CSV.`,
+    );
   };
 
   // Daily morning briefing notification state
@@ -283,20 +371,24 @@ function DashboardOverview({
   const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   const weeklyData = useMemo(() => {
-    const labels = locale === 'vi'
-      ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
-    monday.setHours(0, 0, 0, 0);
+    now.setHours(23, 59, 59, 999);
 
-    return labels.map((name, index) => {
-      const targetDate = new Date(monday);
-      targetDate.setDate(monday.getDate() + index);
+    return Array.from({ length: dashboardRange }, (_, index) => {
+      const targetDate = new Date(now);
+      targetDate.setDate(now.getDate() - (dashboardRange - 1 - index));
       const dateKey = getLocalDateKey(targetDate);
       return {
-        name,
+        name: targetDate.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+          day: '2-digit',
+          month: dashboardRange === 7 ? undefined : '2-digit',
+          weekday: dashboardRange === 7 ? 'short' : undefined,
+        }),
+        fullDate: targetDate.toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }),
         created: scopedTasks.filter((task) => {
           const createdAt = parseTaskDate(task.createdAt);
           return createdAt ? getLocalDateKey(createdAt) === dateKey : false;
@@ -308,13 +400,13 @@ function DashboardOverview({
         }).length,
       };
     });
-  }, [locale, scopedTasks]);
+  }, [dashboardRange, locale, scopedTasks]);
 
   const velocityData = useMemo(() => {
     const now = new Date();
-    return Array.from({ length: 30 }, (_, index) => {
+    return Array.from({ length: dashboardRange }, (_, index) => {
       const date = new Date(now);
-      date.setDate(now.getDate() - (29 - index));
+      date.setDate(now.getDate() - (dashboardRange - 1 - index));
       const dateKey = getLocalDateKey(date);
       return {
         date: `${date.getDate()}/${date.getMonth() + 1}`,
@@ -325,7 +417,7 @@ function DashboardOverview({
         }).length,
       };
     });
-  }, [scopedTasks]);
+  }, [dashboardRange, scopedTasks]);
 
   const memberEffortData = useMemo(() => members.map((member) => {
     const memberTasks = scopedTasks.filter((task) => (
@@ -351,13 +443,72 @@ function DashboardOverview({
     return { totalCreated, totalCompleted };
   }, [weeklyData]);
 
+  const periodInsights = useMemo(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+    start.setDate(end.getDate() - (dashboardRange - 1));
+    start.setHours(0, 0, 0, 0);
+    const previousEnd = new Date(start.getTime() - 1);
+    const previousStart = new Date(previousEnd);
+    previousStart.setDate(previousEnd.getDate() - (dashboardRange - 1));
+    previousStart.setHours(0, 0, 0, 0);
+
+    const completedInRange = (from: Date, to: Date) => scopedTasks.filter((task) => {
+      if (task.status !== 'completed' || !task.completedAt) return false;
+      const completedAt = parseTaskDate(task.completedAt);
+      return Boolean(completedAt && completedAt >= from && completedAt <= to);
+    }).length;
+
+    const completedCurrent = completedInRange(start, end);
+    const completedPrevious = completedInRange(previousStart, previousEnd);
+    const completionDelta = completedPrevious === 0
+      ? (completedCurrent > 0 ? 100 : 0)
+      : Math.round(((completedCurrent - completedPrevious) / completedPrevious) * 100);
+
+    const now = Date.now();
+    const dueSoonLimit = now + (7 * 24 * 60 * 60 * 1000);
+    const openTasks = scopedTasks.filter((task) => task.status !== 'completed');
+    const atRisk = openTasks.filter((task) => {
+      const dueDate = parseTaskDate(task.dueDate, true)?.getTime();
+      return task.priority === 'urgent' || Boolean(dueDate && dueDate < now);
+    }).length;
+    const dueSoon = openTasks.filter((task) => {
+      const dueDate = parseTaskDate(task.dueDate, true)?.getTime();
+      return Boolean(dueDate && dueDate >= now && dueDate <= dueSoonLimit);
+    }).length;
+    const unassigned = openTasks.filter((task) => !task.assigneeId && (!task.assigneeIds || task.assigneeIds.length === 0)).length;
+    const noDueDate = openTasks.filter((task) => !task.dueDate).length;
+    const cycleTimes = scopedTasks.flatMap((task) => {
+      if (!task.createdAt || !task.completedAt) return [];
+      const createdAt = parseTaskDate(task.createdAt);
+      const completedAt = parseTaskDate(task.completedAt);
+      if (!createdAt || !completedAt || completedAt < createdAt) return [];
+      return [(completedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)];
+    });
+
+    return {
+      completedCurrent,
+      completedPrevious,
+      completionDelta,
+      atRisk,
+      dueSoon,
+      unassigned,
+      noDueDate,
+      averageCycleDays: cycleTimes.length
+        ? Math.round((cycleTimes.reduce((sum, value) => sum + value, 0) / cycleTimes.length) * 10) / 10
+        : 0,
+    };
+  }, [dashboardRange, scopedTasks]);
+
   const CustomChartTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const displayLabel = payload[0]?.payload?.fullDate || label;
       return (
         <div className="bg-slate-950/95 dark:bg-slate-900/95 border border-slate-700/80 p-3 rounded-2xl shadow-2xl space-y-1.5 backdrop-blur-xl z-50 text-left min-w-[150px]">
           <div className="flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
             <Calendar className="w-3 h-3 text-indigo-400" />
-            <p className="text-[10.5px] font-black text-slate-300 uppercase tracking-wider">{label}</p>
+            <p className="text-[10.5px] font-black text-slate-300 uppercase tracking-wider">{displayLabel}</p>
           </div>
           <div className="space-y-1.5 pt-0.5">
             {payload.map((item: any, idx: number) => {
@@ -522,7 +673,7 @@ function DashboardOverview({
           <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:shrink-0">
             <button 
               type="button" 
-              onClick={() => onNavigate('tasks')}
+              onClick={() => onNavigate('calendar')}
               className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-colors shadow-xs cursor-pointer"
             >
               {locale === 'vi' ? 'Xử lý ngay' : 'Review Tasks'}
@@ -546,7 +697,7 @@ function DashboardOverview({
         initial={prefersReducedMotion ? false : { opacity: 0, y: 16, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 140, damping: 22 }}
-        className="relative isolate flex flex-col items-start justify-between gap-6 overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-white/[0.08] bg-gradient-to-br from-white/95 via-slate-50/80 to-indigo-50/25 dark:from-[#0e121b]/95 dark:via-[#0a0d14]/90 dark:to-indigo-950/20 p-6 sm:p-7 md:flex-row md:items-center md:p-8 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_50px_-24px_rgba(0,0,0,0.6)] backdrop-blur-2xl text-left"
+        className="relative isolate flex flex-col items-start justify-between gap-6 overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-white/[0.08] bg-gradient-to-br from-white/95 via-slate-50/80 to-indigo-50/25 dark:from-[#181818]/95 dark:via-[#121212]/90 dark:to-indigo-950/20 p-6 sm:p-7 md:flex-row md:items-center md:p-8 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_50px_-24px_rgba(0,0,0,0.6)] backdrop-blur-2xl text-left"
       >
         {/* Organic ambient light gradients */}
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-blue-400/15 blur-3xl dark:bg-blue-500/10" />
@@ -598,7 +749,7 @@ function DashboardOverview({
             ]}
           />
           <motion.button
-            onClick={() => onNavigate('tasks')}
+            onClick={() => onNavigate('calendar')}
             whileHover={prefersReducedMotion ? undefined : { y: -1, scale: 1.01 }}
             whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
             className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 transition-all cursor-pointer group"
@@ -610,12 +761,84 @@ function DashboardOverview({
         </div>
       </motion.div>
 
+      {/* ── Dashboard controls ── */}
+      <div className="relative z-20 flex flex-col gap-3 rounded-[22px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_14px_40px_-32px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#121212]/90 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-300">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {isOffline ? (locale === 'vi' ? 'Dữ liệu cục bộ' : 'Local data') : isSynced ? (locale === 'vi' ? 'Dữ liệu đã đồng bộ' : 'Synced data') : (locale === 'vi' ? 'Dữ liệu trực tiếp' : 'Live data')}
+          </div>
+          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-700 dark:bg-slate-900/80" aria-label={locale === 'vi' ? 'Khoảng thời gian phân tích' : 'Analytics date range'}>
+            {([7, 30, 90] as DashboardRange[]).map((range) => {
+              const isLocked = range === 90 && !currentUser?.isPremium;
+              return (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => handleRangeChange(range)}
+                  aria-pressed={dashboardRange === range}
+                  className={`inline-flex h-8 items-center gap-1 rounded-lg px-3 text-[11px] font-black transition-all ${dashboardRange === range ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                >
+                  {range} {locale === 'vi' ? 'ngày' : 'days'}
+                  {isLocked && <LockKeyhole className="h-3 w-3 text-amber-500" />}
+                </button>
+              );
+            })}
+          </div>
+          <span className={`inline-flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-black ${periodInsights.completionDelta >= 0 ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+            <TrendingUp className={`h-3.5 w-3.5 ${periodInsights.completionDelta < 0 ? 'rotate-180' : ''}`} />
+            {periodInsights.completionDelta >= 0 ? '+' : ''}{periodInsights.completionDelta}% {locale === 'vi' ? 'so với kỳ trước' : 'vs previous period'}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+            <button type="button" onClick={() => setChartMode('area')} aria-label={locale === 'vi' ? 'Biểu đồ đường' : 'Area chart'} aria-pressed={chartMode === 'area'} className={`grid h-8 w-8 place-items-center rounded-lg transition ${chartMode === 'area' ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-300' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><LineChart className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setChartMode('bar')} aria-label={locale === 'vi' ? 'Biểu đồ cột' : 'Bar chart'} aria-pressed={chartMode === 'bar'} className={`grid h-8 w-8 place-items-center rounded-lg transition ${chartMode === 'bar' ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-300' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}><BarChart3 className="h-4 w-4" /></button>
+          </div>
+          <button type="button" onClick={exportDashboardCsv} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[11px] font-black text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-700">
+            <Download className="h-4 w-4" /> {locale === 'vi' ? 'Xuất CSV' : 'Export CSV'}
+          </button>
+          {!currentUser?.isPremium && (
+            <button type="button" onClick={onUpgradePremium} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-3.5 text-[11px] font-black text-white shadow-md shadow-orange-500/20 transition hover:brightness-105">
+              <Crown className="h-4 w-4" /> {locale === 'vi' ? 'Mở khoá Analytics Pro' : 'Unlock Analytics Pro'}
+            </button>
+          )}
+          <div className="relative">
+            <button type="button" onClick={() => setShowDashboardSettings((current) => !current)} aria-expanded={showDashboardSettings} aria-haspopup="menu" className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-[11px] font-black shadow-sm transition ${showDashboardSettings ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'}`}>
+              <Settings2 className="h-4 w-4" /> {locale === 'vi' ? 'Tuỳ chỉnh' : 'Customize'}
+            </button>
+            {showDashboardSettings && (
+              <div role="menu" className="absolute right-0 top-12 z-50 w-[280px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <div><p className="text-xs font-black text-slate-900 dark:text-white">{locale === 'vi' ? 'Bố cục Dashboard' : 'Dashboard layout'}</p><p className="text-[10px] text-slate-400">{locale === 'vi' ? 'Ẩn hoặc hiện từng khu vực' : 'Show or hide each section'}</p></div>
+                  <button type="button" onClick={resetDashboardPreferences} title={locale === 'vi' ? 'Đặt lại' : 'Reset'} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800"><RotateCcw className="h-3.5 w-3.5" /></button>
+                </div>
+                <div className="space-y-1">
+                  {([
+                    ['focus', locale === 'vi' ? 'Hàng ưu tiên' : 'Priority queue'],
+                    ['kpis', locale === 'vi' ? 'Chỉ số tổng quan' : 'Overview metrics'],
+                    ['charts', locale === 'vi' ? 'Biểu đồ hiệu suất' : 'Performance charts'],
+                    ['execution', locale === 'vi' ? 'Vận tốc & cảnh báo' : 'Velocity & alerts'],
+                    ['ai', locale === 'vi' ? 'Báo cáo AI' : 'AI report'],
+                  ] as [DashboardWidgetKey, string][]).map(([key, label]) => (
+                    <button key={key} type="button" role="menuitemcheckbox" aria-checked={visibleWidgets[key]} onClick={() => toggleWidget(key)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+                      <span>{label}</span><span className={`relative h-5 w-9 rounded-full transition ${visibleWidgets[key] ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${visibleWidgets[key] ? 'translate-x-[18px]' : 'translate-x-0.5'}`} /></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ── Priority command queue ── */}
-      <motion.section
+      {visibleWidgets.focus && <motion.section
         initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.04, type: 'spring', stiffness: 150, damping: 22 }}
-        className="relative overflow-hidden rounded-[26px] border border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/70 p-4 shadow-[0_20px_55px_-40px_rgba(79,70,229,0.65)] dark:border-indigo-900/55 dark:from-indigo-950/25 dark:via-[#0d0f18] dark:to-sky-950/20 sm:p-5"
+        className="relative overflow-hidden rounded-[26px] border border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/70 p-4 shadow-[0_20px_55px_-40px_rgba(79,70,229,0.65)] dark:border-indigo-900/55 dark:from-indigo-950/25 dark:via-[#121212] dark:to-sky-950/20 sm:p-5"
       >
         <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl dark:bg-indigo-500/10" />
         <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -662,7 +885,7 @@ function DashboardOverview({
                 <motion.button
                   key={task.id}
                   type="button"
-                  onClick={() => onOpenTask ? onOpenTask(task.id) : onNavigate('tasks')}
+                  onClick={() => onOpenTask ? onOpenTask(task.id) : onNavigate('calendar')}
                   whileHover={prefersReducedMotion ? undefined : { y: -3 }}
                   whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
                   className="group flex min-h-[136px] flex-col rounded-[20px] border border-white/90 bg-white/85 p-4 text-left shadow-[0_14px_35px_-28px_rgba(15,23,42,0.7)] transition-colors hover:border-indigo-300 hover:bg-white dark:border-slate-800/90 dark:bg-slate-950/60 dark:hover:border-indigo-800 dark:hover:bg-slate-950/85"
@@ -715,10 +938,10 @@ function DashboardOverview({
             )}
           </div>
         )}
-      </motion.section>
+      </motion.section>}
 
       {/* ── 4 Hero KPI Cards ── */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {visibleWidgets.kpis && <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
           { 
             label: t('dashboardCompletionRate') || 'Tỷ lệ hoàn thành', 
@@ -767,7 +990,7 @@ function DashboardOverview({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             whileHover={prefersReducedMotion ? undefined : { y: -5, scale: 1.01 }}
             transition={{ delay: i * 0.06, type: 'spring', stiffness: 180, damping: 20 }}
-            className="group relative min-h-[154px] overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/95 p-5 text-left shadow-[0_18px_55px_-36px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-colors hover:border-indigo-300/80 hover:shadow-[0_22px_60px_-32px_rgba(79,70,229,0.38)] dark:border-slate-800/90 dark:bg-[#0d0f18]/95 dark:hover:border-indigo-800/80 sm:p-6"
+            className="group relative min-h-[154px] overflow-hidden rounded-[26px] border border-slate-200/80 bg-white/95 p-5 text-left shadow-[0_18px_55px_-36px_rgba(15,23,42,0.5)] backdrop-blur-xl transition-colors hover:border-indigo-300/80 hover:shadow-[0_22px_60px_-32px_rgba(79,70,229,0.38)] dark:border-slate-800/90 dark:bg-[#121212]/95 dark:hover:border-indigo-800/80 sm:p-6"
           >
             <div className={`pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl transition-transform duration-500 group-hover:scale-125 ${card.glow}`} />
             <div className="relative flex items-center justify-between">
@@ -803,14 +1026,31 @@ function DashboardOverview({
             </div>
           </motion.div>
         ))}
-      </div>
+      </div>}
+
+      {visibleWidgets.kpis && totalTasks > 0 && (
+        <section className="grid grid-cols-2 overflow-hidden rounded-[22px] border border-slate-200/80 bg-white/90 shadow-[0_14px_42px_-34px_rgba(15,23,42,0.5)] dark:border-slate-800/90 dark:bg-[#121212]/90 md:grid-cols-5" aria-label={locale === 'vi' ? 'Sức khoẻ công việc' : 'Task health'}>
+          {[
+            { label: locale === 'vi' ? 'Có rủi ro' : 'At risk', value: periodInsights.atRisk, detail: locale === 'vi' ? 'Quá hạn hoặc khẩn cấp' : 'Overdue or urgent', icon: AlertCircle, tone: 'text-rose-600 bg-rose-50 dark:text-rose-300 dark:bg-rose-950/35' },
+            { label: locale === 'vi' ? 'Đến hạn 7 ngày' : 'Due in 7 days', value: periodInsights.dueSoon, detail: locale === 'vi' ? 'Cần lên kế hoạch' : 'Needs planning', icon: CalendarDays, tone: 'text-amber-600 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/35' },
+            { label: locale === 'vi' ? 'Chưa phân công' : 'Unassigned', value: periodInsights.unassigned, detail: locale === 'vi' ? 'Đang mở' : 'Open tasks', icon: UserRound, tone: 'text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-950/35' },
+            { label: locale === 'vi' ? 'Chưa có hạn' : 'No due date', value: periodInsights.noDueDate, detail: locale === 'vi' ? 'Thiếu lịch giao' : 'Missing schedule', icon: Target, tone: 'text-sky-600 bg-sky-50 dark:text-sky-300 dark:bg-sky-950/35' },
+            { label: locale === 'vi' ? 'Chu kỳ trung bình' : 'Avg. cycle time', value: `${periodInsights.averageCycleDays}d`, detail: locale === 'vi' ? 'Tạo đến hoàn thành' : 'Created to completed', icon: Clock, tone: 'text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/35' },
+          ].map((item) => (
+            <div key={item.label} className="flex min-h-[104px] items-center gap-3 border-b border-r border-slate-100 p-4 last:border-r-0 dark:border-slate-800/80 md:border-b-0">
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${item.tone}`}><item.icon className="h-4 w-4" /></span>
+              <div className="min-w-0"><p className="truncate text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">{item.label}</p><p className="mt-1 text-xl font-black tabular-nums text-slate-950 dark:text-white">{item.value}</p><p className="truncate text-[10px] font-semibold text-slate-400">{item.detail}</p></div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ── Interactive Productivity Charts Grid ── */}
-      {totalTasks === 0 ? (
+      {visibleWidgets.charts && (totalTasks === 0 ? (
         <motion.div 
           initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1 }}
-          className="space-y-3 rounded-[28px] border border-dashed border-indigo-200/80 bg-gradient-to-br from-blue-50/60 via-white to-sky-50/50 p-8 text-center shadow-inner dark:border-indigo-900/60 dark:from-blue-950/20 dark:via-[#0d0f18] dark:to-sky-950/20 md:p-12"
+          className="space-y-3 rounded-[28px] border border-dashed border-indigo-200/80 bg-gradient-to-br from-blue-50/60 via-white to-sky-50/50 p-8 text-center shadow-inner dark:border-indigo-900/60 dark:from-blue-950/20 dark:via-[#121212] dark:to-sky-950/20 md:p-12"
         >
           <ListTodo className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto animate-bounce" />
           <h3 className="font-bold text-slate-800 dark:text-slate-200">{t('noTasksFound') || 'Chưa có dữ liệu phân tích'}</h3>
@@ -832,7 +1072,7 @@ function DashboardOverview({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12, type: 'spring', stiffness: 140, damping: 22 }}
-            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0d0f18]/95 sm:p-6 lg:col-span-8"
+            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#121212]/95 sm:p-6 lg:col-span-8"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <div>
@@ -840,7 +1080,7 @@ function DashboardOverview({
                   <div className="w-7 h-7 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                     <TrendingUp className="w-4 h-4" />
                   </div>
-                  <span>{t('dashboardWeeklyProgress') || 'Tiến độ tuần'}</span>
+                  <span>{locale === 'vi' ? `Xu hướng hiệu suất · ${dashboardRange} ngày` : `Performance trend · ${dashboardRange} days`}</span>
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">{locale === 'vi' ? 'Số công việc được tạo và hoàn thành theo thời điểm đã lưu' : 'Tasks created and completed using their stored timestamps'}</p>
               </div>
@@ -863,14 +1103,14 @@ function DashboardOverview({
                     onClick={() => setActiveMetricTab('progress')}
                     className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'progress' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
-                    {locale === 'vi' ? 'Tuần này' : 'This week'}
+                    {locale === 'vi' ? 'Xu hướng' : 'Trend'}
                   </button>
                   {memberEffortData.length > 0 && (
                     <button
-                      onClick={() => setActiveMetricTab('priority')}
+                      onClick={() => currentUser?.isPremium ? setActiveMetricTab('priority') : onUpgradePremium?.()}
                       className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeMetricTab === 'priority' ? 'bg-white dark:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
                     >
-                      {locale === 'vi' ? 'Nỗ lực' : 'Effort'}
+                      <span className="inline-flex items-center gap-1">{locale === 'vi' ? 'Nỗ lực' : 'Effort'}{!currentUser?.isPremium && <LockKeyhole className="h-3 w-3 text-amber-500" />}</span>
                     </button>
                   )}
                 </div>
@@ -880,7 +1120,7 @@ function DashboardOverview({
             {/* Chart Container */}
             <div className="h-[180px] w-full pt-4 sm:h-[240px] md:h-[280px] sm:pt-5">
               <ResponsiveContainer width="100%" height="100%">
-                {activeMetricTab === 'progress' ? (
+                {activeMetricTab === 'progress' ? chartMode === 'area' ? (
                   <AreaChart data={weeklyData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="weeklyDone" x1="0" y1="0" x2="0" y2="1">
@@ -893,12 +1133,21 @@ function DashboardOverview({
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <XAxis dataKey="name" interval={dashboardRange === 7 ? 0 : dashboardRange === 30 ? 4 : 13} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
                     <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax, 4)]} tickCount={5} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
                     <Tooltip content={<CustomChartTooltip />} />
                     <Area name={t('dashboardCompleted') || (locale === 'vi' ? 'Đã xong' : 'Completed')} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={3} dot={{ r: 3.5, fill: '#6366f1', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6.5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#weeklyDone)" />
                     <Area name={t('dashboardCreated') || (locale === 'vi' ? 'Đã tạo mới' : 'Created')} type="monotone" dataKey="created" stroke="#a855f7" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 3.5, fill: '#a855f7', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6.5, fill: '#a855f7', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#weeklyCreated)" />
                   </AreaChart>
+                ) : (
+                  <BarChart data={weeklyData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }} barGap={2}>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                    <XAxis dataKey="name" interval={dashboardRange === 7 ? 0 : dashboardRange === 30 ? 4 : 13} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} dy={8} />
+                    <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(dataMax, 4)]} tickCount={5} tickLine={false} axisLine={false} tick={{ fontSize: 10.5, fill: '#94a3b8', fontWeight: 700 }} />
+                    <Tooltip content={<CustomChartTooltip />} />
+                    <Bar name={t('dashboardCompleted') || (locale === 'vi' ? 'Đã xong' : 'Completed')} dataKey="completed" fill="#6366f1" radius={[5, 5, 0, 0]} maxBarSize={22} />
+                    <Bar name={t('dashboardCreated') || (locale === 'vi' ? 'Đã tạo mới' : 'Created')} dataKey="created" fill="#a855f7" radius={[5, 5, 0, 0]} maxBarSize={22} />
+                  </BarChart>
                 ) : (
                   <BarChart data={memberEffortData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
@@ -918,7 +1167,7 @@ function DashboardOverview({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, type: 'spring', stiffness: 140, damping: 22 }}
-            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#0d0f18]/95 sm:p-6 lg:col-span-4"
+            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-white/95 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] backdrop-blur-xl dark:border-slate-800/90 dark:bg-[#121212]/95 sm:p-6 lg:col-span-4"
           >
             <div>
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
@@ -996,10 +1245,10 @@ function DashboardOverview({
           </motion.section>
 
         </div>
-      )}
+      ))}
 
       {/* ── Bottom Section: 30-Day Velocity & Urgent Action Items ── */}
-      {totalTasks > 0 && (
+      {visibleWidgets.execution && totalTasks > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
           
           {/* Team Velocity Over 30 Days (8 Columns) */}
@@ -1007,20 +1256,20 @@ function DashboardOverview({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 140, damping: 22 }}
-            className="flex flex-col justify-between space-y-4 rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-indigo-50/30 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] dark:border-slate-800/90 dark:from-[#0d0f18] dark:via-[#0d0f18] dark:to-indigo-950/20 sm:p-6 lg:col-span-8"
+            className="flex flex-col justify-between space-y-4 rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-indigo-50/30 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] dark:border-slate-800/90 dark:from-[#121212] dark:via-[#121212] dark:to-indigo-950/20 sm:p-6 lg:col-span-8"
           >
             <div>
               <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
                 <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span>{locale === 'vi' ? 'Công việc hoàn thành trong 30 ngày' : 'Tasks completed in the last 30 days'}</span>
+                 <span>{locale === 'vi' ? `Vận tốc hoàn thành · ${dashboardRange} ngày` : `Completion velocity · ${dashboardRange} days`}</span>
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">{locale === 'vi' ? 'Chỉ tính công việc có thời điểm hoàn thành được lưu trong hệ thống' : 'Only tasks with a stored completion timestamp are counted'}</p>
             </div>
 
-            <div className="h-[180px] w-full pt-2 sm:h-[220px] md:h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="relative h-[180px] w-full pt-2 sm:h-[220px] md:h-[250px]">
+              {currentUser?.isPremium ? <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={velocityData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="velTasks" x1="0" y1="0" x2="0" y2="1">
@@ -1034,7 +1283,14 @@ function DashboardOverview({
                   <Tooltip content={<CustomChartTooltip />} />
                   <Area name={t('dashboardVelocityTasks') || (locale === 'vi' ? 'Công việc đã hoàn thành' : 'Completed tasks')} type="monotone" dataKey="completed" stroke="#6366f1" strokeWidth={3} dot={{ r: 3, fill: '#6366f1', stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} fillOpacity={1} fill="url(#velTasks)" />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer> : (
+                <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-6 text-center dark:border-amber-800/70 dark:from-amber-950/25 dark:via-slate-950/60 dark:to-orange-950/20">
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-500/20"><LockKeyhole className="h-5 w-5" /></span>
+                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{locale === 'vi' ? 'Phân tích vận tốc thuộc Analytics Pro' : 'Velocity analytics is an Analytics Pro feature'}</p>
+                  <p className="mt-1 max-w-md text-[11px] font-medium text-slate-500 dark:text-slate-400">{locale === 'vi' ? 'Mở khoá lịch sử 90 ngày, xu hướng vận tốc và phân tích nỗ lực theo thành viên.' : 'Unlock 90-day history, velocity trends and per-member effort analytics.'}</p>
+                  <button type="button" onClick={onUpgradePremium} className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white transition hover:bg-indigo-600 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-300"><Crown className="h-3.5 w-3.5" />{locale === 'vi' ? 'Nâng cấp gói' : 'Upgrade plan'}</button>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -1043,7 +1299,7 @@ function DashboardOverview({
             initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.26, type: 'spring', stiffness: 140, damping: 22 }}
-            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-rose-50/40 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] dark:border-slate-800/90 dark:from-[#0d0f18] dark:via-[#0d0f18] dark:to-rose-950/20 sm:p-6 lg:col-span-4"
+            className="flex flex-col justify-between rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-rose-50/40 p-4 text-left shadow-[0_18px_55px_-38px_rgba(15,23,42,0.5)] dark:border-slate-800/90 dark:from-[#121212] dark:via-[#121212] dark:to-rose-950/20 sm:p-6 lg:col-span-4"
           >
             <div>
               <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-4">
@@ -1065,7 +1321,7 @@ function DashboardOverview({
                   <motion.button
                     type="button"
                     key={task.id} 
-                    onClick={() => onNavigate('tasks')}
+                    onClick={() => onNavigate('calendar')}
                     whileHover={prefersReducedMotion ? undefined : { x: 3 }}
                     className="group flex w-full items-start justify-between gap-3 rounded-2xl border border-slate-200/60 bg-white/70 p-3 text-left shadow-sm transition-colors hover:border-rose-300/70 hover:bg-rose-50/60 dark:border-slate-800/60 dark:bg-slate-900/50 dark:hover:border-rose-900/70 dark:hover:bg-rose-950/20"
                   >
@@ -1092,7 +1348,7 @@ function DashboardOverview({
             </div>
 
             <button 
-              onClick={() => onNavigate('tasks')}
+              onClick={() => onNavigate('calendar')}
               className="w-full rounded-xl border border-slate-200/70 bg-white/70 py-2.5 text-center text-xs font-extrabold text-slate-700 shadow-sm transition-all hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-indigo-800 dark:hover:text-indigo-300"
             >
               {locale === 'vi' ? 'Xem tất cả nhiệm vụ' : 'View all tasks'}
@@ -1103,7 +1359,7 @@ function DashboardOverview({
       )}
 
       {/* ── Weekly AI Productivity Insight Report Widget ── */}
-      {totalTasks > 0 && <motion.div
+      {visibleWidgets.ai && totalTasks > 0 && <motion.div
         initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, type: 'spring', stiffness: 130, damping: 22 }}
@@ -1124,7 +1380,7 @@ function DashboardOverview({
               <h3 className="flex flex-wrap items-center gap-2 text-base font-black tracking-tight text-slate-950 dark:text-white md:text-lg">
                 <span>{t('dashboardSmartReport') || 'Báo cáo Năng suất thông minh AI'}</span>
                 <span className="text-[9px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
-                  Gemini Flash 2.5
+                  {currentUser?.isPremium ? 'Gemini Flash 2.5' : (locale === 'vi' ? 'Tính năng Premium' : 'Premium feature')}
                 </span>
               </h3>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">{t('dashboardReportDesc') || 'Báo cáo đánh giá hiệu suất hoàn thành, quỹ đóng góp team và điều phối tài nguyên dự án.'}</p>
@@ -1148,8 +1404,8 @@ function DashboardOverview({
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-white" />
-                <span>{t('dashboardGenerateReport') || 'Khởi tạo báo cáo AI'}</span>
+                {currentUser?.isPremium ? <Sparkles className="w-4 h-4 text-white" /> : <LockKeyhole className="w-4 h-4 text-white" />}
+                <span>{currentUser?.isPremium ? (t('dashboardGenerateReport') || 'Khởi tạo báo cáo AI') : (locale === 'vi' ? 'Nâng cấp để tạo báo cáo AI' : 'Upgrade for AI report')}</span>
               </>
             )}
           </button>

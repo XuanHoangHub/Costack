@@ -251,7 +251,7 @@ export default function LandingFooter({ onSignUp }: LandingFooterProps) {
 
           {/* Sub-footer Clean Bar */}
           <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-slate-400">
-            <span>© {new Date().getFullYear()} Apexa Inc. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Avaxa. All rights reserved.</span>
           </div>
         </div>
 

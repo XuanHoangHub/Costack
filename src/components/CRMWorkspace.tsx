@@ -336,7 +336,7 @@ export default function CRMWorkspace({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-colors cursor-pointer shadow-xs"
           >
             <Download className="h-3.5 w-3.5 text-slate-400" />
             <span>{isVietnamese ? 'Xuất CSV' : 'Export'}</span>

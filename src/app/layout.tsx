@@ -8,6 +8,10 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").rep
 
 const INITIAL_THEME_SCRIPT = `(function(){try{var mode=localStorage.getItem('apexa_theme_mode');if(mode!=='light'&&mode!=='dark'&&mode!=='system'){var legacy=localStorage.getItem('apexa_dark_mode');mode=legacy===null?'system':legacy==='true'?'dark':'light'}var dark=mode==='dark'||(mode==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',dark);root.dataset.theme=dark?'dark':'light';root.dataset.themeMode=mode;root.style.colorScheme=dark?'dark':'light';}catch(e){}})();`;
 
+const INITIAL_LOCALE_SCRIPT = `(function(){try{var stored=localStorage.getItem('apexa_locale_mode')||localStorage.getItem('apexa_locale')||'vi';var mode=stored==='system'?'system':stored==='en'?'en':'vi';var languages=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||'en']);var system=languages.some(function(value){return String(value).toLowerCase().indexOf('vi')===0})?'vi':'en';var locale=mode==='system'?system:mode;var root=document.documentElement;root.lang=locale==='vi'?'vi-VN':'en-US';root.dir='ltr';root.dataset.locale=locale;root.dataset.localeMode=mode;}catch(e){}})();`;
+
+const CHUNK_RECOVERY_SCRIPT = `(function(){if(typeof window!=='undefined'){window.addEventListener('error',function(e){var msg=(e&&e.message)||'';var err=e&&e.error;if(msg.indexOf('Loading chunk')!==-1||msg.indexOf('missing:')!==-1||(err&&err.name==='ChunkLoadError')){var key='chunk_recovery_reload';var now=Date.now();var last=Number(sessionStorage.getItem(key)||0);if(now-last>8000){sessionStorage.setItem(key,String(now));window.location.reload();}}});}})();`;
+
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin", "vietnamese"],
@@ -103,6 +107,8 @@ export default function RootLayout({
     >
       <head>
         <InlineHeadScript id="initial-theme" html={INITIAL_THEME_SCRIPT} />
+        <InlineHeadScript id="initial-locale" html={INITIAL_LOCALE_SCRIPT} />
+        <InlineHeadScript id="chunk-recovery" html={CHUNK_RECOVERY_SCRIPT} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -110,7 +116,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
+      <body className={`${inter.className} min-h-full flex flex-col font-sans bg-white dark:bg-[var(--cu-bg)] text-[var(--cu-text-primary)] antialiased`}>
         <TranslationProvider>
           {children}
         </TranslationProvider>

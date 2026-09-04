@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { callAiApi } from "@/lib/aiClient";
 import { supabase } from "@/lib/supabaseClient";
+import { useTranslation } from "@/contexts/TranslationContext";
 import type { FinanceCategory } from "./CategoryManagerModal";
 
 interface BankAccount {
@@ -107,6 +108,7 @@ export function ReceiptScannerModal({
   triggerToast,
   onOpenCategoryManager,
 }: ReceiptScannerModalProps) {
+  const { localize: l } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -137,11 +139,11 @@ export function ReceiptScannerModal({
   const processImageFile = useCallback(async (file: File) => {
     try {
       setIsScanning(true);
-      setScanStep("Đang chuẩn bị và tối ưu hóa hình ảnh...");
+      setScanStep(l("Đang chuẩn bị và tối ưu hóa hình ảnh…", "Preparing and optimizing the image…"));
       const base64Data = await compressImageFile(file);
       setImagePreview(base64Data);
 
-      setScanStep("Apexa AI (Gemini Vision) đang phân tích hóa đơn...");
+      setScanStep(l("Apexa AI (Gemini Vision) đang phân tích hóa đơn…", "Apexa AI (Gemini Vision) is analyzing the receipt…"));
       const categoryNames = categories.map((c) => c.name);
 
       const response = await callAiApi("/api/ai/receipt-scan", {
@@ -151,12 +153,12 @@ export function ReceiptScannerModal({
 
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || "Không thể quét hóa đơn.");
+        throw new Error(errJson.error || l("Không thể quét hóa đơn.", "The receipt could not be scanned."));
       }
 
       const result = await response.json();
       if (!result.success || !result.data) {
-        throw new Error(result.error || "Không nhận diện được nội dung.");
+        throw new Error(result.error || l("Không nhận diện được nội dung.", "No readable content was detected."));
       }
 
       const data: ScannedData = result.data;
@@ -168,21 +170,29 @@ export function ReceiptScannerModal({
         amount: data.amount > 0 ? String(data.amount) : prev.amount,
         date: data.date || prev.date,
         merchant: data.merchant || prev.merchant,
-        category: data.category || (expenseCategories[0]?.value ?? "Chi phí khác"),
+        category: data.category || (expenseCategories[0]?.value ?? l("Chi phí khác", "Other expense")),
         note: data.note || (data.items?.length ? data.items.map((i) => `${i.name} (${i.quantity || 1})`).join(", ") : ""),
         taxCode: data.taxCode || "",
         invoiceNumber: data.invoiceNumber || "",
       }));
 
-      triggerToast?.("success", "Đã quét hóa đơn", `Nhận diện số tiền: ${formatMoney(data.amount)}`);
+      triggerToast?.(
+        "success",
+        l("Đã quét hóa đơn", "Receipt scanned"),
+        l(`Đã nhận diện số tiền: ${formatMoney(data.amount)}`, `Detected amount: ${formatMoney(data.amount)}`)
+      );
     } catch (err: any) {
       console.error("Receipt scan error:", err);
-      triggerToast?.("error", "Lỗi quét hóa đơn", err?.message || "Không thể phân tích ảnh.");
+      triggerToast?.(
+        "error",
+        l("Không thể quét hóa đơn", "Receipt scan failed"),
+        err?.message || l("Không thể phân tích ảnh.", "The image could not be analyzed.")
+      );
     } finally {
       setIsScanning(false);
       setScanStep("");
     }
-  }, [categories, expenseCategories, formatMoney, triggerToast]);
+  }, [categories, expenseCategories, formatMoney, l, triggerToast]);
 
   // Handle paste image from clipboard anywhere in modal
   useEffect(() => {
@@ -226,15 +236,27 @@ export function ReceiptScannerModal({
     const amount = Number(form.amount);
 
     if (!form.accountId) {
-      triggerToast?.("error", "Chưa chọn tài khoản", "Vui lòng chọn tài khoản ngân hàng hoặc quỹ tiền mặt.");
+      triggerToast?.(
+        "error",
+        l("Chưa chọn tài khoản", "No account selected"),
+        l("Vui lòng chọn tài khoản ngân hàng hoặc quỹ tiền mặt.", "Select a bank or cash account.")
+      );
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      triggerToast?.("error", "Số tiền không hợp lệ", "Vui lòng nhập số tiền chi lớn hơn 0.");
+      triggerToast?.(
+        "error",
+        l("Số tiền không hợp lệ", "Invalid amount"),
+        l("Vui lòng nhập số tiền chi lớn hơn 0.", "Enter an expense amount greater than zero.")
+      );
       return;
     }
     if (!form.category.trim()) {
-      triggerToast?.("error", "Thiếu hạng mục", "Vui lòng chọn hoặc nhập hạng mục chi.");
+      triggerToast?.(
+        "error",
+        l("Thiếu hạng mục", "Category required"),
+        l("Vui lòng chọn hoặc nhập hạng mục chi.", "Select or enter an expense category.")
+      );
       return;
     }
 
@@ -268,7 +290,7 @@ export function ReceiptScannerModal({
           workspace_id: workspaceId,
           code: invCode,
           invoice_type: "in",
-          partner_name: form.merchant.trim() || "Nhà cung cấp",
+          partner_name: form.merchant.trim() || l("Nhà cung cấp", "Supplier"),
           tax_code: form.taxCode.trim(),
           subtotal: amount,
           vat_rate: 0,
@@ -284,15 +306,22 @@ export function ReceiptScannerModal({
 
       triggerToast?.(
         "success",
-        "Đã lưu khoản chi",
-        `Mã ${code}: Đã chi ${formatMoney(amount)} cho "${form.merchant || form.category}".`
+        l("Đã lưu khoản chi", "Expense saved"),
+        l(
+          `Mã ${code}: Đã chi ${formatMoney(amount)} cho “${form.merchant || form.category}”.`,
+          `${code}: Recorded ${formatMoney(amount)} paid to “${form.merchant || form.category}”.`
+        )
       );
 
       await onRefresh();
       onClose();
     } catch (err: any) {
       console.error("Save expense error:", err);
-      triggerToast?.("error", "Lỗi lưu khoản chi", err?.message || "Không thể lưu giao dịch.");
+      triggerToast?.(
+        "error",
+        l("Không thể lưu khoản chi", "Could not save expense"),
+        err?.message || l("Không thể lưu giao dịch.", "The transaction could not be saved.")
+      );
     } finally {
       setSaving(false);
     }
@@ -319,16 +348,23 @@ export function ReceiptScannerModal({
             <Receipt className="h-7 w-7" />
           </div>
           <h3 className="mt-4 text-sm font-black text-[var(--cu-text-primary)]">
-            Tải lên hoặc kéo thả ảnh hóa đơn / biên lai
+            {l("Tải lên hoặc kéo thả ảnh hóa đơn, biên lai", "Upload or drop a receipt image")}
           </h3>
           <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--cu-text-tertiary)]">
-            Hỗ trợ hóa đơn VAT, bill cafe/nhà hàng, biên lai chuyển khoản ngân hàng, MoMo, VietQR, Grab. Bạn cũng có thể nhấn <strong>Ctrl+V</strong> để dán ảnh trực tiếp.
+            {l(
+              "Hỗ trợ hóa đơn VAT, hóa đơn quán cà phê hoặc nhà hàng, biên lai chuyển khoản, MoMo, VietQR và Grab. Bạn cũng có thể nhấn ",
+              "Supports VAT invoices, café and restaurant receipts, bank transfers, MoMo, VietQR, and Grab. You can also press "
+            )}
+            <strong>Ctrl+V</strong>
+            {l(" để dán ảnh trực tiếp.", " to paste an image.")}
           </p>
           <div className="mt-4 flex items-center gap-2">
             <Button size="sm" type="button" leftIcon={<Upload className="h-4 w-4" />}>
-              Chọn ảnh từ máy
+              {l("Chọn ảnh từ máy", "Choose an image")}
             </Button>
-            <span className="text-xs text-[var(--cu-text-tertiary)]">hoặc chụp từ camera</span>
+            <span className="text-xs text-[var(--cu-text-tertiary)]">
+              {l("hoặc chụp bằng camera", "or take a photo")}
+            </span>
           </div>
         </div>
       )}
@@ -343,7 +379,7 @@ export function ReceiptScannerModal({
             <LoaderCircle className="absolute -bottom-1 -right-1 h-6 w-6 animate-spin text-indigo-600 dark:text-indigo-400" />
           </div>
           <h4 className="mt-4 text-sm font-black text-[var(--cu-text-primary)]">
-            Apexa Brain AI đang trích xuất dữ liệu hóa đơn...
+            {l("Apexa Brain AI đang trích xuất dữ liệu hóa đơn…", "Apexa Brain AI is extracting receipt data…")}
           </h4>
           <p className="mt-1 text-xs text-[var(--cu-text-tertiary)]">{scanStep}</p>
         </div>
@@ -357,7 +393,7 @@ export function ReceiptScannerModal({
             <div className="relative overflow-hidden rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface-2)]">
               <img
                 src={imagePreview}
-                alt="Receipt preview"
+                alt={l("Bản xem trước hóa đơn", "Receipt preview")}
                 className="max-h-[320px] w-full object-contain"
               />
               <button
@@ -367,7 +403,7 @@ export function ReceiptScannerModal({
                   setScannedResult(null);
                 }}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/70 text-white backdrop-blur-sm hover:bg-slate-900"
-                title="Đổi ảnh khác"
+                title={l("Chọn ảnh khác", "Choose another image")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -379,11 +415,11 @@ export function ReceiptScannerModal({
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1 text-[11px] font-bold text-indigo-500 hover:underline"
               >
-                <RefreshCw className="h-3 w-3" /> Đổi ảnh khác
+                <RefreshCw className="h-3 w-3" /> {l("Chọn ảnh khác", "Choose another image")}
               </button>
               {scannedResult && (
                 <Badge variant="success" dot>
-                  Độ khớp AI: {(scannedResult.confidence * 100).toFixed(0)}%
+                  {l("Độ tin cậy AI", "AI confidence")}: {(scannedResult.confidence * 100).toFixed(0)}%
                 </Badge>
               )}
             </div>
@@ -392,7 +428,7 @@ export function ReceiptScannerModal({
             {scannedResult?.items && scannedResult.items.length > 0 && (
               <div className="rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-2.5 text-xs">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--cu-text-tertiary)]">
-                  Mặt hàng nhận diện:
+                  {l("Mặt hàng đã nhận diện", "Detected items")}
                 </p>
                 <div className="mt-1.5 max-h-28 space-y-1 overflow-y-auto">
                   {scannedResult.items.map((item, idx) => (
@@ -414,7 +450,7 @@ export function ReceiptScannerModal({
             <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.04] p-3.5">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-rose-600 dark:text-rose-400">
-                  Số tiền chi <span className="text-rose-500">*</span>
+                  {l("Số tiền chi", "Expense amount")} <span className="text-rose-500">*</span>
                 </label>
                 <span className="text-xs font-black text-rose-500">
                   {form.amount ? formatMoney(Number(form.amount)) : "0 đ"}
@@ -429,7 +465,7 @@ export function ReceiptScannerModal({
                   autoFocus
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                  placeholder="Nhập hoặc chỉnh sửa số tiền"
+                  placeholder={l("Nhập hoặc điều chỉnh số tiền", "Enter or adjust the amount")}
                   className="h-11 w-full rounded-xl border border-rose-500/30 bg-[var(--cu-surface)] px-3 text-lg font-black text-[var(--cu-text-primary)] outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                 />
               </div>
@@ -439,12 +475,12 @@ export function ReceiptScannerModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                  Tài khoản thanh toán <span className="text-rose-500">*</span>
+                  {l("Tài khoản thanh toán", "Payment account")} <span className="text-rose-500">*</span>
                 </label>
                 {accounts.length ? (
                   <Select
                     className="w-full"
-                    ariaLabel="Tài khoản thanh toán"
+                    ariaLabel={l("Tài khoản thanh toán", "Payment account")}
                     value={form.accountId}
                     onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
                     options={accounts.map((a) => ({
@@ -453,13 +489,15 @@ export function ReceiptScannerModal({
                     }))}
                   />
                 ) : (
-                  <p className="text-xs font-bold text-amber-500">Chưa có tài khoản quỹ/ngân hàng</p>
+                  <p className="text-xs font-bold text-amber-500">
+                    {l("Chưa có tài khoản tiền mặt hoặc ngân hàng", "No cash or bank accounts yet")}
+                  </p>
                 )}
               </div>
 
               <div>
                 <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                  Ngày giao dịch <span className="text-rose-500">*</span>
+                  {l("Ngày giao dịch", "Transaction date")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -475,13 +513,13 @@ export function ReceiptScannerModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                  Nhà cung cấp / Đối tác
+                  {l("Nhà cung cấp hoặc đối tác", "Supplier or partner")}
                 </label>
                 <input
                   type="text"
                   value={form.merchant}
                   onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
-                  placeholder="Tên cửa hàng, nhà hàng, đơn vị bán..."
+                  placeholder={l("Tên cửa hàng, nhà hàng hoặc đơn vị bán…", "Store, restaurant, or supplier name…")}
                   className="h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-xs text-[var(--cu-text-primary)] outline-none focus:border-indigo-500"
                 />
               </div>
@@ -489,7 +527,7 @@ export function ReceiptScannerModal({
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                    Hạng mục chi <span className="text-rose-500">*</span>
+                    {l("Hạng mục chi", "Expense category")} <span className="text-rose-500">*</span>
                   </label>
                   {onOpenCategoryManager && (
                     <button
@@ -497,7 +535,7 @@ export function ReceiptScannerModal({
                       onClick={onOpenCategoryManager}
                       className="text-[10px] font-bold text-indigo-500 hover:underline"
                     >
-                      + Quản lý danh mục
+                      {l("+ Quản lý danh mục", "+ Manage categories")}
                     </button>
                   )}
                 </div>
@@ -508,7 +546,7 @@ export function ReceiptScannerModal({
                     list="expense-category-suggestions"
                     value={form.category}
                     onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                    placeholder="Chọn hoặc nhập hạng mục..."
+                    placeholder={l("Chọn hoặc nhập hạng mục…", "Choose or enter a category…")}
                     className="h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-xs font-semibold text-[var(--cu-text-primary)] outline-none focus:border-indigo-500"
                   />
                   <datalist id="expense-category-suggestions">
@@ -523,13 +561,13 @@ export function ReceiptScannerModal({
             {/* Note & Description */}
             <div>
               <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                Nội dung chi / Diễn giải
+                {l("Nội dung chi hoặc diễn giải", "Expense details")}
               </label>
               <input
                 type="text"
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="Ghi chú chi tiết cho giao dịch..."
+                placeholder={l("Thêm ghi chú cho giao dịch…", "Add transaction details…")}
                 className="h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-xs text-[var(--cu-text-primary)] outline-none focus:border-indigo-500"
               />
             </div>
@@ -543,11 +581,11 @@ export function ReceiptScannerModal({
                   onChange={(e) => setForm((f) => ({ ...f, createInvoiceToo: e.target.checked }))}
                   className="h-4 w-4 rounded border-[var(--cu-border)] text-indigo-600 focus:ring-indigo-500"
                 />
-                <span>Lưu kèm vào phân hệ Hóa đơn đầu vào</span>
+                <span>{l("Đồng thời lưu vào Hóa đơn đầu vào", "Also save as an incoming invoice")}</span>
               </label>
               {form.invoiceNumber && (
                 <span className="text-[11px] text-[var(--cu-text-tertiary)]">
-                  Số HĐ: <strong>{form.invoiceNumber}</strong>
+                  {l("Số hóa đơn", "Invoice no.")}: <strong>{form.invoiceNumber}</strong>
                 </span>
               )}
             </div>
@@ -555,7 +593,7 @@ export function ReceiptScannerModal({
             {/* Submit Actions */}
             <div className="flex items-center justify-end gap-2 border-t border-[var(--cu-border)] pt-3">
               <Button type="button" variant="secondary" onClick={onClose}>
-                Hủy
+                {l("Hủy", "Cancel")}
               </Button>
               <Button
                 type="submit"
@@ -563,7 +601,7 @@ export function ReceiptScannerModal({
                 leftIcon={<CheckCircle2 className="h-4 w-4" />}
                 className="bg-rose-500 hover:bg-rose-600 text-white"
               >
-                Ghi khoản chi ({form.amount ? formatMoney(Number(form.amount)) : "0"})
+                {l("Ghi khoản chi", "Record expense")} ({form.amount ? formatMoney(Number(form.amount)) : "0"})
               </Button>
             </div>
           </form>

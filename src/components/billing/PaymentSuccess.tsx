@@ -25,9 +25,24 @@ type PaymentSuccessProps = {
 };
 
 const unlockedByPlan = {
-  starter: ['Spaces không giới hạn', 'Calendar & Gantt', 'Toàn bộ Apexa AI · 150 lượt/tháng', 'Tự động hóa cơ bản'],
-  pro: ['Apexa AI · 2.000 lượt/tháng', 'CRM, ERP & Finance', 'Báo cáo nâng cao', 'Time tracking & KPI'],
-  business: ['Phân quyền nâng cao', 'Portfolio & Workload', 'API & Webhook', 'Hỗ trợ ưu tiên'],
+  starter: [
+    ['Không gian không giới hạn', 'Unlimited spaces'],
+    ['Lịch và biểu đồ Gantt', 'Calendar & Gantt'],
+    ['Toàn bộ Apexa AI · 150 lượt/tháng', 'Full Apexa AI · 150 requests/month'],
+    ['Tự động hóa cơ bản', 'Basic automations'],
+  ],
+  pro: [
+    ['Apexa AI · 2.000 lượt/tháng', 'Apexa AI · 2,000 requests/month'],
+    ['CRM, ERP và Tài chính', 'CRM, ERP & Finance'],
+    ['Báo cáo nâng cao', 'Advanced reporting'],
+    ['Theo dõi thời gian và KPI', 'Time tracking & KPI'],
+  ],
+  business: [
+    ['Phân quyền nâng cao', 'Advanced permissions'],
+    ['Danh mục dự án và khối lượng công việc', 'Portfolio & workload'],
+    ['API và webhook', 'API & webhooks'],
+    ['Hỗ trợ ưu tiên', 'Priority support'],
+  ],
 } as const;
 
 export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onClose }: PaymentSuccessProps) {
@@ -147,10 +162,12 @@ export function PaymentSuccess({ checkout, receipt, planName, isVietnamese, onCl
               {isVietnamese ? 'Quyền lợi vừa mở khóa' : 'Newly unlocked'}
             </div>
             <div className="mt-4 space-y-2.5">
-              {unlockedByPlan[checkout.plan].map((feature) => (
-                <div key={feature} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3.5 py-3 dark:border-slate-800 dark:bg-slate-800/50">
+              {unlockedByPlan[checkout.plan].map(([viFeature, enFeature]) => (
+                <div key={enFeature} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3.5 py-3 dark:border-slate-800 dark:bg-slate-800/50">
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4" /></span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{feature}</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    {isVietnamese ? viFeature : enFeature}
+                  </span>
                 </div>
               ))}
             </div>

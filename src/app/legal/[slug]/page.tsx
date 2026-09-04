@@ -75,7 +75,7 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
   if (!page) notFound();
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#07090e] dark:text-slate-100">
+    <main className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#000000] dark:text-slate-100">
       <header className="border-b border-slate-200 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2 font-black tracking-tight">

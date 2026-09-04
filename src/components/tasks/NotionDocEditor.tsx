@@ -641,7 +641,7 @@ export default function NotionDocEditor({
               onBlur={onBlur}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              className="w-full min-h-[160px] p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0c1017] border border-slate-200/80 dark:border-slate-800/80 text-[13.5px] text-slate-850 dark:text-slate-100 outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/10 transition-all leading-relaxed placeholder-slate-350 dark:placeholder-slate-600 font-sans shadow-xs resize-none"
+              className="w-full min-h-[160px] p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800/80 text-[13.5px] text-slate-850 dark:text-slate-100 outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/10 transition-all leading-relaxed placeholder-slate-350 dark:placeholder-slate-600 font-sans shadow-xs resize-none"
               style={{ lineHeight: '1.75' }}
             />
 
@@ -689,7 +689,7 @@ export default function NotionDocEditor({
           </div>
         ) : (
           /* ── Interactive Notion Preview Canvas ── */
-          <div className="w-full min-h-[160px] p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#0c1017] border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 font-sans shadow-xs space-y-3">
+          <div className="w-full min-h-[160px] p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 font-sans shadow-xs space-y-3">
             {!value.trim() ? (
               <div className="py-8 text-center text-slate-400 italic text-xs">
                 {isVietnamese ? 'Tài liệu chưa có nội dung. Chuyển sang chế độ Soạn thảo để viết.' : 'Empty document. Switch to Write mode to add content.'}

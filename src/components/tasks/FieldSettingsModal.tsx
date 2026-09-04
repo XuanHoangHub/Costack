@@ -309,7 +309,7 @@ export default function FieldSettingsModal({
         
         <form 
           onSubmit={handleSave} 
-          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-[#0f141e] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          className="relative w-full max-w-[620px] max-h-[92vh] bg-white dark:bg-[#181818] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col z-10 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         >
           <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 shrink-0">
             <div className="flex items-center gap-3">

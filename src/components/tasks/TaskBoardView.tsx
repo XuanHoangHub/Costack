@@ -23,11 +23,11 @@ import {
   useSortable, 
   verticalListSortingStrategy 
 } from '@dnd-kit/sortable';
-import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass, Copy } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Check, Pin, Paperclip, ChevronDown, Play, Pause, Clock, GripVertical, User as UserIcon, Repeat2, Hourglass, Copy, Flag, MoreHorizontal, Trash2, Edit2, X } from 'lucide-react';
 import { Task, User, TaskStatus, Priority, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { useTranslation } from '../../contexts/TranslationContext';
-import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption } from '../../utils/fieldConfig';
+import { getStoredStatuses, getStoredPriorities, OptionConfig, getLocalizedOptionLabel, getColorOption, saveStatuses, savePriorities, COLOR_PALETTE, DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '../../utils/fieldConfig';
 import { motion } from 'motion/react';
 import { useUiStore } from '../../store/uiStore';
 import { Select } from '../ui/Select';
@@ -129,7 +129,7 @@ function KanbanCard({
         {...listeners}
         whileHover={{ y: -3, scale: 1.01 }}
         whileTap={{ scale: 0.98 }}
-        className={`group relative bg-white dark:bg-[#121623] rounded-[22px] border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400/50 dark:hover:border-indigo-500/50 shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.5)] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-200 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500/80' : ''} overflow-hidden`}
+        className={`group relative bg-white dark:bg-[#121212] rounded-[22px] border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400/50 dark:hover:border-indigo-500/50 shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.5)] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-200 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500/80' : ''} overflow-hidden`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>
@@ -220,12 +220,18 @@ function KanbanCard({
                       </span>
                     );
                   })()}
-                  <span className={`text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg select-none border ${
-                    task.priority === 'urgent' ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400 shadow-[0_0_8px_rgba(239,68,68,0.08)]' :
-                    task.priority === 'high' ? 'bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400' :
-                    task.priority === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400' :
+                  <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg select-none border ${
+                    task.priority === 'urgent' ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200/80 text-rose-600 dark:text-rose-400 shadow-xs shadow-rose-500/10' :
+                    task.priority === 'high' ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200/80 text-orange-600 dark:text-orange-400 shadow-xs shadow-orange-500/10' :
+                    task.priority === 'medium' ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200/80 text-blue-600 dark:text-blue-400 shadow-xs shadow-blue-500/10' :
                     'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                   }`}>
+                    <Flag className={`w-2.5 h-2.5 shrink-0 ${
+                      task.priority === 'urgent' ? 'fill-rose-500 text-rose-500' :
+                      task.priority === 'high' ? 'fill-orange-500 text-orange-500' :
+                      task.priority === 'medium' ? 'fill-blue-500 text-blue-500' :
+                      'fill-slate-400 text-slate-400'
+                    }`} />
                     {dynamicPriorityMeta[task.priority]?.label || task.priority}
                   </span>
                 </div>
@@ -616,6 +622,30 @@ export default function TaskBoardView({
   const [inlineEditTaskId, setInlineEditTaskId] = useState<string | null>(null);
   const [inlineEditTitle, setInlineEditTitle] = useState('');
 
+  // Column management states
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [newColumnColor, setNewColumnColor] = useState('indigo');
+  const [columnMenuOpen, setColumnMenuOpen] = useState<string | null>(null);
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [editingColumnTitle, setEditingColumnTitle] = useState('');
+  const boardScrollRef = useRef<HTMLDivElement | null>(null);
+  const newColumnInputRef = useRef<HTMLInputElement | null>(null);
+  const editColumnInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Close column dropdown menu when clicking outside
+  useEffect(() => {
+    if (!columnMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.apexa-column-menu-container')) {
+        setColumnMenuOpen(null);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [columnMenuOpen]);
+
   const [localCardSize, setLocalCardSize] = useState<'small' | 'medium' | 'large'>(cardSize);
   const [localCardCover, setLocalCardCover] = useState<boolean>(cardCover);
 
@@ -886,6 +916,191 @@ export default function TaskBoardView({
     }
     setInlineTitle('');
     setInlineAddCell(null);
+  };
+
+  const handleOpenAddColumn = () => {
+    if (boardGroupBy === 'assignee') {
+      setBoardGroupBy('status');
+    }
+    setIsAddingColumn(true);
+    setTimeout(() => {
+      if (boardScrollRef.current) {
+        boardScrollRef.current.scrollTo({
+          left: boardScrollRef.current.scrollWidth,
+          behavior: 'smooth'
+        });
+      }
+      newColumnInputRef.current?.focus();
+    }, 120);
+  };
+
+  const handleCreateColumn = () => {
+    const title = newColumnTitle.trim();
+    if (!title) return;
+
+    const colorOpt = getColorOption(newColumnColor);
+    const baseSlug = title.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '') || `board_${Date.now()}`;
+
+    if (boardGroupBy === 'priority') {
+      const list = priorityConfigs.length > 0 ? priorityConfigs : DEFAULT_PRIORITIES;
+      const uniqueId = list.some(p => p.id === baseSlug) ? `${baseSlug}_${Date.now()}` : baseSlug;
+      const newPriority: OptionConfig = {
+        id: uniqueId,
+        label: title,
+        color: newColumnColor,
+        bg: colorOpt.priorityPill,
+        icon: 'Flag'
+      };
+      const updated = [...list, newPriority];
+      savePriorities(updated);
+      setPriorityConfigs(updated);
+    } else {
+      const list = statusConfigs.length > 0 ? statusConfigs : DEFAULT_STATUSES;
+      const uniqueId = list.some(s => s.id === baseSlug) ? `${baseSlug}_${Date.now()}` : baseSlug;
+      const newStatus: OptionConfig = {
+        id: uniqueId,
+        label: title,
+        color: newColumnColor,
+        dot: colorOpt.dot,
+        bg: colorOpt.statusPill
+      };
+      const updated = [...list, newStatus];
+      saveStatuses(updated);
+      setStatusConfigs(updated);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
+    }
+
+    setIsAddingColumn(false);
+    setNewColumnTitle('');
+    setNewColumnColor('indigo');
+
+    if (triggerToast) {
+      triggerToast('success', locale === 'vi' ? 'Thành công' : 'Success', locale === 'vi' ? `Đã thêm bảng "${title}"` : `Added column "${title}"`);
+    }
+    if (onAddSyncLog) {
+      onAddSyncLog(locale === 'vi' ? `Tạo bảng mới: "${title}"` : `Created column: "${title}"`);
+    }
+  };
+
+  const handleSaveRenameColumn = (colId: string) => {
+    const title = editingColumnTitle.trim();
+    if (!title) {
+      setEditingColumnId(null);
+      return;
+    }
+
+    if (boardGroupBy === 'priority') {
+      const list = priorityConfigs.length > 0 ? priorityConfigs : DEFAULT_PRIORITIES;
+      const updated = list.map(p => p.id === colId ? { ...p, label: title } : p);
+      savePriorities(updated);
+      setPriorityConfigs(updated);
+    } else {
+      const list = statusConfigs.length > 0 ? statusConfigs : DEFAULT_STATUSES;
+      const updated = list.map(s => s.id === colId ? { ...s, label: title } : s);
+      saveStatuses(updated);
+      setStatusConfigs(updated);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
+    }
+
+    setEditingColumnId(null);
+    setEditingColumnTitle('');
+    if (triggerToast) {
+      triggerToast('success', locale === 'vi' ? 'Thành công' : 'Success', locale === 'vi' ? `Đã đổi tên bảng thành "${title}"` : `Renamed column to "${title}"`);
+    }
+  };
+
+  const handleChangeColumnColor = (colId: string, colorId: string) => {
+    const colorOpt = getColorOption(colorId);
+
+    if (boardGroupBy === 'priority') {
+      const list = priorityConfigs.length > 0 ? priorityConfigs : DEFAULT_PRIORITIES;
+      const updated = list.map(p => p.id === colId ? { ...p, color: colorId, bg: colorOpt.priorityPill } : p);
+      savePriorities(updated);
+      setPriorityConfigs(updated);
+    } else {
+      const list = statusConfigs.length > 0 ? statusConfigs : DEFAULT_STATUSES;
+      const updated = list.map(s => s.id === colId ? { ...s, color: colorId, dot: colorOpt.dot, bg: colorOpt.statusPill } : s);
+      saveStatuses(updated);
+      setStatusConfigs(updated);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
+    }
+    setColumnMenuOpen(null);
+  };
+
+  const handleDeleteColumn = async (colId: string) => {
+    if (colId === 'todo' || colId === 'completed') {
+      if (triggerToast) {
+        triggerToast('warning', locale === 'vi' ? 'Không thể xóa' : 'Cannot delete', locale === 'vi' ? 'Bảng mặc định không thể xóa.' : 'Default column cannot be deleted.');
+      }
+      return;
+    }
+
+    const colMeta = getColumnMeta(colId);
+    const confirmMsg = locale === 'vi'
+      ? `Bạn có chắc muốn xóa bảng "${colMeta.label}"? Các công việc trong bảng sẽ được chuyển về "Cần làm".`
+      : `Are you sure you want to delete column "${colMeta.label}"? Tasks in this column will be moved to "To Do".`;
+
+    if (typeof window !== 'undefined' && !window.confirm(confirmMsg)) {
+      return;
+    }
+
+    // Move tasks in this column to 'todo'
+    const tasksInCol = filteredTasks.filter(t => (boardGroupBy === 'status' ? t.status === colId : t.priority === colId));
+    for (const t of tasksInCol) {
+      if (boardGroupBy === 'status') {
+        onUpdateTask({ ...t, status: 'todo' });
+        try {
+          await supabase.from('tasks').update({ status: 'todo' }).eq('id', t.id);
+        } catch (e) {
+          console.error('Failed to move task to todo:', e);
+        }
+      } else if (boardGroupBy === 'priority') {
+        onUpdateTask({ ...t, priority: 'medium' });
+        try {
+          await supabase.from('tasks').update({ priority: 'medium' }).eq('id', t.id);
+        } catch (e) {
+          console.error('Failed to move task to medium priority:', e);
+        }
+      }
+    }
+
+    if (boardGroupBy === 'priority') {
+      const list = priorityConfigs.length > 0 ? priorityConfigs : DEFAULT_PRIORITIES;
+      const updated = list.filter(p => p.id !== colId);
+      savePriorities(updated);
+      setPriorityConfigs(updated);
+    } else {
+      const list = statusConfigs.length > 0 ? statusConfigs : DEFAULT_STATUSES;
+      const updated = list.filter(s => s.id !== colId);
+      saveStatuses(updated);
+      setStatusConfigs(updated);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('apexa-field-config-changed'));
+    }
+
+    setColumnMenuOpen(null);
+
+    if (triggerToast) {
+      triggerToast('success', locale === 'vi' ? 'Đã xóa bảng' : 'Column deleted', locale === 'vi' ? `Đã xóa bảng "${colMeta.label}"` : `Deleted column "${colMeta.label}"`);
+    }
+    if (onAddSyncLog) {
+      onAddSyncLog(locale === 'vi' ? `Xóa bảng: "${colMeta.label}"` : `Deleted column: "${colMeta.label}"`);
+    }
   };
 
   const handleDragOver = (event: any) => {
@@ -1273,15 +1488,15 @@ export default function TaskBoardView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col h-full w-full">
+      <div className="apexa-space-board flex flex-col h-full w-full">
         
         {/* Kanban Board Controls Panel */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#0c0f18]/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
+        <div className="apexa-board-controls flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#121212]/85 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
           <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
             
             {/* Group By selector */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl px-2.5 py-1.5 shadow-3xs">
+              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-extrabold uppercase tracking-wider">Nhóm:</span>
               <Select
                 value={boardGroupBy}
                 onChange={(v) => {
@@ -1301,8 +1516,8 @@ export default function TaskBoardView({
             </div>
 
             {/* Swimlane selector */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-3xs">
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl px-2.5 py-1.5 shadow-3xs">
+              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-extrabold uppercase tracking-wider">Làn công việc:</span>
               <Select
                 value={boardSwimlaneBy}
                 onChange={(v) => setBoardSwimlaneBy(v)}
@@ -1320,14 +1535,14 @@ export default function TaskBoardView({
 
           {/* Card size & covers selectors */}
           <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2 sm:gap-3">
-            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-xl p-1 shadow-3xs">
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-white/[0.07] rounded-xl p-1 shadow-3xs">
               {(['small', 'medium', 'large'] as const).map(size => (
                 <button
                   key={size}
                   onClick={() => toggleCardSize(size)}
                   className={`px-2.5 py-1 rounded-lg capitalize transition-all cursor-pointer text-xs font-bold ${
-                    localCardSize === size 
-                      ? 'bg-white dark:bg-indigo-600/30 text-indigo-600 dark:text-indigo-300 font-black shadow-xs border border-slate-200/80 dark:border-indigo-500/30' 
+                    localCardSize === size
+                      ? 'bg-white dark:bg-gradient-to-r dark:from-indigo-600/30 dark:to-blue-600/30 text-indigo-600 dark:text-sky-200 font-black shadow-xs border border-slate-200/80 dark:border-indigo-500/40'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -1339,19 +1554,32 @@ export default function TaskBoardView({
             <button
               onClick={() => toggleCardCover(!localCardCover)}
               className={`px-3 py-1.5 border rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-bold ${
-                localCardCover 
-                  ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black' 
-                  : 'bg-slate-50 dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100'
+                localCardCover
+                  ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-700/80 text-indigo-600 dark:text-sky-300 font-black shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200/80 dark:border-white/[0.07] text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
               }`}
             >
               <span>{locale === 'vi' ? 'Hiển thị ảnh bìa' : 'Show Covers'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenAddColumn}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs hover:shadow-md cursor-pointer active:scale-95 transition-all"
+              title={locale === 'vi' ? 'Thêm bảng mới' : 'Add new column'}
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>{locale === 'vi' ? 'Thêm bảng' : 'Add Board'}</span>
             </button>
           </div>
         </div>
 
         {/* Board Main Area */}
         {boardSwimlaneBy === 'none' ? (
-          <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll snap-x snap-mandatory select-none px-1">
+          <div 
+            ref={boardScrollRef}
+            className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar custom-touch-scroll snap-x snap-mandatory select-none px-1"
+          >
             {columns.map(col => {
               const colMeta = getColumnMeta(col);
               const colTasks = boardState.columns[col]?.taskIds.map(id => boardState.tasks[id]).filter(Boolean) || [];
@@ -1360,45 +1588,145 @@ export default function TaskBoardView({
               return (
                 <div 
                   key={col} 
-                  className={`min-w-[295px] sm:min-w-[305px] w-[295px] sm:w-[305px] flex-shrink-0 snap-center bg-slate-100/50 dark:bg-[#0c0f18]/70 backdrop-blur-xl p-3.5 sm:p-4 rounded-[26px] flex flex-col gap-3 transition-all duration-300 border border-slate-200/70 dark:border-slate-800/70 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:border-slate-300 dark:hover:border-slate-700/80 hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.06)] ${
-                    isOverColumn ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-955/20 border-indigo-400/50' : ''
+                  role="group"
+                  aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
+                  className={`apexa-board-column min-w-[288px] sm:min-w-[300px] w-[288px] sm:w-[300px] flex-shrink-0 snap-center bg-slate-100/60 dark:bg-[#181818]/80 backdrop-blur-2xl p-3.5 sm:p-4 rounded-[22px] flex flex-col gap-3 transition-all duration-300 border border-slate-200/70 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-slate-700/90 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
+                    isOverColumn ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-950/30 border-indigo-400/50' : ''
                   }`}
                 >
                   {/* Column Header */}
                   <div className="flex flex-col gap-1.5 px-0.5 py-0.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {colMeta.avatar && (
-                          <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
-                        )}
-                        <span className={`px-2.5 py-1 rounded-xl text-[10.5px] font-black tracking-wider uppercase flex items-center gap-1.5 border shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
-                          {col === 'completed' && <Check className="w-3 h-3 text-emerald-600 stroke-[3px]" />}
-                          {colMeta.label}
-                        </span>
-                        <span className={`font-black text-[11px] px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 min-w-[24px] text-center shadow-3xs ${
-                          col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-955/35' : 'text-slate-600 dark:text-slate-300'
-                        }`}>
-                          {colTasks.length}
-                        </span>
-                        {/* WIP Limit warning badge if tasks > 6 */}
-                        {colTasks.length > 6 && (
-                          <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-955/40 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/40 animate-pulse">
-                            Giới hạn WIP
+                      {editingColumnId === col ? (
+                        <div className="flex items-center gap-1.5 flex-1 mr-2">
+                          <input
+                            ref={editColumnInputRef}
+                            type="text"
+                            value={editingColumnTitle}
+                            onChange={(e) => setEditingColumnTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveRenameColumn(col);
+                              else if (e.key === 'Escape') { setEditingColumnId(null); setEditingColumnTitle(''); }
+                            }}
+                            className="px-2 py-0.5 text-xs font-black bg-white dark:bg-slate-900 border border-indigo-500 rounded-lg text-slate-800 dark:text-slate-100 outline-none w-full"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveRenameColumn(col)}
+                            className="p-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer transition-colors"
+                            title={locale === 'vi' ? 'Lưu' : 'Save'}
+                          >
+                            <Check className="w-3 h-3 stroke-[2.5]" />
+                          </button>
+                          <button
+                            onClick={() => { setEditingColumnId(null); setEditingColumnTitle(''); }}
+                            className="p-1 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                            title={locale === 'vi' ? 'Hủy' : 'Cancel'}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {colMeta.avatar && (
+                            <SignedImage filePath={colMeta.avatar} className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-3xs" alt={colMeta.label} />
+                          )}
+                          <span className={`px-2.5 py-1 rounded-xl text-[10.5px] font-black tracking-wider uppercase flex items-center gap-1.5 border shadow-3xs ${colMeta.badgeBg} ${colMeta.badgeText}`}>
+                            {col === 'completed' && <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[3px]" />}
+                            {colMeta.label}
                           </span>
+                          <span className={`font-black text-[11px] px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800/90 border border-slate-200/60 dark:border-white/[0.1] min-w-[24px] text-center shadow-3xs ${
+                            col === 'completed' ? 'text-emerald-600 bg-emerald-100/70 dark:bg-emerald-950/50 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-200'
+                          }`}>
+                            {colTasks.length}
+                          </span>
+                          {/* WIP Limit warning badge if tasks > 6 */}
+                          {colTasks.length > 6 && (
+                            <span className="text-[8.5px] font-black text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-900/50 animate-pulse">
+                              Giới hạn WIP
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
+                          className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/[0.08] hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 text-slate-400 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
+                          title={locale === 'vi' ? 'Thêm công việc' : 'Add task'}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+
+                        {(boardGroupBy === 'status' || boardGroupBy === 'priority') && (
+                          <div className="relative apexa-column-menu-container">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setColumnMenuOpen(columnMenuOpen === col ? null : col);
+                              }}
+                              className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
+                              title={locale === 'vi' ? 'Tùy chọn bảng' : 'Board options'}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+
+                            {columnMenuOpen === col && (
+                              <div className="absolute right-0 top-full mt-1.5 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  onClick={() => {
+                                    setEditingColumnId(col);
+                                    setEditingColumnTitle(colMeta.label);
+                                    setColumnMenuOpen(null);
+                                    setTimeout(() => editColumnInputRef.current?.focus(), 80);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>{locale === 'vi' ? 'Đổi tên bảng' : 'Rename board'}</span>
+                                </button>
+
+                                <div className="px-3 py-1.5 border-t border-slate-100 dark:border-slate-800">
+                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                                    {locale === 'vi' ? 'Màu sắc' : 'Color'}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {COLOR_PALETTE.slice(0, 10).map(cp => (
+                                      <button
+                                        key={cp.id}
+                                        type="button"
+                                        onClick={() => handleChangeColumnColor(col, cp.id)}
+                                        className={`w-4 h-4 rounded-full ${cp.dot} hover:scale-125 transition-transform cursor-pointer`}
+                                        title={locale === 'vi' ? cp.nameVi : cp.name}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                                  {col === 'todo' || col === 'completed' ? (
+                                    <div className="px-3 py-1 text-[10px] text-slate-400 italic">
+                                      {locale === 'vi' ? 'Bảng mặc định' : 'Default column'}
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleDeleteColumn(col)}
+                                      className="w-full px-3 py-1.5 text-left text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 cursor-pointer transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                      <span>{locale === 'vi' ? 'Xóa bảng' : 'Delete board'}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                      
-                      <button 
-                        onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="w-6 h-6 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-400 text-slate-400 flex items-center justify-center transition-all cursor-pointer shadow-3xs"
-                        title="Thêm công việc"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
                     </div>
 
                     {/* Column Percentage Progress Bar */}
-                    <div className="w-full h-1 bg-slate-200/60 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
+                    <div className="w-full h-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-full overflow-hidden mt-1">
                       <div 
                         className={`h-full transition-all duration-300 ${
                           col === 'completed' ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'
@@ -1416,7 +1744,7 @@ export default function TaskBoardView({
 
                     {/* Inline Add Task Form */}
                     {inlineAddCell === col ? (
-                      <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-500 shadow-xl space-y-3 select-text animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                      <div className="p-3 bg-white dark:bg-slate-900/95 rounded-2xl border-2 border-indigo-500 shadow-xl space-y-3 select-text animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
                         <input
                           type="text"
                           value={inlineTitle}
@@ -1440,16 +1768,24 @@ export default function TaskBoardView({
                     ) : (
                       <button 
                         onClick={() => { setInlineAddCell(col); setInlineTitle(''); }}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-850 hover:border-indigo-400 dark:hover:border-indigo-600 border border-dashed border-slate-300/80 dark:border-slate-800/90 rounded-2xl transition-all cursor-pointer text-center group shadow-3xs hover:shadow-xs"
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 hover:bg-white dark:hover:bg-indigo-950/30 hover:border-indigo-400/60 dark:hover:border-indigo-500/40 border border-dashed border-slate-300/80 dark:border-white/[0.08] rounded-xl transition-all cursor-pointer text-center group shadow-3xs hover:shadow-xs"
                       >
-                        <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                        <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors" />
                         <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>
                       </button>
                     )}
 
                     {colTasks.length === 0 && inlineAddCell !== col && (
-                      <div className="text-center py-7 px-3 text-[11px] text-slate-400 dark:text-slate-500 font-medium border border-dashed border-slate-200/80 dark:border-slate-800/70 rounded-2xl bg-white/40 dark:bg-slate-900/20">
-                        {locale === 'vi' ? 'Chưa có công việc trong cột này' : 'No tasks in this column'}
+                      <div className="flex flex-col items-center justify-center text-center py-8 px-3 rounded-2xl border border-dashed border-slate-200/80 dark:border-white/[0.06] bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm group hover:border-indigo-400/40 dark:hover:border-indigo-500/30 transition-colors">
+                        <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/70 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1.5">
+                          <Check className="w-3.5 h-3.5 opacity-60" />
+                        </div>
+                        <p className="text-[11.5px] font-bold text-slate-600 dark:text-slate-300">
+                          {locale === 'vi' ? 'Chưa có công việc' : 'No tasks in this column'}
+                        </p>
+                        <p className="text-[9.5px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {locale === 'vi' ? 'Kéo thả hoặc nhấn + để tạo' : 'Drag tasks here or click +'}
+                        </p>
                       </div>
                     )}
                   </KanbanColumn>
@@ -1457,6 +1793,114 @@ export default function TaskBoardView({
               );
             })}
             
+            {/* Add Column Card */}
+            <div className="min-w-[288px] sm:min-w-[300px] w-[288px] sm:w-[300px] flex-shrink-0 snap-center">
+              {isAddingColumn ? (
+                <div className="bg-white dark:bg-[#181818] p-4 rounded-[22px] flex flex-col gap-3.5 border-2 border-indigo-500/80 dark:border-indigo-500 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-white/[0.06]">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getColorOption(newColumnColor).hex }} />
+                      {locale === 'vi' ? 'Thêm bảng mới' : 'Add New Column'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingColumn(false);
+                        setNewColumnTitle('');
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        {locale === 'vi' ? 'Tên bảng / cột' : 'Column Name'}
+                      </label>
+                      <input
+                        ref={newColumnInputRef}
+                        type="text"
+                        value={newColumnTitle}
+                        onChange={(e) => setNewColumnTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCreateColumn();
+                          else if (e.key === 'Escape') {
+                            setIsAddingColumn(false);
+                            setNewColumnTitle('');
+                          }
+                        }}
+                        placeholder={locale === 'vi' ? 'Ví dụ: Đang kiểm thử, Tạm hoãn...' : 'e.g. In QA, Blocked...'}
+                        className="w-full px-3 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all placeholder:text-slate-400"
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* Color Swatches */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                        {locale === 'vi' ? 'Màu sắc đại diện' : 'Color theme'}
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-white/[0.06]">
+                        {COLOR_PALETTE.slice(0, 10).map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setNewColumnColor(c.id)}
+                            className={`w-6 h-6 rounded-lg transition-transform cursor-pointer relative flex items-center justify-center ${c.dot} ${
+                              newColumnColor === c.id ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110 shadow-xs' : 'hover:scale-105 opacity-80 hover:opacity-100'
+                            }`}
+                            title={locale === 'vi' ? c.nameVi : c.name}
+                          >
+                            {newColumnColor === c.id && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/[0.06]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingColumn(false);
+                          setNewColumnTitle('');
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                      >
+                        {locale === 'vi' ? 'Hủy' : 'Cancel'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateColumn}
+                        disabled={!newColumnTitle.trim()}
+                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-black shadow-xs cursor-pointer active:scale-95 transition-all"
+                      >
+                        {locale === 'vi' ? 'Thêm bảng' : 'Add Column'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleOpenAddColumn}
+                  className="w-full min-h-[140px] flex flex-col items-center justify-center gap-2.5 p-5 rounded-[22px] border-2 border-dashed border-slate-300/80 dark:border-white/[0.1] hover:border-indigo-400 dark:hover:border-indigo-500/60 bg-slate-100/50 dark:bg-[#181818]/40 hover:bg-white dark:hover:bg-slate-900/60 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 cursor-pointer group shadow-3xs hover:shadow-md"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center shadow-xs group-hover:scale-110 group-hover:border-indigo-300 dark:group-hover:border-indigo-500/50 transition-all duration-200">
+                    <Plus className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                  </div>
+                  <div className="text-center">
+                    <span className="text-xs font-black uppercase tracking-wider block">
+                      {locale === 'vi' ? '+ Thêm bảng mới' : '+ Add new column'}
+                    </span>
+                    <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium mt-0.5 block">
+                      {locale === 'vi' ? 'Tạo cột trạng thái phân loại' : 'Create status column'}
+                    </span>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto pb-4 custom-scrollbar select-none">
@@ -1495,6 +1939,15 @@ export default function TaskBoardView({
                     </div>
                   );
                 })}
+
+                <button 
+                  onClick={handleOpenAddColumn}
+                  className="min-w-[140px] px-3 py-1.5 rounded-xl border border-dashed border-slate-300 dark:border-white/[0.1] hover:border-indigo-400 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-3xs"
+                  title={locale === 'vi' ? 'Thêm bảng mới' : 'Add new column'}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{locale === 'vi' ? 'Thêm bảng' : 'Add Board'}</span>
+                </button>
               </div>
 
               {/* Swimlane Rows */}

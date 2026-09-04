@@ -16,6 +16,7 @@ import {
   HardDrive,
 } from 'lucide-react';
 import { Task, Document, User } from '@/types';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export interface ExportDataModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   addSyncLog,
   triggerToast,
 }) => {
+  const { localize: l, locale } = useTranslation();
   const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'report'>('json');
   const [exportScope, setExportScope] = useState<'all' | 'tasks' | 'docs'>('all');
   const [isExporting, setIsExporting] = useState(false);
@@ -91,10 +93,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           // Formatted HTML Executive Report
           const reportHtml = `
 <!DOCTYPE html>
-<html>
+<html lang="${locale === 'vi' ? 'vi-VN' : 'en-US'}">
 <head>
   <meta charset="utf-8">
-  <title>Apexa Executive Report - ${timestamp}</title>
+  <title>${l('Báo cáo tổng quan Apexa', 'Apexa Executive Report')} - ${timestamp}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; background: #fff; }
     h1 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
@@ -109,19 +111,19 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
   </style>
 </head>
 <body>
-  <h1>Apexa Workspace Executive Report</h1>
-  <p><strong>Generated Date:</strong> ${new Date().toLocaleString()}</p>
-  <p><strong>Workspace ID:</strong> ${activeWorkspaceId}</p>
-  <p><strong>Total Tasks:</strong> ${tasks.length} | <strong>Total Documents:</strong> ${docs.length} | <strong>Members:</strong> ${members.length}</p>
+  <h1>${l('Báo cáo tổng quan không gian Apexa', 'Apexa Workspace Executive Report')}</h1>
+  <p><strong>${l('Ngày tạo', 'Generated')}:</strong> ${new Date().toLocaleString(locale === 'vi' ? 'vi-VN' : 'en-US')}</p>
+  <p><strong>${l('Mã không gian', 'Workspace ID')}:</strong> ${activeWorkspaceId}</p>
+  <p><strong>${l('Công việc', 'Tasks')}:</strong> ${tasks.length} | <strong>${l('Tài liệu', 'Documents')}:</strong> ${docs.length} | <strong>${l('Thành viên', 'Members')}:</strong> ${members.length}</p>
 
-  <h2>Tasks Overview (${tasks.length})</h2>
+  <h2>${l('Tổng quan công việc', 'Tasks overview')} (${tasks.length})</h2>
   <table>
     <thead>
       <tr>
-        <th>Title</th>
-        <th>Status</th>
-        <th>Priority</th>
-        <th>Due Date</th>
+        <th>${l('Tiêu đề', 'Title')}</th>
+        <th>${l('Trạng thái', 'Status')}</th>
+        <th>${l('Ưu tiên', 'Priority')}</th>
+        <th>${l('Hạn hoàn thành', 'Due date')}</th>
       </tr>
     </thead>
     <tbody>
@@ -140,14 +142,14 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
     </tbody>
   </table>
 
-  <h2>Documents Overview (${docs.length})</h2>
+  <h2>${l('Tổng quan tài liệu', 'Documents overview')} (${docs.length})</h2>
   <table>
     <thead>
       <tr>
-        <th>Title</th>
-        <th>Category</th>
-        <th>Author</th>
-        <th>Last Updated</th>
+        <th>${l('Tiêu đề', 'Title')}</th>
+        <th>${l('Danh mục', 'Category')}</th>
+        <th>${l('Tác giả', 'Author')}</th>
+        <th>${l('Cập nhật lần cuối', 'Last updated')}</th>
       </tr>
     </thead>
     <tbody>
@@ -171,11 +173,11 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           downloadFile(`apexa_executive_report_${timestamp}.html`, reportHtml, 'text/html');
         }
 
-        if (addSyncLog) addSyncLog(`Exported workspace data in ${exportFormat.toUpperCase()} format`);
-        if (triggerToast) triggerToast('success', 'Export Complete', `Workspace data saved as ${exportFormat.toUpperCase()} file.`);
+        addSyncLog?.(l(`Đã xuất dữ liệu không gian ở định dạng ${exportFormat.toUpperCase()}`, `Exported workspace data as ${exportFormat.toUpperCase()}`));
+        triggerToast?.('success', l('Xuất dữ liệu hoàn tất', 'Export complete'), l(`Đã lưu dữ liệu dưới dạng tệp ${exportFormat.toUpperCase()}.`, `Workspace data was saved as a ${exportFormat.toUpperCase()} file.`));
       } catch (err) {
         console.error(err);
-        if (triggerToast) triggerToast('info', 'Export Failed', 'An error occurred while generating export.');
+        triggerToast?.('info', l('Xuất dữ liệu thất bại', 'Export failed'), l('Đã xảy ra lỗi khi tạo tệp xuất.', 'An error occurred while generating the export.'));
       } finally {
         setIsExporting(false);
         onClose();
@@ -213,10 +215,10 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  Trung tâm xuất và sao lưu dữ liệu
+                  {l('Xuất và sao lưu dữ liệu', 'Export & backup')}
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Xuất công việc, tài liệu và dữ liệu không gian chỉ với một lần nhấp
+                  {l('Tải xuống công việc, tài liệu và dữ liệu không gian', 'Download tasks, documents, and workspace data')}
                 </p>
               </div>
             </div>
@@ -234,7 +236,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             {/* Format Selection Cards */}
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase font-mono tracking-wider text-slate-400 dark:text-slate-500">
-                Chọn định dạng xuất
+                {l('Định dạng tệp', 'File format')}
               </label>
 
               <div className="grid grid-cols-3 gap-2.5">
@@ -249,8 +251,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileJson className="w-5 h-5 text-indigo-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">Bản sao lưu JSON</div>
-                    <div className="text-[10px] text-slate-400">Toàn bộ dữ liệu gốc</div>
+                    <div className="text-xs font-bold">{l('Bản sao lưu JSON', 'JSON backup')}</div>
+                    <div className="text-[10px] text-slate-400">{l('Toàn bộ dữ liệu gốc', 'Complete raw data')}</div>
                   </div>
                 </button>
 
@@ -265,8 +267,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileSpreadsheet className="w-5 h-5 text-emerald-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">Bảng tính CSV</div>
-                    <div className="text-[10px] text-slate-400">Excel / Google Trang tính</div>
+                    <div className="text-xs font-bold">{l('Bảng tính CSV', 'CSV spreadsheet')}</div>
+                    <div className="text-[10px] text-slate-400">{l('Excel hoặc Google Trang tính', 'Excel or Google Sheets')}</div>
                   </div>
                 </button>
 
@@ -281,8 +283,8 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 >
                   <FileText className="w-5 h-5 text-purple-500 mb-2" />
                   <div>
-                    <div className="text-xs font-bold">Bản in HTML</div>
-                    <div className="text-[10px] text-slate-400">Báo cáo tổng hợp có thể in</div>
+                    <div className="text-xs font-bold">{l('Báo cáo HTML', 'HTML report')}</div>
+                    <div className="text-[10px] text-slate-400">{l('Báo cáo tổng hợp có thể in', 'Printable summary report')}</div>
                   </div>
                 </button>
               </div>
@@ -291,7 +293,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             {/* Scope Selection */}
             <div className="space-y-2">
               <label className="text-xs font-extrabold uppercase font-mono tracking-wider text-slate-400 dark:text-slate-500">
-                Phạm vi dữ liệu
+                {l('Phạm vi dữ liệu', 'Data scope')}
               </label>
               <div className="flex items-center gap-2">
                 <button
@@ -303,7 +305,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  Tất cả mục ({tasks.length + docs.length})
+                  {l('Tất cả', 'Everything')} ({tasks.length + docs.length})
                 </button>
                 <button
                   type="button"
@@ -314,7 +316,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  Chỉ công việc ({tasks.length})
+                  {l('Công việc', 'Tasks')} ({tasks.length})
                 </button>
                 <button
                   type="button"
@@ -325,7 +327,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent'
                   }`}
                 >
-                  Chỉ tài liệu ({docs.length})
+                  {l('Tài liệu', 'Documents')} ({docs.length})
                 </button>
               </div>
             </div>
@@ -334,10 +336,16 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs space-y-1.5 text-slate-600 dark:text-slate-300">
               <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
                 <HardDrive className="w-4 h-4 text-emerald-500" />
-                <span>Tóm tắt bản xuất</span>
+                <span>{l('Tóm tắt bản xuất', 'Export summary')}</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Exporting {exportScope === 'all' ? `${tasks.length} tasks and ${docs.length} documents` : exportScope === 'tasks' ? `${tasks.length} tasks` : `${docs.length} documents`}. Tệp sẽ tự động được tải xuống.
+                {l('Đang chuẩn bị ', 'Preparing ')}
+                {exportScope === 'all'
+                  ? l(`${tasks.length} công việc và ${docs.length} tài liệu`, `${tasks.length} tasks and ${docs.length} documents`)
+                  : exportScope === 'tasks'
+                    ? l(`${tasks.length} công việc`, `${tasks.length} tasks`)
+                    : l(`${docs.length} tài liệu`, `${docs.length} documents`)}.
+                {l(' Tệp sẽ tự động được tải xuống.', ' The file will download automatically.')}
               </p>
             </div>
           </div>
@@ -346,7 +354,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
           <div className="px-6 py-4 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between">
             <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Xuất dữ liệu hoàn toàn ngoại tuyến trên thiết bị</span>
+              <span>{l('Tệp được tạo cục bộ trên thiết bị', 'Files are generated locally on this device')}</span>
             </span>
 
             <div className="flex items-center gap-2">
@@ -355,7 +363,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                Cancel
+                {l('Hủy', 'Cancel')}
               </button>
 
               <button
@@ -365,7 +373,7 @@ export const ExportDataModal: React.FC<ExportDataModalProps> = ({
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>{isExporting ? 'Generating...' : 'Download File'}</span>
+                <span>{isExporting ? l('Đang tạo tệp…', 'Generating…') : l('Tải tệp xuống', 'Download file')}</span>
               </button>
             </div>
           </div>

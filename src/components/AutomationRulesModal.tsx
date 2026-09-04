@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useTranslation } from '../contexts/TranslationContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap,
@@ -51,6 +52,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
   spaceId,
   listId,
 }) => {
+  const { localize: l, formatDate } = useTranslation();
   const [rules, setRules] = useState<AutomationRule[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -68,7 +70,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
       const { data, error } = await query.order('created_at', { ascending: false });
       if (!active) return;
       if (error) {
-        triggerToast?.('warning', 'Không thể tải automation', error.message);
+        triggerToast?.('warning', l('Không thể tải quy tắc tự động', 'Could not load automations'), error.message);
         return;
       }
       setRules((data || []).map(row => ({
@@ -80,7 +82,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
     };
     void loadRules();
     return () => { active = false; };
-  }, [isOpen, workspaceId, spaceId, listId, triggerToast]);
+  }, [isOpen, workspaceId, spaceId, listId, triggerToast, l]);
 
   const toggleRule = async (id: string) => {
     const currentRule = rules.find(rule => rule.id === id);
@@ -91,18 +93,21 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
       updated_at: new Date().toISOString()
     }).eq('id', id);
     if (error) {
-      triggerToast?.('warning', 'Không thể cập nhật automation', error.message);
+      triggerToast?.('warning', l('Không thể cập nhật quy tắc', 'Could not update automation'), error.message);
       return;
     }
     setRules((prev) =>
       prev.map((r) => {
         if (r.id === id) {
-          if (addSyncLog) addSyncLog(`Automation rule "${r.name}" ${nextState ? 'enabled' : 'disabled'}`);
+          if (addSyncLog) addSyncLog(l(
+            `Quy tắc tự động “${r.name}” đã ${nextState ? 'bật' : 'tạm dừng'}`,
+            `Automation “${r.name}” ${nextState ? 'enabled' : 'paused'}`
+          ));
           if (triggerToast) {
             triggerToast(
               'info',
-              'Automation Updated',
-              `Rule "${r.name}" is now ${nextState ? 'Active' : 'Paused'}.`
+              l('Đã cập nhật quy tắc', 'Automation updated'),
+              l(`Quy tắc “${r.name}” hiện ${nextState ? 'đang hoạt động' : 'đã tạm dừng'}.`, `“${r.name}” is now ${nextState ? 'active' : 'paused'}.`)
             );
           }
           return { ...r, enabled: nextState };
@@ -115,11 +120,11 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
   const deleteRule = async (id: string) => {
     const { error } = await supabase.from('automation_rules').delete().eq('id', id);
     if (error) {
-      triggerToast?.('warning', 'Không thể xóa automation', error.message);
+      triggerToast?.('warning', l('Không thể xóa quy tắc', 'Could not delete automation'), error.message);
       return;
     }
     setRules((prev) => prev.filter((r) => r.id !== id));
-    if (triggerToast) triggerToast('info', 'Rule Removed', 'Automation rule has been deleted.');
+    triggerToast?.('info', l('Đã xóa quy tắc', 'Automation deleted'), l('Quy tắc tự động đã được xóa.', 'The automation was deleted.'));
   };
 
   const handleCreateRule = async (e: React.FormEvent) => {
@@ -127,14 +132,14 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
     if (!newRuleName.trim()) return;
 
     const triggerLabels: Record<string, string> = {
-      task_completed: 'When a task is completed',
-      task_urgent: 'When a task priority becomes Urgent',
-      doc_created: 'When a new document is created',
-      pomo_started: 'When a Pomodoro focus timer starts',
+      task_completed: l('Khi một công việc hoàn thành', 'When a task is completed'),
+      task_urgent: l('Khi mức ưu tiên chuyển thành Khẩn cấp', 'When a task priority becomes Urgent'),
+      doc_created: l('Khi tài liệu mới được tạo', 'When a new document is created'),
+      pomo_started: l('Khi phiên tập trung Pomodoro bắt đầu', 'When a Pomodoro focus timer starts'),
     };
 
     const actionLabels: Record<string, string> = {
-      log_activity: 'Log to workspace activity feed',
+      log_activity: l('Ghi vào nhật ký hoạt động', 'Log to the workspace activity feed'),
     };
 
     const newRule: AutomationRule = {
@@ -163,7 +168,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
       user_id: session.user.id
     });
     if (error) {
-      triggerToast?.('warning', 'Không thể tạo automation', error.message);
+      triggerToast?.('warning', l('Không thể tạo quy tắc', 'Could not create automation'), error.message);
       return;
     }
 
@@ -171,8 +176,8 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
     setNewRuleName('');
     setShowCreateModal(false);
 
-    if (addSyncLog) addSyncLog(`Created new automation rule: "${newRule.name}"`);
-    if (triggerToast) triggerToast('success', 'Automation Created', `Rule "${newRule.name}" is active!`);
+    addSyncLog?.(l(`Đã tạo quy tắc tự động: “${newRule.name}”`, `Created automation: “${newRule.name}”`));
+    triggerToast?.('success', l('Đã tạo quy tắc', 'Automation created'), l(`Quy tắc “${newRule.name}” đang hoạt động.`, `“${newRule.name}” is active.`));
   };
 
   if (!isOpen) return null;
@@ -205,13 +210,13 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  Công cụ quy tắc tự động
+                  {l('Quy tắc tự động', 'Automations')}
                   <span className="text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full uppercase">
-                    No-Code
+                    {l('Không cần mã', 'No-code')}
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Ghi nhận thay đổi công việc tự động vào Activity
+                  {l('Tự động ghi nhận thay đổi công việc vào nhật ký hoạt động', 'Automatically log task changes to the activity feed')}
                 </p>
               </div>
             </div>
@@ -222,7 +227,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Quy tắc mới</span>
+                <span>{l('Quy tắc mới', 'New automation')}</span>
               </button>
               <button
                 onClick={onClose}
@@ -240,9 +245,11 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 mx-auto flex items-center justify-center">
                   <Zap className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Chưa cấu hình quy tắc tự động</h4>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                  {l('Chưa có quy tắc tự động', 'No automations yet')}
+                </h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Tạo quy tắc để tự động ghi nhận các mốc quan trọng của công việc vào Activity.
+                  {l('Tạo quy tắc để tự động ghi nhận các mốc quan trọng vào nhật ký hoạt động.', 'Create an automation to log important task events to the activity feed.')}
                 </p>
               </div>
             ) : (
@@ -267,7 +274,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
                             }`}
                           >
-                            {rule.enabled ? 'ACTIVE' : 'PAUSED'}
+                            {rule.enabled ? l('ĐANG BẬT', 'ACTIVE') : l('TẠM DỪNG', 'PAUSED')}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -275,10 +282,10 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                         </p>
 
                         <div className="pt-2 flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                          <span>Đã chạy: {rule.triggerCount} times</span>
+                          <span>{l('Đã chạy', 'Runs')}: {rule.triggerCount}</span>
                           {rule.lastTriggeredAt && (
                             <span>
-                              Lần cuối: {new Date(rule.lastTriggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {l('Lần gần nhất', 'Last run')}: {formatDate(rule.lastTriggeredAt, { dateStyle: 'short', timeStyle: 'short' })}
                             </span>
                           )}
                         </div>
@@ -289,7 +296,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                         <button
                           onClick={() => toggleRule(rule.id)}
                           className="p-1 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                          title={rule.enabled ? 'Pause Rule' : 'Activate Rule'}
+                          title={rule.enabled ? l('Tạm dừng quy tắc', 'Pause automation') : l('Bật quy tắc', 'Activate automation')}
                         >
                           {rule.enabled ? (
                             <ToggleRight className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -301,7 +308,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                         <button
                           onClick={() => deleteRule(rule.id)}
                           className="p-1 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer"
-                          title="Xóa quy tắc"
+                          title={l('Xóa quy tắc', 'Delete automation')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -317,7 +324,10 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
           <div className="px-6 py-3 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1.5 font-mono text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Công cụ Apexa: {rules.filter(rule => rule.enabled).length} quy tắc đang hoạt động</span>
+              <span>
+                {l('Apexa Automations', 'Apexa Automations')}: {rules.filter(rule => rule.enabled).length}{' '}
+                {l('quy tắc đang hoạt động', 'active')}
+              </span>
             </span>
           </div>
         </motion.div>
@@ -335,7 +345,7 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-500" />
-                  <span>Tạo quy tắc tự động tùy chỉnh</span>
+                  <span>{l('Tạo quy tắc tự động', 'Create an automation')}</span>
                 </h4>
                 <button
                   type="button"
@@ -348,11 +358,13 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tên quy tắc</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {l('Tên quy tắc', 'Automation name')}
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ví dụ: Thông báo cho nhóm khi có công việc ưu tiên cao"
+                    placeholder={l('Ví dụ: Thông báo cho nhóm khi có công việc khẩn cấp', 'For example: Notify the team about urgent tasks')}
                     value={newRuleName}
                     onChange={(e) => setNewRuleName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
@@ -360,25 +372,29 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">NẾU (Điều kiện kích hoạt)</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {l('NẾU (điều kiện kích hoạt)', 'WHEN (trigger)')}
+                  </label>
                   <select
                     value={newRuleTrigger}
                     onChange={(e) => setNewRuleTrigger(e.target.value as any)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="task_completed">Khi công việc được đánh dấu Hoàn thành</option>
-                    <option value="task_urgent">Khi mức ưu tiên chuyển thành Khẩn cấp</option>
+                    <option value="task_completed">{l('Khi công việc được đánh dấu hoàn thành', 'When a task is completed')}</option>
+                    <option value="task_urgent">{l('Khi mức ưu tiên chuyển thành khẩn cấp', 'When a task becomes urgent')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">THÌ (Hành động)</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {l('THÌ (hành động)', 'THEN (action)')}
+                  </label>
                   <select
                     value={newRuleAction}
                     disabled
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="log_activity">Ghi vào hoạt động khu vực</option>
+                    <option value="log_activity">{l('Ghi vào nhật ký hoạt động', 'Log to the activity feed')}</option>
                   </select>
                 </div>
               </div>
@@ -389,13 +405,13 @@ export const AutomationRulesModal: React.FC<AutomationRulesModalProps> = ({
                   onClick={() => setShowCreateModal(false)}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
-                  Cancel
+                  {l('Hủy', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs"
                 >
-                  Tạo quy tắc
+                  {l('Tạo quy tắc', 'Create automation')}
                 </button>
               </div>
             </motion.form>

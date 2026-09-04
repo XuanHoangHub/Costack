@@ -1381,8 +1381,8 @@ function StockVoucherModal({ products, onClose, onSave }: { products: ProductIte
             <button
               type="button"
               onClick={() => { setType('in'); setReason('Nhập hàng bổ sung tồn kho'); }}
-              className={`p-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 cursor-pointer ${
-                type === 'in' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-950/50' : 'border-slate-200 text-slate-500'
+              className={`p-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                type === 'in' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-500/80 dark:text-emerald-300' : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:bg-slate-900/50'
               }`}
             >
               <ArrowDownLeft className="w-4 h-4" /> Phiếu Nhập Kho (NK)
@@ -1390,8 +1390,8 @@ function StockVoucherModal({ products, onClose, onSave }: { products: ProductIte
             <button
               type="button"
               onClick={() => { setType('out'); setReason('Xuất kho bán hàng dự án'); }}
-              className={`p-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 cursor-pointer ${
-                type === 'out' ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-950/50' : 'border-slate-200 text-slate-500'
+              className={`p-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                type === 'out' ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-950/50 dark:border-blue-500/80 dark:text-blue-300' : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 dark:bg-slate-900/50'
               }`}
             >
               <ArrowUpRight className="w-4 h-4" /> Phiếu Xuất Kho (XK)

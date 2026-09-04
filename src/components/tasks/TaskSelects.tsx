@@ -3,12 +3,21 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag } from 'lucide-react';
+import { ChevronDown, Check, CalendarDays, ChevronLeft, ChevronRight, X, Clock, ChevronUp, Flag, Bell, BellRing, Search, Users, UserPlus, Circle, CircleDot, CheckCircle2, Eye, Minus } from 'lucide-react';
 import { Priority, TaskStatus, User, Workspace } from '../../types';
 import SignedImage from '../SignedImage';
 import { getStoredPriorities, getStoredStatuses, OptionConfig, getStoredDateFormat, formatCustomDate, DateFormatOption, getLocalizedOptionLabel, getColorOption, COLOR_PALETTE, getStoredCustomFieldsConfig } from '../../utils/fieldConfig';
 import { renderSpaceIcon } from '../EmojiIconPicker';
 import { useTranslation } from '../../contexts/TranslationContext';
+import {
+  ReminderOption,
+  REMINDER_OPTIONS,
+  isBrowserNotificationSupported,
+  requestBrowserNotificationPermission,
+  saveTaskReminder,
+  getTaskReminder,
+  sendSystemNotification,
+} from '@/lib/notificationManager';
 
 // ── Custom Hook for Portal Positioning ──
 export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObject<HTMLDivElement | null>, dropdownHeight: number = 200, dropdownWidth: number = 160) {
@@ -47,24 +56,61 @@ export function useDropdownPosition(isOpen: boolean, containerRef: React.RefObje
   return { coords, openUpward };
 }
 
-// ── Priority Pill Select ──
+// ── Standard Priority Meta & Config ──
+export const STANDARD_PRIORITY_META: Record<Priority, {
+  id: Priority;
+  labelEn: string;
+  labelVi: string;
+  hex: string;
+  badgeClass: string;
+  textClass: string;
+  iconClass: string;
+}> = {
+  urgent: {
+    id: 'urgent',
+    labelEn: 'Urgent',
+    labelVi: 'Khẩn cấp',
+    hex: '#ef4444',
+    badgeClass: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200/90 dark:border-rose-900/60 shadow-xs shadow-rose-500/10',
+    textClass: 'text-rose-600 dark:text-rose-400',
+    iconClass: 'fill-rose-500 text-rose-500'
+  },
+  high: {
+    id: 'high',
+    labelEn: 'High',
+    labelVi: 'Cao',
+    hex: '#f97316',
+    badgeClass: 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200/90 dark:border-orange-900/60 shadow-xs shadow-orange-500/10',
+    textClass: 'text-orange-600 dark:text-orange-400',
+    iconClass: 'fill-orange-500 text-orange-500'
+  },
+  medium: {
+    id: 'medium',
+    labelEn: 'Normal',
+    labelVi: 'Bình thường',
+    hex: '#3b82f6',
+    badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200/90 dark:border-blue-900/60 shadow-xs shadow-blue-500/10',
+    textClass: 'text-blue-600 dark:text-blue-400',
+    iconClass: 'fill-blue-500 text-blue-500'
+  },
+  low: {
+    id: 'low',
+    labelEn: 'Low',
+    labelVi: 'Thấp',
+    hex: '#64748b',
+    badgeClass: 'bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-xs',
+    textClass: 'text-slate-500 dark:text-slate-400',
+    iconClass: 'fill-slate-400 text-slate-400'
+  }
+};
+
+// ── Priority Pill Select (Modern Standard) ──
 export function PriorityPillSelect({ value, onChange }: { value: Priority | undefined | null; onChange: (v: Priority | undefined) => void }) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
-  const [priorities, setPriorities] = useState<OptionConfig[]>([]);
-
-  const reloadPriorities = () => {
-    setPriorities(getStoredPriorities());
-  };
-
-  React.useEffect(() => {
-    reloadPriorities();
-    window.addEventListener('apexa-field-config-changed', reloadPriorities);
-    return () => window.removeEventListener('apexa-field-config-changed', reloadPriorities);
-  }, []);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 220, 190);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -76,46 +122,66 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const metaList = priorities.length > 0 ? priorities : [
-    { id: 'urgent', label: 'Urgent', color: 'red', icon: 'AlertOctagon' },
-    { id: 'high', label: 'High', color: 'orange', icon: 'AlertTriangle' },
-    { id: 'medium', label: 'Normal', color: 'amber', icon: 'CircleDot' },
-    { id: 'low', label: 'Low', color: 'slate', icon: 'Circle' }
-  ];
+  const cur = value && STANDARD_PRIORITY_META[value] ? STANDARD_PRIORITY_META[value] : null;
 
-  const cur = value ? metaList.find(p => p.id === value) : null;
-  const curColorMeta = cur ? getColorOption(cur.color) : null;
+  const priorityOptions: Array<{ id: Priority; label: string; config: typeof STANDARD_PRIORITY_META[Priority] }> = [
+    { id: 'urgent', label: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', config: STANDARD_PRIORITY_META.urgent },
+    { id: 'high', label: locale === 'vi' ? 'Cao' : 'High', config: STANDARD_PRIORITY_META.high },
+    { id: 'medium', label: locale === 'vi' ? 'Bình thường' : 'Normal', config: STANDARD_PRIORITY_META.medium },
+    { id: 'low', label: locale === 'vi' ? 'Thấp' : 'Low', config: STANDARD_PRIORITY_META.low },
+  ];
 
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40"
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
-        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${!value ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-        {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
-        <span>{locale === 'vi' ? 'Không có (Trống)' : 'None (Empty)'}</span>
-        {!value && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+      <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
+        <Flag className="w-3 h-3 text-slate-400" />
+        <span>{locale === 'vi' ? 'Độ ưu tiên' : 'Priority'}</span>
+      </div>
+
+      {/* None option */}
+      <button 
+        type="button" 
+        onClick={() => { onChange(undefined); setOpen(false); }}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-all ${
+          !value 
+            ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold' 
+            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+        }`}
+      >
+        <Minus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        <span className="flex-1">{locale === 'vi' ? 'Không có (Trống)' : 'None (Empty)'}</span>
+        {!value && <Check className="w-3.5 h-3.5 ml-auto text-slate-600 dark:text-slate-300 stroke-[2.5]" />}
       </button>
-      {metaList.map(p => {
-        const colorMeta = getColorOption(p.color);
+
+      {/* Priority Options */}
+      {priorityOptions.map(p => {
+        const isSelected = value === p.id;
         return (
-          <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors ${value === p.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-            <span style={{ color: colorMeta.hex }}>
-              {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
-            </span>
-            <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
-            {value === p.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+          <button 
+            key={p.id} 
+            type="button" 
+            onClick={() => { onChange(p.id); setOpen(false); }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-all ${
+              isSelected 
+                ? `${p.config.badgeClass} font-bold` 
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Flag className={`w-3.5 h-3.5 shrink-0 ${p.config.iconClass}`} />
+            <span className="flex-1">{p.label}</span>
+            {isSelected && <Check className={`w-3.5 h-3.5 ml-auto ${p.config.textClass} stroke-[2.5]`} />}
           </button>
         );
       })}
@@ -124,22 +190,29 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button type="button" onClick={() => setOpen(!open)}
-        className={cur && curColorMeta 
-          ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${curColorMeta.priorityPill} ${curColorMeta.text}`
-          : `inline-flex items-center gap-1.5 px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 cursor-pointer select-none transition-all border-0 bg-transparent`}>
-        {cur && curColorMeta ? (
+      <button 
+        type="button" 
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border cursor-pointer select-none transition-all hover:shadow-xs active:scale-95 ${
+          cur 
+            ? `${cur.badgeClass}` 
+            : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800'
+        }`}
+      >
+        {cur ? (
           <>
-            <span style={{ color: curColorMeta.hex }}>
-              {renderSpaceIcon(cur.icon || 'Circle', 'w-3 h-3')}
-            </span>
-            <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
+            <Flag className={`w-3.5 h-3.5 shrink-0 ${cur.iconClass}`} />
+            <span>{locale === 'vi' ? cur.labelVi : cur.labelEn}</span>
           </>
         ) : (
-          <span>{locale === 'vi' ? 'Trống' : 'Empty'}</span>
+          <>
+            <Minus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>{locale === 'vi' ? 'Trống' : 'None'}</span>
+          </>
         )}
-        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 opacity-60 shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
+
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
           {open && dropdownContent}
@@ -150,23 +223,71 @@ export function PriorityPillSelect({ value, onChange }: { value: Priority | unde
   );
 }
 
+// ── Standard Status Meta & Helpers ──
+export const STANDARD_STATUS_META: Record<TaskStatus, {
+  id: TaskStatus;
+  labelEn: string;
+  labelVi: string;
+  hex: string;
+  badgeClass: string;
+  textClass: string;
+}> = {
+  todo: {
+    id: 'todo',
+    labelEn: 'To Do',
+    labelVi: 'Cần làm',
+    hex: '#64748b',
+    badgeClass: 'bg-slate-100/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border-slate-200/90 dark:border-slate-700 shadow-xs',
+    textClass: 'text-slate-600 dark:text-slate-400',
+  },
+  inprogress: {
+    id: 'inprogress',
+    labelEn: 'In Progress',
+    labelVi: 'Đang thực hiện',
+    hex: '#f59e0b',
+    badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200/90 dark:border-amber-800/60 shadow-xs shadow-amber-500/10',
+    textClass: 'text-amber-600 dark:text-amber-400',
+  },
+  review: {
+    id: 'review',
+    labelEn: 'In Review',
+    labelVi: 'Chờ duyệt',
+    hex: '#8b5cf6',
+    badgeClass: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200/90 dark:border-purple-800/60 shadow-xs shadow-purple-500/10',
+    textClass: 'text-purple-600 dark:text-purple-400',
+  },
+  completed: {
+    id: 'completed',
+    labelEn: 'Done',
+    labelVi: 'Hoàn thành',
+    hex: '#10b981',
+    badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/90 dark:border-emerald-800/60 shadow-xs shadow-emerald-500/10',
+    textClass: 'text-emerald-600 dark:text-emerald-400',
+  }
+};
+
+export const renderStatusIcon = (status: TaskStatus, className = "w-3.5 h-3.5") => {
+  switch (status) {
+    case 'todo':
+      return <Circle className={`${className} text-slate-400 dark:text-slate-500 stroke-[2.2] shrink-0`} />;
+    case 'inprogress':
+      return <CircleDot className={`${className} text-amber-500 stroke-[2.5] shrink-0 animate-pulse`} />;
+    case 'review':
+      return <Eye className={`${className} text-purple-500 stroke-[2.2] shrink-0`} />;
+    case 'completed':
+      return <CheckCircle2 className={`${className} text-emerald-500 fill-emerald-100 dark:fill-emerald-950/60 stroke-[2.5] shrink-0`} />;
+    default:
+      return <Circle className={`${className} text-slate-400 shrink-0`} />;
+  }
+};
+
+// ── Status Pill Select (Modern Standard) ──
 export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onChange: (v: TaskStatus) => void }) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 150, 160);
-  const [statuses, setStatuses] = useState<OptionConfig[]>([]);
-
-  const reloadStatuses = () => {
-    setStatuses(getStoredStatuses());
-  };
-
-  React.useEffect(() => {
-    reloadStatuses();
-    window.addEventListener('apexa-field-config-changed', reloadStatuses);
-    return () => window.removeEventListener('apexa-field-config-changed', reloadStatuses);
-  }, []);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 200, 190);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -178,41 +299,50 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const metaList: OptionConfig[] = statuses.length > 0 ? statuses : [
-    { id: 'todo', label: 'TO DO', color: 'slate' },
-    { id: 'inprogress', label: 'IN PROGRESS', color: 'amber' },
-    { id: 'review', label: 'UNDER REVIEW', color: 'cyan' },
-    { id: 'completed', label: 'COMPLETED', color: 'emerald' },
-  ];
+  const cur = STANDARD_STATUS_META[value] || STANDARD_STATUS_META.todo;
 
-  const cur = metaList.find(s => s.id === value) || metaList[0];
-  const curColorMeta = getColorOption(cur.color);
+  const statusOptions: Array<{ id: TaskStatus; label: string; config: typeof STANDARD_STATUS_META[TaskStatus] }> = [
+    { id: 'todo', label: locale === 'vi' ? 'Cần làm' : 'To Do', config: STANDARD_STATUS_META.todo },
+    { id: 'inprogress', label: locale === 'vi' ? 'Đang thực hiện' : 'In Progress', config: STANDARD_STATUS_META.inprogress },
+    { id: 'review', label: locale === 'vi' ? 'Chờ duyệt' : 'In Review', config: STANDARD_STATUS_META.review },
+    { id: 'completed', label: locale === 'vi' ? 'Hoàn thành' : 'Done', config: STANDARD_STATUS_META.completed },
+  ];
 
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-40"
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      {metaList.map(s => {
-        const colorMeta = getColorOption(s.color);
+      <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
+        <CircleDot className="w-3 h-3 text-slate-400" />
+        <span>{locale === 'vi' ? 'Trạng thái' : 'Status'}</span>
+      </div>
+
+      {statusOptions.map(s => {
+        const isSelected = value === s.id;
         return (
-          <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-black rounded-lg cursor-pointer transition-colors uppercase tracking-wider ${value === s.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-            <span 
-              className="w-2 h-2 rounded-full shrink-0 shadow-2xs" 
-              style={{ backgroundColor: colorMeta.hex }} 
-            />
-            <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
-            {value === s.id && <Check className="w-3 h-3 ml-auto text-indigo-500" />}
+          <button 
+            key={s.id} 
+            type="button" 
+            onClick={() => { onChange(s.id); setOpen(false); }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-all ${
+              isSelected 
+                ? `${s.config.badgeClass} font-bold` 
+                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            {renderStatusIcon(s.id, 'w-3.5 h-3.5')}
+            <span className="flex-1">{s.label}</span>
+            {isSelected && <Check className={`w-3.5 h-3.5 ml-auto ${s.config.textClass} stroke-[2.5]`} />}
           </button>
         );
       })}
@@ -221,15 +351,16 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button type="button" onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border cursor-pointer select-none transition-all uppercase tracking-wider hover:shadow-sm ${curColorMeta.statusPill}`}>
-        <span 
-          className="w-2 h-2 rounded-full shrink-0 shadow-2xs" 
-          style={{ backgroundColor: curColorMeta.hex }} 
-        />
-        <span>{getLocalizedOptionLabel(cur.id, cur.label, locale)}</span>
-        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      <button 
+        type="button" 
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border cursor-pointer select-none transition-all hover:shadow-xs active:scale-95 ${cur.badgeClass}`}
+      >
+        {renderStatusIcon(cur.id, 'w-3.5 h-3.5')}
+        <span>{locale === 'vi' ? cur.labelVi : cur.labelEn}</span>
+        <ChevronDown className={`w-3 h-3 opacity-60 shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
+
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
           {open && dropdownContent}
@@ -240,14 +371,24 @@ export function StatusPillSelect({ value, onChange }: { value: TaskStatus; onCha
   );
 }
 
-// ── Assignee Pill Select ──
-export function AssigneePillSelect({ value, members, onChange, compact = false }: { value: string | string[] | null; members: User[]; onChange: (v: string[] | null) => void; compact?: boolean }) {
+// ── Assignee Pill Select (Modern Multi-Assignee Selection) ──
+export function AssigneePillSelect({ 
+  value, 
+  members, 
+  onChange, 
+  compact = false 
+}: { 
+  value: string | string[] | null | undefined; 
+  members: User[]; 
+  onChange: (v: string[] | null) => void; 
+  compact?: boolean;
+}) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 290, 260);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 340, 280);
 
   React.useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -263,8 +404,16 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
     if (!open) setQuery('');
   }, [open]);
 
-  const valueIds = Array.isArray(value) ? value : value ? [value] : [];
-  const selectedMembers = members.filter(member => valueIds.includes(member.id));
+  const valueIds = useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return [value];
+  }, [value]);
+
+  const selectedMembers = useMemo(() => {
+    return members.filter(member => valueIds.includes(member.id));
+  }, [members, valueIds]);
+
   const filteredMembers = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return members;
@@ -280,22 +429,15 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
 
   const clearAssignees = () => {
     onChange(null);
-    setOpen(false);
   };
 
   const avatar = (member: User, className: string) => member.avatar ? (
     <SignedImage filePath={member.avatar} className={`${className} object-cover`} alt={member.name} />
   ) : (
-    <span className={`${className} flex items-center justify-center bg-violet-500 text-white text-[9px] font-bold`} aria-hidden="true">
+    <span className={`${className} flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[9px] font-black`} aria-hidden="true">
       {(member.name || '?').trim().charAt(0).toUpperCase()}
     </span>
   );
-
-  const displayLabel = selectedMembers.length === 0
-    ? (locale === 'vi' ? 'Chưa phân công' : 'Unassigned')
-    : selectedMembers.length === 1
-      ? selectedMembers[0].name
-      : locale === 'vi' ? `${selectedMembers.length} người phụ trách` : `${selectedMembers.length} assignees`;
 
   const dropdownContent = coords ? (
     <motion.div
@@ -308,86 +450,230 @@ export function AssigneePillSelect({ value, members, onChange, compact = false }
         position: 'fixed',
         top: openUpward ? coords.top - 8 : coords.bottom + 8,
         left: coords.safeLeft,
-        width: Math.max(240, Math.min(300, coords.width + 80)),
+        width: Math.max(260, Math.min(320, coords.width + 90)),
         transform: openUpward ? 'translateY(-100%)' : undefined,
         zIndex: 1000,
       }}
-      className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
+      className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-900/15 dark:border-slate-800 dark:bg-slate-900"
       role="listbox"
       aria-label={locale === 'vi' ? 'Người phụ trách' : 'Assignee'}
     >
-      <div className="border-b border-slate-100 p-2 dark:border-slate-800">
-        <input
-          autoFocus
-          value={query}
-          onChange={event => setQuery(event.target.value)}
-          placeholder={locale === 'vi' ? 'Tìm thành viên...' : 'Search members...'}
-          className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-violet-900/40"
-        />
+      {/* Dropdown Header with Count & Clear */}
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60">
+        <div className="flex items-center gap-1.5">
+          <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+            {locale === 'vi' ? 'Người phụ trách' : 'Assignees'}
+          </span>
+          {selectedMembers.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              {selectedMembers.length}
+            </span>
+          )}
+        </div>
+
+        {selectedMembers.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAssignees}
+            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+          >
+            {locale === 'vi' ? 'Bỏ chọn tất cả' : 'Clear all'}
+          </button>
+        )}
       </div>
-      <div className="max-h-64 overflow-y-auto p-1.5">
-        <button
-          type="button"
-          role="option"
-          aria-selected={selectedMembers.length === 0}
-          onClick={clearAssignees}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/70"
-        >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] dark:border-slate-700">−</span>
-          <span className="flex-1">{locale === 'vi' ? 'Bỏ phân công' : 'Unassign'}</span>
-          {selectedMembers.length === 0 && <Check className="h-3.5 w-3.5 text-violet-500" />}
-        </button>
+
+      {/* Search Input */}
+      <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="relative flex items-center">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={locale === 'vi' ? 'Tìm theo tên hoặc email...' : 'Search members...'}
+            className="h-8 w-full rounded-xl border border-slate-200/90 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 pl-8 pr-7 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:bg-white dark:focus:bg-slate-850 focus:ring-2 focus:ring-blue-500/20"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Member Multi-Select List */}
+      <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
         {filteredMembers.map(member => {
           const selected = valueIds.includes(member.id);
           return (
             <button
               key={member.id}
               type="button"
-              role="option"
-              aria-selected={selected}
+              role="checkbox"
+              aria-checked={selected}
               onClick={() => toggleAssignee(member.id)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${selected ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/70'}`}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
+                selected 
+                  ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 font-medium' 
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+              }`}
             >
-              {avatar(member, 'h-5 w-5 shrink-0 rounded-full')}
-              <span className="min-w-0 flex-1 truncate">{member.name}</span>
-              {selected && <Check className="h-3.5 w-3.5 shrink-0 text-violet-500" />}
+              {/* Checkbox box indicator */}
+              <div className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                selected 
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-xs shadow-blue-500/30' 
+                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 group-hover:border-blue-400'
+              }`}>
+                {selected && <Check className="w-3 h-3 stroke-[2.5]" />}
+              </div>
+
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                {avatar(member, 'h-6 w-6 rounded-full')}
+                {member.status === 'online' && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold truncate leading-snug">
+                  {member.name}
+                </div>
+                {member.email && (
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-snug">
+                    {member.email}
+                  </div>
+                )}
+              </div>
+
+              {/* Role badge */}
+              {member.role === 'admin' && (
+                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase shrink-0">
+                  Admin
+                </span>
+              )}
             </button>
           );
         })}
+
         {filteredMembers.length === 0 && (
-          <div className="px-2.5 py-4 text-center text-xs text-slate-400">
-            {locale === 'vi' ? 'Không tìm thấy thành viên' : 'No members found'}
+          <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+            {locale === 'vi' ? 'Không tìm thấy thành viên nào' : 'No members found'}
           </div>
         )}
+      </div>
+
+      {/* Dropdown Footer with Done button */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+          {selectedMembers.length === 0
+            ? (locale === 'vi' ? 'Chọn 1 hoặc nhiều người' : 'Select 1 or more people')
+            : (locale === 'vi' ? `Đã chọn ${selectedMembers.length} người` : `${selectedMembers.length} selected`)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="h-7 px-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all cursor-pointer active:scale-95"
+        >
+          {locale === 'vi' ? 'Xong' : 'Done'}
+        </button>
       </div>
     </motion.div>
   ) : null;
 
   return (
     <div ref={ref} className="relative inline-block min-w-0">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(current => !current)}
-        className={`inline-flex max-w-full items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-700 dark:hover:bg-violet-950/30 ${compact ? 'max-w-[180px]' : ''}`}
-      >
-        {selectedMembers.length > 0 ? (
-          <span className="flex shrink-0 -space-x-1.5">
-            {selectedMembers.slice(0, 2).map(member => <span key={member.id} className="rounded-full border-2 border-white dark:border-slate-900">{avatar(member, 'h-5 w-5 rounded-full')}</span>)}
+      {selectedMembers.length === 0 ? (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          className={`inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300/90 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer ${compact ? 'max-w-[140px]' : ''}`}
+        >
+          <UserPlus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="truncate">{locale === 'vi' ? 'Chưa phân công' : 'Unassigned'}</span>
+          <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      ) : selectedMembers.length === 1 ? (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          className={`inline-flex items-center gap-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 px-2.5 py-1 text-xs font-semibold text-slate-750 dark:text-slate-200 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[160px]' : ''}`}
+        >
+          {avatar(selectedMembers[0], 'h-5 w-5 rounded-full')}
+          <span className="truncate max-w-[120px]">{selectedMembers[0].name}</span>
+          <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          title={selectedMembers.map(m => m.name).join(', ')}
+          className={`inline-flex items-center gap-2 rounded-xl border border-blue-200/80 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/30 hover:bg-blue-50 dark:hover:bg-blue-950/60 px-2.5 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 shadow-xs transition-all cursor-pointer ${compact ? 'max-w-[180px]' : ''}`}
+        >
+          <span className="flex shrink-0 -space-x-2">
+            {selectedMembers.slice(0, 3).map(member => (
+              <span key={member.id} className="rounded-full ring-2 ring-white dark:ring-slate-900 overflow-hidden shrink-0">
+                {avatar(member, 'h-5 w-5')}
+              </span>
+            ))}
+            {selectedMembers.length > 3 && (
+              <span className="h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-blue-600 text-white text-[9px] font-black flex items-center justify-center shrink-0">
+                +{selectedMembers.length - 3}
+              </span>
+            )}
           </span>
-        ) : (
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[11px] text-slate-400 dark:border-slate-700">−</span>
-        )}
-        <span className="truncate">{displayLabel}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+          <span className="truncate">
+            {selectedMembers.length} {locale === 'vi' ? 'người' : 'people'}
+          </span>
+          <ChevronDown className={`w-3 h-3 text-blue-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      )}
       {typeof document !== 'undefined' && open && coords && createPortal(dropdownContent, document.body)}
     </div>
   );
 }
-export function PremiumDatePicker({ label, dateValue, timeValue, onChange, startDateValue = '', onStartDateChange, clearable = true, align = 'right', className = '', displayLabel }: {
-  label?: string; dateValue: string; timeValue?: string; onChange: (value: string | undefined) => void; startDateValue?: string; onStartDateChange?: (value: string | undefined) => void; clearable?: boolean; align?: 'left' | 'right' | 'center'; className?: string; displayLabel?: string;
+export function PremiumDatePicker({
+  label,
+  dateValue,
+  timeValue,
+  onChange,
+  startDateValue = '',
+  onStartDateChange,
+  clearable = true,
+  align = 'right',
+  className = '',
+  displayLabel,
+  reminderValue,
+  onReminderChange,
+  taskId,
+  taskTitle,
+}: {
+  label?: string;
+  dateValue: string;
+  timeValue?: string;
+  onChange: (value: string | undefined) => void;
+  startDateValue?: string;
+  onStartDateChange?: (value: string | undefined) => void;
+  clearable?: boolean;
+  align?: 'left' | 'right' | 'center';
+  className?: string;
+  displayLabel?: string;
+  reminderValue?: ReminderOption;
+  onReminderChange?: (value: ReminderOption) => void;
+  taskId?: string;
+  taskTitle?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -413,7 +699,44 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const [localDueDate, setLocalDueDate] = useState('');
   const [localDueDateTime, setLocalDueDateTime] = useState('');
 
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<'time' | 'reminder' | null>(null);
+  const [selectedReminder, setSelectedReminder] = useState<ReminderOption>(() => {
+    if (reminderValue) return reminderValue;
+    if (taskId) return getTaskReminder(taskId);
+    return 'none';
+  });
+
+  React.useEffect(() => {
+    if (reminderValue !== undefined) {
+      setSelectedReminder(reminderValue);
+    } else if (taskId) {
+      setSelectedReminder(getTaskReminder(taskId));
+    }
+  }, [reminderValue, taskId]);
+
+  const handleSelectReminder = async (opt: ReminderOption) => {
+    setSelectedReminder(opt);
+    onReminderChange?.(opt);
+    if (taskId) {
+      const activeDue = localDueDate ? (localDueDateTime ? `${localDueDate}T${localDueDateTime}` : `${localDueDate}T09:00:00`) : '';
+      saveTaskReminder(taskId, taskTitle || 'Công việc', activeDue, opt);
+    }
+
+    if (opt !== 'none') {
+      if (isBrowserNotificationSupported() && Notification.permission === 'default') {
+        const perm = await requestBrowserNotificationPermission();
+        if (perm === 'granted') {
+          sendSystemNotification({
+            title: '🔔 Thông báo nhắc nhở đã kích hoạt',
+            message: 'Apexa sẽ thông báo trực tiếp khi đến hạn công việc này.',
+            type: 'success',
+            taskId,
+          });
+        }
+      }
+    }
+  };
+
   const [pickerView, setPickerView] = useState<'calendar' | 'monthyear' | 'weekly' | 'presets'>('calendar');
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -430,6 +753,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
       setActiveTab(label?.toLowerCase() === 'start' ? 'start' : 'due');
       setPickerView('calendar');
       setWeekOffset(0);
+      setActiveSubPanel(null);
     }
   }, [isOpen, startDateValue, dateValue, label]);
 
@@ -457,12 +781,24 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node) && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
-        setShowTimePicker(false);
+        setActiveSubPanel(null);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        setActiveSubPanel(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen || !containerRef.current) return;
@@ -479,18 +815,6 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     window.addEventListener('scroll', updateCoords, true);
     window.addEventListener('resize', updateCoords);
     return () => { window.removeEventListener('scroll', updateCoords, true); window.removeEventListener('resize', updateCoords); };
-  }, [isOpen]);
-
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        setShowTimePicker(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -609,6 +933,7 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
   const isStart = label?.toLowerCase() === 'start';
   const activeDateValue = isStart ? (startDateValue || dateValue) : dateValue;
   const displayText = displayLabel || (activeDateValue ? formatDateLabel(activeDateValue) : (label || 'Select Date'));
+  const currentTimePart = activeTab === 'start' ? localStartDateTime : localDueDateTime;
 
   const isOverdue = dateValue && dateValue.split('T')[0] < todayStr && label?.toLowerCase() === 'due';
 
@@ -656,45 +981,77 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
     >
       {/* ── Header: Start/Due Date Toggle Pills ── */}
       <div className="p-2.5 pb-2">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 p-1 bg-slate-100/70 dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800">
           <button
             type="button"
             onClick={() => setActiveTab('start')}
             aria-pressed={activeTab === 'start'}
-            className={`min-w-0 flex items-center gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            className={`min-w-0 flex items-center justify-between gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               activeTab === 'start'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700/80'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
-            <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{localStartDate ? formatDateForBox(localStartDate) : 'Start date'}</span>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{localStartDate ? formatDateForBox(localStartDate) : 'Start date'}</span>
+            </div>
+            {localStartDate && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearActiveDate('start');
+                }}
+                className="p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                title="Xoá ngày bắt đầu"
+              >
+                <X className="w-3 h-3" />
+              </span>
+            )}
           </button>
 
           {/* Arrow connector */}
-          <div className="flex flex-col items-center shrink-0">
-            <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
+          <div className="flex flex-col items-center shrink-0 px-0.5">
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" />
           </div>
 
           <button
             type="button"
             onClick={() => setActiveTab('due')}
             aria-pressed={activeTab === 'due'}
-            className={`min-w-0 flex items-center gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            className={`min-w-0 flex items-center justify-between gap-1.5 h-9 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               activeTab === 'due'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700/80'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
-            <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{localDueDate ? formatDateForBox(localDueDate) : 'Due date'}</span>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <CalendarDays className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{localDueDate ? formatDateForBox(localDueDate) : 'Due date'}</span>
+            </div>
+            {localDueDate && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearActiveDate('due');
+                }}
+                className="p-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                title="Xoá hạn chót"
+              >
+                <X className="w-3 h-3" />
+              </span>
+            )}
           </button>
         </div>
 
         {/* Duration badge */}
         {getDurationLabel() && (
           <div className="flex items-center justify-center mt-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold rounded-full border border-indigo-100 dark:border-indigo-900/40">
               <Clock className="w-3 h-3" />
               {getDurationLabel()}
             </span>
@@ -710,24 +1067,25 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
               <button
                 type="button"
                 onClick={() => setPickerView('monthyear')}
-                className="rounded-lg px-1.5 py-1 text-[13px] font-bold text-slate-900 dark:text-slate-100 tracking-tight hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="rounded-lg px-2 py-1 text-[13px] font-bold text-slate-900 dark:text-slate-100 tracking-tight hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 flex items-center gap-1 cursor-pointer"
                 aria-label="Chọn tháng và năm"
               >
                 {monthNamesFull[currentMonth]} {currentYear}
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
               <div className="flex items-center gap-1.5">
                 <button 
                   type="button" 
                   onClick={() => { const t = new Date(); setCurrentMonth(t.getMonth()); setCurrentYear(t.getFullYear()); }}
-                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
+                  className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer"
                 >
-                  Today
+                  Hôm nay
                 </button>
-                <div className="flex items-center rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 overflow-hidden">
-                  <button type="button" aria-label="Tháng trước" onClick={prevMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+                <div className="flex items-center rounded-lg bg-slate-100/80 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800 overflow-hidden p-0.5">
+                  <button type="button" aria-label="Tháng trước" onClick={prevMonth} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white cursor-pointer transition-all">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <button type="button" aria-label="Tháng sau" onClick={nextMonth} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+                  <button type="button" aria-label="Tháng sau" onClick={nextMonth} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white cursor-pointer transition-all">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -736,9 +1094,9 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
 
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-0 text-center mb-1 px-0.5">
-              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+              {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
                 <div key={d} className="py-1">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-wider">{d}</span>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{d}</span>
                 </div>
               ))}
             </div>
@@ -981,85 +1339,211 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
         )}
       </div>
 
-      {/* ── Time Picker (Expandable) ── */}
+      {/* ── Time & Reminder Sub-Panel (Clean, Minimal, No Suggestions) ── */}
       <AnimatePresence>
-        {showTimePicker && (
+        {activeSubPanel && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="mx-3 border-t border-slate-100 dark:border-slate-850 overflow-hidden"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="mx-3 border-t border-slate-100 dark:border-slate-800 overflow-hidden"
           >
-            <div className="flex items-center gap-2 py-2.5">
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl px-2.5 py-1.5 flex-1">
-                <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                <input
-                  type="time"
-                  value={activeTab === 'start' ? localStartDateTime : localDueDateTime}
-                  onChange={e => applyTime(e.target.value)}
-                  className="w-full text-xs font-bold text-slate-700 dark:text-slate-200 bg-transparent border-none outline-none p-0 focus:ring-0"
-                />
-              </div>
-              <button 
-                type="button" 
-                onClick={() => applyTime('')}
-                className="px-2.5 py-1.5 rounded-xl text-[10px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors cursor-pointer"
-              >
-                Clear
-              </button>
+            <div className="py-2.5 space-y-2">
+              {/* Tab 1: Đặt Giờ */}
+              {activeSubPanel === 'time' && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-blue-500" />
+                      Thời gian thực hiện
+                    </span>
+                    {currentTimePart && (
+                      <button
+                        type="button"
+                        onClick={() => applyTime('')}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Xoá giờ
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Clean, styled direct time input */}
+                  <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl px-3 py-2 shadow-xs focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                    <Clock className="w-4 h-4 text-blue-500 shrink-0" />
+                    <input
+                      type="time"
+                      value={currentTimePart}
+                      onChange={(e) => applyTime(e.target.value)}
+                      className="w-full text-sm font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none p-0 focus:ring-0 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden cursor-pointer tracking-wider"
+                    />
+                  </div>
+
+                  {/* Clean Quick Hour / Minute Selectors */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-xs">
+                      <span className="text-[10px] font-semibold text-slate-400">Giờ:</span>
+                      <select
+                        value={currentTimePart ? currentTimePart.split(':')[0] : ''}
+                        onChange={(e) => {
+                          const h = e.target.value;
+                          const currentM = currentTimePart ? currentTimePart.split(':')[1] || '00' : '00';
+                          applyTime(h ? `${h}:${currentM}` : '');
+                        }}
+                        className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
+                      >
+                        <option value="">Chọn giờ</option>
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                          <option key={h} value={h}>{h}:00</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-xl px-2.5 py-1.5 shadow-xs">
+                      <span className="text-[10px] font-semibold text-slate-400">Phút:</span>
+                      <select
+                        value={currentTimePart ? currentTimePart.split(':')[1] : ''}
+                        onChange={(e) => {
+                          const m = e.target.value;
+                          const currentH = currentTimePart ? currentTimePart.split(':')[0] || '09' : '09';
+                          applyTime(`${currentH}:${m}`);
+                        }}
+                        className="text-xs font-bold text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer"
+                      >
+                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                          <option key={m} value={m}>{m} phút</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Nhắc nhở */}
+              {activeSubPanel === 'reminder' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-amber-500" />
+                      Thông báo nhắc hẹn
+                    </span>
+                    {isBrowserNotificationSupported() && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await requestBrowserNotificationPermission();
+                          if (res === 'granted') {
+                            sendSystemNotification({
+                              title: '🔔 Đã kích hoạt thông báo đẩy',
+                              message: 'Apexa sẽ gửi cảnh báo trực tiếp lên màn hình thiết bị khi đến hạn.',
+                              type: 'success',
+                            });
+                          }
+                        }}
+                        className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      >
+                        {typeof Notification !== 'undefined' && Notification.permission === 'granted'
+                          ? '✓ Đã bật đẩy màn hình'
+                          : '+ Bật thông báo đẩy'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {REMINDER_OPTIONS.map(option => {
+                      const isSelected = selectedReminder === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => handleSelectReminder(option.id)}
+                          className={`px-2.5 py-2 rounded-xl text-[10px] font-semibold text-left transition-all cursor-pointer border flex items-center justify-between ${
+                            isSelected
+                              ? 'bg-amber-500 text-white font-bold border-amber-500 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
+                              : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200/70 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-850'
+                          }`}
+                        >
+                          <span className="truncate">{option.labelVi}</span>
+                          {isSelected && <Check className="w-3 h-3 text-white shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="border-t border-slate-100 dark:border-slate-800 px-2.5 py-2 flex items-center justify-between gap-1.5">
-        <div className="flex min-w-0 items-center gap-0.5">
-          {[
-            { label: 'Today', offset: 0 },
-            { label: 'Tomorrow', offset: 1 },
-            { label: 'Next week', offset: daysToMonday === 0 ? 7 : daysToMonday },
-          ].map(item => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => selectPreset(item.offset)}
-              className="whitespace-nowrap px-1.5 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-              {item.label}
-            </button>
-          ))}
-
+      {/* ── Footer: Clean, modern Apple/Linear-grade controls ── */}
+      <div className="border-t border-slate-100 dark:border-slate-800/80 px-3 py-2.5 flex items-center justify-between gap-2 bg-slate-50/60 dark:bg-slate-900/60">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Time Picker Toggle Button */}
           <button 
             type="button"
-            onClick={() => setShowTimePicker(!showTimePicker)}
-            aria-expanded={showTimePicker}
-            aria-label="Đặt thời gian"
-            className={`p-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-              showTimePicker
-                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
-                : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
+            onClick={() => setActiveSubPanel(activeSubPanel === 'time' ? null : 'time')}
+            aria-expanded={activeSubPanel === 'time'}
+            title={currentTimePart ? `Giờ: ${currentTimePart}` : "Đặt giờ"}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-xl transition-all cursor-pointer border ${
+              activeSubPanel === 'time' || currentTimePart
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 border-slate-200/70 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-[10px]">{currentTimePart || 'Đặt giờ'}</span>
           </button>
+
+          {/* Reminder / Notification Toggle */}
+          <button 
+            type="button"
+            onClick={() => setActiveSubPanel(activeSubPanel === 'reminder' ? null : 'reminder')}
+            aria-expanded={activeSubPanel === 'reminder'}
+            title="Cài đặt thông báo & nhắc nhở"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-xl transition-all cursor-pointer border ${
+              activeSubPanel === 'reminder' || selectedReminder !== 'none'
+                ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 border-slate-200/70 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            {selectedReminder !== 'none' ? (
+              <BellRing className="w-3.5 h-3.5 shrink-0 text-amber-500 animate-pulse" />
+            ) : (
+              <Bell className="w-3.5 h-3.5 shrink-0" />
+            )}
+            <span className="text-[10px]">
+              {selectedReminder !== 'none' 
+                ? (REMINDER_OPTIONS.find(r => r.id === selectedReminder)?.labelVi.replace('Trước ', '') || 'Nhắc nhở')
+                : 'Nhắc nhở'}
+            </span>
+          </button>
+
+          {/* Clear Active Date Button */}
           {clearable && (activeTab === 'start' ? localStartDate : localDueDate) && (
             <button
               type="button"
               onClick={() => clearActiveDate(activeTab)}
-              aria-label={`Clear ${activeTab} date`}
-              className="p-1.5 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              aria-label={`Xoá ngày ${activeTab}`}
+              title="Xoá ngày"
+              className="p-1.5 rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 transition-colors cursor-pointer border border-transparent hover:border-rose-100"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
+        {/* Done / Xong Button */}
         <button 
           type="button" 
-          onClick={() => { setIsOpen(false); setShowTimePicker(false); }}
-          className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] rounded-lg shadow-sm transition-colors cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+          onClick={() => {
+            setIsOpen(false);
+            setActiveSubPanel(null);
+          }}
+          className="h-8 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-[11px] rounded-xl shadow-sm shadow-blue-500/20 transition-all cursor-pointer active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
         >
-          Done
+          Xong
         </button>
       </div>
     </motion.div>
@@ -1067,10 +1551,25 @@ export function PremiumDatePicker({ label, dateValue, timeValue, onChange, start
 
   return (
     <div ref={containerRef} className="relative inline-block">
-      <button type="button" onClick={() => setIsOpen(!isOpen)} aria-haspopup="dialog" aria-expanded={isOpen}
-        className={className || `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-sm ${activeDateValue ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        className={
+          className ||
+          `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer select-none transition-all hover:shadow-xs ${
+            activeDateValue
+              ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+          }`
+        }
+      >
         <CalendarDays className={`w-3.5 h-3.5 shrink-0 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`} />
         <span className={isOverdue ? 'text-rose-500' : ''}>{displayText}</span>
+        {selectedReminder !== 'none' && (
+          <Bell className="w-2.5 h-2.5 text-amber-500 shrink-0 ml-0.5" />
+        )}
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
@@ -1478,17 +1977,13 @@ export function LabelsFieldSelect({
 }
 
 // ── Bulk Status Select ──
+// ── Bulk Status Select ──
 export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => void }) {
   const { locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 160, 160);
-  const [statuses, setStatuses] = useState<OptionConfig[]>([]);
-
-  React.useEffect(() => {
-    setStatuses(getStoredStatuses());
-  }, [open]);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 190, 180);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1500,35 +1995,36 @@ export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => vo
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const metaList: OptionConfig[] = statuses.length > 0 ? statuses : [
-    { id: 'todo', label: 'TO DO', dot: 'bg-slate-400', bg: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', color: 'slate' },
-    { id: 'inprogress', label: 'IN PROGRESS', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900', color: 'amber' },
-    { id: 'review', label: 'REVIEW', dot: 'bg-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900', color: 'cyan' },
-    { id: 'completed', label: 'DONE', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900', color: 'emerald' },
+  const statusOptions: Array<{ id: TaskStatus; label: string; config: typeof STANDARD_STATUS_META[TaskStatus] }> = [
+    { id: 'todo', label: locale === 'vi' ? 'Cần làm' : 'To Do', config: STANDARD_STATUS_META.todo },
+    { id: 'inprogress', label: locale === 'vi' ? 'Đang thực hiện' : 'In Progress', config: STANDARD_STATUS_META.inprogress },
+    { id: 'review', label: locale === 'vi' ? 'Chờ duyệt' : 'In Review', config: STANDARD_STATUS_META.review },
+    { id: 'completed', label: locale === 'vi' ? 'Hoàn thành' : 'Done', config: STANDARD_STATUS_META.completed },
   ];
 
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-44"
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
-        Đổi trạng thái thành
+      <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1 flex items-center gap-1.5">
+        <CircleDot className="w-3 h-3 text-slate-400" />
+        <span>{locale === 'vi' ? 'Đổi trạng thái thành' : 'Change status to'}</span>
       </div>
-      {metaList.map(s => (
-        <button key={s.id} type="button" onClick={() => { onChange(s.id as TaskStatus); setOpen(false); }}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[10px] font-bold rounded-lg cursor-pointer transition-colors uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-          <span className={`w-2 h-2 rounded-full ${s.dot || `bg-${s.color}`}`} style={!s.dot && s.color ? { backgroundColor: s.color } : undefined} />
-          <span>{getLocalizedOptionLabel(s.id, s.label, locale)}</span>
+      {statusOptions.map(s => (
+        <button key={s.id} type="button" onClick={() => { onChange(s.id); setOpen(false); }}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-colors text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          {renderStatusIcon(s.id, 'w-3.5 h-3.5')}
+          <span className="flex-1">{s.label}</span>
         </button>
       ))}
     </motion.div>
@@ -1537,10 +2033,10 @@ export function BulkStatusSelect({ onChange }: { onChange: (v: TaskStatus) => vo
   return (
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
-        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-xs active:scale-95">
+        <span className="w-2 h-2 rounded-full bg-slate-400" />
         <span>{locale === 'vi' ? 'Trạng thái' : 'Status'}</span>
-        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>
@@ -1558,12 +2054,7 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const { coords, openUpward } = useDropdownPosition(open, ref, 180, 160);
-  const [priorities, setPriorities] = useState<OptionConfig[]>([]);
-
-  React.useEffect(() => {
-    setPriorities(getStoredPriorities());
-  }, [open]);
+  const { coords, openUpward } = useDropdownPosition(open, ref, 210, 180);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -1575,40 +2066,41 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const metaList = priorities.length > 0 ? priorities : [
-    { id: 'urgent', label: 'Urgent', color: 'red-600', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'AlertOctagon' },
-    { id: 'high', label: 'High', color: 'orange-600', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'AlertTriangle' },
-    { id: 'medium', label: 'Normal', color: 'yellow-600', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-955/30 dark:border-yellow-900/50', icon: 'CircleDot' },
-    { id: 'low', label: 'Low', color: 'slate-500', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
+  const priorityOptions: Array<{ id: Priority; label: string; config: typeof STANDARD_PRIORITY_META[Priority] }> = [
+    { id: 'urgent', label: locale === 'vi' ? 'Khẩn cấp' : 'Urgent', config: STANDARD_PRIORITY_META.urgent },
+    { id: 'high', label: locale === 'vi' ? 'Cao' : 'High', config: STANDARD_PRIORITY_META.high },
+    { id: 'medium', label: locale === 'vi' ? 'Bình thường' : 'Normal', config: STANDARD_PRIORITY_META.medium },
+    { id: 'low', label: locale === 'vi' ? 'Thấp' : 'Low', config: STANDARD_PRIORITY_META.low },
   ];
 
   const dropdownContent = (
     <motion.div 
       ref={dropdownRef}
-      initial={{ opacity: 0, y: openUpward ? 4 : -4 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: openUpward ? 4 : -4 }} 
+      initial={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, y: openUpward ? 4 : -4, scale: 0.98 }} 
       transition={{ duration: 0.12 }}
-      className="p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-xl shadow-xl w-40"
+      className="p-1.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/15 w-48"
       style={{
         position: 'fixed',
         zIndex: 9999,
         ...(coords ? (openUpward ? { bottom: window.innerHeight - coords.top + 6, left: coords.safeLeft } : { top: coords.bottom + 6, left: coords.safeLeft }) : {})
       }}
     >
-      <div className="px-2.5 py-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-505 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/60 mb-1">
-        Đổi mức ưu tiên thành
+      <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1 flex items-center gap-1.5">
+        <Flag className="w-3 h-3 text-slate-400" />
+        <span>{locale === 'vi' ? 'Đổi mức ưu tiên thành' : 'Change priority to'}</span>
       </div>
       <button type="button" onClick={() => { onChange(undefined); setOpen(false); }}
-        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-        {renderSpaceIcon('Circle', 'w-3 h-3 text-slate-400')}
-        <span>Không có (Trống)</span>
+        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-colors text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+        <Minus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        <span>{locale === 'vi' ? 'Không có (Trống)' : 'None (Empty)'}</span>
       </button>
-      {metaList.map(p => (
-        <button key={p.id} type="button" onClick={() => { onChange(p.id as Priority); setOpen(false); }}
-          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[11px] font-bold rounded-lg cursor-pointer transition-colors text-slate-705 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-          {renderSpaceIcon(p.icon || 'Circle', 'w-3 h-3')}
-          <span>{getLocalizedOptionLabel(p.id, p.label, locale)}</span>
+      {priorityOptions.map(p => (
+        <button key={p.id} type="button" onClick={() => { onChange(p.id); setOpen(false); }}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left text-xs font-semibold rounded-xl cursor-pointer transition-colors text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          <Flag className={`w-3.5 h-3.5 shrink-0 ${p.config.iconClass}`} />
+          <span>{p.label}</span>
         </button>
       ))}
     </motion.div>
@@ -1617,10 +2109,10 @@ export function BulkPrioritySelect({ onChange }: { onChange: (v: Priority | unde
   return (
     <div ref={ref} className="relative inline-block">
       <button type="button" onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-200/80 dark:border-slate-805 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-sm">
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer select-none transition-all hover:shadow-xs active:scale-95">
         <Flag className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
         <span>{locale === 'vi' ? 'Ưu tiên' : 'Priority'}</span>
-        <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {typeof document !== 'undefined' && coords && createPortal(
         <AnimatePresence>

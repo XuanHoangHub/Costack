@@ -7,10 +7,12 @@ import {
   QrCode, ShieldCheck, ShieldAlert, Sparkles, Check, RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 type GateMode = 'loading' | 'setup' | 'challenge' | 'success';
 
 export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => void; onBack: () => void }) {
+  const { localize: l } = useTranslation();
   const [mode, setMode] = useState<GateMode>('loading');
   const [factorId, setFactorId] = useState('');
   const [qrCode, setQrCode] = useState('');
@@ -43,9 +45,9 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       }
     } catch (mfaError) {
       setMode('setup');
-      setError(mfaError instanceof Error ? mfaError.message : 'Không thể kiểm tra trạng thái xác thực hai bước.');
+      setError(mfaError instanceof Error ? mfaError.message : l('Không thể kiểm tra trạng thái xác thực hai bước.', 'Could not check two-factor authentication status.'));
     }
-  }, [onSuccess]);
+  }, [onSuccess, l]);
 
   useEffect(() => {
     void inspectMfa();
@@ -71,7 +73,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
     } catch (mfaError) {
-      setError(mfaError instanceof Error ? mfaError.message : 'Không thể khởi tạo TOTP.');
+      setError(mfaError instanceof Error ? mfaError.message : l('Không thể khởi tạo TOTP.', 'Could not initialize TOTP.'));
     } finally {
       setBusy(false);
     }
@@ -80,7 +82,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
   const verifyCode = async () => {
     const normalizedCode = code.replace(/\D/g, '').slice(0, 6);
     if (!factorId || normalizedCode.length !== 6) {
-      setError('Vui lòng nhập đủ mã xác thực gồm 6 chữ số.');
+      setError(l('Vui lòng nhập đủ mã xác thực gồm 6 chữ số.', 'Enter the complete 6-digit verification code.'));
       return;
     }
     setBusy(true);
@@ -96,11 +98,11 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       if (verifyError) throw verifyError;
       const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (assuranceError) throw assuranceError;
-      if (assurance.currentLevel !== 'aal2') throw new Error('Session chưa được nâng lên AAL2. Vui lòng thử lại.');
+      if (assurance.currentLevel !== 'aal2') throw new Error(l('Phiên chưa được nâng lên AAL2. Vui lòng thử lại.', 'The session was not upgraded to AAL2. Try again.'));
       setMode('success');
       onSuccess();
     } catch (mfaError) {
-      setError(mfaError instanceof Error ? mfaError.message : 'Mã xác thực không hợp lệ hoặc đã hết hạn.');
+      setError(mfaError instanceof Error ? mfaError.message : l('Mã xác thực không hợp lệ hoặc đã hết hạn.', 'The verification code is invalid or expired.'));
     } finally {
       setBusy(false);
     }
@@ -142,14 +144,16 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
 
           <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300 shadow-xs">
             <Sparkles className="h-3 w-3 text-indigo-400 animate-pulse" />
-            Zero-Trust Vault Gate
+            {l('Cổng bảo mật Zero Trust', 'Zero-Trust security gate')}
           </div>
 
           <h1 className="mt-3 text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Xác minh quản trị hai bước
+            {l('Xác minh quản trị hai bước', 'Two-step admin verification')}
           </h1>
           <p className="mx-auto mt-2 max-w-md text-xs font-medium leading-relaxed text-slate-400">
-            UID của bạn đã được xác nhận. Vui lòng xác thực TOTP một lần để nâng phiên hiện tại lên cấp độ <strong className="text-indigo-300">AAL2</strong> và mở Apexa Control Center.
+            {l('Danh tính của bạn đã được xác nhận. Hãy nhập mã TOTP để nâng phiên hiện tại lên ', 'Your identity is confirmed. Enter a TOTP code to upgrade this session to ')}
+            <strong className="text-indigo-300">AAL2</strong>
+            {l(' và mở Trung tâm điều khiển Apexa.', ' and open the Apexa Control Center.')}
           </p>
         </div>
 
@@ -157,7 +161,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
         {mode === 'loading' && (
           <div className="mt-8 flex items-center justify-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] py-8 text-xs font-bold text-slate-300">
             <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
-            Đang kiểm tra thiết bị xác thực bảo mật…
+            {l('Đang kiểm tra thiết bị xác thực…', 'Checking your authenticator…')}
           </div>
         )}
 
@@ -173,9 +177,9 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
                 <QrCode className="h-5 w-5" />
               </span>
               <div>
-                <h2 className="text-sm font-black text-white">Thiết lập ứng dụng Authenticator</h2>
+                <h2 className="text-sm font-black text-white">{l('Thiết lập ứng dụng xác thực', 'Set up an authenticator app')}</h2>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  Dùng Google Authenticator, Microsoft Authenticator, 1Password hoặc ứng dụng TOTP tương thích để quét mã xác thực.
+                  {l('Dùng Google Authenticator, Microsoft Authenticator, 1Password hoặc ứng dụng TOTP tương thích để quét mã.', 'Scan the code with Google Authenticator, Microsoft Authenticator, 1Password, or another compatible TOTP app.')}
                 </p>
               </div>
             </div>
@@ -187,7 +191,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
               className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 py-3.5 text-xs font-black text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-              Tạo mã QR bảo mật
+              {l('Tạo mã QR bảo mật', 'Generate secure QR code')}
             </button>
           </motion.div>
         )}
@@ -200,12 +204,12 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
             className="mt-7 grid gap-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 sm:grid-cols-[160px_1fr] sm:items-center"
           >
             <div className="rounded-2xl bg-white p-2.5 shadow-2xl ring-2 ring-indigo-500/20">
-              <img src={qrCode} alt="QR Code TOTP Apexa" className="aspect-square w-full rounded-lg" />
+              <img src={qrCode} alt={l('Mã QR TOTP của Apexa', 'Apexa TOTP QR code')} className="aspect-square w-full rounded-lg" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white">1. Quét mã QR</h2>
+              <h2 className="text-sm font-black text-white">{l('1. Quét mã QR', '1. Scan the QR code')}</h2>
               <p className="mt-1 text-[10.5px] leading-relaxed text-slate-400">
-                Mở ứng dụng Authenticator và quét mã bên cạnh. Nếu không quét được, hãy sao chép khóa bảo mật:
+                {l('Mở ứng dụng xác thực và quét mã. Nếu không quét được, hãy sao chép khóa bảo mật:', 'Open your authenticator app and scan the code. If scanning fails, copy the security key:')}
               </p>
               <button
                 type="button"
@@ -216,7 +220,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
                 <span className="shrink-0">
                   {copied ? (
                     <span className="flex items-center gap-1 text-emerald-400 font-sans font-black text-[10px]">
-                      <Check className="h-3.5 w-3.5" /> Đã chép
+                      <Check className="h-3.5 w-3.5" /> {l('Đã sao chép', 'Copied')}
                     </span>
                   ) : (
                     <Copy className="h-3.5 w-3.5 text-slate-400" />
@@ -232,9 +236,11 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-3">
             <div className="flex items-center justify-between">
               <label htmlFor="admin-mfa-code" className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                {mode === 'challenge' ? 'Nhập mã 6 chữ số từ Authenticator' : '2. Nhập mã 6 chữ số để kích hoạt'}
+                {mode === 'challenge'
+                  ? l('Nhập mã 6 chữ số từ ứng dụng xác thực', 'Enter the 6-digit code from your authenticator')
+                  : l('2. Nhập mã 6 chữ số để kích hoạt', '2. Enter the 6-digit code to activate')}
               </label>
-              <span className="text-[10px] font-mono text-indigo-300 font-bold">AAL2 Requirement</span>
+              <span className="text-[10px] font-mono text-indigo-300 font-bold">{l('Yêu cầu AAL2', 'AAL2 required')}</span>
             </div>
 
             <div className="relative">
@@ -265,7 +271,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
               ) : (
                 <LockKeyhole className="h-4 w-4" />
               )}
-              Xác minh và mở Control Center
+              {l('Xác minh và mở Trung tâm điều khiển', 'Verify and open Control Center')}
             </button>
           </motion.div>
         )}
@@ -294,7 +300,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
             className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Trở về không gian làm việc chính
+            {l('Trở về không gian làm việc chính', 'Return to the main workspace')}
           </button>
         </div>
       </motion.section>

@@ -216,17 +216,17 @@ export function getColorOption(colorName?: string): ColorOption {
 }
 
 export const DEFAULT_STATUSES: OptionConfig[] = [
-  { id: 'todo', label: 'TO DO', color: 'slate', dot: 'bg-slate-500', bg: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
-  { id: 'inprogress', label: 'IN PROGRESS', color: 'amber', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900' },
-  { id: 'review', label: 'UNDER REVIEW', color: 'cyan', dot: 'bg-cyan-500', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-955/20 dark:text-cyan-400 dark:border-cyan-900' },
-  { id: 'completed', label: 'COMPLETED', color: 'emerald', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900' }
+  { id: 'todo', label: 'To Do', color: 'slate', dot: 'bg-slate-500', bg: 'bg-slate-100/80 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
+  { id: 'inprogress', label: 'In Progress', color: 'amber', dot: 'bg-amber-500', bg: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900' },
+  { id: 'review', label: 'In Review', color: 'purple', dot: 'bg-purple-500', bg: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-955/20 dark:text-purple-400 dark:border-purple-900' },
+  { id: 'completed', label: 'Done', color: 'emerald', dot: 'bg-emerald-500', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900' }
 ];
 
 export const DEFAULT_PRIORITIES: OptionConfig[] = [
-  { id: 'urgent', label: 'Urgent', color: 'red', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'AlertOctagon' },
-  { id: 'high', label: 'High', color: 'orange', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'AlertTriangle' },
-  { id: 'medium', label: 'Normal', color: 'amber', bg: 'bg-amber-50 border-amber-200 dark:bg-amber-955/30 dark:border-amber-900/50', icon: 'CircleDot' },
-  { id: 'low', label: 'Low', color: 'slate', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Circle' }
+  { id: 'urgent', label: 'Urgent', color: 'red', bg: 'bg-red-50 border-red-200 dark:bg-red-955/30 dark:border-red-900/50', icon: 'Flag' },
+  { id: 'high', label: 'High', color: 'orange', bg: 'bg-orange-50 border-orange-200 dark:bg-orange-955/30 dark:border-orange-900/50', icon: 'Flag' },
+  { id: 'medium', label: 'Normal', color: 'blue', bg: 'bg-blue-50 border-blue-200 dark:bg-blue-955/30 dark:border-blue-900/50', icon: 'Flag' },
+  { id: 'low', label: 'Low', color: 'slate', bg: 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700', icon: 'Flag' }
 ];
 
 const VI_STANDARD_OPTION_LABELS: Record<string, string> = {

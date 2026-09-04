@@ -640,7 +640,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   };
 
   return (
-    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f7f7f2] dark:bg-[#0a101b] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
+    <div className="apexa-auth-shell fixed inset-0 overflow-y-auto overflow-x-clip bg-[#f7f7f2] dark:bg-[#000000] text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-100 selection:text-indigo-800 dark:selection:bg-indigo-900 dark:selection:text-indigo-100">
       <LandingPage
         onSignUp={() => openAuth(true)}
         onSignIn={() => openAuth(false)}
@@ -657,12 +657,12 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={closeAuth}
-              className="fixed inset-0 bg-[#0b1422]/78 backdrop-blur-xl"
+              className="fixed inset-0 bg-[#000000]/80 backdrop-blur-xl"
             />
 
             <div className="pointer-events-none fixed inset-0 overflow-hidden">
-              <div className="absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-indigo-600/25 blur-[100px]" />
-              <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-fuchsia-600/20 blur-[120px]" />
+              <div className="absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-indigo-600/20 blur-[100px]" />
+              <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-fuchsia-600/15 blur-[120px]" />
             </div>
 
             {/* Modal Card */}
@@ -675,14 +675,14 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
               aria-modal="true"
               aria-labelledby="auth-dialog-title"
               ref={dialogRef}
-              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-white/10 bg-[#172a46] shadow-[0_40px_120px_-36px_rgba(8,15,35,0.78)] dark:border-white/10 dark:bg-[#111b2a] lg:grid-cols-[0.88fr_1.12fr]"
+              className="apexa-auth-dialog relative z-10 my-auto grid max-h-[calc(100vh-24px)] w-full max-w-[940px] overflow-hidden rounded-2xl sm:rounded-[26px] border border-white/10 bg-[#172a46] shadow-[0_40px_120px_-36px_rgba(0,0,0,0.85)] dark:border-white/10 dark:bg-[#121212] lg:grid-cols-[0.88fr_1.12fr]"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Product story panel */}
-              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#0b162c] via-[#0d1c3a] to-[#080d1a] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none">
+              <aside className="relative hidden min-h-[660px] overflow-hidden bg-gradient-to-b from-[#181818] via-[#121212] to-[#0a0a0a] p-8 text-white lg:flex lg:flex-col lg:justify-between select-none">
                 {/* Multi-layer Ambient Backlight Glows */}
-                <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-600/25 blur-[100px]" />
-                <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-[100px]" />
+                <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-blue-600/20 blur-[100px]" />
+                <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-indigo-500/15 blur-[100px]" />
                 <div className="pointer-events-none absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
                 {/* Top Branding Header */}
@@ -733,7 +733,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                       </div>
                       <div className="flex -space-x-1.5">
                         {['HX', 'MA', 'QB'].map((member, index) => (
-                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-[#171c31] text-[8px] font-black text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
+                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-[8px] font-black text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
                             {member}
                           </div>
                         ))}
@@ -768,7 +768,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 </div>
               </aside>
 
-              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-[#fdfdf9] px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-[#111b2a]">
+              <section className="relative max-h-[calc(100vh-24px)] space-y-5 overflow-x-hidden overflow-y-auto bg-[#fdfdf9] px-6 py-7 text-left sm:px-9 sm:py-8 dark:bg-[#121212]">
                 <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
 
               {/* Header Actions */}

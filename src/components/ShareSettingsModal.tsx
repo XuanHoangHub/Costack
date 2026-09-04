@@ -64,6 +64,17 @@ export default function ShareSettingsModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Generate shareable link
+  const shareUrl = useMemo(() => {
+    if (customShareUrl) return customShareUrl;
+    if (typeof window === 'undefined') return '';
+    const origin = window.location.origin;
+    if (targetType === 'space') return `${origin}/spaces/${targetId}`;
+    if (targetType === 'doc') return `${origin}/docs/${targetId}`;
+    if (targetType === 'task') return `${origin}/tasks/${targetId}`;
+    return `${origin}/lists/${targetId}`;
+  }, [customShareUrl, targetType, targetId]);
+
   if (!isOpen) return null;
 
   // Filter members that can be added (not yourself, not already in share settings)
@@ -112,17 +123,6 @@ export default function ShareSettingsModal({
     }
     onClose();
   };
-
-  // Generate shareable link
-  const shareUrl = useMemo(() => {
-    if (customShareUrl) return customShareUrl;
-    if (typeof window === 'undefined') return '';
-    const origin = window.location.origin;
-    if (targetType === 'space') return `${origin}/spaces/${targetId}`;
-    if (targetType === 'doc') return `${origin}/docs/${targetId}`;
-    if (targetType === 'task') return `${origin}/tasks/${targetId}`;
-    return `${origin}/lists/${targetId}`;
-  }, [customShareUrl, targetType, targetId]);
 
   const handleCopyLink = () => {
     if (!shareUrl) return;

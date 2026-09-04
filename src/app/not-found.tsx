@@ -5,10 +5,10 @@ import { ApexaLogoIcon } from '@/components/ApexaLogo';
 
 export default function NotFound() {
   return (
-    <main className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 bg-[#070b14] text-slate-100 overflow-hidden selection:bg-blue-500/30">
+    <main className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 bg-[#000000] text-slate-100 overflow-hidden selection:bg-blue-500/30">
       
-      {/* Dynamic Background Aurora Glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[800px] h-[350px] bg-gradient-to-tr from-blue-600/20 via-indigo-500/15 to-sky-400/20 blur-[130px] rounded-full pointer-events-none -z-10" />
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[800px] h-[350px] bg-blue-600/10 blur-[140px] rounded-full pointer-events-none -z-10" />
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
 
       {/* Grid Pattern Texture */}
@@ -23,7 +23,7 @@ export default function NotFound() {
       <div className="relative w-full max-w-xl">
         
         {/* Main Frosted Glass Card */}
-        <div className="relative rounded-[32px] sm:rounded-[36px] bg-[#0c1222]/90 backdrop-blur-2xl border border-white/[0.08] p-6 sm:p-10 shadow-[0_25px_70px_rgba(0,0,0,0.6)] text-center overflow-hidden">
+        <div className="relative rounded-[32px] sm:rounded-[36px] bg-[#121212]/95 backdrop-blur-2xl border border-white/[0.08] p-6 sm:p-10 shadow-[0_25px_70px_rgba(0,0,0,0.9)] text-center overflow-hidden">
           
           {/* Subtle top edge metallic glow */}
           <div className="absolute top-0 inset-x-12 h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" />

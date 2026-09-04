@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Task, TaskStatus, Priority, User, SubTask, Workspace, Space, TaskAttachment, Document } from '../../types';
-import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect } from './TaskSelects';
+import { DropdownFieldSelect, LabelsFieldSelect, PriorityPillSelect, StatusPillSelect, PremiumDatePicker, SpacePillSelect, AssigneePillSelect } from './TaskSelects';
 import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
@@ -197,14 +197,14 @@ export default function TaskDetailsPanel({
 
   // Layout styles mapping
   const overlayClass = 
-    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/35 backdrop-blur-sm transition-all duration-300' :
+    modalLayout === 'modal' ? 'fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-slate-950/40 backdrop-blur-sm transition-all duration-300' :
     modalLayout === 'fullscreen' ? 'fixed inset-0 z-[100] flex items-stretch justify-stretch p-0 bg-slate-950/40 backdrop-blur-md transition-all duration-300' :
     'fixed inset-0 z-[100] flex items-stretch justify-end p-0 bg-slate-950/20 backdrop-blur-xs pointer-events-none transition-all duration-300';
 
   const panelClass =
-    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-none sm:border border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-[28px] flex flex-col overflow-hidden shadow-[0_28px_90px_rgba(15,23,42,0.18)] pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0' :
-    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#07080c] flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0' :
-    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl border-l border-slate-200/80 dark:border-slate-800/80 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`;
+    modalLayout === 'modal' ? 'relative w-full sm:w-[92vw] max-w-[1240px] h-full sm:h-[90vh] bg-white dark:bg-[#121212] border-none sm:border border-slate-200/80 dark:border-white/10 rounded-none sm:rounded-[24px] flex flex-col overflow-hidden shadow-[0_24px_80px_rgba(15,23,42,0.16)] pointer-events-auto outline-none focus:outline-none ring-0' :
+    modalLayout === 'fullscreen' ? 'relative w-full h-full bg-white dark:bg-[#121212] flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none ring-0' :
+    `relative w-full ${isSidebarExpanded ? 'max-w-[1050px] md:max-w-[75vw]' : 'max-w-[640px]'} h-full bg-white dark:bg-[#121212] border-l border-slate-200/80 dark:border-white/10 rounded-none sm:rounded-l-3xl flex flex-col overflow-hidden shadow-2xl pointer-events-auto outline-none focus:outline-none ring-0`;
 
   const panelAnimation: any =
     modalLayout === 'modal' ? {
@@ -224,6 +224,7 @@ export default function TaskDetailsPanel({
       transition: { type: 'tween', duration: 0.28, ease: 'easeOut' }
     };
   const [showAssigneesDropdown, setShowAssigneesDropdown] = useState(false);
+  const [showSpaceDropdown, setShowSpaceDropdown] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [showLinkTaskDropdown, setShowLinkTaskDropdown] = useState(false);
   const [showLinkDocDropdown, setShowLinkDocDropdown] = useState(false);
@@ -231,6 +232,7 @@ export default function TaskDetailsPanel({
   const [showBlocksDropdown, setShowBlocksDropdown] = useState(false);
   const [relationshipSearchQuery, setRelationshipSearchQuery] = useState('');
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
+  const [relationshipsExpanded, setRelationshipsExpanded] = useState(false);
   const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false);
   const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null);
   const newSubtaskInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -238,6 +240,13 @@ export default function TaskDetailsPanel({
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
   const previouslyFocusedRef = React.useRef<HTMLElement | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const totalRelationshipsCount = useMemo(() => {
+    return (task.relationships?.tasks?.length || 0) +
+           (task.relationships?.docs?.length || 0) +
+           (task.relationships?.blockedBy?.length || 0) +
+           (task.relationships?.blocks?.length || 0);
+  }, [task.relationships]);
 
   const [fieldsExpanded, setFieldsExpanded] = useState(true);
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -387,14 +396,16 @@ export default function TaskDetailsPanel({
     setIsAiPanelOpen(false);
     setConfirmDelete(false);
     setShowMoreMenu(false);
+    setShowSpaceDropdown(false);
   }, [task.id]);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (layoutMenuOpen || showMoreMenu || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
+        if (layoutMenuOpen || showMoreMenu || showSpaceDropdown || showAssigneesDropdown || showTagsDropdown || showLinkTaskDropdown || showLinkDocDropdown || showBlockedByDropdown || showBlocksDropdown) {
           setLayoutMenuOpen(false);
           setShowMoreMenu(false);
+          setShowSpaceDropdown(false);
           setConfirmDelete(false);
           setShowAssigneesDropdown(false);
           setShowTagsDropdown(false);
@@ -728,6 +739,7 @@ export default function TaskDetailsPanel({
   };
 
   const scrollToRelationships = () => {
+    setRelationshipsExpanded(true);
     const element = document.getElementById(isTwoColumn ? 'relationships-section' : 'relationships-section-single');
     element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -747,17 +759,26 @@ export default function TaskDetailsPanel({
 
   const theme = PRIORITY_THEMES[task.priority];
 
-  let spaceName = 'No space';
-  let listName = 'No list';
+  let spaceName = isVietnamese ? 'Không gian chung' : 'General Space';
+  let listName = '';
+  if (task.spaceId && spaces && spaces.length > 0) {
+    const sp = spaces.find(s => s.id === task.spaceId);
+    if (sp) spaceName = sp.name;
+  } else if (task.workspaceId && workspaces && workspaces.length > 0) {
+    const ws = workspaces.find(w => w.id === task.workspaceId);
+    if (ws) spaceName = ws.name;
+  } else if (spaces && spaces.length > 0) {
+    spaceName = spaces[0].name;
+  } else if (workspaces && workspaces.length > 0) {
+    spaceName = workspaces[0].name;
+  }
+
   if (spaces && spaces.length > 0) {
     for (const space of spaces) {
-      if (space.id === task.spaceId) {
-        spaceName = space.name;
-      }
       const list = space.lists?.find((l: { id: string; name: string; folderId?: string }) => l.id === task.listId);
       if (list) {
         listName = list.name;
-        spaceName = space.name;
+        if (!task.spaceId) spaceName = space.name;
       }
     }
   }
@@ -846,14 +867,14 @@ export default function TaskDetailsPanel({
     const isShown = (fieldKey: string) => !visibleFields || visibleFields.includes(fieldKey);
 
     return (
-      <div className="space-y-4">
+      <div className="divide-y divide-slate-100 dark:divide-white/[0.04] text-xs">
         {/* Status */}
         {isShown('status') && (
-          <div className="flex items-center min-h-[34px] group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <CircleDot className="w-3.5 h-3.5" /> Trạng thái
+          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <CircleDot className="w-3.5 h-3.5 text-slate-400" /> Trạng thái
             </span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
               <StatusPillSelect value={task.status} onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} />
               <button type="button"
                 onClick={() => {
@@ -861,125 +882,100 @@ export default function TaskDetailsPanel({
                   onUpdateTask({ ...task, status: next as TaskStatus });
                   onAddSyncLog(`Status → ${next}`);
                 }}
-                className={`p-1 rounded-md border cursor-pointer transition-all ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-955/20 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
+                className={`p-1 rounded-lg border cursor-pointer transition-all ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
                 title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}>
-                <Check className="w-3 h-3" />
+                <Check className="w-3.5 h-3.5" />
               </button>
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('status')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('status')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
 
         {/* Assignees */}
         {isShown('assignee') && (
-          <div className="flex items-center min-h-[34px] group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <UserIcon className="w-3.5 h-3.5" /> Người phụ trách
+          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <UserIcon className="w-3.5 h-3.5 text-slate-400" /> Người phụ trách
             </span>
-            <div className="relative flex-1 min-w-0">
-              <button 
-                onClick={() => setShowAssigneesDropdown(!showAssigneesDropdown)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200/70 dark:border-slate-800 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-850 transition-all text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
-              >
-                <div className="flex -space-x-1.5 overflow-hidden">
-                  {assigneeIds.slice(0, 3).map(id => {
-                    const m = members.find(u => u.id === id);
-                    if (!m) return null;
-                    return <SignedImage key={id} filePath={m.avatar} className="w-4.5 h-4.5 rounded-full border border-white dark:border-slate-955 object-cover shrink-0" alt={m.name} />;
-                  })}
-                </div>
-                <span className="truncate max-w-[120px]">
-                  {assigneeIds.length === 0 ? 'Chưa phân công' : `${assigneeIds.length} người phụ trách`}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-              <AnimatePresence>
-                {showAssigneesDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowAssigneesDropdown(false)} />
-                    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                      className="absolute left-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-0.5 animate-in fade-in slide-in-from-top-1">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">Chọn người phụ trách</div>
-                      {members.map(m => {
-                        const checked = assigneeIds.includes(m.id);
-                        return (
-                          <label key={m.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
-                            <input type="checkbox" checked={checked}
-                              onChange={() => {
-                                const ids = assigneeIds;
-                                const nextIds = checked ? ids.filter(id => id !== m.id) : [...ids, m.id];
-                                onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
-                              }}
-                              className="rounded accent-indigo-650 w-3.5 h-3.5 cursor-pointer" />
-                            <SignedImage filePath={m.avatar} className="w-4.5 h-4.5 rounded-full object-cover shrink-0" alt={m.name} />
-                            <span className="truncate">{m.name}</span>
-                          </label>
-                        );
-                      })}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+            <div className="relative flex-1 min-w-0 flex items-center justify-end gap-1">
+              <AssigneePillSelect
+                value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
+                members={members}
+                onChange={newIds => {
+                  const nextIds = newIds || [];
+                  onUpdateTask({
+                    ...task,
+                    assigneeIds: nextIds,
+                    assigneeId: nextIds[0] || undefined,
+                    custom_fields: {
+                      ...(task.custom_fields || {}),
+                      assigneeIds: nextIds
+                    }
+                  });
+                }}
+              />
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('assignee')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('assignee')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
 
         {/* Priority */}
         {isShown('priority') && (
-          <div className="flex items-center min-h-[34px] group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Flag className="w-3.5 h-3.5" /> Mức ưu tiên
+          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Flag className="w-3.5 h-3.5 text-slate-400" /> Mức ưu tiên
             </span>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
               <PriorityPillSelect value={task.priority} onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p || 'medium'}`); }} />
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('priority')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('priority')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
 
         {/* Due Date */}
         {isShown('dueDate') && (
-          <div className="flex items-center min-h-[34px] group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Calendar className="w-3.5 h-3.5" /> Ngày tháng
+          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" /> Ngày tháng
             </span>
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
               <PremiumDatePicker 
                 startDateValue={task.startDate || ''}
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
                 label="Bắt đầu" 
-                align="left"
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium cursor-pointer border border-slate-200/60 dark:border-slate-800 hover:border-slate-300 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
+                align="right"
+                taskId={task.id}
+                taskTitle={task.title}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
               />
               <span className="text-slate-300 dark:text-slate-700 text-xs select-none">→</span>
               <PremiumDatePicker 
@@ -988,71 +984,73 @@ export default function TaskDetailsPanel({
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
                 label="Hạn" 
-                align="left"
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium cursor-pointer border border-slate-200/60 dark:border-slate-800 hover:border-slate-300 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
+                align="right"
+                taskId={task.id}
+                taskTitle={task.title}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
               />
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('dueDate')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('dueDate')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
 
         {/* Time Tracking */}
-        <div className="flex flex-col justify-center min-h-[34px] space-y-1">
+        <div className="py-2.5 flex flex-col justify-center min-h-[38px] space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Clock className="w-3.5 h-3.5" /> Theo dõi thời gian
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Clock className="w-3.5 h-3.5 text-slate-400" /> Bấm giờ
             </span>
             <div className="flex items-center gap-2">
               {currentTimerActive ? (
                 <>
-                  <span className={`text-[11px] font-mono font-bold text-rose-500 tabular-nums ${currentTimerPaused ? '' : 'animate-pulse'}`}>
+                  <span className={`text-xs font-mono font-bold text-rose-500 tabular-nums ${currentTimerPaused ? '' : 'animate-pulse'}`}>
                     {formatTimerTime(currentElapsedSeconds)}
                   </span>
                   {isGlobalTrackingThisTask && (
                     <button
                       type="button"
                       onClick={onTogglePauseGlobalTimer}
-                      className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50/50 dark:bg-indigo-955/20 text-indigo-655 dark:text-indigo-400 rounded-md text-[10px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors border border-indigo-200/30"
+                      className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10.5px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors border border-indigo-200/40"
                     >
-                      {currentTimerPaused ? 'Resume' : 'Pause'}
+                      {currentTimerPaused ? 'Tiếp tục' : 'Tạm dừng'}
                     </button>
                   )}
                   <button type="button" onClick={handleStopTimer}
-                    className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-455 rounded-md text-[10px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
+                    className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-lg text-[10.5px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
                     <Square className="w-2.5 h-2.5 fill-current" /> Dừng
                   </button>
                 </>
               ) : (
                 <button type="button" onClick={handleStartTimer}
-                  className="flex items-center gap-1.5 text-xs font-medium text-slate-505 dark:text-slate-400 hover:text-slate-700 p-1 px-2 rounded-lg transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50">
-                  <Play className="w-3 h-3 fill-slate-400 text-slate-400 shrink-0" /> Bắt đầu
+                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 p-1 px-2.5 rounded-lg transition-all cursor-pointer border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 shadow-3xs">
+                  <Play className="w-3 h-3 fill-slate-500 text-slate-500 shrink-0" /> Bắt đầu
                 </button>
               )}
               
               {/* Manual Logger */}
               <div className="relative">
                 {showLogTimeModal ? (
-                  <div className="absolute right-0 bottom-full mb-2.5 z-40 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 shadow-md">
+                  <div className="absolute right-0 bottom-full mb-2.5 z-40 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 shadow-xl">
                     <input 
                       type="number" 
                       min={0.1} 
-                      step={0.1}
+                      step={0.1} 
                       placeholder="giờ" 
                       value={logTimeValue}
                       onChange={e => setLogTimeValue(e.target.value)}
-                      className="w-12 text-xs text-center border border-slate-200 dark:border-slate-700 rounded bg-transparent outline-none py-0.5 font-medium text-slate-750 dark:text-slate-205"
+                      className="w-12 text-xs text-center border border-slate-200 dark:border-slate-700 rounded-lg bg-transparent outline-none py-1 font-medium text-slate-800 dark:text-slate-200"
                     />
                     <button 
-                      type="button"
+                      type="button" 
                       onClick={() => {
                         const hrs = parseFloat(logTimeValue);
                         if (hrs > 0) {
@@ -1064,17 +1062,17 @@ export default function TaskDetailsPanel({
                         setLogTimeValue('');
                         setShowLogTimeModal(false);
                       }}
-                      className="px-2 py-0.5 rounded bg-indigo-650 text-white text-[10px] font-bold cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold cursor-pointer shadow-3xs"
                     >
-                      Ghi nhận
+                      Ghi
                     </button>
-                    <button type="button" onClick={() => setShowLogTimeModal(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                    <button type="button" onClick={() => setShowLogTimeModal(false)} className="text-slate-400 hover:text-slate-600 text-xs px-1">✕</button>
                   </div>
                 ) : (
                   <button 
                     type="button" 
                     onClick={() => setShowLogTimeModal(true)}
-                    className="text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer ml-1"
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer ml-1"
                   >
                     + Ghi nhận
                   </button>
@@ -1084,8 +1082,8 @@ export default function TaskDetailsPanel({
           </div>
           
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-            <span>{(task.hoursLogged || 0)}giờ đã ghi</span>
-            {task.hoursEstimate ? <span>{task.hoursEstimate}giờ dự kiến</span> : null}
+            <span>{(task.hoursLogged || 0)} giờ đã ghi</span>
+            {task.hoursEstimate ? <span>{task.hoursEstimate} giờ dự kiến</span> : null}
           </div>
           {task.hoursEstimate && (task.hoursLogged || 0) > 0 ? (
             <div className="flex items-center gap-1.5 w-full mt-1">
@@ -1104,41 +1102,41 @@ export default function TaskDetailsPanel({
 
         {/* Time Estimate */}
         {isShown('progress') && (
-          <div className="flex items-center min-h-[34px] group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none">
-              <Timer className="w-3.5 h-3.5" /> Ước tính
+          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Timer className="w-3.5 h-3.5 text-slate-400" /> Ước tính
             </span>
-            <div className="flex items-center gap-1 flex-1 min-w-0">
+            <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
               <input type="number" min={0} step={0.5} placeholder="—"
                 value={task.hoursEstimate || ''}
                 onChange={e => onUpdateTask({ ...task, hoursEstimate: parseFloat(e.target.value) || undefined })}
-                className="text-xs font-medium text-slate-700 dark:text-slate-305 bg-transparent border border-slate-200/60 dark:border-slate-800 rounded-lg outline-none px-2 py-1 w-16 placeholder-slate-350 focus:border-indigo-400 transition-colors" />
-              {task.hoursEstimate ? <span className="text-[10px] text-slate-400 font-medium">giờ</span> : null}
+                className="text-xs font-medium text-slate-700 dark:text-slate-200 bg-transparent border border-slate-200/80 dark:border-slate-800 rounded-lg outline-none px-2 py-1 w-16 text-right placeholder-slate-400 focus:border-indigo-400 transition-colors" />
+              {task.hoursEstimate ? <span className="text-[11px] text-slate-400 font-medium">giờ</span> : null}
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('progress')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('progress')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-450 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
 
         {/* Tags */}
         {isShown('tags') && (
-          <div className="flex items-start min-h-[34px] pt-1 group/row relative pr-6">
-            <span className="w-24 text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-2 shrink-0 select-none mt-0.5">
-              <Tag className="w-3.5 h-3.5" /> Nhãn
+          <div className="py-2 flex items-start justify-between min-h-[38px] pt-2 group/row relative">
+            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none mt-0.5">
+              <Tag className="w-3.5 h-3.5 text-slate-400" /> Nhãn
             </span>
-            <div className="flex items-center gap-1.5 flex-wrap relative flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap relative flex-1 min-w-0 justify-end">
               {(task.tags || []).map(tag => {
                 const color = getTagColor(tag);
                 return (
-                  <span key={tag} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${color.bg} ${color.text} ${color.border} select-none`}>
+                  <span key={tag} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-semibold border ${color.bg} ${color.text} ${color.border} select-none`}>
                     {tag}
                     <button onClick={() => {
                       const list = (task.tags || []).filter(t => t !== tag);
@@ -1149,7 +1147,7 @@ export default function TaskDetailsPanel({
               })}
               <div className="relative">
                 <button onClick={() => setShowTagsDropdown(!showTagsDropdown)}
-                  className="w-5 h-5 rounded-md border border-dashed border-slate-250 hover:border-slate-455 dark:border-slate-700 dark:hover:border-slate-600 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-55 dark:hover:bg-slate-900">
+                  className="w-5 h-5 rounded-md border border-dashed border-slate-300 hover:border-slate-500 dark:border-slate-700 dark:hover:border-slate-500 flex items-center justify-center cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
                   <Plus className="w-3 h-3 text-slate-400" />
                 </button>
                 <AnimatePresence>
@@ -1157,7 +1155,7 @@ export default function TaskDetailsPanel({
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowTagsDropdown(false)} />
                       <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                        className="absolute left-0 mt-1.5 z-30 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-36 space-y-0.5">
+                        className="absolute right-0 mt-1.5 z-30 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-36 space-y-0.5">
                         {['Design', 'Frontend', 'Backend', 'Bug', 'Marketing', 'Research', 'Copywriting'].map(preset => (
                           <button key={preset}
                             onClick={() => {
@@ -1165,7 +1163,7 @@ export default function TaskDetailsPanel({
                               if (!current.includes(preset)) onUpdateTask({ ...task, tags: [...current, preset] });
                               setShowTagsDropdown(false);
                             }}
-                            className="w-full text-left px-2 py-1 text-[11px] font-medium text-slate-605 dark:text-slate-305 hover:bg-slate-55 dark:hover:bg-slate-800 rounded-lg cursor-pointer flex items-center gap-2">
+                            className="w-full text-left px-2 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer flex items-center gap-2">
                             <span className={`w-2 h-2 rounded-full ${getTagColor(preset).bg} border ${getTagColor(preset).border}`} />
                             {preset}
                           </button>
@@ -1177,19 +1175,19 @@ export default function TaskDetailsPanel({
               </div>
               {(!task.tags || task.tags.length === 0) && (
                 <button onClick={() => setShowTagsDropdown(true)}
-                  className="text-xs font-medium text-slate-405 hover:text-slate-600 transition-colors cursor-pointer">Trống</button>
+                  className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">Trống</button>
+              )}
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('tags')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title="Ẩn trường"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               )}
             </div>
-            {onToggleFieldVisibility && (
-              <button 
-                type="button" 
-                onClick={() => onToggleFieldVisibility('tags')}
-                className="absolute right-0 opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-405 hover:text-slate-655 dark:hover:text-slate-205 cursor-pointer"
-                title="Ẩn trường"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -1362,6 +1360,8 @@ export default function TaskDetailsPanel({
                     dateValue={task.dueDate || ''}
                     onChange={v => onUpdateTask({ ...task, dueDate: v || '' })}
                     label="Bắt đầu"
+                    taskId={task.id}
+                    taskTitle={task.title}
                   />
                 </div>
               )}
@@ -1604,20 +1604,328 @@ export default function TaskDetailsPanel({
     );
   };
 
+  const renderRelationshipsSection = (idPrefix: string = 'relationships-section') => {
+    const isExpanded = relationshipsExpanded || totalRelationshipsCount > 0;
+
+    return (
+      <div id={idPrefix} className="space-y-3 p-3.5 sm:p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] text-left select-none shadow-xs">
+        <div 
+          onClick={() => setRelationshipsExpanded(prev => !prev)}
+          className="flex items-center justify-between cursor-pointer group"
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-500 flex items-center justify-center">
+              <Link2 className="w-3.5 h-3.5" />
+            </div>
+            <label className="text-xs font-bold text-slate-800 dark:text-slate-100 cursor-pointer group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              {isVietnamese ? 'Mối quan hệ & Liên kết' : 'Relationships & Links'}
+            </label>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500">
+              {totalRelationshipsCount}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setRelationshipsExpanded(prev => !prev); }}
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
+            </button>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="space-y-3.5 pt-2 border-t border-slate-100 dark:border-white/[0.06]">
+            {/* Linked Tasks */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVietnamese ? 'Công việc liên kết' : 'Linked Tasks'}
+                </span>
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowLinkTaskDropdown(!showLinkTaskDropdown); setShowLinkDocDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
+                    className="px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-slate-600 dark:text-slate-300 hover:border-sky-500 hover:text-sky-600 cursor-pointer font-semibold transition-all bg-slate-50/50 dark:bg-slate-800/50"
+                  >
+                    + {isVietnamese ? 'Thêm liên kết' : 'Add Link'}
+                  </button>
+                  {showLinkTaskDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
+                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
+                          onChange={e => setRelationshipSearchQuery(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                        {allTasks
+                          .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
+                          .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                          .map(t => (
+                            <button key={t.id}
+                              onClick={() => {
+                                const list = [...(task.relationships?.tasks || []), t.id];
+                                onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
+                                setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
+                                onAddSyncLog(`Linked task: "${t.title}"`);
+                              }}
+                              className="w-full text-left p-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg truncate font-medium text-slate-700 dark:text-slate-300 block cursor-pointer">
+                              {t.title}
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {(task.relationships?.tasks || []).map(taskId => {
+                  const t = allTasks.find(item => item.id === taskId);
+                  if (!t) return null;
+                  const tStatusMeta = STATUS_META[t.status];
+                  return (
+                    <div key={taskId} className="flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800/80 px-3 py-1.5 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-3xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                          {tStatusMeta?.label || t.status}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
+                      </div>
+                      <button onClick={() => {
+                        const list = (task.relationships?.tasks || []).filter(id => id !== taskId);
+                        onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
+                      }} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
+                    </div>
+                  );
+                })}
+                {(task.relationships?.tasks || []).length === 0 && (
+                  <p className="text-[11px] text-slate-400 font-medium italic py-0.5 pl-1">{isVietnamese ? 'Chưa có công việc liên kết' : 'No linked tasks'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Linked Docs */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVietnamese ? 'Tài liệu liên kết' : 'Linked Docs'}
+                </span>
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowLinkDocDropdown(!showLinkDocDropdown); setShowLinkTaskDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
+                    className="px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-slate-600 dark:text-slate-300 hover:border-sky-500 hover:text-sky-600 cursor-pointer font-semibold transition-all bg-slate-50/50 dark:bg-slate-800/50"
+                  >
+                    + {isVietnamese ? 'Thêm liên kết' : 'Add Link'}
+                  </button>
+                  {showLinkDocDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
+                        <input type="text" placeholder={isVietnamese ? "Tìm tài liệu..." : "Search docs..."} value={relationshipSearchQuery}
+                          onChange={e => setRelationshipSearchQuery(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                        {allDocs
+                          .filter(d => !task.relationships?.docs?.includes(d.id))
+                          .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                          .map(d => (
+                            <button key={d.id}
+                              onClick={() => {
+                                const list = [...(task.relationships?.docs || []), d.id];
+                                onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
+                                setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
+                                onAddSyncLog(`Linked document: "${d.title}"`);
+                              }}
+                              className="w-full text-left p-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg truncate font-medium text-slate-700 dark:text-slate-300 block cursor-pointer">
+                              {d.title}
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {(task.relationships?.docs || []).map(docId => {
+                  const d = allDocs.find(item => item.id === docId);
+                  return (
+                    <div key={docId} className="flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800/80 px-3 py-1.5 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-3xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-5 h-5 rounded bg-sky-50 dark:bg-sky-950/40 flex items-center justify-center shrink-0">
+                          <FileText className="w-3 h-3 text-sky-500" />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{d ? d.title : docId}</span>
+                      </div>
+                      <button onClick={() => {
+                        const list = (task.relationships?.docs || []).filter(id => id !== docId);
+                        onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
+                      }} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
+                    </div>
+                  );
+                })}
+                {(task.relationships?.docs || []).length === 0 && (
+                  <p className="text-[11px] text-slate-400 font-medium italic py-0.5 pl-1">{isVietnamese ? 'Chưa có tài liệu liên kết' : 'No linked docs'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Dependencies: Blocked By */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {isVietnamese ? 'Bị chặn bởi (đang chờ)' : 'Blocked By'}
+                  </span>
+                  <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">
+                    {isVietnamese ? 'Phụ thuộc' : 'Dependency'}
+                  </span>
+                </div>
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowBlockedByDropdown(!showBlockedByDropdown); setShowBlocksDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
+                    className="px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-slate-600 dark:text-slate-300 hover:border-amber-500 hover:text-amber-600 cursor-pointer font-semibold transition-all bg-slate-50/50 dark:bg-slate-800/50"
+                  >
+                    + {isVietnamese ? 'Thêm công việc' : 'Add task'}
+                  </button>
+                  {showBlockedByDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
+                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
+                          onChange={e => setRelationshipSearchQuery(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                        {allTasks
+                          .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
+                          .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                          .map(t => (
+                            <button key={t.id}
+                              onClick={() => {
+                                addDependency('blockedBy', t.id);
+                                setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
+                              }}
+                              className="w-full text-left p-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg truncate font-medium text-slate-700 dark:text-slate-300 block cursor-pointer">
+                              {t.title}
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {(task.relationships?.blockedBy || []).map(taskId => {
+                  const t = allTasks.find(item => item.id === taskId);
+                  if (!t) return null;
+                  const tStatusMeta = STATUS_META[t.status];
+                  return (
+                    <div key={taskId} className="flex items-center justify-between bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 px-3 py-1.5 rounded-xl hover:border-amber-300 dark:hover:border-amber-800 transition-all shadow-3xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                          {tStatusMeta?.label || t.status}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{t.title}</span>
+                      </div>
+                      <button onClick={() => removeDependency('blockedBy', taskId)} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
+                    </div>
+                  );
+                })}
+                {(task.relationships?.blockedBy || []).length === 0 && (
+                  <p className="text-[11px] text-slate-400 font-medium italic py-0.5 pl-1">{isVietnamese ? 'Không có quan hệ phụ thuộc đang chờ' : 'No dependencies'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Dependencies: Blocks */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/[0.04]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {isVietnamese ? 'Đang chặn' : 'Blocking'}
+                  </span>
+                  <span className="text-[9px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded font-bold">
+                    {isVietnamese ? 'Chặn' : 'Blocks'}
+                  </span>
+                </div>
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowBlocksDropdown(!showBlocksDropdown); setShowBlockedByDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
+                    className="px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-[10.5px] text-slate-600 dark:text-slate-300 hover:border-rose-500 hover:text-rose-600 cursor-pointer font-semibold transition-all bg-slate-50/50 dark:bg-slate-800/50"
+                  >
+                    + {isVietnamese ? 'Thêm công việc' : 'Add task'}
+                  </button>
+                  {showBlocksDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
+                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
+                          onChange={e => setRelationshipSearchQuery(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                        {allTasks
+                          .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
+                          .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
+                          .map(t => (
+                            <button key={t.id}
+                              onClick={() => {
+                                addDependency('blocks', t.id);
+                                setShowBlocksDropdown(false); setRelationshipSearchQuery('');
+                              }}
+                              className="w-full text-left p-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg truncate font-medium text-slate-700 dark:text-slate-300 block cursor-pointer">
+                              {t.title}
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {(task.relationships?.blocks || []).map(taskId => {
+                  const t = allTasks.find(item => item.id === taskId);
+                  if (!t) return null;
+                  const tStatusMeta = STATUS_META[t.status];
+                  return (
+                    <div key={taskId} className="flex items-center justify-between bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 px-3 py-1.5 rounded-xl hover:border-rose-300 dark:hover:border-rose-800 transition-all shadow-3xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                          {tStatusMeta?.label || t.status}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{t.title}</span>
+                      </div>
+                      <button onClick={() => removeDependency('blocks', taskId)} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
+                    </div>
+                  );
+                })}
+                {(task.relationships?.blocks || []).length === 0 && (
+                  <p className="text-[11px] text-slate-400 font-medium italic py-0.5 pl-1">{isVietnamese ? 'Không có quan hệ chặn' : 'No blocked tasks'}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderAttachmentsSection = () => (
-    <div className="space-y-3 text-left">
+    <div className="space-y-2.5 text-left">
       <div className="flex items-center justify-between select-none">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-955/25 flex items-center justify-center">
+          <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center">
             <Paperclip className="w-3.5 h-3.5 text-amber-500" />
           </div>
           <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-            Tệp đính kèm <span className="text-slate-400">{task.attachments?.length || 0}</span>
+            {isVietnamese ? 'Tệp đính kèm' : 'Attachments'} <span className="text-slate-400 font-semibold">{task.attachments?.length || 0}</span>
           </label>
         </div>
         <button type="button" onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors cursor-pointer shadow-3xs">
-          <Upload className="w-3 h-3" /> Tải tệp lên
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-colors cursor-pointer shadow-3xs">
+          <Upload className="w-3 h-3" /> {isVietnamese ? 'Tải tệp lên' : 'Upload'}
         </button>
       </div>
 
@@ -1631,12 +1939,12 @@ export default function TaskDetailsPanel({
           const file = event.dataTransfer.files[0];
           if (file) onAttachmentUpload(task, file);
         }}
-        className={`grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl transition-all ${isAttachmentDragActive ? 'ring-2 ring-indigo-400 bg-indigo-50/40 p-2 dark:bg-indigo-950/20' : ''}`}
+        className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 rounded-xl transition-all ${isAttachmentDragActive ? 'ring-2 ring-indigo-400 bg-indigo-50/40 p-2 dark:bg-indigo-950/20' : ''}`}
       >
         {(task.attachments || []).map(att => {
           const iconStyle = getFileIcon(att.name);
           return (
-            <div key={att.id} className="flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800 px-3 py-2.5 rounded-xl hover:border-slate-250 dark:hover:border-slate-700 transition-colors group shadow-3xs">
+            <div key={att.id} className="flex items-center justify-between bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/10 px-3.5 py-2.5 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all group shadow-3xs">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className={`w-8 h-8 rounded-lg ${iconStyle.bg} flex items-center justify-center shrink-0`}>
                   <FileText className={`w-4 h-4 ${iconStyle.color}`} />
@@ -1649,11 +1957,11 @@ export default function TaskDetailsPanel({
               <div className="flex items-center gap-0.5">
                 <button type="button" onClick={() => downloadAttachment(att)} disabled={attachmentBusyId === att.id}
                   title="Tải tệp đính kèm"
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-indigo-500 cursor-pointer transition-colors disabled:opacity-50">
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors disabled:opacity-50">
                   <Download className={`w-3.5 h-3.5 ${attachmentBusyId === att.id ? 'animate-bounce' : ''}`} />
                 </button>
                 <button type="button" onClick={() => onAttachmentDelete(task, att)} title="Xóa tệp đính kèm"
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-450 hover:text-rose-500 cursor-pointer transition-colors">
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer transition-colors">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1661,8 +1969,13 @@ export default function TaskDetailsPanel({
           );
         })}
         {(task.attachments || []).length === 0 && (
-          <div className="sm:col-span-2 text-center py-5 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-            <span className="text-[11px] text-slate-400 font-medium italic">Thả tệp vào đây hoặc chọn Tải tệp lên · tối đa 25 MB</span>
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="sm:col-span-2 text-center py-2.5 px-3 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/40 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.05] hover:border-amber-400/60 transition-all cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400"
+          >
+            <Upload className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{isVietnamese ? 'Tải tệp lên' : 'Upload file'}</span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">• {isVietnamese ? 'hoặc kéo thả vào đây (ảnh, PDF, DOCX tối đa 25MB)' : 'or drag & drop (up to 25MB)'}</span>
           </div>
         )}
       </div>
@@ -1673,24 +1986,48 @@ export default function TaskDetailsPanel({
     const response = aiResponseText || aiSummary;
 
     return (
-      <section className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-r from-blue-50/80 via-white to-sky-50/60 dark:from-blue-950/30 dark:via-slate-950/50 dark:to-cyan-950/20 overflow-hidden shadow-3xs">
-        <button
-          type="button"
-          onClick={() => setIsAiPanelOpen(open => !open)}
-          aria-expanded={isAiPanelOpen}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer hover:bg-white/50 dark:hover:bg-slate-900/30 transition-colors"
-        >
-          <span className="flex items-center gap-2.5 min-w-0">
-            <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
-              <Bot className="w-4 h-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs font-black text-slate-800 dark:text-slate-100">Apexa Brain</span>
-              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">Tóm tắt, cải thiện hoặc đặt câu hỏi về công việc này</span>
-            </span>
-          </span>
-          <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform ${isAiPanelOpen ? 'rotate-180' : ''}`} />
-        </button>
+      <section className="rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-gradient-to-r from-indigo-50/60 via-sky-50/20 to-purple-50/30 dark:from-indigo-950/20 dark:via-slate-900/40 dark:to-purple-950/15 overflow-hidden shadow-xs">
+        <div className="w-full flex items-center justify-between gap-3 px-3.5 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center shadow-2xs shrink-0">
+              <Sparkles className="w-3 h-3" />
+            </div>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 shrink-0">Apexa Brain AI</span>
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate hidden sm:inline">• {isVietnamese ? 'Trợ lý phân tích & tối ưu công việc' : 'Smart task copilot'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onAiSummary(task)}
+              disabled={isSummarizing}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900/90 border border-indigo-200/70 dark:border-indigo-900/60 text-[10.5px] font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all cursor-pointer shadow-3xs disabled:opacity-50"
+            >
+              <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} />
+              <span>{isSummarizing ? 'Đang tóm tắt…' : 'Tóm tắt'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onAiSubtasks(task)}
+              disabled={aiGenerating}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900/90 border border-emerald-200/70 dark:border-emerald-900/60 text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-all cursor-pointer shadow-3xs disabled:opacity-50"
+            >
+              <CheckSquare className="w-3 h-3" />
+              <span>{aiGenerating ? 'Đang tạo…' : 'Tạo việc con'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAiPanelOpen(open => !open)}
+              aria-expanded={isAiPanelOpen}
+              className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              title={isAiPanelOpen ? "Thu gọn AI" : "Mở rộng hỏi đáp AI"}
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAiPanelOpen ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
 
         <AnimatePresence initial={false}>
           {isAiPanelOpen && (
@@ -1700,57 +2037,56 @@ export default function TaskDetailsPanel({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-4 pt-1 border-t border-indigo-100/80 dark:border-indigo-900/40 space-y-3">
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <button type="button" onClick={() => onAiSummary(task)} disabled={isSummarizing}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200/70 dark:border-indigo-900/60 text-[10px] font-bold text-indigo-650 dark:text-indigo-300 disabled:opacity-50 cursor-pointer">
-                    <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} /> {isSummarizing ? 'Đang tóm tắt…' : 'Tóm tắt'}
-                  </button>
-                  <button type="button" onClick={() => handleAiQuery('Cải thiện mô tả công việc này. Chỉ trả về phần mô tả đã cải thiện, rõ ràng và có thể hành động.')}
-                    disabled={aiGeneratingResponse}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-violet-200/70 dark:border-violet-900/60 text-[10px] font-bold text-violet-650 dark:text-violet-300 disabled:opacity-50 cursor-pointer">
-                    <Edit2 className="w-3 h-3" /> Cải thiện mô tả
-                  </button>
-                  <button type="button" onClick={() => onAiSubtasks(task)} disabled={aiGenerating}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900/60 text-[10px] font-bold text-emerald-650 dark:text-emerald-300 disabled:opacity-50 cursor-pointer">
-                    <CheckSquare className="w-3 h-3" /> {aiGenerating ? 'Đang tạo…' : 'Tạo công việc con'}
-                  </button>
-                </div>
-
-                <div className="flex items-end gap-2 rounded-xl bg-white/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-2 focus-within:border-indigo-400 transition-colors">
-                  <textarea
+              <div className="px-4 pb-3.5 pt-1 border-t border-indigo-100/80 dark:border-indigo-900/40 space-y-2.5">
+                <div className="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 p-1.5 focus-within:border-indigo-400 transition-colors shadow-3xs">
+                  <input
+                    type="text"
                     value={aiPrompt}
                     onChange={event => setAiPrompt(event.target.value)}
                     onKeyDown={event => {
-                      if (event.key === 'Enter' && !event.shiftKey) {
+                      if (event.key === 'Enter') {
                         event.preventDefault();
                         handleAiQuery();
                       }
                     }}
-                    rows={2}
-                    placeholder="Hỏi Apexa Brain về công việc này…"
-                    className="flex-1 resize-none bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
+                    placeholder="Đặt câu hỏi hoặc yêu cầu Apexa Brain hỗ trợ công việc này…"
+                    className="flex-1 bg-transparent outline-none px-2 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
-                  <button type="button" onClick={() => handleAiQuery()} disabled={!aiPrompt.trim() || aiGeneratingResponse}
+                  <button
+                    type="button"
+                    onClick={() => handleAiQuery()}
+                    disabled={!aiPrompt.trim() || aiGeneratingResponse}
                     aria-label="Gửi câu hỏi đến Apexa Brain"
-                    className="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shrink-0">
-                    {aiGeneratingResponse ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    className="h-7 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0 shadow-2xs"
+                  >
+                    {aiGeneratingResponse ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                    <span>Gửi</span>
                   </button>
                 </div>
 
                 {response && (
-                  <div className="rounded-xl bg-white/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800 p-3 space-y-2">
-                    <p className="text-[11.5px] leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300">{response}</p>
-                    <div className="flex justify-end gap-2">
-                      <button type="button" onClick={() => navigator.clipboard.writeText(response)}
-                        className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 cursor-pointer">Sao chép</button>
-                      <button type="button" onClick={() => {
-                        setDescValue(response);
-                        onUpdateTask({ ...task, description: response });
-                        onAddSyncLog(`Applied an AI-generated description to "${task.title}"`);
-                        triggerToast?.('success', 'Description updated', 'The AI response was applied to this task.');
-                      }}
-                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 cursor-pointer">Dùng làm mô tả</button>
+                  <div className="rounded-xl bg-white dark:bg-slate-900/90 border border-indigo-100 dark:border-slate-800 p-3 space-y-2 shadow-3xs">
+                    <p className="text-xs leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300 font-normal">{response}</p>
+                    <div className="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(response)}
+                        className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 px-2 py-0.5 rounded cursor-pointer"
+                      >
+                        Sao chép
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDescValue(response);
+                          onUpdateTask({ ...task, description: response });
+                          onAddSyncLog(`Applied an AI-generated description to "${task.title}"`);
+                          triggerToast?.('success', 'Description updated', 'The AI response was applied to this task.');
+                        }}
+                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 px-2 py-0.5 rounded cursor-pointer bg-indigo-50 dark:bg-indigo-950/40"
+                      >
+                        Dùng làm mô tả
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1783,31 +2119,116 @@ export default function TaskDetailsPanel({
           onClick={e => e.stopPropagation()}
           className={`${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
         >
-          {/* Ambient Glowing Blobs */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none">
-            <div className="liquid-blob blob-1 animate-liquid-1 opacity-[0.05] dark:opacity-[0.11]" />
-            <div className="liquid-blob blob-2 animate-liquid-2 opacity-[0.03] dark:opacity-[0.07]" />
-            <div className="liquid-blob blob-3 animate-orbit-1 opacity-[0.03] dark:opacity-[0.07]" />
-          </div>
-
           {/* ══════════════════════════════════════════════════════════════ */}
           {/* ── LEFT PANEL: Details & Properties ── */}
           {/* ══════════════════════════════════════════════════════════════ */}
-          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10">
+          <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#121212]">
             
             {/* ── Header Bar ── */}
-            <div className="shrink-0 px-3 sm:px-5 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-805/80 flex items-center justify-between gap-2 bg-slate-55 dark:bg-slate-900/30 select-none">
+            <div className="shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#121212] select-none">
               
               {/* Left: Path Breadcrumb */}
-              <div className="flex flex-1 min-w-0 items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-455">
-                <div className="flex items-center gap-1">
-                  <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate max-w-[80px] md:max-w-[120px]">{spaceName}</span>
+              <div className="flex flex-1 min-w-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowSpaceDropdown(!showSpaceDropdown)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer text-slate-600 dark:text-slate-300 group"
+                    title={isVietnamese ? 'Đổi không gian làm việc' : 'Change workspace / space'}
+                  >
+                    <Folder className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0" />
+                    <span className="truncate max-w-[120px] md:max-w-[180px] font-semibold">{spaceName}</span>
+                    <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-transform shrink-0 ${showSpaceDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Space Selection Dropdown */}
+                  {showSpaceDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-30 cursor-default" onClick={() => setShowSpaceDropdown(false)} />
+                      <div className="absolute left-0 mt-1 z-40 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-56 max-h-60 overflow-y-auto custom-scrollbar space-y-1 text-left">
+                        <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {isVietnamese ? 'Không gian làm việc' : 'Workspaces & Spaces'}
+                        </div>
+                        {spaces && spaces.length > 0 ? (
+                          spaces.map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                onUpdateTask({ ...task, spaceId: s.id, workspaceId: (s as any).workspaceId || task.workspaceId });
+                                onAddSyncLog(`Space → ${s.name}`);
+                                setShowSpaceDropdown(false);
+                              }}
+                              className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                task.spaceId === s.id 
+                                  ? 'bg-indigo-50 dark:bg-indigo-955/40 text-indigo-600 dark:text-indigo-400 font-bold' 
+                                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                <span className="truncate">{s.name}</span>
+                              </span>
+                              {task.spaceId === s.id && <Check className="w-3 h-3 text-indigo-500 shrink-0" />}
+                            </button>
+                          ))
+                        ) : workspaces && workspaces.length > 0 ? (
+                          workspaces.map(w => (
+                            <button
+                              key={w.id}
+                              type="button"
+                              onClick={() => {
+                                onUpdateTask({ ...task, workspaceId: w.id });
+                                onAddSyncLog(`Workspace → ${w.name}`);
+                                setShowSpaceDropdown(false);
+                              }}
+                              className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                                task.workspaceId === w.id 
+                                  ? 'bg-indigo-50 dark:bg-indigo-955/40 text-indigo-600 dark:text-indigo-400 font-bold' 
+                                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="w-4 h-4 rounded bg-indigo-500 text-white text-[9px] font-black flex items-center justify-center shrink-0">
+                                  {w.initial}
+                                </span>
+                                <span className="truncate">{w.name}</span>
+                              </span>
+                              {task.workspaceId === w.id && <Check className="w-3 h-3 text-indigo-500 shrink-0" />}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-xs text-slate-400 italic">
+                            {isVietnamese ? 'Không có không gian' : 'No spaces available'}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">/</span>
-                <div className="hidden sm:flex items-center gap-1 text-slate-755 dark:text-slate-305 min-w-0">
-                  <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="font-extrabold truncate max-w-[120px] md:max-w-[200px]">{listName}</span>
+
+                {listName ? (
+                  <>
+                    <span className="text-slate-300 dark:text-slate-600 shrink-0">/</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0">
+                      <List className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate max-w-[100px] md:max-w-[140px] font-medium">{listName}</span>
+                    </div>
+                  </>
+                ) : null}
+
+                <span className="text-slate-300 dark:text-slate-600 shrink-0">/</span>
+
+                {/* Task Title Pill in Breadcrumb */}
+                <div 
+                  onClick={() => setEditingTitle(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 dark:bg-white/[0.06] text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-white/[0.1] transition-colors cursor-pointer min-w-0 group"
+                  title={isVietnamese ? `Tên công việc: "${task.title}" (Nhấp để chỉnh sửa)` : `Task: "${task.title}" (Click to edit)`}
+                >
+                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="font-bold truncate max-w-[140px] sm:max-w-[220px] md:max-w-[340px]">
+                    {task.title || (isVietnamese ? 'Chưa đặt tên' : 'Untitled')}
+                  </span>
                 </div>
               </div>
 
@@ -2110,8 +2531,8 @@ export default function TaskDetailsPanel({
                   {/* AI Assistant panel */}
                   {renderAiAssistantPanel()}
 
-                  {/* Title */}
-                  <div className="text-left flex items-start gap-3">
+                  {/* Title & Complete Checkbox */}
+                  <div className="text-left flex items-start gap-3.5 pt-1">
                     {/* Complete toggle circle button */}
                     <button
                       type="button"
@@ -2124,49 +2545,86 @@ export default function TaskDetailsPanel({
                           (window as any).playSystemSound?.('toggle');
                         }
                       }}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-1 ${
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 shadow-2xs ${
                         task.status === 'completed'
                           ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
-                          : 'border-slate-300 dark:border-slate-655 bg-transparent text-transparent hover:border-emerald-500 hover:text-emerald-505'
+                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-transparent hover:border-emerald-500 hover:text-emerald-500'
                       }`}
+                      title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
                     >
-                      <Check className="w-4 h-4 text-white dark:text-slate-100" strokeWidth={3} />
+                      <Check className="w-4 h-4 text-white" strokeWidth={3} />
                     </button>
 
                     <div className="flex-1 min-w-0">
                       {editingTitle ? (
-                        <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
+                        <input 
+                          autoFocus 
+                          value={titleValue} 
+                          onChange={e => setTitleValue(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
                           onBlur={saveTitle}
-                          className="w-full text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
+                          className="w-full text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-500 outline-none pb-1 leading-tight" 
+                        />
                       ) : (
-                        <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
-                          className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
-                          <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-500' : ''}`}>{task.title}</span>
-                          <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-405 transition-opacity mt-2 shrink-0" />
+                        <h2 
+                          id="task-modal-title" 
+                          onClick={() => setEditingTitle(true)}
+                          className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2.5 leading-tight"
+                        >
+                          <span className={`${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{task.title}</span>
+                          <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-2 shrink-0" />
                         </h2>
                       )}
                     </div>
                   </div>
 
-                  {/* Quick Actions Row */}
-                  <div className="flex flex-nowrap gap-2 py-1.5 border-y border-slate-150 dark:border-slate-800/60 overflow-x-auto scrollbar-none">
-                    <button onClick={onOpenFieldsPanel} 
-                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-505" /> Thêm trường
+                  {/* Quick Actions Bar */}
+                  <div className="flex flex-wrap items-center gap-2 py-2 border-y border-slate-100 dark:border-white/[0.06]">
+                    <button 
+                      type="button"
+                      onClick={focusSubtaskComposer}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>{isVietnamese ? 'Công việc con' : 'Subtask'}</span>
                     </button>
-                    <button onClick={focusSubtaskComposer}
-                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
-                      <Plus className="w-3.5 h-3.5 text-emerald-500" /> Thêm công việc con
+                    <button 
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                    >
+                      <Paperclip className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{isVietnamese ? 'Đính kèm tệp' : 'Attach File'}</span>
                     </button>
-                    <button onClick={scrollToRelationships}
-                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
-                      <Tag className="w-3.5 h-3.5 text-sky-505" /> Liên kết mục
+                    <button 
+                      type="button"
+                      onClick={scrollToRelationships}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                    >
+                      <Tag className="w-3.5 h-3.5 text-sky-500" />
+                      <span>{isVietnamese ? 'Liên kết mục' : 'Link Items'}</span>
                     </button>
-                    <button onClick={() => fileInputRef.current?.click()}
-                      className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl text-[11px] font-bold text-slate-655 dark:text-slate-300 transition-all cursor-pointer select-none whitespace-nowrap">
-                      <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Đính kèm tệp
+                    <button 
+                      type="button"
+                      onClick={onOpenFieldsPanel} 
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
+                      <span>{isVietnamese ? 'Thêm trường' : 'Custom Field'}</span>
                     </button>
+                  </div>
+
+                  {/* Notion Doc / Tài liệu & Mô tả chi tiết */}
+                  <div className="pt-1">
+                    <NotionDocEditor
+                      value={descValue}
+                      onChange={val => {
+                        setDescValue(val);
+                        onUpdateTask({ ...task, description: val });
+                      }}
+                      onBlur={saveDesc}
+                      taskTitle={task.title}
+                    />
                   </div>
 
                   {/* Subtasks */}
@@ -2280,283 +2738,32 @@ export default function TaskDetailsPanel({
                   {renderAttachmentsSection()}
 
                   {/* Relationships & References */}
-                  <div id="relationships-section" className="space-y-4 p-4 bg-slate-50/30 dark:bg-slate-900/20 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-left select-none shadow-3xs">
-                    <div className="flex items-center gap-2 border-b border-slate-150 dark:border-slate-800 pb-2">
-                      <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center">
-                        <Tag className="w-3.5 h-3.5 text-sky-505" />
-                      </div>
-                      <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Mối quan hệ và tham chiếu</label>
-                    </div>
-
-                    {/* Linked Tasks */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Công việc liên kết</span>
-                        <div className="relative">
-                          <button onClick={() => { setShowLinkTaskDropdown(!showLinkTaskDropdown); setShowLinkDocDropdown(false); }}
-                            className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-500 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                            + Thêm liên kết
-                          </button>
-                          {showLinkTaskDropdown && (
-                            <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
-                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                                {allTasks
-                                  .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
-                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                  .map(t => (
-                                    <button key={t.id}
-                                      onClick={() => {
-                                        const list = [...(task.relationships?.tasks || []), t.id];
-                                        onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                                        setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
-                                        onAddSyncLog(`Linked task: "${t.title}"`);
-                                      }}
-                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                      {t.title}
-                                    </button>
-                                  ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {(task.relationships?.tasks || []).map(taskId => {
-                          const t = allTasks.find(item => item.id === taskId);
-                          if (!t) return null;
-                          const tStatusMeta = STATUS_META[t.status];
-                          return (
-                            <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-3xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                  {tStatusMeta?.label || t.status}
-                                </span>
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                              </div>
-                              <button onClick={() => {
-                                const list = (task.relationships?.tasks || []).filter(id => id !== taskId);
-                                onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                              }} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
-                            </div>
-                          );
-                        })}
-                        {(task.relationships?.tasks || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có công việc liên kết</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Linked Docs */}
-                    <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-505 uppercase tracking-wider">Tài liệu liên kết</span>
-                        <div className="relative">
-                          <button onClick={() => { setShowLinkDocDropdown(!showLinkDocDropdown); setShowLinkTaskDropdown(false); }}
-                            className="px-2 py-0.5 rounded border border-dashed border-slate-350 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-505 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                            + Thêm liên kết
-                          </button>
-                          {showLinkDocDropdown && (
-                            <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
-                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                                <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
-                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-800" />
-                                {allDocs
-                                  .filter(d => !task.relationships?.docs?.includes(d.id))
-                                  .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                  .map(d => (
-                                    <button key={d.id}
-                                      onClick={() => {
-                                        const list = [...(task.relationships?.docs || []), d.id];
-                                        onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                                        setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
-                                        onAddSyncLog(`Linked document: "${d.title}"`);
-                                      }}
-                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                      {d.title}
-                                    </button>
-                                  ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {(task.relationships?.docs || []).map(docId => {
-                          const d = allDocs.find(item => item.id === docId);
-                          return (
-                            <div key={docId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-3xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-5.5 h-5.5 rounded bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center shrink-0">
-                                  <FileText className="w-3.5 h-3.5 text-sky-505" />
-                                </div>
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{d ? d.title : docId}</span>
-                              </div>
-                              <button onClick={() => {
-                                const list = (task.relationships?.docs || []).filter(id => id !== docId);
-                                onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                              }} className="text-slate-400 hover:text-rose-500 text-xs p-1 cursor-pointer">✕</button>
-                            </div>
-                          );
-                        })}
-                        {(task.relationships?.docs || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có tài liệu liên kết</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Dependencies: Blocked By */}
-                    <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Bị chặn bởi (đang chờ)</span>
-                          <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Phụ thuộc</span>
-                        </div>
-                        <div className="relative">
-                          <button onClick={() => { setShowBlockedByDropdown(!showBlockedByDropdown); setShowBlocksDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
-                            className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-550 hover:border-amber-500 hover:text-amber-505 cursor-pointer font-bold transition-colors">
-                            + Thêm công việc
-                          </button>
-                          {showBlockedByDropdown && (
-                            <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
-                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                                {allTasks
-                                  .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
-                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                  .map(t => (
-                                    <button key={t.id}
-                                      onClick={() => {
-                                        addDependency('blockedBy', t.id);
-                                        setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
-                                      }}
-                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                      {t.title}
-                                    </button>
-                                  ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {(task.relationships?.blockedBy || []).map(taskId => {
-                          const t = allTasks.find(item => item.id === taskId);
-                          if (!t) return null;
-                          const tStatusMeta = STATUS_META[t.status];
-                          return (
-                            <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-amber-200/50 dark:border-amber-900/30 px-3 py-2 rounded-xl hover:border-amber-305 dark:hover:border-amber-800/80 transition-colors shadow-3xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                  {tStatusMeta?.label || t.status}
-                                </span>
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                              </div>
-                              <button onClick={() => removeDependency('blockedBy', taskId)} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                            </div>
-                          );
-                        })}
-                        {(task.relationships?.blockedBy || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ phụ thuộc đang chờ</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Dependencies: Blocks */}
-                    <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Đang chặn</span>
-                          <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Chặn</span>
-                        </div>
-                        <div className="relative">
-                          <button onClick={() => { setShowBlocksDropdown(!showBlocksDropdown); setShowBlockedByDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
-                            className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-550 hover:border-rose-500 hover:text-rose-505 cursor-pointer font-bold transition-colors">
-                            + Thêm công việc
-                          </button>
-                          {showBlocksDropdown && (
-                            <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
-                              <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                                <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                  onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                  className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-800" />
-                                {allTasks
-                                  .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
-                                  .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                  .map(t => (
-                                    <button key={t.id}
-                                      onClick={() => {
-                                        addDependency('blocks', t.id);
-                                        setShowBlocksDropdown(false); setRelationshipSearchQuery('');
-                                      }}
-                                      className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                      {t.title}
-                                    </button>
-                                  ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {(task.relationships?.blocks || []).map(taskId => {
-                          const t = allTasks.find(item => item.id === taskId);
-                          if (!t) return null;
-                          const tStatusMeta = STATUS_META[t.status];
-                          return (
-                            <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-rose-200/50 dark:border-rose-900/30 px-3 py-2 rounded-xl hover:border-rose-305 dark:hover:border-rose-800/80 transition-colors shadow-3xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                  {tStatusMeta?.label || t.status}
-                                </span>
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                              </div>
-                              <button onClick={() => removeDependency('blocks', taskId)} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                            </div>
-                          );
-                        })}
-                        {(task.relationships?.blocks || []).length === 0 && (
-                          <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ chặn</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notion Doc / Tài liệu & Mô tả chi tiết (Vị trí cuối cùng) */}
-                  <div className="pt-2">
-                    <NotionDocEditor
-                      value={descValue}
-                      onChange={val => {
-                        setDescValue(val);
-                        onUpdateTask({ ...task, description: val });
-                      }}
-                      onBlur={saveDesc}
-                      taskTitle={task.title}
-                    />
-                  </div>
+                  {renderRelationshipsSection('relationships-section')}
 
                   {/* Chronological Timeline feed */}
                   {renderTimelineFeed()}
                 </div>
 
                 {/* Right: Sidebar properties panel (Scrollable) */}
-                <div className="w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 lg:overflow-y-auto p-5 space-y-5 text-left relative z-10">
-                  <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-455 dark:text-slate-505 mb-1 select-none">Thuộc tính công việc</h3>
-                  {renderPropertiesTable()}
-                  <div className="pt-2">
+                <div className="w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto p-4 sm:p-5 space-y-4 text-left relative z-10 custom-scrollbar">
+                  <div>
+                    <div className="flex items-center justify-between mb-2 select-none">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        {isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}
+                      </h3>
+                      <button 
+                        type="button" 
+                        onClick={onOpenFieldsPanel} 
+                        className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer"
+                      >
+                        + {isVietnamese ? 'Tùy chỉnh' : 'Customize'}
+                      </button>
+                    </div>
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
+                      {renderPropertiesTable()}
+                    </div>
+                  </div>
+                  <div>
                     {renderCustomFieldsAccordion()}
                   </div>
                 </div>
@@ -2591,24 +2798,47 @@ export default function TaskDetailsPanel({
                 {/* AI Assistant panel */}
                 {renderAiAssistantPanel()}
 
-                {/* Title */}
-                <div>
-                  {editingTitle ? (
-                    <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
-                      onBlur={saveTitle}
-                      className="w-full text-xl font-bold text-slate-900 dark:text-slate-50 bg-transparent border-b-2 border-indigo-500 outline-none py-1 leading-tight" />
-                  ) : (
-                    <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
-                      className="text-xl font-bold text-slate-900 dark:text-slate-100 cursor-text hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2 leading-tight">
-                      <span className={`${task.status === 'completed' ? 'line-through text-slate-405 dark:text-slate-505' : ''}`}>{task.title}</span>
-                      <Edit2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-1.5 shrink-0" />
-                    </h2>
-                  )}
+                {/* Title & Complete Checkbox */}
+                <div className="text-left flex items-start gap-3.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+                      onUpdateTask({ ...task, status: newStatus as TaskStatus });
+                      onAddSyncLog(`Toggled completion of task "${task.title}" to: ${newStatus}`);
+                      if (typeof window !== 'undefined') {
+                        (window as any).playSystemSound?.('toggle');
+                      }
+                    }}
+                    className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 shadow-2xs ${
+                      task.status === 'completed'
+                        ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-transparent hover:border-emerald-500 hover:text-emerald-500'
+                    }`}
+                    title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+                  >
+                    <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    {editingTitle ? (
+                      <input autoFocus value={titleValue} onChange={e => setTitleValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                        onBlur={saveTitle}
+                        className="w-full text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white bg-transparent border-b-2 border-indigo-500 outline-none pb-1 leading-tight" />
+                    ) : (
+                      <h2 id="task-modal-title" onClick={() => setEditingTitle(true)}
+                        className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group flex items-start gap-2.5 leading-tight">
+                        <span className={`${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{task.title}</span>
+                        <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity mt-2 shrink-0" />
+                      </h2>
+                    )}
+                  </div>
                 </div>
 
-                {/* Properties Table Grid */}
-                <div className="border-y border-slate-100 dark:border-slate-800/60 py-4">
+                {/* Properties Table Grid Card */}
+                <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
                   {renderPropertiesTable()}
                 </div>
 
@@ -2616,23 +2846,52 @@ export default function TaskDetailsPanel({
                 {renderCustomFieldsAccordion()}
 
                 {/* Actions Button row */}
-                <div className="flex flex-wrap gap-2 py-2 border-t border-slate-100 dark:border-slate-800/60">
-                  <button onClick={onOpenFieldsPanel} 
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" /> Thêm trường
+                <div className="flex flex-wrap items-center gap-2 py-2 border-y border-slate-100 dark:border-white/[0.06]">
+                  <button 
+                    type="button"
+                    onClick={focusSubtaskComposer}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{isVietnamese ? 'Công việc con' : 'Subtask'}</span>
                   </button>
-                  <button onClick={focusSubtaskComposer}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
-                    <Plus className="w-3.5 h-3.5 text-emerald-505" /> Thêm công việc con
+                  <button 
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                  >
+                    <Paperclip className="w-3.5 h-3.5 text-amber-500" />
+                    <span>{isVietnamese ? 'Đính kèm tệp' : 'Attach File'}</span>
                   </button>
-                  <button onClick={scrollToRelationships}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 transition-all cursor-pointer select-none">
-                    <Tag className="w-3.5 h-3.5 text-sky-505" /> Liên kết mục
+                  <button 
+                    type="button"
+                    onClick={scrollToRelationships}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-sky-500" />
+                    <span>{isVietnamese ? 'Liên kết mục' : 'Link Items'}</span>
                   </button>
-                  <button onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-55 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-305 transition-all cursor-pointer select-none">
-                    <Paperclip className="w-3.5 h-3.5 text-amber-500" /> Đính kèm tệp
+                  <button 
+                    type="button"
+                    onClick={onOpenFieldsPanel} 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
+                    <span>{isVietnamese ? 'Thêm trường' : 'Custom Field'}</span>
                   </button>
+                </div>
+
+                {/* Notion Doc / Tài liệu & Mô tả chi tiết (Ngay dưới thanh tác vụ nhanh) */}
+                <div className="pt-2">
+                  <NotionDocEditor
+                    value={descValue}
+                    onChange={val => {
+                      setDescValue(val);
+                      onUpdateTask({ ...task, description: val });
+                    }}
+                    onBlur={saveDesc}
+                    taskTitle={task.title}
+                  />
                 </div>
 
                 {/* Checklist subtasks with Drag & Drop */}
@@ -2710,273 +2969,7 @@ export default function TaskDetailsPanel({
                 {renderAttachmentsSection()}
 
                 {/* Relationships & References (Single Column) */}
-                <div id="relationships-section-single" className="space-y-4 p-4 bg-slate-50/30 dark:bg-slate-900/20 rounded-2xl border border-slate-150 dark:border-slate-800/60 text-left select-none shadow-3xs">
-                  <div className="flex items-center gap-2 border-b border-slate-150 dark:border-slate-800 pb-2">
-                    <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center">
-                      <Tag className="w-3.5 h-3.5 text-sky-505" />
-                    </div>
-                    <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200">Mối quan hệ và tham chiếu</label>
-                  </div>
-
-                  {/* Linked Tasks */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Công việc liên kết</span>
-                      <div className="relative">
-                        <button onClick={() => { setShowLinkTaskDropdown(!showLinkTaskDropdown); setShowLinkDocDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
-                          className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-500 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                          + Thêm liên kết
-                        </button>
-                        {showLinkTaskDropdown && (
-                          <>
-                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      const list = [...(task.relationships?.tasks || []), t.id];
-                                      onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                                      setShowLinkTaskDropdown(false); setRelationshipSearchQuery('');
-                                      onAddSyncLog(`Linked task: "${t.title}"`);
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {(task.relationships?.tasks || []).map(taskId => {
-                        const t = allTasks.find(item => item.id === taskId);
-                        if (!t) return null;
-                        const tStatusMeta = STATUS_META[t.status];
-                        return (
-                          <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-305 dark:hover:border-slate-700 transition-colors shadow-3xs">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                {tStatusMeta?.label || t.status}
-                              </span>
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                            </div>
-                            <button onClick={() => {
-                              const list = (task.relationships?.tasks || []).filter(id => id !== taskId);
-                              onUpdateTask({ ...task, relationships: { ...task.relationships, tasks: list } });
-                            }} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                          </div>
-                        );
-                      })}
-                      {(task.relationships?.tasks || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có công việc liên kết</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Linked Docs */}
-                  <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-455 dark:text-slate-555 uppercase tracking-wider">Tài liệu liên kết</span>
-                      <div className="relative">
-                        <button onClick={() => { setShowLinkDocDropdown(!showLinkDocDropdown); setShowLinkTaskDropdown(false); setShowBlockedByDropdown(false); setShowBlocksDropdown(false); }}
-                          className="px-2 py-0.5 rounded border border-dashed border-slate-350 dark:border-slate-800 text-[10px] text-slate-505 hover:border-sky-505 hover:text-sky-505 cursor-pointer font-bold transition-colors">
-                          + Thêm liên kết
-                        </button>
-                        {showLinkDocDropdown && (
-                          <>
-                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm tài liệu..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-850 dark:text-slate-205 bg-white dark:bg-slate-805" />
-                              {allDocs
-                                .filter(d => !task.relationships?.docs?.includes(d.id))
-                                .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(d => (
-                                  <button key={d.id}
-                                    onClick={() => {
-                                      const list = [...(task.relationships?.docs || []), d.id];
-                                      onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                                      setShowLinkDocDropdown(false); setRelationshipSearchQuery('');
-                                      onAddSyncLog(`Linked document: "${d.title}"`);
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {d.title}
-                                  </button>
-                                ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {(task.relationships?.docs || []).map(docId => {
-                        const d = allDocs.find(item => item.id === docId);
-                        return (
-                          <div key={docId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-2 rounded-xl hover:border-slate-305 dark:hover:border-slate-705 transition-colors shadow-3xs">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-5.5 h-5.5 rounded bg-sky-50 dark:bg-sky-955/25 flex items-center justify-center shrink-0">
-                                <FileText className="w-3.5 h-3.5 text-sky-505" />
-                              </div>
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{d ? d.title : docId}</span>
-                            </div>
-                            <button onClick={() => {
-                              const list = (task.relationships?.docs || []).filter(id => id !== docId);
-                              onUpdateTask({ ...task, relationships: { ...task.relationships, docs: list } });
-                            }} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                          </div>
-                        );
-                      })}
-                      {(task.relationships?.docs || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Chưa có tài liệu liên kết</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dependencies: Blocked By */}
-                  <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Bị chặn bởi (đang chờ)</span>
-                        <span className="text-[8px] bg-amber-50 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded font-bold">Phụ thuộc</span>
-                      </div>
-                      <div className="relative">
-                        <button onClick={() => { setShowBlockedByDropdown(!showBlockedByDropdown); setShowBlocksDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
-                          className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-555 hover:border-amber-550 hover:text-amber-505 cursor-pointer font-bold transition-colors">
-                          + Thêm công việc
-                        </button>
-                        {showBlockedByDropdown && (
-                          <>
-                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      addDependency('blockedBy', t.id);
-                                      setShowBlockedByDropdown(false); setRelationshipSearchQuery('');
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {(task.relationships?.blockedBy || []).map(taskId => {
-                        const t = allTasks.find(item => item.id === taskId);
-                        if (!t) return null;
-                        const tStatusMeta = STATUS_META[t.status];
-                        return (
-                          <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-amber-200/50 dark:border-amber-900/30 px-3 py-2 rounded-xl hover:border-amber-305 dark:hover:border-amber-800/80 transition-colors shadow-3xs">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                {tStatusMeta?.label || t.status}
-                              </span>
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                            </div>
-                            <button onClick={() => removeDependency('blockedBy', taskId)} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                          </div>
-                        );
-                      })}
-                      {(task.relationships?.blockedBy || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ phụ thuộc đang chờ</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dependencies: Blocks */}
-                  <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-455 dark:text-slate-550 uppercase tracking-wider">Đang chặn</span>
-                        <span className="text-[8px] bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded font-bold">Chặn</span>
-                      </div>
-                      <div className="relative">
-                        <button onClick={() => { setShowBlocksDropdown(!showBlocksDropdown); setShowBlockedByDropdown(false); setShowLinkTaskDropdown(false); setShowLinkDocDropdown(false); }}
-                          className="px-2 py-0.5 rounded border border-dashed border-slate-355 dark:border-slate-800 text-[10px] text-slate-555 hover:border-rose-550 hover:text-rose-505 cursor-pointer font-bold transition-colors">
-                          + Thêm công việc
-                        </button>
-                        {showBlocksDropdown && (
-                          <>
-                            <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg w-52 max-h-48 overflow-y-auto space-y-1">
-                              <input type="text" placeholder="Tìm công việc..." value={relationshipSearchQuery}
-                                onChange={e => setRelationshipSearchQuery(e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-200 dark:border-slate-750 text-xs rounded mb-1 outline-none text-slate-855 dark:text-slate-200 bg-white dark:bg-slate-805" />
-                              {allTasks
-                                .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
-                                .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
-                                .map(t => (
-                                  <button key={t.id}
-                                    onClick={() => {
-                                      addDependency('blocks', t.id);
-                                      setShowBlocksDropdown(false); setRelationshipSearchQuery('');
-                                    }}
-                                    className="w-full text-left p-1 text-xs hover:bg-slate-105 dark:hover:bg-slate-800 rounded truncate font-bold text-slate-700 dark:text-slate-300 block cursor-pointer">
-                                    {t.title}
-                                  </button>
-                                ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {(task.relationships?.blocks || []).map(taskId => {
-                        const t = allTasks.find(item => item.id === taskId);
-                        if (!t) return null;
-                        const tStatusMeta = STATUS_META[t.status];
-                        return (
-                          <div key={taskId} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-rose-200/50 dark:border-rose-900/30 px-3 py-2 rounded-xl hover:border-rose-305 dark:hover:border-rose-800/80 transition-colors shadow-3xs">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${tStatusMeta?.bg || 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
-                                {tStatusMeta?.label || t.status}
-                              </span>
-                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{t.title}</span>
-                            </div>
-                            <button onClick={() => removeDependency('blocks', taskId)} className="text-slate-400 hover:text-rose-505 text-xs p-1 cursor-pointer">✕</button>
-                          </div>
-                        );
-                      })}
-                      {(task.relationships?.blocks || []).length === 0 && (
-                        <p className="text-[10px] text-slate-405 font-medium italic py-1 pl-1">Không có quan hệ chặn</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notion Doc / Tài liệu & Mô tả chi tiết (Vị trí cuối cùng) */}
-                <div className="pt-2">
-                  <NotionDocEditor
-                    value={descValue}
-                    onChange={val => {
-                      setDescValue(val);
-                      onUpdateTask({ ...task, description: val });
-                    }}
-                    onBlur={saveDesc}
-                    taskTitle={task.title}
-                  />
-                </div>
+                {renderRelationshipsSection('relationships-section-single')}
 
                 {/* Timeline Comments block */}
                 {renderTimelineFeed()}

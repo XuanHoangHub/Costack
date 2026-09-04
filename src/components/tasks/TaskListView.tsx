@@ -343,10 +343,10 @@ const TaskListView = React.memo(function TaskListView({
 
   return (
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="relative pb-20 space-y-4 font-sans">
+      <div className="apexa-space-list relative pb-20 space-y-3 font-sans">
         
         {/* ── Sticky Column Header Bar ── */}
-        <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#090b10]/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-3.5 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3.5 shadow-sm text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none transition-all">
+        <div className="apexa-list-columns sticky top-0 z-20 bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-md border-b border-slate-200/70 dark:border-white/[0.06] px-4 sm:px-6 py-2 flex items-center gap-2 sm:gap-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none transition-all">
           
           {/* Select all checkbox */}
           <div className="flex items-center gap-2 shrink-0">
@@ -355,7 +355,7 @@ const TaskListView = React.memo(function TaskListView({
               ref={el => { if (el) el.indeterminate = selectedTaskIds.length > 0 && !isAllSelected; }}
               checked={isAllSelected}
               onChange={handleToggleSelectAll}
-              className="w-4 h-4 rounded-md cursor-pointer transition-all"
+              className="w-4 h-4 rounded-md cursor-pointer accent-indigo-600 transition-all"
               title={isAllSelected ? "Bỏ chọn tất cả" : "Chọn tất cả công việc"}
             />
           </div>
@@ -421,17 +421,17 @@ const TaskListView = React.memo(function TaskListView({
           </div>
 
           {/* Density switcher */}
-          <div className="hidden sm:flex shrink-0 items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+          <div className="hidden sm:flex shrink-0 items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700/80">
             <button
               onClick={() => setDensity('comfortable')}
-              className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${!isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
               title="Chế độ vừa phải"
             >
               Thoải mái
             </button>
             <button
               onClick={() => setDensity('compact')}
-              className={`px-2 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer ${isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${isCompact ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
               title="Chế độ thu gọn mật độ cao"
             >
               Thu gọn
@@ -440,7 +440,7 @@ const TaskListView = React.memo(function TaskListView({
         </div>
 
         {/* ── Status Groups ── */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {currentStatuses.map(statusItem => {
             const standardMeta = dynamicStatusMeta[statusItem.id];
             const localizedStatusLabel = getLocalizedOptionLabel(statusItem.id, statusItem.label, locale);
@@ -459,40 +459,32 @@ const TaskListView = React.memo(function TaskListView({
             const completedCount = groupTasks.filter(t => t.status === 'completed').length;
             const progressPercent = groupTasks.length > 0 ? Math.round((completedCount / groupTasks.length) * 100) : 0;
 
-            // Determine header background based on status
-            const headerBgGradient = 
-              statusItem.id === 'todo' ? 'bg-gradient-to-r from-slate-100/90 via-slate-50/60 to-transparent dark:from-slate-900/80 dark:via-slate-900/40 dark:to-transparent border-slate-200/60 dark:border-slate-800/60' :
-              statusItem.id === 'inprogress' ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-500/10 dark:via-amber-500/5 dark:to-transparent border-amber-200/50 dark:border-amber-900/40' :
-              statusItem.id === 'review' ? 'bg-gradient-to-r from-cyan-500/15 via-cyan-500/5 to-transparent dark:from-cyan-500/10 dark:via-cyan-500/5 dark:to-transparent border-cyan-200/50 dark:border-cyan-900/40' :
-              statusItem.id === 'completed' ? 'bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent dark:from-emerald-500/10 dark:via-emerald-500/5 dark:to-transparent border-emerald-200/50 dark:border-emerald-900/40' :
-              'bg-gradient-to-r from-slate-100/90 to-transparent dark:from-slate-900/80 dark:to-transparent border-slate-200/60 dark:border-slate-800/60';
-
             return (
-              <div key={statusItem.id} className="rounded-2xl border border-slate-200/40 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/20 p-1.5 transition-all">
+              <div key={statusItem.id} data-status={statusItem.id} className="apexa-list-group px-3.5 sm:px-6 py-2 transition-all">
                 
                 {/* ── Group Header ── */}
-                <div className={`w-full flex items-center justify-between px-3.5 py-2.5 ${headerBgGradient} border rounded-xl cursor-pointer select-none transition-all group mb-2 shadow-2xs`}>
-                  <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => toggleGroup(statusItem.id)}>
-                    <span className={`p-1 rounded-lg bg-slate-200/40 dark:bg-slate-800/60 group-hover:bg-slate-300/60 dark:group-hover:bg-slate-700/60 transition-all ${isExpanded ? '' : '-rotate-90'}`}>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors" />
+                <div className="w-full flex items-center justify-between py-1.5 cursor-pointer select-none transition-all group mb-1.5">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0" onClick={() => toggleGroup(statusItem.id)}>
+                    <span className={`p-0.5 rounded hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all ${isExpanded ? '' : '-rotate-90'}`}>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors" />
                     </span>
 
                     {statusItem.color && !standardMeta ? (
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.15)]" style={{ backgroundColor: statusItem.color }} />
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: statusItem.color }} />
                     ) : (
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_10px_rgba(0,0,0,0.15)] ${meta.dot}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
                     )}
 
-                    <span className={`text-[11px] font-black uppercase tracking-widest ${meta.text}`}>{meta.label}</span>
+                    <span className={`text-[11px] font-black uppercase tracking-wider ${meta.text}`}>{meta.label}</span>
 
-                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-350 bg-white/80 dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200/50 dark:border-slate-700/50 shadow-3xs leading-none">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full leading-none">
                       {groupTasks.length}
                     </span>
 
                     {/* Mini Group Progress Indicator */}
                     {groupTasks.length > 0 && (
-                      <div className="hidden sm:flex items-center gap-2 ml-4">
-                        <div className="w-20 h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="hidden sm:flex items-center gap-2 ml-3">
+                        <div className="w-16 h-1 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div 
                             className={`h-full transition-all duration-500 rounded-full ${
                               statusItem.id === 'completed' ? 'bg-emerald-500' :
@@ -517,10 +509,10 @@ const TaskListView = React.memo(function TaskListView({
                         setInlineAddingStatus(statusItem.id);
                         if (!isExpanded) toggleGroup(statusItem.id);
                       }}
-                      className="flex items-center gap-1 text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-white/80 dark:bg-indigo-950/40 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 px-2 py-1 rounded-lg transition-all shadow-3xs"
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.05] px-2 py-1 rounded-md transition-all cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
-                      <span>Thêm nhanh</span>
+                      <span>Thêm việc</span>
                     </button>
                   </div>
                 </div>
@@ -531,23 +523,7 @@ const TaskListView = React.memo(function TaskListView({
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                       <StrictModeDroppable droppableId={statusItem.id} type="task">
                         {(provided: DroppableProvided) => (
-                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[8px] space-y-1">
-                            
-                            {/* Empty Group state */}
-                            {groupTasks.length === 0 && (
-                              <div className="p-4 border-2 border-dashed border-slate-200/60 dark:border-slate-800/60 rounded-xl text-center flex flex-col items-center justify-center my-1 bg-slate-50/30 dark:bg-slate-900/10">
-                                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mb-1">
-                                  Chưa có công việc nào trong mục {meta.label}
-                                </span>
-                                <button
-                                  onClick={() => setInlineAddingStatus(statusItem.id)}
-                                  className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Tạo công việc mới
-                                </button>
-                              </div>
-                            )}
-
+                          <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[4px] space-y-1">
                             {buildGroupTree(groupTasks).map(({ task, depth }, index) => {
                               const daysInfo = getDaysText(task.dueDate);
                               const isSelected = selectedTaskIds.includes(task.id);
@@ -564,11 +540,12 @@ const TaskListView = React.memo(function TaskListView({
                                         transition: dragSnapshot.isDragging ? 'none' : dragProvided.draggableProps?.style?.transition 
                                       }}
                                     >
-                                      <motion.div 
+                                      <motion.div
+                                        data-task-row
                                         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
                                         {...(dragProvided.dragHandleProps as any)}
                                         whileHover={{ y: -1, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}
-                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2.5'} border-l-[3.5px] border border-slate-200/60 dark:border-slate-800/60 rounded-xl ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-white dark:hover:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-700 ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 shadow-xs' : 'bg-white/95 dark:bg-[#0b0e14]/95 shadow-3xs'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
+                                        className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-3.5 ${isCompact ? 'py-1.5' : 'py-2'} border-l-[3px] border border-slate-200/50 dark:border-white/[0.04] rounded-lg ${dynamicStatusBorders[task.status] || STATUS_LEFT_BORDER[task.status]} cursor-grab active:cursor-grabbing transition-all group/row hover:bg-slate-50/80 dark:hover:bg-slate-850/50 ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800' : 'bg-white/80 dark:bg-white/[0.02]'} ${dragSnapshot.isDragging ? 'shadow-2xl bg-white dark:bg-slate-900 z-50 opacity-95 ring-2 ring-indigo-500/40' : ''}`}
                                       >
 
                                         {/* Subtask Tree indentation */}
@@ -883,11 +860,19 @@ const TaskListView = React.memo(function TaskListView({
                                         {/* Assignees */}
                                         <div className="hidden md:flex w-24 shrink-0 justify-center" onClick={e => e.stopPropagation()}>
                                           <AssigneePillSelect 
-                                            value={task.assigneeIds || (task.assigneeId ? [task.assigneeId] : [])} 
+                                            value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])} 
                                             members={members} 
                                             onChange={newIds => {
                                               const nextIds = newIds || [];
-                                              onUpdateTask({ ...task, assigneeIds: nextIds, assigneeId: nextIds[0] || undefined });
+                                              onUpdateTask({ 
+                                                ...task, 
+                                                assigneeIds: nextIds, 
+                                                assigneeId: nextIds[0] || undefined,
+                                                custom_fields: {
+                                                  ...(task.custom_fields || {}),
+                                                  assigneeIds: nextIds
+                                                }
+                                              });
                                               const label = nextIds.length > 0
                                                 ? nextIds.map(id => members.find(m => m.id === id)?.name || id).join(', ')
                                                 : 'Unassigned';
@@ -975,8 +960,8 @@ const TaskListView = React.memo(function TaskListView({
                       {/* Inline Add Task Form */}
                       <div className="px-2 py-2">
                         {inlineAddingStatus === statusItem.id ? (
-                          <div className="flex items-center gap-2.5 p-2 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-indigo-50/90 dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-indigo-950/50 border border-indigo-300 dark:border-indigo-800 rounded-2xl shadow-md transition-all">
-                            <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                          <div className="flex items-center gap-2.5 p-2 bg-gradient-to-r from-blue-500/10 via-sky-500/5 to-blue-500/10 dark:from-blue-950/40 dark:via-sky-950/20 dark:to-blue-950/40 border border-blue-500/30 dark:border-sky-500/30 rounded-2xl shadow-md transition-all">
+                            <div className="w-6 h-6 rounded-lg bg-blue-600 dark:bg-sky-500 text-white dark:text-zinc-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
                               <Plus className="w-4 h-4" />
                             </div>
                             <input 
@@ -993,7 +978,7 @@ const TaskListView = React.memo(function TaskListView({
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 onClick={() => handleInlineAdd(statusItem.id)} 
-                                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
+                                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 dark:bg-sky-500 dark:hover:bg-sky-400 text-white dark:text-zinc-950 text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all"
                               >
                                 {t('inlineAdd') || 'Tạo mới'}
                               </button>
@@ -1008,9 +993,9 @@ const TaskListView = React.memo(function TaskListView({
                         ) : (
                           <button 
                             onClick={() => setInlineAddingStatus(statusItem.id)}
-                            className="flex items-center gap-2 text-[12px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-all py-2 px-3.5 rounded-xl border border-dashed border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 group w-full"
+                            className="flex items-center gap-2 text-[11.5px] font-bold text-slate-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-sky-400 cursor-pointer transition-all py-2 px-3.5 rounded-xl border border-dashed border-slate-200/80 dark:border-white/[0.08] hover:border-blue-400/50 dark:hover:border-sky-500/40 hover:bg-blue-50/30 dark:hover:bg-sky-500/5 group w-full"
                           >
-                            <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-600 text-slate-500 group-hover:text-white flex items-center justify-center transition-all duration-200 shadow-3xs">
+                            <div className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-zinc-800 group-hover:bg-blue-600 dark:group-hover:bg-sky-500 text-slate-500 group-hover:text-white dark:group-hover:text-zinc-950 flex items-center justify-center transition-all duration-200 shadow-3xs">
                               <Plus className="w-3.5 h-3.5" />
                             </div>
                             <span>{t('addNewTaskInline') || 'Thêm công việc mới vào ' + meta.label}</span>

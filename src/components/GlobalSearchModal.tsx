@@ -380,7 +380,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const workspaceChannels = useMemo(() => {
     const directory = [
       { id: `${activeWorkspaceId}:general`, name: 'general', description: isVietnamese ? 'Kênh thảo luận chung không gian' : 'General workspace discussion', type: 'public' },
-      { id: `${activeWorkspaceId}:apexa-brain-ai`, name: 'apexa-brain-ai', description: isVietnamese ? 'Trợ lý AI Apexa Brain' : 'Workspace AI assistant', type: 'public' },
       ...activeSpaces.flatMap(space => (space.channels || []).map(channel => ({
         ...channel,
         id: channel.id.includes(':') ? channel.id : `${activeWorkspaceId}:space-${space.id}-${channel.id}`,
@@ -653,7 +652,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: -16 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-white/98 dark:bg-[#0c0f17]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
+          className="relative bg-white/98 dark:bg-[#181818]/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl w-[min(95vw,672px)] max-sm:w-full max-sm:mx-2 overflow-hidden shadow-2xl flex flex-col max-h-[90dvh] z-10"
         >
           <h2 id="global-search-title" className="sr-only">
             {isVietnamese ? 'Tìm kiếm toàn cục Apexa' : 'Apexa Global Search'}
@@ -1036,10 +1035,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <span
                             className={`text-[8px] font-black px-2 py-0.5 rounded-lg border uppercase ${
                               t.status === 'completed'
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800/80'
                                 : t.status === 'inprogress'
-                                ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400'
-                                : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-400 dark:border-indigo-800/80'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/80'
                             }`}
                           >
                             {t.status}

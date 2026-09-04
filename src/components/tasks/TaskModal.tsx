@@ -369,7 +369,7 @@ export default function TaskModal({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 15 }}
           transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-          className={`relative z-10 w-full bg-white dark:bg-[#0f141f] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 ${
+          className={`relative z-10 w-full bg-white dark:bg-[#181818] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 ${
             isExpanded ? 'max-w-6xl h-[94vh]' : 'max-w-4xl max-h-[88vh]'
           }`}
           style={{ boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)' }}
@@ -701,6 +701,8 @@ export default function TaskModal({
                   onChange={(val) => setDueDate(val || '')}
                   label={isVietnamese ? 'Thời hạn' : 'Dates'}
                   align="left"
+                  taskId={initialData?.id}
+                  taskTitle={title}
                   className="w-full"
                 />
               </div>

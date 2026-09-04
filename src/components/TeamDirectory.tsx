@@ -772,7 +772,7 @@ export default function TeamDirectory({
         <div className="space-y-5">
           {/* Workspace Analytics Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div className="p-4 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-blue-400/40 dark:hover:border-blue-700/40">
+            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-blue-400/40 dark:hover:border-blue-700/40">
               <div className="space-y-1 text-left">
                 <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Thành viên workspace
@@ -791,7 +791,7 @@ export default function TeamDirectory({
               </div>
             </div>
 
-            <div className="p-4 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-emerald-400/40 dark:hover:border-emerald-700/40">
+            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-emerald-400/40 dark:hover:border-emerald-700/40">
               <div className="space-y-1 text-left">
                 <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Đang hoạt động
@@ -811,7 +811,7 @@ export default function TeamDirectory({
               </div>
             </div>
 
-            <div className="p-4 bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-indigo-400/40 dark:hover:border-indigo-700/40">
+            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-indigo-400/40 dark:hover:border-indigo-700/40">
               <div className="space-y-1 text-left">
                 <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
                   Toàn tổ chức
@@ -987,7 +987,7 @@ export default function TeamDirectory({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="group relative p-4 rounded-2xl bg-white dark:bg-[#0c101d] border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-blue-400/60 dark:hover:border-blue-700/60 transition-all duration-200 flex flex-col justify-between overflow-hidden"
+                    className="group relative p-4 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-blue-400/60 dark:hover:border-blue-700/60 transition-all duration-200 flex flex-col justify-between overflow-hidden"
                   >
                     <div className="space-y-3.5 relative z-10">
                       

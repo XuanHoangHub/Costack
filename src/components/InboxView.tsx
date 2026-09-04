@@ -580,14 +580,14 @@ export default function InboxView({
     <div className="w-full h-full flex flex-col md:flex-row gap-3 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-1 sm:p-2">
       
       {/* ── Left Column: Stream Panel ── */}
-      <div className={`flex flex-col min-w-0 bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all ${
+      <div className={`flex flex-col min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all ${
         selectedNotificationId 
           ? 'hidden md:flex md:w-[350px] lg:w-[390px] xl:w-[420px] shrink-0' 
           : 'flex-1 md:flex-initial md:w-[380px] lg:w-[420px] xl:w-[460px] shrink-0'
       }`}>
         
         {/* Sleek Top Header & Scope */}
-        <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-2.5 shrink-0 bg-white/60 dark:bg-[#07080c]/60 backdrop-blur-md">
+        <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800/80 space-y-2.5 shrink-0 bg-white/60 dark:bg-[#121212]/60 backdrop-blur-md">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
@@ -959,7 +959,7 @@ export default function InboxView({
       </div>
 
       {/* ── Right Column: Detail / Productivity Hub (Responsive) ── */}
-      <div className={`flex-1 min-w-0 bg-white/95 dark:bg-[#07080c]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
+      <div className={`flex-1 min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
         selectedNotificationId ? 'flex' : 'hidden md:flex'
       }`}>
         

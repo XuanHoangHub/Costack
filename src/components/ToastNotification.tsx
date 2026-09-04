@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bell, UserPlus, Calendar, MessageSquare, X, CheckCircle, Info, AlertTriangle, ArrowRight 
 } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export interface Toast {
   id: string;
@@ -43,6 +44,7 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onClose }: ToastItemProps) {
+  const { localize: l } = useTranslation();
   const duration = toast.duration ?? 5000;
 
   useEffect(() => {
@@ -136,7 +138,8 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         id={`btn_close_toast_${toast.id}`}
         onClick={() => onClose(toast.id)}
         className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 absolute right-3 top-3 p-1 rounded-full hover:bg-slate-150 transition-colors cursor-pointer"
-        title="Đóng thông báo"
+        title={l('Đóng thông báo', 'Dismiss notification')}
+        aria-label={l('Đóng thông báo', 'Dismiss notification')}
       >
         <X className="w-3.5 h-3.5" />
       </button>

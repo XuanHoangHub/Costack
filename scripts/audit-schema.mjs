@@ -38,7 +38,8 @@ const failures = [];
 
 for (const table of tables) {
   try {
-    const response = await fetch(`${url}/rest/v1/${table}?select=id&limit=0`, {
+    const response = await fetch(`${url}/rest/v1/${table}?limit=0`, {
+      method: 'HEAD',
       headers,
       signal: AbortSignal.timeout(10_000),
     });

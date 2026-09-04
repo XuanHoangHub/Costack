@@ -91,7 +91,7 @@ export default function AddListModal({
         animate={{ scale: 1, y: 0, opacity: 1 }} 
         exit={{ scale: 0.93, y: 16, opacity: 0 }} 
         transition={{ type: "spring", stiffness: 380, damping: 28 }}
-        className="relative w-[min(95vw,460px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-[28px] bg-white/95 dark:bg-[#0c101c]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800/90 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.35)] p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
+        className="relative w-[min(95vw,460px)] max-sm:w-full max-sm:mx-2 max-h-[90dvh] overflow-y-auto rounded-[28px] bg-white/95 dark:bg-[#181818]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800/90 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.35)] p-4 sm:p-5 md:p-6 z-10 text-left font-sans select-none"
       >
         {/* Subtle Ambient Radial Glow */}
         <div className={`absolute -top-20 -right-20 w-44 h-44 bg-gradient-to-br ${activeColorObj.gradient} opacity-20 rounded-full blur-3xl pointer-events-none transition-all duration-500`} />

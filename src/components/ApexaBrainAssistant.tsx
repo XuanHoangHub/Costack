@@ -1215,7 +1215,7 @@ Based on current information, here is a quick summary:
               </div>
 
               {/* Drawer Footer and credits */}
-              <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-slate-50/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
+              <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                 <span className="flex items-center gap-1.5">
                   <ApexaAiIcon className="w-3.5 h-3.5 animate-pulse" variant="gradient" />
                   Công cụ AI Apexa đang hoạt động

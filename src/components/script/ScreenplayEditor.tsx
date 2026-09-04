@@ -370,7 +370,7 @@ Các element hợp lệ:
     <div className={`flex h-screen w-full bg-[#f4f5f7] dark:bg-slate-950 text-slate-850 dark:text-slate-100 overflow-hidden font-sans select-none ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       
       {/* ═══ 1. LEFT-MOST DARK ICON RIBBON (Desktop) ═══ */}
-      <div className="hidden lg:flex w-16 bg-[#181a24] dark:bg-[#0c0d12] flex-col items-center justify-between py-3.5 border-r border-slate-800/80 z-20 shrink-0">
+      <div className="hidden lg:flex w-16 bg-[#181a24] dark:bg-[#0a0a0a] flex-col items-center justify-between py-3.5 border-r border-slate-800/80 z-20 shrink-0">
         <div className="flex flex-col items-center gap-5 w-full">
           {/* Brand / Logo Ribbon Icon */}
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-600 to-rose-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/20 cursor-pointer">
@@ -575,7 +575,7 @@ Các element hợp lệ:
       </AnimatePresence>
 
       {/* ═══ 3. MAIN WORKSPACE AREA ═══ */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#eaedf1] dark:bg-[#0d0f17] overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#eaedf1] dark:bg-[#000000] overflow-hidden">
         
         {/* ── TOP NAVIGATION BAR ── */}
         <div className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-5 flex items-center justify-between shrink-0 z-20">

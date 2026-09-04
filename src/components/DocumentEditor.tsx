@@ -1071,13 +1071,13 @@ export default function DocumentEditor({
     <div 
       style={getPaperBgStyle()}
       className={`flex-1 flex flex-col h-full ${
-        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[#10131d]' : 'bg-white dark:bg-[#0b0f17]'
+        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[#121212]' : 'bg-white dark:bg-[#000000]'
       } select-text overflow-y-auto font-sans relative scrollbar-thin print:bg-white print:p-0`}
     >
       
       {/* ── TOP STICKY PRO FORMATTING RIBBON & CONTROLS ── */}
       {!isFocusMode && (
-        <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0b0f17]/95 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/90 px-2.5 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-2 select-none print:hidden overflow-x-auto scrollbar-none">
+        <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/90 px-2.5 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-2 select-none print:hidden overflow-x-auto scrollbar-none">
           
           {/* Left Ribbon: Text Styles & Block Types */}
           <div className="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-auto scrollbar-none py-0.5">
@@ -1285,7 +1285,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#0c0f18]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left select-none font-sans"
+                      className="absolute right-0 top-full mt-2 w-64 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left select-none font-sans"
                     >
                       <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center gap-2">
                         <ApexaAiIcon className="w-4 h-4" variant="gradient" />
@@ -1366,7 +1366,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#0c0f18]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 z-50 space-y-3.5 text-left font-sans select-none"
+                      className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 z-50 space-y-3.5 text-left font-sans select-none"
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                         <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Kiểu Trang Giấy</span>
@@ -1524,7 +1524,7 @@ export default function DocumentEditor({
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 top-full mt-2 w-56 bg-white/98 dark:bg-[#0c0f18]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left font-sans select-none"
+                      className="absolute right-0 top-full mt-2 w-56 bg-white/98 dark:bg-[#181818]/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 space-y-1 text-left font-sans select-none"
                     >
                       <button
                         type="button"

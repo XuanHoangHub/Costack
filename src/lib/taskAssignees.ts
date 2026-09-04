@@ -2,10 +2,10 @@ import { Task } from '@/types';
 
 export const getTaskAssigneeIds = (task: Partial<Task> | any): string[] => {
   if (!task) return [];
-  const fromCustom = task?.custom_fields?.assigneeIds;
-  if (Array.isArray(fromCustom)) return fromCustom.filter(Boolean);
   if (Array.isArray(task?.assigneeIds)) return task.assigneeIds.filter(Boolean);
   if (Array.isArray(task?.assignee_ids)) return task.assignee_ids.filter(Boolean);
+  const fromCustom = task?.custom_fields?.assigneeIds;
+  if (Array.isArray(fromCustom)) return fromCustom.filter(Boolean);
   return task?.assigneeId ? [task.assigneeId] : [];
 };
 

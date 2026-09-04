@@ -150,9 +150,10 @@ export default function LanguageDropdown({
   className = '',
   showLabel = false,
 }: LanguageDropdownProps) {
-  const { locale, localeMode, setLocale, t, isVietnamese } = useTranslation();
+  const { locale, localeMode, setLocale, t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const currentLang = LANGUAGES.find((l) => l.code === locale) || LANGUAGES[0];
 
@@ -184,10 +185,23 @@ export default function LanguageDropdown({
     setIsOpen(false);
   };
 
+  const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const lastIndex = LANGUAGES.length;
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowDown') nextIndex = index >= lastIndex ? 0 : index + 1;
+    if (event.key === 'ArrowUp') nextIndex = index <= 0 ? lastIndex : index - 1;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = lastIndex;
+    if (nextIndex !== null) {
+      event.preventDefault();
+      optionRefs.current[nextIndex]?.focus();
+    }
+  };
+
   // 1. Render Cards Variant (Ideal for Settings Panel)
   if (variant === 'cards') {
     return (
-      <div className={`space-y-3 w-full ${className}`}>
+      <div className={`space-y-3 w-full ${className}`} role="radiogroup" aria-label={t('selectLanguage')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {LANGUAGES.map((lang) => {
             const isSelected = localeMode === lang.code;
@@ -197,6 +211,8 @@ export default function LanguageDropdown({
                 key={lang.code}
                 type="button"
                 onClick={() => handleSelect(lang.code)}
+                role="radio"
+                aria-checked={isSelected}
                 className={`
                   group relative flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer
                   ${
@@ -211,10 +227,10 @@ export default function LanguageDropdown({
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className={`text-sm font-extrabold block ${isSelected ? 'text-blue-950 dark:text-blue-200' : 'text-slate-900 dark:text-slate-100'}`}>
-                    {lang.label}
+                    {lang.code === 'vi' ? t('languageVietnamese') : t('languageEnglish')}
                   </span>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                    {isVietnamese ? lang.descriptionVi : lang.descriptionEn}
+                    {lang.code === 'vi' ? t('languageVietnameseDesc') : t('languageEnglishDesc')}
                   </p>
                 </div>
                 {isSelected ? (
@@ -233,6 +249,8 @@ export default function LanguageDropdown({
         <button
           type="button"
           onClick={() => handleSelect('system')}
+          role="radio"
+          aria-checked={localeMode === 'system'}
           className={`
             w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer
             ${
@@ -248,10 +266,10 @@ export default function LanguageDropdown({
             </div>
             <div>
               <span className={`text-xs font-bold block ${localeMode === 'system' ? 'text-blue-950 dark:text-blue-200' : 'text-slate-900 dark:text-slate-100'}`}>
-                {isVietnamese ? 'Theo ngôn ngữ hệ thống' : 'System language'}
+                {t('systemLanguage')}
               </span>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                {isVietnamese ? 'Tự động phát hiện và áp dụng theo thiết bị' : 'Automatically match device language'}
+                {t('systemLanguageDesc')}
               </span>
             </div>
           </div>
@@ -270,7 +288,7 @@ export default function LanguageDropdown({
   // 2. Render Segmented Control Variant
   if (variant === 'segmented') {
     return (
-      <div className={`relative inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ${className}`}>
+      <div className={`relative inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ${className}`} role="group" aria-label={t('selectLanguage')}>
         {LANGUAGES.map((lang) => {
           const isSelected = localeMode === lang.code;
           const Flag = lang.FlagIcon;
@@ -279,6 +297,8 @@ export default function LanguageDropdown({
               key={lang.code}
               type="button"
               onClick={() => handleSelect(lang.code)}
+              aria-pressed={isSelected}
+              aria-label={lang.code === 'vi' ? t('languageVietnameseDesc') : t('languageEnglishDesc')}
               className={`
                 relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer z-10
                 ${
@@ -311,29 +331,37 @@ export default function LanguageDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            setIsOpen(true);
+            const selectedIndex = localeMode === 'system' ? LANGUAGES.length : Math.max(0, LANGUAGES.findIndex((language) => language.code === localeMode));
+            requestAnimationFrame(() => optionRefs.current[selectedIndex]?.focus());
+          }
+        }}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        aria-label={`${t('language') || 'Ngôn ngữ'}: ${currentLang.label}`}
-        title={t('languageDesc') || `Ngôn ngữ: ${currentLang.label}`}
+        aria-label={`${t('currentLanguage')}: ${localeMode === 'system' ? t('systemLanguage') : currentLang.label}`}
+        title={t('languageDesc')}
         className={`
-          group relative flex items-center gap-2 rounded-full border transition-all duration-200 cursor-pointer
+          group relative flex items-center gap-1.5 rounded-xl border transition-all duration-200 cursor-pointer
           ${
             isOpen
-              ? 'bg-blue-50 dark:bg-slate-800 border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15 shadow-xs'
-              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-slate-300 dark:hover:border-slate-600 shadow-3xs'
+              ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 ring-2 ring-blue-500/15 shadow-xs'
+              : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15 shadow-3xs'
           }
-          text-slate-700 dark:text-slate-200
-          ${size === 'sm' ? 'h-7.5 px-2.5 text-[11px]' : size === 'lg' ? 'h-9.5 px-3.5 text-xs' : 'h-8.5 px-3 text-xs'}
+          text-slate-700 dark:text-zinc-200
+          ${size === 'sm' ? 'h-7.5 px-2 text-[11px]' : size === 'lg' ? 'h-9.5 px-3.5 text-xs' : 'h-8.5 px-2.5 text-xs'}
         `}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <currentLang.FlagIcon className="w-5 h-3.5" />
-          <span className="font-sans font-extrabold text-[12px] tracking-tight text-slate-800 dark:text-slate-100">
-            {showLabel ? currentLang.label : currentLang.shortCode}
+          <currentLang.FlagIcon className="w-4.5 h-3 rounded-xs" />
+          <span className="font-sans font-bold text-[11.5px] tracking-tight text-slate-800 dark:text-zinc-200">
+            {localeMode === 'system' ? (showLabel ? t('systemLanguage') : 'AUTO') : showLabel ? currentLang.label : currentLang.shortCode}
           </span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform duration-200 shrink-0 ${
+          className={`w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 shrink-0 ${
             isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''
           }`}
         />
@@ -347,7 +375,9 @@ export default function LanguageDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="absolute right-0 mt-2 w-[276px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] p-2 z-50 overflow-hidden"
+            role="menu"
+            aria-label={t('selectLanguage')}
+            className="absolute right-0 mt-2 w-[276px] rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.18),0_6px_16px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8),0_8px_20px_-4px_rgba(0,0,0,0.6)] p-2 z-50 overflow-hidden"
           >
             {/* Header section (Clean, no Apexa badge) */}
             <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1.5 flex items-center gap-2">
@@ -355,20 +385,25 @@ export default function LanguageDropdown({
                 <Globe className="w-3 h-3" />
               </div>
               <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {isVietnamese ? 'Ngôn ngữ' : 'Language'}
+                {t('selectLanguage')}
               </span>
             </div>
+            <p className="sr-only">{t('languageMenuHint')}</p>
 
             {/* Language Options List */}
             <div className="space-y-1">
-              {LANGUAGES.map((lang) => {
+              {LANGUAGES.map((lang, index) => {
                 const isSelected = localeMode === lang.code;
                 const Flag = lang.FlagIcon;
                 return (
                   <button
                     key={lang.code}
+                    ref={(element) => { optionRefs.current[index] = element; }}
                     type="button"
                     onClick={() => handleSelect(lang.code)}
+                    onKeyDown={(event) => handleOptionKeyDown(event, index)}
+                    role="menuitemradio"
+                    aria-checked={isSelected}
                     className={`
                       w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer group relative
                       ${
@@ -382,7 +417,7 @@ export default function LanguageDropdown({
                       <Flag className="w-6.5 h-4.5" />
                       <div className="truncate">
                         <span className={`block text-[13px] leading-tight font-extrabold ${isSelected ? 'text-blue-950 dark:text-white' : 'text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white'}`}>
-                          {lang.label}
+                          {lang.code === 'vi' ? t('languageVietnamese') : t('languageEnglish')}
                         </span>
                         <span className={`block text-[11px] truncate mt-0.5 font-medium ${isSelected ? 'text-blue-600 dark:text-blue-300 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
                           {lang.nativeLabel}
@@ -411,7 +446,11 @@ export default function LanguageDropdown({
             {/* System Language Option */}
             <button
               type="button"
+              ref={(element) => { optionRefs.current[LANGUAGES.length] = element; }}
               onClick={() => handleSelect('system')}
+              onKeyDown={(event) => handleOptionKeyDown(event, LANGUAGES.length)}
+              role="menuitemradio"
+              aria-checked={localeMode === 'system'}
               className={`
                 w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all duration-150 cursor-pointer group relative
                 ${
@@ -427,10 +466,10 @@ export default function LanguageDropdown({
                 </div>
                 <div className="truncate">
                   <span className={`block text-[13px] leading-tight font-extrabold ${localeMode === 'system' ? 'text-blue-950 dark:text-white' : 'text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-white'}`}>
-                    {isVietnamese ? 'Theo ngôn ngữ hệ thống' : 'System language'}
+                    {t('systemLanguage')}
                   </span>
                   <span className={`block text-[11px] truncate mt-0.5 font-medium ${localeMode === 'system' ? 'text-blue-600 dark:text-blue-300 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
-                    {isVietnamese ? 'Khớp với cài đặt trình duyệt' : 'Match browser settings'}
+                    {t('systemLanguageDesc')}
                   </span>
                 </div>
               </div>
@@ -452,5 +491,3 @@ export default function LanguageDropdown({
     </div>
   );
 }
-
-

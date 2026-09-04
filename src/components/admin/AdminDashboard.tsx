@@ -96,7 +96,7 @@ function statusTone(status: string) {
 }
 
 const EmptyState = ({ icon: Icon, title, text }: { icon: typeof Database; title: string; text: string }) => (
-  <div className="flex min-h-56 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200/80 bg-white/40 p-8 text-center backdrop-blur-sm dark:border-white/10 dark:bg-[#0c101c]/40">
+  <div className="flex min-h-56 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200/80 bg-white/40 p-8 text-center backdrop-blur-sm dark:border-white/10 dark:bg-[#121212]/40">
     <span className="grid h-14 w-14 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-300">
       <Icon className="h-6 w-6" />
     </span>
@@ -109,7 +109,7 @@ const EmptyState = ({ icon: Icon, title, text }: { icon: typeof Database; title:
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-white/95 px-3.5 py-2.5 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-[#0c101c]/95">
+      <div className="rounded-2xl border border-slate-200/80 bg-white/95 px-3.5 py-2.5 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-[#121212]/95">
         <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{label}</p>
         <p className="mt-0.5 text-xs font-black text-slate-900 dark:text-white">
           {payload[0].name}: <span className="text-indigo-600 dark:text-indigo-400">{payload[0].value}</span>
@@ -422,7 +422,7 @@ export default function AdminDashboard() {
 
   if (access === 'checking' || (loading && !overview)) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#070a12] text-white select-none">
+      <div className="grid min-h-screen place-items-center bg-[#000000] text-white select-none">
         <div className="text-center">
           <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center">
             <div className="absolute inset-0 rounded-2xl bg-indigo-500 opacity-25 blur-xl animate-pulse" />
@@ -464,10 +464,10 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#070a12] dark:text-slate-100 select-none font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 dark:bg-[#000000] dark:text-slate-100 select-none font-sans">
       
       {/* ── Desktop Sidebar ── */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[270px] flex-col border-r border-slate-200/80 bg-white/90 px-4 py-5 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0b0f19]/90 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[270px] flex-col border-r border-slate-200/80 bg-white/90 px-4 py-5 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0a0a0a]/90 lg:flex">
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-2">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
@@ -531,7 +531,7 @@ export default function AdminDashboard() {
       <div className="lg:pl-[270px]">
         
         {/* Top Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#070a12]/80 sm:px-6">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#000000]/80 sm:px-6">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -692,7 +692,7 @@ export default function AdminDashboard() {
                     key={metric.label}
                     whileHover={{ translateY: -2 }}
                     transition={{ duration: 0.15 }}
-                    className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-white/[0.08] dark:bg-[#0c101c]/95 dark:hover:border-indigo-500/40"
+                    className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md dark:border-white/[0.08] dark:bg-[#121212]/95 dark:hover:border-indigo-500/40"
                   >
                     <div className={`pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${metric.color} opacity-15 blur-2xl`} />
                     <div className="flex items-start justify-between">
@@ -726,7 +726,7 @@ export default function AdminDashboard() {
                   <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
                     
                     {/* User Growth Chart */}
-                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
                       <div className="mb-6 flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
@@ -780,7 +780,7 @@ export default function AdminDashboard() {
                     </section>
 
                     {/* Subscription Plans Donut */}
-                    <section className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+                    <section className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
                       <div>
                         <div className="flex items-center justify-between">
                           <h2 className="text-sm font-black text-slate-900 dark:text-white">Phân bổ gói dịch vụ</h2>
@@ -834,7 +834,7 @@ export default function AdminDashboard() {
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
                     
                     {/* Data Records Chart */}
-                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
                       <div className="flex items-center justify-between">
                         <div>
                           <h2 className="text-sm font-black text-slate-900 dark:text-white">Dữ liệu theo Module</h2>
@@ -871,7 +871,7 @@ export default function AdminDashboard() {
                     </section>
 
                     {/* System Health Status */}
-                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+                    <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
                       <div className="flex items-center justify-between">
                         <div>
                           <h2 className="text-sm font-black text-slate-900 dark:text-white">Sức khỏe hạ tầng</h2>
@@ -965,7 +965,7 @@ export default function AdminDashboard() {
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Tìm theo tên, email hoặc UID…"
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-[#0c101c] dark:text-white"
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-[#121212] dark:text-white"
                   />
                   {search && (
                     <button onClick={() => setSearch('')} className="absolute right-3 text-slate-400 hover:text-slate-600">
@@ -976,7 +976,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Users Table */}
-              <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+              <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left">
                     <thead className="bg-slate-50/80 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:bg-white/[0.02]">
@@ -1439,7 +1439,7 @@ function RevenuePanel({ overview }: { overview: AdminOverview }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
       {/* Revenue Breakdown */}
-      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-black text-slate-900 dark:text-white">Doanh thu Subscription</h2>
@@ -1479,7 +1479,7 @@ function RevenuePanel({ overview }: { overview: AdminOverview }) {
       </section>
 
       {/* Funnel Distribution */}
-      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+      <section className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
         <h2 className="text-sm font-black text-slate-900 dark:text-white">Phễu phân bổ gói dịch vụ</h2>
         <p className="mt-1 text-[10.5px] font-medium text-slate-400">Tỷ lệ chuyển đổi và tài khoản theo từng cấp độ</p>
 
@@ -1541,7 +1541,7 @@ function VersionsPanel({
           {versions.map((version) => (
             <article
               key={version.id}
-              className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95"
+              className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95"
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
@@ -1665,7 +1665,7 @@ function SettingsPanel({
         {settings.map((setting) => (
           <article
             key={setting.key}
-            className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95"
+            className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95"
           >
             <div>
               <div className="flex items-start justify-between">
@@ -1836,7 +1836,7 @@ function AuditPanel({
       {!entries.length && !loading ? (
         <EmptyState icon={BookOpenCheck} title="Chưa có sự kiện quản trị" text="Mọi thay đổi trong Control Center sẽ được hệ thống ghi nhận tự động." />
       ) : (
-        <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xs dark:border-white/[0.08] dark:bg-[#0c101c]/95">
+        <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-xs dark:border-white/[0.08] dark:bg-[#121212]/95">
           <div className="divide-y divide-slate-100 dark:divide-white/[0.04]">
             {entries.map((entry) => (
               <div
@@ -1905,7 +1905,7 @@ function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-lg rounded-[32px] border border-white/80 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#0c101c] sm:p-7"
+        className="relative z-10 w-full max-w-lg rounded-[32px] border border-white/80 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121212] sm:p-7"
       >
         <div className="flex items-start justify-between gap-4">
           <div>

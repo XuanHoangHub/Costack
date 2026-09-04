@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { useTranslation } from "@/contexts/TranslationContext";
 import { supabase } from "@/lib/supabaseClient";
 
 export interface FinanceCategory {
@@ -117,6 +118,52 @@ const PRESET_COLORS = [
   "#84cc16", // Lime
 ];
 
+const PRESET_ENGLISH: Record<string, string> = {
+  "Doanh nghiệp & Công ty": "Business & company",
+  "Bộ danh mục chuẩn cho vận hành doanh nghiệp, startup và công ty dịch vụ.":
+    "A practical category set for companies, startups, and service businesses.",
+  "Lương & Thưởng nhân sự": "Payroll & employee bonuses",
+  "Thuê văn phòng & Mặt bằng": "Office & premises rent",
+  "Điện nước & Viễn thông": "Utilities & telecommunications",
+  "Tiếp thị & Quảng cáo": "Marketing & advertising",
+  "Phần mềm & SaaS": "Software & SaaS",
+  "Thiết bị & Công nghệ": "Equipment & technology",
+  "Tiếp khách & Ngoại giao": "Client entertainment",
+  "Công tác phí & Đi lại": "Business travel & transport",
+  "Văn phòng phẩm & Vật tư": "Office supplies & materials",
+  "Thuế & Phí ngân hàng": "Taxes & bank fees",
+  "Doanh thu Hợp đồng & Dự án": "Contract & project revenue",
+  "Doanh thu Dịch vụ tư vấn": "Consulting revenue",
+  "Doanh thu Bán hàng": "Sales revenue",
+  "Doanh thu Tài chính & Lãi": "Financial income & interest",
+  "Cá nhân & Freelancer": "Personal & freelance",
+  "Theo dõi thu nhập tự do và quản lý chi tiêu sinh hoạt hàng ngày.":
+    "Track freelance income and manage everyday personal spending.",
+  "Ăn uống & Cà phê": "Food & coffee",
+  "Tiền thuê nhà & Chỗ ở": "Rent & accommodation",
+  "Đi lại & Xăng xe": "Transport & fuel",
+  "Mua sắm & Tiêu dùng": "Shopping & personal spending",
+  "Điện thoại & Internet": "Phone & internet",
+  "Học tập & Phát triển": "Education & development",
+  "Y tế & Bảo hiểm": "Healthcare & insurance",
+  "Giải trí & Du lịch": "Entertainment & travel",
+  "Lương công việc chính": "Primary salary",
+  "Thu nhập Freelance / Dự án": "Freelance & project income",
+  "Lợi nhuận đầu tư": "Investment returns",
+  "Thưởng & Quà tặng": "Bonuses & gifts",
+  "Bán lẻ & Thương mại": "Retail & commerce",
+  "Tối ưu cho cửa hàng, shop online và nhà bán hàng thương mại điện tử.":
+    "Designed for stores, online shops, and ecommerce sellers.",
+  "Giá vốn & Nhập hàng hóa": "Cost of goods & inventory",
+  "Vận chuyển & Giao nhận": "Shipping & delivery",
+  "Đóng gói & Bao bì": "Packaging",
+  "Phí sàn & Quảng cáo Online": "Marketplace fees & online advertising",
+  "Mặt bằng & Kho bãi": "Premises & warehousing",
+  "Doanh thu Bán lẻ Trực tiếp": "In-store retail revenue",
+  "Doanh thu Bán Online (Shopee/TikTok)": "Online sales revenue (Shopee/TikTok)",
+  "Doanh thu Bán sỉ & Đại lý": "Wholesale & reseller revenue",
+};
+
 export function CategoryManagerModal({
   workspaceId,
   categories,
@@ -124,6 +171,7 @@ export function CategoryManagerModal({
   onClose,
   triggerToast,
 }: CategoryManagerModalProps) {
+  const { localize: l } = useTranslation();
   const [filterType, setFilterType] = useState<"all" | "expense" | "income">("all");
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<"list" | "single" | "bulk" | "presets">("list");
@@ -164,6 +212,19 @@ export function CategoryManagerModal({
 
   const expenseCount = useMemo(() => categories.filter((c) => c.type === "expense" || c.type === "both").length, [categories]);
   const incomeCount = useMemo(() => categories.filter((c) => c.type === "income" || c.type === "both").length, [categories]);
+  const presetBundles = useMemo(
+    () =>
+      PRESET_BUNDLES.map((bundle) => ({
+        ...bundle,
+        name: l(bundle.name, PRESET_ENGLISH[bundle.name] ?? bundle.name),
+        description: l(bundle.description, PRESET_ENGLISH[bundle.description] ?? bundle.description),
+        items: bundle.items.map((item) => ({
+          ...item,
+          name: l(item.name, PRESET_ENGLISH[item.name] ?? item.name),
+        })),
+      })),
+    [l]
+  );
 
   // Open Edit Mode
   const handleEdit = (category: FinanceCategory) => {
@@ -182,7 +243,11 @@ export function CategoryManagerModal({
     e.preventDefault();
     const name = singleForm.name.trim();
     if (!name) {
-      triggerToast?.("error", "Thiếu tên danh mục", "Vui lòng nhập tên danh mục.");
+      triggerToast?.(
+        "error",
+        l("Thiếu tên danh mục", "Category name required"),
+        l("Vui lòng nhập tên danh mục.", "Enter a category name.")
+      );
       return;
     }
 
@@ -202,7 +267,11 @@ export function CategoryManagerModal({
           .eq("workspace_id", workspaceId);
 
         if (error) throw error;
-        triggerToast?.("success", "Đã cập nhật", `Danh mục "${name}" đã được cập nhật.`);
+        triggerToast?.(
+          "success",
+          l("Đã cập nhật", "Category updated"),
+          l(`Đã cập nhật danh mục “${name}”.`, `Updated “${name}”.`)
+        );
       } else {
         // Insert
         const { error } = await supabase.from("finance_categories").insert({
@@ -214,14 +283,22 @@ export function CategoryManagerModal({
         });
 
         if (error) throw error;
-        triggerToast?.("success", "Đã thêm danh mục", `Danh mục "${name}" đã được thêm.`);
+        triggerToast?.(
+          "success",
+          l("Đã thêm danh mục", "Category added"),
+          l(`Đã thêm danh mục “${name}”.`, `Added “${name}”.`)
+        );
       }
 
       await onRefresh();
       setSingleForm({ name: "", type: "expense", color: "#6366f1", description: "" });
       setMode("list");
     } catch (err: any) {
-      triggerToast?.("error", "Lỗi lưu danh mục", err?.message || "Không thể lưu danh mục.");
+      triggerToast?.(
+        "error",
+        l("Không thể lưu danh mục", "Could not save category"),
+        err?.message || l("Không thể lưu danh mục.", "The category could not be saved.")
+      );
     } finally {
       setSaving(false);
     }
@@ -236,7 +313,11 @@ export function CategoryManagerModal({
       .filter(Boolean);
 
     if (!lines.length) {
-      triggerToast?.("error", "Danh sách trống", "Vui lòng nhập ít nhất một tên danh mục.");
+      triggerToast?.(
+        "error",
+        l("Danh sách đang trống", "The list is empty"),
+        l("Vui lòng nhập ít nhất một tên danh mục.", "Enter at least one category name.")
+      );
       return;
     }
 
@@ -266,7 +347,11 @@ export function CategoryManagerModal({
       });
 
       if (!toInsert.length) {
-        triggerToast?.("info", "Không có mục mới", "Tất cả danh mục bạn nhập đã tồn tại.");
+        triggerToast?.(
+          "info",
+          l("Không có danh mục mới", "No new categories"),
+          l("Tất cả danh mục bạn nhập đã tồn tại.", "Every category you entered already exists.")
+        );
         setMode("list");
         return;
       }
@@ -274,12 +359,20 @@ export function CategoryManagerModal({
       const { error } = await supabase.from("finance_categories").insert(toInsert);
       if (error) throw error;
 
-      triggerToast?.("success", "Đã thêm hàng loạt", `Đã thêm thành công ${toInsert.length} danh mục.`);
+      triggerToast?.(
+        "success",
+        l("Đã thêm hàng loạt", "Categories added"),
+        l(`Đã thêm ${toInsert.length} danh mục.`, `Added ${toInsert.length} categories.`)
+      );
       await onRefresh();
       setBulkInput("");
       setMode("list");
     } catch (err: any) {
-      triggerToast?.("error", "Lỗi tạo hàng loạt", err?.message || "Không thể thêm danh mục.");
+      triggerToast?.(
+        "error",
+        l("Không thể thêm hàng loạt", "Could not add categories"),
+        err?.message || l("Không thể thêm danh mục.", "The categories could not be added.")
+      );
     } finally {
       setSaving(false);
     }
@@ -287,7 +380,7 @@ export function CategoryManagerModal({
 
   // Apply Preset Bundle
   const handleApplyPreset = async (presetId: string) => {
-    const preset = PRESET_BUNDLES.find((b) => b.id === presetId);
+    const preset = presetBundles.find((b) => b.id === presetId);
     if (!preset) return;
 
     setSaving(true);
@@ -304,7 +397,11 @@ export function CategoryManagerModal({
         }));
 
       if (!toInsert.length) {
-        triggerToast?.("info", "Đã có đủ danh mục", `Gói "${preset.name}" đã tồn tại đầy đủ trong workspace.`);
+        triggerToast?.(
+          "info",
+          l("Đã có đủ danh mục", "Categories already available"),
+          l(`Gói “${preset.name}” đã có đầy đủ trong không gian làm việc.`, `Every category in “${preset.name}” already exists.`)
+        );
         setMode("list");
         return;
       }
@@ -312,11 +409,19 @@ export function CategoryManagerModal({
       const { error } = await supabase.from("finance_categories").insert(toInsert);
       if (error) throw error;
 
-      triggerToast?.("success", "Đã nạp gói danh mục", `Đã thêm ${toInsert.length} danh mục từ gói "${preset.name}".`);
+      triggerToast?.(
+        "success",
+        l("Đã nạp gói danh mục", "Category set imported"),
+        l(`Đã thêm ${toInsert.length} danh mục từ gói “${preset.name}”.`, `Added ${toInsert.length} categories from “${preset.name}”.`)
+      );
       await onRefresh();
       setMode("list");
     } catch (err: any) {
-      triggerToast?.("error", "Lỗi nạp mẫu", err?.message || "Không thể nạp gói danh mục.");
+      triggerToast?.(
+        "error",
+        l("Không thể nạp gói mẫu", "Could not import category set"),
+        err?.message || l("Không thể nạp gói danh mục.", "The category set could not be imported.")
+      );
     } finally {
       setSaving(false);
     }
@@ -324,7 +429,7 @@ export function CategoryManagerModal({
 
   // Delete Single Category
   const handleDelete = async (category: FinanceCategory) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa danh mục "${category.name}"?`)) return;
+    if (!window.confirm(l(`Bạn có chắc muốn xóa danh mục “${category.name}”?`, `Delete the category “${category.name}”?`))) return;
 
     try {
       const { error } = await supabase
@@ -334,7 +439,11 @@ export function CategoryManagerModal({
         .eq("workspace_id", workspaceId);
 
       if (error) throw error;
-      triggerToast?.("success", "Đã xóa", `Đã xóa danh mục "${category.name}".`);
+      triggerToast?.(
+        "success",
+        l("Đã xóa danh mục", "Category deleted"),
+        l(`Đã xóa danh mục “${category.name}”.`, `Deleted “${category.name}”.`)
+      );
       await onRefresh();
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -342,14 +451,18 @@ export function CategoryManagerModal({
         return next;
       });
     } catch (err: any) {
-      triggerToast?.("error", "Không thể xóa", err?.message || "Lỗi khi xóa danh mục.");
+      triggerToast?.(
+        "error",
+        l("Không thể xóa danh mục", "Could not delete category"),
+        err?.message || l("Đã xảy ra lỗi khi xóa danh mục.", "An error occurred while deleting the category.")
+      );
     }
   };
 
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.size) return;
-    if (!window.confirm(`Bạn có chắc muốn xóa ${selectedIds.size} danh mục đã chọn?`)) return;
+    if (!window.confirm(l(`Xóa ${selectedIds.size} danh mục đã chọn?`, `Delete ${selectedIds.size} selected categories?`))) return;
 
     setSaving(true);
     try {
@@ -360,11 +473,19 @@ export function CategoryManagerModal({
         .eq("workspace_id", workspaceId);
 
       if (error) throw error;
-      triggerToast?.("success", "Đã xóa hàng loạt", `Đã xóa ${selectedIds.size} danh mục.`);
+      triggerToast?.(
+        "success",
+        l("Đã xóa các danh mục", "Categories deleted"),
+        l(`Đã xóa ${selectedIds.size} danh mục.`, `Deleted ${selectedIds.size} categories.`)
+      );
       setSelectedIds(new Set());
       await onRefresh();
     } catch (err: any) {
-      triggerToast?.("error", "Không thể xóa hàng loạt", err?.message || "Lỗi khi xóa.");
+      triggerToast?.(
+        "error",
+        l("Không thể xóa các danh mục", "Could not delete categories"),
+        err?.message || l("Đã xảy ra lỗi khi xóa.", "An error occurred while deleting the categories.")
+      );
     } finally {
       setSaving(false);
     }
@@ -404,7 +525,7 @@ export function CategoryManagerModal({
                 : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
             }`}
           >
-            Danh sách ({categories.length})
+            {l("Danh sách", "Categories")} ({categories.length})
           </button>
           <button
             type="button"
@@ -419,7 +540,7 @@ export function CategoryManagerModal({
             }`}
           >
             <Plus className="h-3.5 w-3.5" />
-            {singleForm.id ? "Sửa danh mục" : "Tạo đơn lẻ"}
+            {singleForm.id ? l("Sửa danh mục", "Edit category") : l("Tạo đơn lẻ", "Create one")}
           </button>
           <button
             type="button"
@@ -431,7 +552,7 @@ export function CategoryManagerModal({
             }`}
           >
             <ListPlus className="h-3.5 w-3.5" />
-            Tạo hàng loạt
+            {l("Tạo hàng loạt", "Bulk create")}
           </button>
           <button
             type="button"
@@ -443,7 +564,7 @@ export function CategoryManagerModal({
             }`}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Gói mẫu sẵn
+            {l("Gói mẫu", "Preset sets")}
           </button>
         </div>
 
@@ -455,7 +576,7 @@ export function CategoryManagerModal({
             disabled={saving}
             leftIcon={<Trash2 className="h-3.5 w-3.5" />}
           >
-            Xóa ({selectedIds.size}) mục
+            {l("Xóa", "Delete")} ({selectedIds.size})
           </Button>
         )}
       </div>
@@ -475,7 +596,7 @@ export function CategoryManagerModal({
                     : "text-[var(--cu-text-tertiary)] hover:text-[var(--cu-text-primary)]"
                 }`}
               >
-                Tất cả ({categories.length})
+                {l("Tất cả", "All")} ({categories.length})
               </button>
               <button
                 type="button"
@@ -487,7 +608,7 @@ export function CategoryManagerModal({
                 }`}
               >
                 <ArrowUpRight className="h-3 w-3" />
-                Khoản chi ({expenseCount})
+                {l("Khoản chi", "Expenses")} ({expenseCount})
               </button>
               <button
                 type="button"
@@ -499,7 +620,7 @@ export function CategoryManagerModal({
                 }`}
               >
                 <ArrowDownRight className="h-3 w-3" />
-                Khoản thu ({incomeCount})
+                {l("Khoản thu", "Income")} ({incomeCount})
               </button>
             </div>
 
@@ -509,7 +630,7 @@ export function CategoryManagerModal({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm danh mục..."
+                placeholder={l("Tìm danh mục…", "Search categories…")}
                 className="h-8.5 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] pl-9 pr-3 text-xs text-[var(--cu-text-primary)] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
               />
             </div>
@@ -529,10 +650,10 @@ export function CategoryManagerModal({
                         className="h-3.5 w-3.5 rounded border-[var(--cu-border)] text-indigo-600 focus:ring-indigo-500"
                       />
                     </th>
-                    <th className="px-3 py-2.5">Tên danh mục</th>
-                    <th className="px-3 py-2.5">Loại</th>
-                    <th className="px-3 py-2.5">Màu sắc</th>
-                    <th className="px-3 py-2.5 text-right">Thao tác</th>
+                    <th className="px-3 py-2.5">{l("Tên danh mục", "Category")}</th>
+                    <th className="px-3 py-2.5">{l("Loại", "Type")}</th>
+                    <th className="px-3 py-2.5">{l("Màu sắc", "Color")}</th>
+                    <th className="px-3 py-2.5 text-right">{l("Thao tác", "Actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--cu-border)]">
@@ -571,10 +692,10 @@ export function CategoryManagerModal({
                             }
                           >
                             {cat.type === "expense"
-                              ? "Chi phí"
+                              ? l("Chi phí", "Expense")
                               : cat.type === "income"
-                              ? "Khoản thu"
-                              : "Thu & Chi"}
+                              ? l("Khoản thu", "Income")
+                              : l("Thu và chi", "Income & expense")}
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5">
@@ -592,7 +713,7 @@ export function CategoryManagerModal({
                               type="button"
                               onClick={() => handleEdit(cat)}
                               className="rounded-lg p-1.5 text-[var(--cu-text-tertiary)] hover:bg-[var(--cu-surface-2)] hover:text-indigo-500"
-                              title="Chỉnh sửa"
+                              title={l("Chỉnh sửa", "Edit")}
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
@@ -600,7 +721,7 @@ export function CategoryManagerModal({
                               type="button"
                               onClick={() => handleDelete(cat)}
                               className="rounded-lg p-1.5 text-[var(--cu-text-tertiary)] hover:bg-rose-500/10 hover:text-rose-500"
-                              title="Xóa"
+                              title={l("Xóa", "Delete")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -615,17 +736,22 @@ export function CategoryManagerModal({
               <div className="flex flex-col items-center justify-center p-8 text-center">
                 <Tag className="h-8 w-8 text-[var(--cu-text-tertiary)] opacity-60" />
                 <p className="mt-2 text-xs font-bold text-[var(--cu-text-primary)]">
-                  {search ? "Không tìm thấy danh mục phù hợp" : "Chưa có danh mục nào"}
+                  {search
+                    ? l("Không tìm thấy danh mục phù hợp", "No matching categories")
+                    : l("Chưa có danh mục nào", "No categories yet")}
                 </p>
                 <p className="mt-1 max-w-xs text-[11px] text-[var(--cu-text-tertiary)]">
-                  Bắt đầu tạo danh mục mới, thêm hàng loạt hoặc nạp gói mẫu có sẵn.
+                  {l(
+                    "Hãy tạo danh mục mới, thêm hàng loạt hoặc sử dụng một gói mẫu.",
+                    "Create a category, add several at once, or start with a preset set."
+                  )}
                 </p>
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" onClick={() => setMode("bulk")} leftIcon={<ListPlus className="h-3.5 w-3.5" />}>
-                    Tạo hàng loạt
+                    {l("Tạo hàng loạt", "Bulk create")}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setMode("presets")} leftIcon={<Sparkles className="h-3.5 w-3.5" />}>
-                    Nạp gói mẫu
+                    {l("Nạp gói mẫu", "Use a preset")}
                   </Button>
                 </div>
               </div>
@@ -639,7 +765,7 @@ export function CategoryManagerModal({
         <form onSubmit={handleSaveSingle} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-              Tên danh mục <span className="text-rose-500">*</span>
+              {l("Tên danh mục", "Category name")} <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -647,7 +773,10 @@ export function CategoryManagerModal({
               autoFocus
               value={singleForm.name}
               onChange={(e) => setSingleForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Ví dụ: Ăn uống, Thuê văn phòng, Lương nhân viên..."
+              placeholder={l(
+                "Ví dụ: Ăn uống, thuê văn phòng, lương nhân viên…",
+                "For example: Food, office rent, employee salaries…"
+              )}
               className="h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-sm font-medium text-[var(--cu-text-primary)] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
             />
           </div>
@@ -655,24 +784,24 @@ export function CategoryManagerModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                Loại giao dịch
+                {l("Loại giao dịch", "Transaction type")}
               </label>
               <Select
                 className="w-full"
-                ariaLabel="Loại danh mục"
+                ariaLabel={l("Loại danh mục", "Category type")}
                 value={singleForm.type}
                 onChange={(v) => setSingleForm((f) => ({ ...f, type: v as typeof singleForm.type }))}
                 options={[
-                  { value: "expense", label: "Khoản chi (Chi phí)" },
-                  { value: "income", label: "Khoản thu (Doanh thu)" },
-                  { value: "both", label: "Dùng cho cả Thu & Chi" },
+                  { value: "expense", label: l("Khoản chi (chi phí)", "Expense") },
+                  { value: "income", label: l("Khoản thu (doanh thu)", "Income") },
+                  { value: "both", label: l("Dùng cho cả thu và chi", "Income & expense") },
                 ]}
               />
             </div>
 
             <div>
               <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-                Màu sắc nhận diện
+                {l("Màu nhận diện", "Display color")}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -700,13 +829,16 @@ export function CategoryManagerModal({
 
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-              Mô tả chi tiết (Tùy chọn)
+              {l("Mô tả chi tiết (không bắt buộc)", "Description (optional)")}
             </label>
             <input
               type="text"
               value={singleForm.description}
               onChange={(e) => setSingleForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Ghi chú về nhóm chi tiêu hoặc quy định sử dụng..."
+              placeholder={l(
+                "Ghi chú về nhóm chi tiêu hoặc quy định sử dụng…",
+                "Add guidance or notes for this category…"
+              )}
               className="h-10 w-full rounded-xl border border-[var(--cu-border)] bg-[var(--cu-surface)] px-3 text-xs text-[var(--cu-text-primary)] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
             />
           </div>
@@ -720,10 +852,10 @@ export function CategoryManagerModal({
                 setSingleForm({ name: "", type: "expense", color: "#6366f1", description: "" });
               }}
             >
-              Hủy
+              {l("Hủy", "Cancel")}
             </Button>
             <Button type="submit" loading={saving} leftIcon={<CheckCircle2 className="h-4 w-4" />}>
-              {singleForm.id ? "Lưu thay đổi" : "Thêm danh mục"}
+              {singleForm.id ? l("Lưu thay đổi", "Save changes") : l("Thêm danh mục", "Add category")}
             </Button>
           </div>
         </form>
@@ -733,15 +865,25 @@ export function CategoryManagerModal({
       {mode === "bulk" && (
         <form onSubmit={handleSaveBulk} className="space-y-4">
           <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.05] p-3.5 text-xs text-[var(--cu-text-secondary)]">
-            <p className="font-bold text-indigo-500">💡 Hướng dẫn tạo hàng loạt:</p>
+            <p className="font-bold text-indigo-500">
+              💡 {l("Cách tạo hàng loạt", "How bulk creation works")}
+            </p>
             <p className="mt-1 text-[11px] leading-5">
-              Nhập danh sách các danh mục bạn muốn tạo, mỗi dòng một tên hoặc phân cách bằng dấu phẩy (<code>,</code>). Hệ thống sẽ tự động gán màu sắc và bỏ qua những tên đã trùng lặp.
+              {l(
+                "Nhập mỗi danh mục trên một dòng hoặc phân tách bằng dấu phẩy ",
+                "Enter one category per line or separate names with commas "
+              )}
+              (<code>,</code>).
+              {l(
+                " Hệ thống sẽ tự động gán màu và bỏ qua các tên trùng lặp.",
+                " Colors are assigned automatically, and duplicate names are skipped."
+              )}
             </p>
           </div>
 
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-              Áp dụng cho loại
+              {l("Áp dụng cho loại", "Apply to")}
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -754,7 +896,7 @@ export function CategoryManagerModal({
                 }`}
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
-                Khoản chi
+                {l("Khoản chi", "Expenses")}
               </button>
               <button
                 type="button"
@@ -766,7 +908,7 @@ export function CategoryManagerModal({
                 }`}
               >
                 <ArrowDownRight className="h-3.5 w-3.5" />
-                Khoản thu
+                {l("Khoản thu", "Income")}
               </button>
               <button
                 type="button"
@@ -778,14 +920,14 @@ export function CategoryManagerModal({
                 }`}
               >
                 <Layers className="h-3.5 w-3.5" />
-                Cả hai
+                {l("Cả hai", "Both")}
               </button>
             </div>
           </div>
 
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cu-text-tertiary)]">
-              Danh sách danh mục (Mỗi dòng một mục) <span className="text-rose-500">*</span>
+              {l("Danh sách danh mục (mỗi dòng một mục)", "Categories (one per line)")} <span className="text-rose-500">*</span>
             </label>
             <textarea
               required
@@ -793,21 +935,25 @@ export function CategoryManagerModal({
               rows={6}
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
-              placeholder={`Ví dụ:\nLương nhân viên\nTiền thuê văn phòng\nĐiện nước internet\nQuảng cáo Facebook & Google\nThiết bị IT máy tính\nTiếp khách & Cơm trưa`}
+              placeholder={l(
+                `Ví dụ:\nLương nhân viên\nTiền thuê văn phòng\nĐiện, nước và internet\nQuảng cáo Facebook và Google\nThiết bị CNTT\nTiếp khách và ăn trưa`,
+                `For example:\nEmployee salaries\nOffice rent\nUtilities and internet\nFacebook and Google ads\nIT equipment\nClient lunches`
+              )}
               className="w-full rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-3 text-xs leading-6 text-[var(--cu-text-primary)] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
             />
           </div>
 
           <div className="flex items-center justify-between border-t border-[var(--cu-border)] pt-4">
             <span className="text-[11px] text-[var(--cu-text-tertiary)]">
-              Ước tính: <strong>{bulkInput.split(/[\n,;]+/).filter((s) => s.trim()).length}</strong> danh mục
+              {l("Dự kiến", "Estimated")}: <strong>{bulkInput.split(/[\n,;]+/).filter((s) => s.trim()).length}</strong>{" "}
+              {l("danh mục", "categories")}
             </span>
             <div className="flex gap-2">
               <Button type="button" variant="secondary" onClick={() => setMode("list")}>
-                Quay lại
+                {l("Quay lại", "Back")}
               </Button>
               <Button type="submit" loading={saving} leftIcon={<CheckCircle2 className="h-4 w-4" />}>
-                Thêm toàn bộ
+                {l("Thêm toàn bộ", "Add all")}
               </Button>
             </div>
           </div>
@@ -818,11 +964,14 @@ export function CategoryManagerModal({
       {mode === "presets" && (
         <div className="space-y-3">
           <p className="text-xs text-[var(--cu-text-tertiary)]">
-            Chọn gói danh mục phù hợp với mô hình của bạn để tự động nhập đầy đủ danh mục Thu & Chi chỉ với 1 click:
+            {l(
+              "Chọn gói phù hợp với mô hình của bạn để thêm nhanh các danh mục thu và chi.",
+              "Choose a set that fits your work to quickly add income and expense categories."
+            )}
           </p>
 
           <div className="grid gap-3 sm:grid-cols-1">
-            {PRESET_BUNDLES.map((bundle) => (
+            {presetBundles.map((bundle) => (
               <div
                 key={bundle.id}
                 className="flex flex-col justify-between rounded-2xl border border-[var(--cu-border)] bg-[var(--cu-surface)] p-4 transition hover:border-indigo-500/50 hover:shadow-md"
@@ -830,7 +979,9 @@ export function CategoryManagerModal({
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black text-[var(--cu-text-primary)]">{bundle.name}</h3>
-                    <Badge variant="info">{bundle.items.length} danh mục</Badge>
+                    <Badge variant="info">
+                      {bundle.items.length} {l("danh mục", "categories")}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-xs text-[var(--cu-text-tertiary)]">{bundle.description}</p>
 
@@ -858,7 +1009,7 @@ export function CategoryManagerModal({
                     onClick={() => handleApplyPreset(bundle.id)}
                     leftIcon={<Plus className="h-3.5 w-3.5" />}
                   >
-                    Nạp gói này
+                    {l("Nạp gói này", "Import this set")}
                   </Button>
                 </div>
               </div>
@@ -867,7 +1018,7 @@ export function CategoryManagerModal({
 
           <div className="flex justify-end pt-2">
             <Button variant="secondary" size="sm" onClick={() => setMode("list")}>
-              Quay lại danh sách
+              {l("Quay lại danh sách", "Back to categories")}
             </Button>
           </div>
         </div>

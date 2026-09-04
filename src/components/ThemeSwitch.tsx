@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Moon, Sun } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface ThemeSwitchProps {
   isDarkMode?: boolean;
@@ -20,6 +21,7 @@ export default function ThemeSwitch({
   showLabel = false,
   className = '',
 }: ThemeSwitchProps) {
+  const { localize: l } = useTranslation();
   const storeIsDark = useUiStore((s) => s.isDarkMode);
   const storeSetIsDark = useUiStore((s) => s.setIsDarkMode);
   const [mounted, setMounted] = useState(false);
@@ -84,8 +86,8 @@ export default function ThemeSwitch({
         type="button"
         role="switch"
         aria-checked={isDark}
-        aria-label={isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-        title={isDark ? 'Chuyển sang giao diện sáng (Light Mode)' : 'Chuyển sang giao diện tối (Dark Mode)'}
+        aria-label={isDark ? l('Chuyển sang giao diện sáng', 'Switch to light mode') : l('Chuyển sang giao diện tối', 'Switch to dark mode')}
+        title={isDark ? l('Chuyển sang giao diện sáng', 'Switch to light mode') : l('Chuyển sang giao diện tối', 'Switch to dark mode')}
         onClick={handleToggle}
         className={`
           group relative inline-flex shrink-0 cursor-pointer items-center rounded-full
@@ -167,7 +169,7 @@ export default function ThemeSwitch({
           onClick={handleToggle}
           className="text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors"
         >
-          {isDark ? 'Chế độ tối' : 'Chế độ sáng'}
+          {isDark ? l('Chế độ tối', 'Dark mode') : l('Chế độ sáng', 'Light mode')}
         </span>
       )}
     </div>

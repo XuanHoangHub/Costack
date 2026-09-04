@@ -30,14 +30,16 @@ import {
   TrendingUp,
   Users,
   Zap,
-  Lock
+  Lock,
+  ArrowRight,
+  Check
 } from 'lucide-react';
 import { Task, TaskStatus, User, Space, SpaceBookmark } from '../types';
 import { useTranslation } from '../contexts/TranslationContext';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import SignedImage from './SignedImage';
 import { presenceDotClass } from '../lib/presence';
-import { callAiApi, isAiAccessError } from '../lib/aiClient';
+import { callAiApi } from '../lib/aiClient';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
@@ -71,13 +73,13 @@ const THEME_COLORS: Record<
   }
 > = {
   indigo: {
-    accent: '#6366f1',
-    soft: 'rgba(99, 102, 241, 0.12)',
-    tint: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
-    text: 'text-indigo-600 dark:text-indigo-400',
+    accent: '#2563eb',
+    soft: 'rgba(37, 99, 235, 0.12)',
+    tint: 'bg-blue-500/10 text-blue-600 dark:text-sky-400',
+    text: 'text-blue-600 dark:text-sky-400',
     gradient: 'from-blue-600 via-sky-500 to-cyan-400',
-    glow: 'rgba(99, 102, 241, 0.25)',
-    border: 'border-indigo-500/20'
+    glow: 'rgba(37, 99, 235, 0.25)',
+    border: 'border-blue-500/20'
   },
   rose: {
     accent: '#f43f5e',
@@ -183,14 +185,14 @@ function formatRelativeTime(dateStr: string, locale = 'vi') {
   return formatShortDate(dateStr, locale);
 }
 
-// ── Custom Glassmorphism Circular Ring ──
+// ── Custom Glassmorphic Donut Gauge ──
 function ProgressGauge({ percent, color, size = 110, strokeWidth = 9 }: { percent: number; color: string; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
         <circle
           cx={size / 2}
@@ -198,7 +200,7 @@ function ProgressGauge({ percent, color, size = 110, strokeWidth = 9 }: { percen
           r={radius}
           fill="none"
           stroke="currentColor"
-          className="text-slate-200 dark:text-slate-800"
+          className="text-slate-100 dark:text-zinc-800"
           strokeWidth={strokeWidth}
         />
         <motion.circle
@@ -216,8 +218,8 @@ function ProgressGauge({ percent, color, size = 110, strokeWidth = 9 }: { percen
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-xl font-black tracking-tight text-slate-950 dark:text-white font-sans">{percent}%</span>
-        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">DONE</span>
+        <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white font-sans tabular-nums">{percent}%</span>
+        <span className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500">TIẾN ĐỘ</span>
       </div>
     </div>
   );
@@ -405,7 +407,7 @@ export default function SpaceOverviewTab({
     event.preventDefault();
     if (!quickTaskTitle.trim()) return;
 
-    const targetListId = listId || visibleLists[0]?.id;
+    const targetListId = listId || quickTaskListId || visibleLists[0]?.id;
 
     onAddTask({
       title: quickTaskTitle.trim(),
@@ -417,7 +419,6 @@ export default function SpaceOverviewTab({
     });
 
     setQuickTaskTitle('');
-    setQuickTaskListId(null);
     triggerToast?.(
       'success',
       locale === 'vi' ? 'Đã tạo việc mới' : 'Task created',
@@ -448,43 +449,40 @@ export default function SpaceOverviewTab({
           ? `Phân tích sức khỏe Space "${space.name}" từ dữ liệu sau và trả lời bằng tiếng Việt trong 3-5 câu ngắn. Nêu rủi ro lớn nhất, ưu tiên tiếp theo và một hành động cụ thể. Không dùng markdown. Dữ liệu: ${JSON.stringify(taskContext)}`
           : `Analyze the health of Space "${space.name}" from the following data in 3-5 concise English sentences. Identify the biggest risk, next priority, and one concrete action. Do not use markdown. Data: ${JSON.stringify(taskContext)}`,
         history: [],
-        googleSearch: false,
+        taskContext: `Space: ${space.name}, Lists: ${visibleLists.length}, Tasks: ${totalTasksCount}, Done: ${completedTasksCount}`
       });
-      if (!response.ok) throw new Error('AI analysis request failed');
-      const payload = await response.json();
-      const summary = typeof payload.text === 'string' ? payload.text.trim() : '';
-      if (!summary) throw new Error('AI analysis returned an empty response');
-      setAiAnalysis(summary);
-      setIsAnalyzing(false);
-      triggerToast?.(
-        'success',
-        locale === 'vi' ? 'Phân tích AI hoàn tất' : 'AI Analysis Complete',
-        locale === 'vi' ? 'Đã tổng hợp bức tranh toàn cảnh của Space.' : 'Generated space health brief.'
-      );
-    } catch (error) {
-      if (isAiAccessError(error)) {
-        setIsAnalyzing(false);
-        return;
+
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data && typeof data.text === 'string' && data.text.trim()) {
+          setAiAnalysis(data.text.trim());
+          triggerToast?.(
+            'success',
+            locale === 'vi' ? 'Apexa AI Space Brief' : 'AI Analysis Ready',
+            locale === 'vi' ? 'Đã quét và cập nhật nhận định sức khỏe công việc.' : 'Workspace pulse and recommendations updated.'
+          );
+        } else {
+          setAiAnalysis(fallbackSummary);
+        }
+      } else {
+        setAiAnalysis(fallbackSummary);
       }
+    } catch {
       setAiAnalysis(fallbackSummary);
+    } finally {
       setIsAnalyzing(false);
-      triggerToast?.(
-        'info',
-        locale === 'vi' ? 'Đã tạo phân tích nhanh' : 'Quick analysis ready',
-        locale === 'vi' ? 'AI đang không khả dụng nên Apexa đã dùng dữ liệu tiến độ hiện có.' : 'AI was unavailable, so Apexa used the current progress data.'
-      );
     }
   };
 
   return (
-    <div className="min-h-full select-none bg-white dark:bg-[#060810] text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
+    <div className="apexa-space-overview min-h-full select-none bg-slate-50/50 dark:bg-[#09090b] text-slate-900 dark:text-zinc-100 transition-colors duration-200">
+      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-4.5">
         
-        {/* ── 1. Space Overview Header Banner ── */}
-        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/40 p-6 md:p-8">
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            {/* Space Branding & Details */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0">
+        {/* ── 1. Hero Command Center Banner ── */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 dark:border-white/[0.08] dark:bg-zinc-900/60 p-5 sm:p-6 shadow-xs backdrop-blur-md">
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Space Branding */}
+            <div className="flex items-center gap-4 min-w-0">
               {onUpdateSpaceEmoji ? (
                 <EmojiIconPicker
                   size="inline"
@@ -493,128 +491,114 @@ export default function SpaceOverviewTab({
                   title="Nhấn để đổi biểu tượng không gian"
                 >
                   <motion.div
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
-                    className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 hover:border-indigo-500 bg-white dark:border-slate-800 dark:bg-slate-900 cursor-pointer shadow-sm hover:shadow-md transition-all group"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-50/80 dark:border-blue-500/30 dark:bg-blue-950/40 text-blue-600 dark:text-sky-400 cursor-pointer shadow-3xs hover:shadow-xs transition-all"
                   >
-                    {renderSpaceIcon(space.emoji || 'Package', 'w-8 h-8 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform')}
+                    {renderSpaceIcon(space.emoji || 'Package', 'w-6.5 h-6.5')}
                   </motion.div>
                 </EmojiIconPicker>
               ) : (
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 300 }}
-                  className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-                >
-                  {renderSpaceIcon(space.emoji || 'Package', 'w-8 h-8 text-indigo-600 dark:text-indigo-400')}
-                </motion.div>
+                <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-50/80 dark:border-blue-500/30 dark:bg-blue-950/40 text-blue-600 dark:text-sky-400 shadow-3xs">
+                  {renderSpaceIcon(space.emoji || 'Package', 'w-6.5 h-6.5')}
+                </div>
               )}
 
               <div className="min-w-0 flex-1">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${theme.tint} border ${theme.border}`}
-                  >
-                    <Layers className="h-3 w-3" />
-                    {activeFolderId
-                      ? locale === 'vi' ? 'Folder View' : 'Folder View'
-                      : locale === 'vi' ? 'Space Command' : 'Space Command'}
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-blue-600 dark:text-sky-400">
+                    <Layers className="h-2.5 w-2.5" />
+                    {activeFolderId ? 'Chế độ thư mục' : 'Trung tâm Space'}
                   </span>
                   {space.isPrivate && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100/80 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
-                      <Lock className="w-3 h-3 text-slate-500" /> Private
+                    <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100/80 px-2 py-0.5 text-[9.5px] font-bold text-slate-500 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400">
+                      <Lock className="w-2.5 h-2.5" /> {locale === 'vi' ? 'Riêng tư' : 'Private'}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Khu vực đang hoạt động
+                    Đang hoạt động
                   </span>
                 </div>
 
-                <h1 className="truncate text-2xl md:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white font-sans">
+                <h1 className="truncate text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white font-sans">
                   {space.name}
                 </h1>
-                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-3">
-                  <span>
-                    {locale === 'vi' ? `${visibleLists.length} Danh sách` : `${visibleLists.length} Lists`}
-                  </span>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-zinc-400 flex items-center gap-2">
+                  <span>{visibleLists.length} Danh sách</span>
                   <span>•</span>
-                  <span>
-                    {locale === 'vi' ? `${space.folders?.length || 0} Thư mục` : `${space.folders?.length || 0} Folders`}
-                  </span>
+                  <span>{space.folders?.length || 0} Thư mục</span>
                   <span>•</span>
-                  <span>
-                    {locale === 'vi' ? `${visibleDocs.length} Tài liệu` : `${visibleDocs.length} Docs`}
-                  </span>
+                  <span>{visibleDocs.length} Tài liệu</span>
                 </p>
               </div>
             </div>
 
-            {/* Quick Action Control Bar */}
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-200/60 dark:border-slate-800/60">
+            {/* Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-white/[0.06]">
               <button
                 type="button"
                 onClick={onAddFolder}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
+                className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800 transition-all cursor-pointer shadow-3xs"
               >
-                <Folder className="h-4 w-4 text-indigo-500" />
-                <span>{locale === 'vi' ? '+ Thư mục' : '+ Folder'}</span>
+                <Folder className="h-3.5 w-3.5 text-blue-500" />
+                <span>+ Thư mục</span>
               </button>
 
               <button
                 type="button"
                 onClick={onAddDoc}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
+                className="inline-flex h-8.5 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-zinc-800/80 dark:text-zinc-200 dark:hover:bg-zinc-800 transition-all cursor-pointer shadow-3xs"
               >
-                <FileText className="h-4 w-4 text-blue-500" />
-                <span>{locale === 'vi' ? '+ Tài liệu' : '+ Doc'}</span>
+                <FileText className="h-3.5 w-3.5 text-sky-500" />
+                <span>+ Tài liệu</span>
               </button>
 
               <button
                 type="button"
                 onClick={onAddList}
-                className="inline-flex h-9 items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 text-xs font-bold transition-colors cursor-pointer active:scale-95"
+                className="inline-flex h-8.5 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-3.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm shadow-blue-500/25"
               >
-                <Plus className="h-4 w-4 stroke-[2.5]" />
-                <span>{locale === 'vi' ? 'Tạo List mới' : 'New List'}</span>
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Tạo List mới</span>
               </button>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* ── 2. Sleek KPI Metrics Strip ── */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* ── 2. Smart Metrics Strip (4 Bento Cards) ── */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              label: locale === 'vi' ? 'TỔNG NHIỆM VỤ' : 'TOTAL TASKS',
+              label: 'TỔNG NHIỆM VỤ',
               value: totalTasksCount,
-              sub: locale === 'vi' ? 'nhiệm vụ trong Space' : 'tasks in space',
+              sub: 'trong phạm vi Space',
               icon: Target,
-              color: '#6366f1',
-              bg: 'bg-indigo-500/10'
+              color: 'text-blue-600 dark:text-sky-400',
+              bg: 'bg-blue-500/10'
             },
             {
-              label: locale === 'vi' ? 'TỐC ĐỘ HOÀN THÀNH' : 'VELOCITY DONE',
+              label: 'TIẾN ĐỘ HOÀN TẤT',
               value: `${completionPercentage}%`,
-              sub: `${completedTasksCount}/${totalTasksCount} ${locale === 'vi' ? 'đã xong' : 'completed'}`,
+              sub: `${completedTasksCount}/${totalTasksCount} đã hoàn thành`,
               icon: TrendingUp,
-              color: '#10b981',
+              color: 'text-emerald-600 dark:text-emerald-400',
               bg: 'bg-emerald-500/10'
             },
             {
-              label: locale === 'vi' ? 'ƯU TIÊN CAO' : 'HIGH PRIORITY',
+              label: 'ƯU TIÊN CAO',
               value: highPriorityCount,
-              sub: locale === 'vi' ? 'công việc quan trọng' : 'urgent & high items',
+              sub: 'công việc quan trọng & khẩn',
               icon: AlertTriangle,
-              color: '#f43f5e',
+              color: 'text-rose-600 dark:text-rose-400',
               bg: 'bg-rose-500/10'
             },
             {
-              label: locale === 'vi' ? 'THÀNH VIÊN' : 'SPACE MEMBERS',
+              label: 'THÀNH VIÊN',
               value: activeMembers.length || members.length,
-              sub: locale === 'vi' ? 'đang tham gia' : 'active collaborators',
+              sub: 'đang cùng cộng tác',
               icon: Users,
-              color: '#0ea5e9',
+              color: 'text-sky-600 dark:text-sky-400',
               bg: 'bg-sky-500/10'
             }
           ].map(item => {
@@ -622,44 +606,44 @@ export default function SpaceOverviewTab({
             return (
               <div
                 key={item.label}
-                className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/50 p-5 dark:border-slate-800 dark:bg-slate-900/40 transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+                className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 dark:border-white/[0.08] dark:bg-zinc-900/60 transition-all hover:border-blue-500/30 dark:hover:border-white/15 shadow-3xs"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-400">
                     {item.label}
                   </span>
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.bg}`}>
-                    <Icon className="h-4.5 w-4.5" style={{ color: item.color }} />
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${item.bg} ${item.color}`}>
+                    <Icon className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="mt-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white font-sans whitespace-nowrap tabular-nums">
+                <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white font-sans tabular-nums">
                   {item.value}
                 </div>
-                <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">{item.sub}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-zinc-400">{item.sub}</p>
               </div>
             );
           })}
-        </section>
+        </div>
 
-        {/* ── 3. Main Bento Box Dashboard Grid ── */}
-        <section className="grid gap-6 lg:grid-cols-12">
+        {/* ── 3. Main Bento Dashboard (8 cols left / 4 cols right) ── */}
+        <div className="grid gap-4.5 lg:grid-cols-12">
           
-          {/* ── BENTO 1: Space Health & AI Pulse (Span 7 cols) ── */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* ── LEFT MAIN WORKSTREAM (8 cols) ── */}
+          <div className="lg:col-span-8 flex flex-col gap-4.5">
             
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40 flex flex-col justify-between">
-              
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
-                    <Gauge className="h-4.5 w-4.5 animate-pulse" />
+            {/* Card A: Space Health & AI Pulse */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/[0.08] dark:bg-zinc-900/60 shadow-3xs">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-sky-400">
+                    <Gauge className="h-4 w-4" />
                   </div>
                   <div>
-                    <h2 className="text-xs font-bold tracking-wider text-slate-950 dark:text-white font-sans uppercase">
-                      {locale === 'vi' ? 'Sức khỏe & Phân tích Space' : 'Space Health & Pulse'}
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                      Sức khỏe & Tiến độ Space
                     </h2>
-                    <p className="text-[10px] font-semibold text-slate-400">
-                      {locale === 'vi' ? 'Tổng quan tiến độ & AI Brief' : 'Progress Breakdown & AI Intelligence'}
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-400">
+                      Phân bổ trạng thái & Báo cáo AI
                     </p>
                   </div>
                 </div>
@@ -668,82 +652,73 @@ export default function SpaceOverviewTab({
                   type="button"
                   onClick={handleRunAiAnalysis}
                   disabled={isAnalyzing}
-                  className="inline-flex h-8.5 items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 text-xs font-bold text-white transition-colors disabled:opacity-60 cursor-pointer"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3 text-xs font-bold text-white transition-all disabled:opacity-60 cursor-pointer shadow-xs shadow-blue-500/20"
                 >
-                  {isAnalyzing ? <Bot className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 fill-white" />}
-                  <span>{locale === 'vi' ? 'Quét AI Space' : 'Scan AI Brief'}</span>
+                  {isAnalyzing ? <Bot className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  <span>Quét AI Space</span>
                 </button>
               </div>
 
-              {/* Middle Section: Progress Gauge + Status breakdown */}
-              <div className="grid gap-6 sm:grid-cols-[130px_minmax(0,1fr)] items-center mb-6">
+              {/* Progress and status grid */}
+              <div className="grid gap-5 sm:grid-cols-[115px_minmax(0,1fr)] items-center mb-4">
                 <div className="flex justify-center">
-                  <ProgressGauge percent={completionPercentage} color={theme.accent} size={115} />
+                  <ProgressGauge percent={completionPercentage} color={theme.accent} size={110} />
                 </div>
 
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {(Object.keys(STATUS_META) as TaskStatus[]).map(status => (
                       <div
                         key={status}
-                        className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900"
+                        className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/50 p-2 dark:border-white/[0.06] dark:bg-zinc-800/40"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className={`h-2.5 w-2.5 rounded-full ${STATUS_META[status].bg}`} />
-                          <span className="truncate text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {locale === 'vi' ? STATUS_META[status].labelVi : STATUS_META[status].labelEn}
+                          <span className="truncate text-xs font-bold text-slate-700 dark:text-zinc-300">
+                            {STATUS_META[status].labelVi}
                           </span>
                         </div>
-                        <span className="text-xs font-black font-sans text-slate-900 dark:text-white">
+                        <span className="text-xs font-black font-sans text-slate-900 dark:text-white tabular-nums">
                           {statusCounts[status]}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Overdue alert banner if any */}
                   {overdueCount > 0 && (
-                    <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span>
-                        {locale === 'vi'
-                          ? `Có ${overdueCount} công việc quá hạn cần giải quyết!`
-                          : `${overdueCount} task(s) are overdue!`}
-                      </span>
+                    <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Có {overdueCount} công việc quá hạn cần giải quyết</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* AI Brief Result Container */}
-              <div className="rounded-xl border border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 relative">
-                <div className="mb-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Tóm tắt nhanh bằng AI</span>
+              {/* AI Brief result pill */}
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 dark:bg-sky-950/20 p-3 relative">
+                <div className="mb-1 flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                  <Sparkles className="h-3 w-3" />
+                  <span>Tóm tắt thông minh từ Apexa AI</span>
                 </div>
-                <p className="text-xs font-medium leading-relaxed text-slate-700 dark:text-slate-200 break-words text-pretty">
-                  {aiAnalysis ||
-                    (locale === 'vi'
-                      ? `Space đang hoạt động tốt với ${totalTasksCount} công việc. Nhấn 'Quét AI Space' để nhận nhận xét chi tiết.`
-                      : `Space active with ${totalTasksCount} total tasks. Click 'Scan AI Brief' for instant intelligent summary.`)}
+                <p className="text-xs font-medium leading-relaxed text-slate-700 dark:text-zinc-200">
+                  {aiAnalysis || `Space đang hoạt động với ${totalTasksCount} công việc. Nhấn 'Quét AI Space' để nhận báo cáo chi tiết.`}
                 </p>
               </div>
-
             </div>
 
-            {/* ── BENTO 2: Work Areas / Lists & Folders (Span 7 cols) ── */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="mb-5 flex items-center justify-between">
+            {/* Card B: Work Areas / Lists Grid */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/[0.08] dark:bg-zinc-900/60 shadow-3xs">
+              <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
-                    <FolderOpen className="h-4.5 w-4.5" />
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-sky-400">
+                    <FolderOpen className="h-4 w-4" />
                   </div>
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 font-sans">
-                      {locale === 'vi' ? 'Khu vực làm việc' : 'Work Areas'}
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                      Danh Sách & Dự Án
                     </h2>
-                    <p className="text-[10px] font-medium text-slate-400">
-                      {visibleLists.length} {locale === 'vi' ? 'danh sách công việc' : 'task lists'}
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-400">
+                      {visibleLists.length} danh sách trong Space
                     </p>
                   </div>
                 </div>
@@ -751,51 +726,51 @@ export default function SpaceOverviewTab({
                 <button
                   type="button"
                   onClick={onAddList}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 transition-all cursor-pointer shadow-3xs"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  <span>{locale === 'vi' ? 'Tạo List' : 'Add List'}</span>
+                  <span>Tạo List</span>
                 </button>
               </div>
 
-              <div className="grid gap-3.5 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {listStats.map(list => (
                   <button
                     key={list.id}
                     type="button"
                     onClick={() => onOpenList(list.id)}
-                    className="group flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 text-left transition-all duration-200 hover:border-indigo-500/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/60 cursor-pointer"
+                    className="group flex flex-col justify-between rounded-xl border border-slate-200/80 bg-slate-50/40 p-3.5 text-left transition-all duration-150 hover:border-blue-500/50 hover:bg-white dark:border-white/[0.06] dark:bg-zinc-800/30 dark:hover:border-sky-500/40 dark:hover:bg-zinc-800/60 shadow-3xs hover:shadow-xs cursor-pointer"
                   >
                     <div>
                       <div className="mb-2.5 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500 transition-transform">
-                            <List className="h-4 w-4" />
+                          <div className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-sky-400 transition-transform group-hover:scale-105">
+                            <List className="h-3.5 w-3.5" />
                           </div>
                           <span className="truncate text-xs font-bold text-slate-900 dark:text-white font-sans">
                             {list.name}
                           </span>
                         </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-1 group-hover:text-indigo-500" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-1 group-hover:text-blue-500" />
                       </div>
 
-                      <div className="mb-3 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
                         <span>
-                          {list.completed}/{list.total} {locale === 'vi' ? 'xong' : 'done'}
+                          {list.completed}/{list.total} hoàn tất
                         </span>
                         {list.nextDue && (
-                          <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                            <CalendarDays className="h-3 w-3 text-indigo-500" />
+                          <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-zinc-400">
+                            <CalendarDays className="h-3 w-3 text-blue-500" />
                             {formatShortDate(list.nextDue, locale)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/60 dark:bg-zinc-800">
                       <div
                         className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${list.progress}%`, backgroundColor: theme.accent }}
+                        style={{ width: `${list.progress}%`, background: 'linear-gradient(90deg, #2563eb, #38bdf8)' }}
                       />
                     </div>
                   </button>
@@ -803,44 +778,44 @@ export default function SpaceOverviewTab({
 
                 {listStats.length === 0 && (
                   <div className="col-span-full space-y-3">
-                    <div className="p-4 rounded-2xl border border-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-wrap items-center justify-between gap-3">
+                    <div className="p-3.5 rounded-2xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-950/20 flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                          {locale === 'vi' ? 'Khởi tạo danh sách công việc đầu tiên' : 'Get Started with a Work Area Template'}
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                          Khởi tạo danh sách công việc đầu tiên
                         </h4>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-                          {locale === 'vi' ? 'Chọn mẫu cấu trúc hoặc tạo danh sách tùy chỉnh để tổ chức dự án.' : 'Select a pre-built workspace template or create your own custom list.'}
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-0.5">
+                          Chọn một mẫu cấu trúc sẵn hoặc tạo danh sách tùy chỉnh theo ý bạn.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={onAddList}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer shrink-0 active:scale-95"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer shrink-0 shadow-xs shadow-blue-500/20"
                       >
                         <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                        <span>{locale === 'vi' ? 'Tạo Custom List' : 'Custom List'}</span>
+                        <span>Tạo Danh sách</span>
                       </button>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-2.5 sm:grid-cols-3">
                       {[
                         {
-                          title: locale === 'vi' ? 'Dự án UI/UX Design' : 'UI/UX Design System',
-                          desc: locale === 'vi' ? 'Quy trình thiết kế, Wireframe & Tokens' : 'Design specs, wireframes & component tokens',
+                          title: 'Dự án UI/UX Design',
+                          desc: 'Wireframe, Tokens & UI Components',
                           icon: Layers,
-                          color: 'from-purple-500 to-indigo-600'
+                          color: 'from-blue-500 to-sky-500'
                         },
                         {
-                          title: locale === 'vi' ? 'Sprint Kỹ thuật & API' : 'Sprint & Engineering',
-                          desc: locale === 'vi' ? 'API Endpoint, DB Schema & Testing' : 'Backend endpoints, DB schemas & QA testing',
+                          title: 'Sprint Kỹ thuật & API',
+                          desc: 'Backend, API endpoints & Testing',
                           icon: Zap,
-                          color: 'from-emerald-400 to-teal-600'
+                          color: 'from-emerald-500 to-teal-500'
                         },
                         {
-                          title: locale === 'vi' ? 'Chiến dịch Marketing' : 'Growth & Marketing',
-                          desc: locale === 'vi' ? 'Chiến dịch ra mắt, Email & Content' : 'Product launch, email sequences & SEO content',
+                          title: 'Chiến dịch Marketing',
+                          desc: 'Ra mắt sản phẩm, Content & SEO',
                           icon: Sparkles,
-                          color: 'from-rose-500 to-amber-500'
+                          color: 'from-amber-500 to-rose-500'
                         }
                       ].map(tmpl => {
                         const Icon = tmpl.icon;
@@ -849,23 +824,23 @@ export default function SpaceOverviewTab({
                             key={tmpl.title}
                             type="button"
                             onClick={onAddList}
-                            className="group flex flex-col justify-between p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-500/50 hover:shadow-xs transition-all text-left cursor-pointer"
+                            className="group flex flex-col justify-between p-3 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/50 dark:bg-zinc-800/30 hover:border-blue-500/50 hover:bg-white dark:hover:bg-zinc-800/60 shadow-3xs transition-all text-left cursor-pointer"
                           >
                             <div className="space-y-2">
-                              <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${tmpl.color} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform`}>
-                                <Icon className="w-4 h-4" />
+                              <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${tmpl.color} text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform`}>
+                                <Icon className="w-3.5 h-3.5" />
                               </div>
                               <div>
-                                <h5 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                <h5 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">
                                   {tmpl.title}
                                 </h5>
-                                <p className="text-[10px] font-medium text-slate-400 leading-snug mt-0.5">
+                                <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-400 leading-snug mt-0.5">
                                   {tmpl.desc}
                                 </p>
                               </div>
                             </div>
-                            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                              <span>{locale === 'vi' ? 'Tạo danh sách' : 'Create list'}</span>
+                            <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-sky-400">
+                              <span>Khởi tạo</span>
                               <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                             </div>
                           </button>
@@ -879,91 +854,84 @@ export default function SpaceOverviewTab({
 
           </div>
 
-          {/* ── BENTO 3: Work Stream & Quick Task Creator (Span 5 cols) ── */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* ── RIGHT STREAM & DOCK (4 cols) ── */}
+          <div className="lg:col-span-4 flex flex-col gap-4.5">
             
-            {/* Work Stream Radar */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40 flex-1 flex flex-col justify-between">
-              
+            {/* Priority Workstream & Fast Task Creator */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/[0.08] dark:bg-zinc-900/60 shadow-3xs flex flex-col justify-between">
               <div>
-                <div className="mb-5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
-                      <Radio className="h-4.5 w-4.5 animate-pulse" />
+                <div className="mb-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-sky-400">
+                      <Radio className="h-3.5 w-3.5 animate-pulse" />
                     </div>
                     <div>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 font-sans">
-                        {locale === 'vi' ? 'Dòng Công Việc' : 'Work Stream Radar'}
+                      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                        Dòng Công Việc
                       </h2>
-                      <p className="text-[10px] font-medium text-slate-400">
-                        {nextTasks.length} {locale === 'vi' ? 'việc ưu tiên tới' : 'upcoming items'}
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-400">
+                        {nextTasks.length} việc cần ưu tiên tiếp theo
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Task Creation Line */}
+                {/* Quick Task input form */}
                 <form
                   onSubmit={e => handleQuickTaskSubmit(e)}
-                  className="mb-5 flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900"
+                  className="mb-3.5 flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/60 p-1.5 dark:border-white/[0.08] dark:bg-zinc-800/40"
                 >
                   <input
                     type="text"
                     value={quickTaskTitle}
                     onChange={e => setQuickTaskTitle(e.target.value)}
-                    placeholder={
-                      locale === 'vi'
-                        ? 'Thêm nhanh việc cần làm vào Space...'
-                        : 'Quickly create a task in Space...'
-                    }
+                    placeholder="Thêm nhanh việc cần làm..."
                     className="min-w-0 flex-1 bg-transparent px-2 text-xs font-bold text-slate-900 outline-none placeholder:text-slate-400 dark:text-white"
                   />
                   <button
                     type="submit"
-                    className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 text-[11px] font-bold text-white transition-colors active:scale-95 cursor-pointer shrink-0"
+                    className="inline-flex h-7 items-center gap-1 rounded-lg bg-blue-600 hover:bg-blue-500 px-2.5 text-[10.5px] font-bold text-white transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs"
                   >
-                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                    <span>{locale === 'vi' ? 'Thêm' : 'Add'}</span>
+                    <Plus className="h-3 w-3 stroke-[2.5]" />
+                    <span>Thêm</span>
                   </button>
                 </form>
 
-                {/* Active Task List */}
-                <div className="space-y-3">
+                {/* Active Priority Queue */}
+                <div className="space-y-2">
                   {nextTasks.map(task => {
                     const list = space.lists?.find(item => item.id === task.listId);
                     return (
                       <div
                         key={task.id}
-                        className="rounded-xl border border-slate-200/80 bg-white p-3.5 transition-all duration-200 hover:border-indigo-500/60 dark:border-slate-800 dark:bg-slate-900"
+                        className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-2.5 transition-all hover:border-blue-500/40 hover:bg-white dark:border-white/[0.06] dark:bg-zinc-800/30 dark:hover:bg-zinc-800/60 shadow-3xs"
                       >
-                        <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="mb-1 flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <span className="block truncate text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
-                              {list?.name || (locale === 'vi' ? 'Chưa phân loại' : 'General')}
+                            <span className="block truncate text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
+                              {list?.name || 'Chung'}
                             </span>
-                            <h3 className="line-clamp-2 text-xs font-bold leading-snug text-slate-950 dark:text-white font-sans mt-0.5">
+                            <h3 className="line-clamp-2 text-xs font-bold leading-snug text-slate-900 dark:text-white font-sans mt-0.5">
                               {task.title}
                             </h3>
                           </div>
                           <span
-                            className="shrink-0 rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                            className="shrink-0 rounded-md px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider"
                             style={{
                               backgroundColor: `${STATUS_META[task.status].color}18`,
                               color: STATUS_META[task.status].color
                             }}
                           >
-                            {locale === 'vi'
-                              ? STATUS_META[task.status].labelVi
-                              : STATUS_META[task.status].labelEn}
+                            {STATUS_META[task.status].labelVi}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 pt-1">
-                          <span className="flex items-center gap-1.5">
-                            <CalendarDays className="h-3.5 w-3.5 text-indigo-500" />
+                        <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-zinc-400 pt-1">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-2.5 w-2.5 text-blue-500" />
                             {formatShortDate(task.dueDate, locale)}
                           </span>
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.2 text-[8.5px] font-bold uppercase tracking-wider text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
                             {task.priority}
                           </span>
                         </div>
@@ -972,45 +940,117 @@ export default function SpaceOverviewTab({
                   })}
 
                   {nextTasks.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-300/80 p-6 text-center dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/20">
-                      {totalTasksCount === 0 ? (
-                        <div className="space-y-3">
-                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
-                            <Target className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                              {locale === 'vi' ? 'Chưa có công việc nào trong Space' : 'No upcoming tasks found'}
-                            </p>
-                            <p className="text-[11px] font-medium text-slate-400 max-w-[220px] mx-auto mt-0.5">
-                              {locale === 'vi'
-                                ? 'Nhập tên công việc bên trên hoặc tạo danh sách đầu tiên.'
-                                : 'Type a task name above or create your first list.'}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={onAddList}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 px-3 py-1.5 text-[11px] font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span>{locale === 'vi' ? 'Tạo danh sách đầu tiên' : 'Create first list'}</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5 py-2">
-                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-                            <CheckCircle2 className="h-5 w-5" />
-                          </div>
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                            {locale === 'vi' ? 'Tất cả công việc đã hoàn thành!' : 'All upcoming tasks completed!'}
-                          </p>
-                          <p className="text-[11px] font-medium text-slate-400">
-                            {locale === 'vi' ? 'Không có việc nào trễ hạn hoặc đọng lại.' : 'Great job! No pending tasks remaining in queue.'}
-                          </p>
-                        </div>
-                      )}
+                    <div className="rounded-xl border border-dashed border-slate-300/80 p-4 text-center dark:border-white/10 bg-slate-50/40 dark:bg-zinc-800/20">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                        Chưa có việc cần làm
+                      </p>
+                      <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+                        Nhập tên việc bên trên để tạo mới.
+                      </p>
                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Team & Resources Dock */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/[0.08] dark:bg-zinc-900/60 shadow-3xs space-y-4">
+              
+              {/* Member Roster */}
+              <div>
+                <div className="mb-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-sky-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                      Đội Ngũ Phụ Trách
+                    </h3>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.2 text-[10px] font-bold text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    {activeMembers.length || members.length}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {(activeMembers.length ? activeMembers : members).slice(0, 8).map(member => (
+                    <div key={member.id} className="relative group">
+                      <SignedImage
+                        filePath={member.avatar}
+                        className="h-8 w-8 rounded-xl border border-slate-200/80 object-cover dark:border-white/10 cursor-pointer shadow-3xs"
+                        alt={member.name}
+                        title={member.name}
+                      />
+                      <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-white dark:border-zinc-900 ${presenceDotClass(member.status)}`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pinned Bookmarks & Docs */}
+              <div className="border-t border-slate-100 dark:border-white/[0.06] pt-3.5">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bookmark className="h-3.5 w-3.5 text-amber-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white font-sans">
+                      Liên Kết & Tài Liệu
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddBookmarkModal(true)}
+                    className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                    title="Thêm liên kết"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  {bookmarks.map((bm) => (
+                    <div
+                      key={bm.id}
+                      className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-slate-50/50 dark:bg-zinc-800/30 border border-slate-200/60 dark:border-white/[0.06] hover:bg-slate-100/60 dark:hover:bg-zinc-800/60 transition-colors group"
+                    >
+                      <a
+                        href={bm.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-bold text-slate-700 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-sky-400 transition-colors"
+                      >
+                        <Link2 className="w-3 h-3 text-blue-500 shrink-0" />
+                        <span className="truncate">{bm.title}</span>
+                        <ExternalLink className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBookmark(bm.id)}
+                        className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {visibleDocs.map(doc => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => onOpenDoc?.(doc.id)}
+                      className="w-full flex items-center justify-between gap-2 p-1.5 rounded-xl bg-slate-50/50 dark:bg-zinc-800/30 border border-slate-200/60 dark:border-white/[0.06] hover:bg-slate-100/60 dark:hover:bg-zinc-800/60 transition-colors text-left cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <FileText className="w-3 h-3 text-sky-500 shrink-0" />
+                        <span className="truncate text-xs font-bold text-slate-700 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">
+                          {doc.title || doc.name || 'Tài liệu không tên'}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  ))}
+
+                  {bookmarks.length === 0 && visibleDocs.length === 0 && (
+                    <p className="py-2 text-center text-xs font-medium text-slate-400 dark:text-zinc-500">
+                      Chưa có liên kết hoặc tài liệu.
+                    </p>
                   )}
                 </div>
               </div>
@@ -1018,156 +1058,7 @@ export default function SpaceOverviewTab({
             </div>
 
           </div>
-        </section>
-
-        {/* ── 4. Bottom Grid: Team, Rhythm Feed, Bookmarks & Docs ── */}
-        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          
-          {/* Team Collaboration Hub */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500">
-                  <Users className="h-4.5 w-4.5" />
-                </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 font-sans">
-                  {locale === 'vi' ? 'Đội Ngũ Phụ Trách' : 'Space Roster'}
-                </h2>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                {activeMembers.length || members.length}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              {(activeMembers.length ? activeMembers : members).slice(0, 10).map(member => (
-                <div key={member.id} className="relative group">
-                  <SignedImage
-                    filePath={member.avatar}
-                    className="h-10 w-10 rounded-xl border border-slate-200 object-cover dark:border-slate-800 cursor-pointer"
-                    alt={member.name}
-                    title={member.name}
-                  />
-                  <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${presenceDotClass(member.status)}`} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent Rhythm Activity Feed */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
-                  <Activity className="h-4.5 w-4.5" />
-                </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 font-sans">
-                  {locale === 'vi' ? 'Nhịp Hoạt Động' : 'Recent Rhythm Feed'}
-                </h2>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {recentTasks.map(task => (
-                <div key={task.id} className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                    <Circle className="h-3.5 w-3.5" style={{ color: STATUS_META[task.status].color }} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-slate-900 dark:text-white font-sans">
-                      {task.title}
-                    </p>
-                    <p className="text-[10px] font-medium text-slate-400">
-                      {formatRelativeTime(task.createdAt, locale)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {recentTasks.length === 0 && (
-                <p className="py-6 text-center text-xs font-semibold text-slate-400">
-                  {locale === 'vi' ? 'Chưa có hoạt động mới.' : 'No activity logs yet.'}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Pinned Links & Docs Dock */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-                  <Bookmark className="h-4.5 w-4.5" />
-                </div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 font-sans">
-                  {locale === 'vi' ? 'Ghim Liên Kết & Tài Liệu' : 'Pinned Links & Docs'}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddBookmarkModal(true)}
-                className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 cursor-pointer"
-                title="Thêm liên kết"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2.5">
-              {bookmarks.map(bookmark => (
-                <div
-                  key={bookmark.id}
-                  className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900"
-                >
-                  <Link2 className="h-4 w-4 shrink-0 text-amber-500" />
-                  <a
-                    href={bookmark.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="min-w-0 flex-1 truncate text-xs font-bold text-slate-800 hover:underline dark:text-slate-200"
-                  >
-                    {bookmark.title}
-                  </a>
-                  <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteBookmark(bookmark.id)}
-                    className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-
-              {visibleDocs.slice(0, 3).map(doc => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  onClick={() => onOpenDoc?.(doc.id)}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 text-left transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-850 cursor-pointer group"
-                >
-                  <FileText className="h-4 w-4 shrink-0 text-blue-500" />
-                  <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {doc.title}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
-                </button>
-              ))}
-
-              {bookmarks.length === 0 && visibleDocs.length === 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAddBookmarkModal(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300/80 p-4 text-xs font-bold text-slate-400 hover:border-amber-400 hover:text-amber-600 dark:border-slate-800 cursor-pointer transition-colors"
-                >
-                  <Plus className="h-4 w-4 stroke-[2.5]" />
-                  <span>{locale === 'vi' ? 'Ghim liên kết mới' : 'Pin a new link'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-        </section>
+        </div>
       </div>
 
       {/* Add Bookmark Modal */}
@@ -1183,24 +1074,24 @@ export default function SpaceOverviewTab({
               initial={{ scale: 0.95, y: 12 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 12 }}
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950"
+              className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-white/10 dark:bg-[#09090b] shadow-2xl"
             >
-              <div className="mb-5 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">
                   {locale === 'vi' ? 'Thêm liên kết ghim' : 'Add Pinned Link'}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowAddBookmarkModal(false)}
-                  className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 cursor-pointer"
+                  className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <form onSubmit={handleAddBookmarkSubmit} className="space-y-4">
+              <form onSubmit={handleAddBookmarkSubmit} className="space-y-3.5">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
                     {locale === 'vi' ? 'Tiêu đề' : 'Title'}
                   </label>
                   <input
@@ -1208,11 +1099,12 @@ export default function SpaceOverviewTab({
                     required
                     value={bookmarkTitle}
                     onChange={e => setBookmarkTitle(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none transition focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                    placeholder="VD: Tài liệu thiết kế Figma..."
+                    className="w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-blue-500 dark:border-white/10 dark:bg-zinc-800 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400">
                     URL
                   </label>
                   <input
@@ -1220,22 +1112,23 @@ export default function SpaceOverviewTab({
                     required
                     value={bookmarkUrl}
                     onChange={e => setBookmarkUrl(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none transition focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                    placeholder="https://..."
+                    className="w-full rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-900 outline-none transition focus:border-blue-500 dark:border-white/10 dark:bg-zinc-800 dark:text-white"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowAddBookmarkModal(false)}
-                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+                    className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
                   >
-                    {locale === 'vi' ? 'Hủy' : 'Cancel'}
+                    Hủy
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-xs font-bold text-white transition-colors active:scale-95 cursor-pointer"
+                    className="rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-1.5 text-xs font-bold text-white transition-colors active:scale-95 cursor-pointer shadow-xs shadow-blue-500/20"
                   >
-                    {locale === 'vi' ? 'Lưu' : 'Save'}
+                    Lưu
                   </button>
                 </div>
               </form>

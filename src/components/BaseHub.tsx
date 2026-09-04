@@ -22,6 +22,7 @@ import BaseCalendarView from './base/BaseCalendarView';
 import BaseGanttView from './base/BaseGanttView';
 import BaseDashboardView from './base/BaseDashboardView';
 import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface BaseHubProps {
   bases: BaseApp[];
@@ -63,6 +64,7 @@ export default function BaseHub({
   bases, members, isOffline, spaces = [], tasks = [], onAddBase, onUpdateBase, onDeleteBase,
   onAddSpace, onUpdateSpace, onDeleteSpace, onAddSyncLog, triggerToast
 }: BaseHubProps) {
+  const { localize: l, formatDate } = useTranslation();
   const [activeBaseId, setActiveBaseId] = useState<string | null>(null);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,8 +121,8 @@ export default function BaseHub({
     onAddBase(base);
     setActiveBaseId(base.id);
     setShowTemplateModal(false);
-    onAddSyncLog(`Created new Base: "${base.name}" from template`);
-    triggerToast?.('success', 'Base created', `"${base.name}" is ready to use.`);
+    onAddSyncLog(l(`Đã tạo cơ sở dữ liệu "${base.name}" từ mẫu`, `Created Base "${base.name}" from a template`));
+    triggerToast?.('success', l('Đã tạo cơ sở dữ liệu', 'Base created'), l(`"${base.name}" đã sẵn sàng.`, `"${base.name}" is ready to use.`));
   };
 
   const updateTable = useCallback((updater: (table: BaseTable) => BaseTable) => {
@@ -137,7 +139,7 @@ export default function BaseHub({
 
   const handleAddRecord = (record: BaseRecord) => {
     updateTable(table => ({ ...table, records: [...table.records, record] }));
-    onAddSyncLog('Added record to Base table');
+    onAddSyncLog(l('Đã thêm bản ghi vào bảng', 'Added a record to the Base table'));
   };
 
   const handleDeleteRecord = (recordId: string) => {
@@ -147,7 +149,7 @@ export default function BaseHub({
   const handleAddSpace = () => {
     if (!newSpaceName.trim() || !onAddSpace) return;
     if (spaces && spaces.length >= 5) {
-      triggerToast?.('info', 'Giới hạn gói Free', 'Tài khoản Miễn phí chỉ tạo được tối đa 5 Spaces. Vui lòng nâng cấp gói Pro để không giới hạn!');
+      triggerToast?.('info', l('Giới hạn gói miễn phí', 'Free plan limit'), l('Gói miễn phí được tạo tối đa 5 không gian. Hãy nâng cấp lên Pro để tạo không giới hạn.', 'The Free plan supports up to five spaces. Upgrade to Pro for unlimited spaces.'));
       setShowAddSpaceModal(false);
       return;
     }
@@ -158,15 +160,15 @@ export default function BaseHub({
       emoji: newSpaceEmoji || '📦',
       themeColor: newSpaceColor,
       workspaceId: '',
-      lists: [{ id: `list-${Date.now()}`, name: 'General Tasks' }],
+      lists: [{ id: `list-${Date.now()}`, name: l('Công việc chung', 'General tasks') }],
       folders: [],
       whiteboards: [],
       channels: [],
       statuses: [
-        { id: 'todo', label: 'To Do', color: '#94a3b8', type: 'todo' },
-        { id: 'inprogress', label: 'In Progress', color: '#6366f1', type: 'inprogress' },
-        { id: 'review', label: 'Review', color: '#f59e0b', type: 'review' },
-        { id: 'completed', label: 'Done', color: '#10b981', type: 'completed' },
+        { id: 'todo', label: l('Cần làm', 'To do'), color: '#94a3b8', type: 'todo' },
+        { id: 'inprogress', label: l('Đang thực hiện', 'In progress'), color: '#6366f1', type: 'inprogress' },
+        { id: 'review', label: l('Chờ duyệt', 'In review'), color: '#f59e0b', type: 'review' },
+        { id: 'completed', label: l('Hoàn thành', 'Done'), color: '#10b981', type: 'completed' },
       ],
       clickApps: { subtasks: true, priorities: true },
     };
@@ -176,20 +178,20 @@ export default function BaseHub({
     setNewSpaceColor('indigo');
     setShowAddSpaceModal(false);
     setActiveSpaceId(space.id);
-    onAddSyncLog(`Created new Space: "${name}" from BaseHub`);
-    triggerToast?.('success', 'Space created', `"${name}" is ready.`);
+    onAddSyncLog(l(`Đã tạo không gian "${name}" từ Apexa Base`, `Created space "${name}" from Apexa Base`));
+    triggerToast?.('success', l('Đã tạo không gian', 'Space created'), l(`"${name}" đã sẵn sàng.`, `"${name}" is ready.`));
   };
 
   const handleDeleteSpace = (spaceId: string) => {
     if (!onDeleteSpace) return;
     const space = spaces.find(s => s.id === spaceId);
-    if (space && confirm(`Delete "${space.name}"?`)) {
+    if (space && confirm(l(`Xóa không gian "${space.name}"?`, `Delete space "${space.name}"?`))) {
       onDeleteSpace(spaceId);
       if (activeSpaceId === spaceId) {
         setActiveSpaceId(null);
         setActiveListId(null);
       }
-      onAddSyncLog(`Deleted Space: "${space.name}"`);
+      onAddSyncLog(l(`Đã xóa không gian "${space.name}"`, `Deleted space "${space.name}"`));
     }
   };
 
@@ -204,15 +206,15 @@ export default function BaseHub({
     });
     setNewListName('');
     setShowAddListModal(false);
-    onAddSyncLog(`Added list "${newList.name}" to Space "${space.name}"`);
+    onAddSyncLog(l(`Đã thêm danh sách "${newList.name}" vào "${space.name}"`, `Added list "${newList.name}" to space "${space.name}"`));
   };
 
   const handleAddField = (type: BaseField['type'] = 'text') => {
     const field = createDefaultField(type);
-    field.name = `Field ${(activeTable?.fields.length || 0) + 1}`;
+    field.name = `${l('Trường', 'Field')} ${(activeTable?.fields.length || 0) + 1}`;
     updateTable(table => ({ ...table, fields: [...table.fields, field] }));
     setShowFieldModal(false);
-    onAddSyncLog(`Added ${type} field to Base table`);
+    onAddSyncLog(l(`Đã thêm trường ${type} vào bảng`, `Added a ${type} field to the Base table`));
   };
 
   const handleAddTable = () => {
@@ -220,8 +222,8 @@ export default function BaseHub({
     const nameFieldId = `f-${Date.now()}`;
     const newTable: BaseTable = {
       id: `t-${Date.now()}`,
-      name: `Table ${activeBase.tables.length + 1}`,
-      fields: [{ id: nameFieldId, name: 'Name', type: 'text', width: 220 }],
+      name: `${l('Bảng', 'Table')} ${activeBase.tables.length + 1}`,
+      fields: [{ id: nameFieldId, name: l('Tên', 'Name'), type: 'text', width: 220 }],
       records: [],
       primaryFieldId: nameFieldId,
       views: [
@@ -262,13 +264,13 @@ export default function BaseHub({
     const copy: BaseApp = {
       ...JSON.parse(JSON.stringify(activeBase)),
       id: `base-${Date.now()}`,
-      name: `${activeBase.name} (Copy)`,
+      name: `${activeBase.name} ${l('(Bản sao)', '(Copy)')}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     onAddBase(copy);
     setShowBaseMenu(false);
-    triggerToast?.('success', 'Duplicated', `"${copy.name}" created.`);
+    triggerToast?.('success', l('Đã nhân bản', 'Duplicated'), l(`Đã tạo "${copy.name}".`, `"${copy.name}" was created.`));
   };
 
   // ─── Hub View (list of bases / spaces) ───
@@ -284,9 +286,9 @@ export default function BaseHub({
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #2563EB), var(--apexa-gradient-end, #FF3366))' }}>
                   <Database className="w-4.5 h-4.5" />
                 </div>
-                <h1 className="text-xl font-black font-display text-slate-800 dark:text-slate-100 tracking-tight">Cơ sở dữ liệu Apexa</h1>
+                <h1 className="text-xl font-black font-display text-slate-800 dark:text-slate-100 tracking-tight">{l('Cơ sở dữ liệu Apexa', 'Apexa Base')}</h1>
               </div>
-              <p className="text-xs text-slate-500 ml-11">Cơ sở dữ liệu không cần mã + Khu vực — tổ chức công việc khoa học</p>
+              <p className="text-xs text-slate-500 ml-11">{l('Cơ sở dữ liệu không cần mã và không gian làm việc có cấu trúc.', 'No-code databases and structured spaces for organized work.')}</p>
             </div>
             <div className="flex items-center gap-2">
               {hubModule === 'spaces' ? (
@@ -296,7 +298,7 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  Khu vực mới
+                  {l('Không gian mới', 'New space')}
                 </button>
               ) : (
                 <button
@@ -305,7 +307,7 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  Cơ sở dữ liệu mới
+                  {l('Cơ sở dữ liệu mới', 'New Base')}
                 </button>
               )}
             </div>
@@ -323,7 +325,7 @@ export default function BaseHub({
               }`}
             >
               <Database className="w-3.5 h-3.5" />
-              Bases
+              {l('Cơ sở dữ liệu', 'Bases')}
               <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${hubModule === 'bases' ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300'}`}>{bases.length}</span>
             </button>
             <button
@@ -336,7 +338,7 @@ export default function BaseHub({
               }`}
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              Spaces
+              {l('Không gian', 'Spaces')}
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">{spaces.length}</span>
             </button>
           </div>
@@ -347,7 +349,7 @@ export default function BaseHub({
               <input
                 value={hubSearch}
                 onChange={e => setHubSearch(e.target.value)}
-                placeholder={hubModule === 'bases' ? 'Search bases...' : 'Search spaces...'}
+                placeholder={hubModule === 'bases' ? l('Tìm cơ sở dữ liệu…', 'Search Bases…') : l('Tìm không gian…', 'Search spaces…')}
                 className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
               />
             </div>
@@ -362,9 +364,9 @@ export default function BaseHub({
                 <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center mb-4">
                   <Database className="w-8 h-8 text-indigo-400" />
                 </div>
-                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Tạo cơ sở dữ liệu đầu tiên</h2>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">{l('Tạo cơ sở dữ liệu đầu tiên', 'Create your first Base')}</h2>
                 <p className="text-sm text-slate-500 mb-6">
-                  Tạo cơ sở dữ liệu linh hoạt cho CRM, quản lý dự án, theo dõi kho và nhiều mục đích khác — không cần lập trình.
+                  {l('Tạo cơ sở dữ liệu linh hoạt cho CRM, dự án, hàng tồn kho và nhiều quy trình khác mà không cần lập trình.', 'Build flexible no-code databases for CRM, projects, inventory, and other workflows.')}
                 </p>
                 <button
                   type="button"
@@ -373,7 +375,7 @@ export default function BaseHub({
                   style={{ background: 'linear-gradient(135deg, var(--apexa-gradient-start, #2563EB), var(--apexa-gradient-end, #FF3366))' }}
                 >
                   <Sparkles className="w-4 h-4" />
-                  Chọn mẫu
+                  {l('Chọn mẫu', 'Choose a template')}
                 </button>
               </div>
             ) : (
@@ -398,12 +400,12 @@ export default function BaseHub({
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
-                        <span>{base.tables.length} table{base.tables.length !== 1 ? 's' : ''}</span>
+                        <span>{base.tables.length} {l('bảng', base.tables.length === 1 ? 'table' : 'tables')}</span>
                         <span>·</span>
-                        <span>{totalRecords} record{totalRecords !== 1 ? 's' : ''}</span>
+                        <span>{totalRecords} {l('bản ghi', totalRecords === 1 ? 'record' : 'records')}</span>
                       </div>
                       <div className="mt-3 text-[10px] text-slate-300">
-                        Updated {new Date(base.updatedAt).toLocaleDateString('vi-VN')}
+                        {l('Cập nhật', 'Updated')} {formatDate(base.updatedAt)}
                       </div>
                     </motion.button>
                   );
@@ -414,7 +416,7 @@ export default function BaseHub({
                   className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
                 >
                   <Plus className="w-6 h-6" />
-                  <span className="text-xs font-bold">Cơ sở dữ liệu mới</span>
+                  <span className="text-xs font-bold">{l('Cơ sở dữ liệu mới', 'New Base')}</span>
                 </button>
               </div>
             )
@@ -424,9 +426,9 @@ export default function BaseHub({
                 <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center mb-4">
                   <FolderOpen className="w-8 h-8 text-indigo-400" />
                 </div>
-                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Tạo khu vực đầu tiên</h2>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">{l('Tạo không gian đầu tiên', 'Create your first space')}</h2>
                 <p className="text-sm text-slate-500 mb-6">
-                  Khu vực giúp sắp xếp công việc, danh sách và nhóm theo từng dự án.
+                  {l('Không gian giúp sắp xếp công việc, danh sách và nhóm theo từng dự án.', 'Spaces organize tasks, lists, and teams around each project.')}
                 </p>
                 <button
                   type="button"
@@ -434,7 +436,7 @@ export default function BaseHub({
                   className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
-                  Tạo khu vực
+                  {l('Tạo không gian', 'Create space')}
                 </button>
               </div>
             ) : (
@@ -460,12 +462,12 @@ export default function BaseHub({
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
-                        <span>{totalLists} list{totalLists !== 1 ? 's' : ''}</span>
+                        <span>{totalLists} {l('danh sách', totalLists === 1 ? 'list' : 'lists')}</span>
                         <span>·</span>
-                        <span>{spaceTasks.length} task{spaceTasks.length !== 1 ? 's' : ''}</span>
+                        <span>{spaceTasks.length} {l('công việc', spaceTasks.length === 1 ? 'task' : 'tasks')}</span>
                       </div>
                       <div className="mt-3 text-[10px] text-slate-300">
-                        {space.clickApps ? 'ClickApps enabled' : 'Standard'}
+                        {space.clickApps ? l('Đã bật ClickApps', 'ClickApps enabled') : l('Tiêu chuẩn', 'Standard')}
                       </div>
                     </motion.button>
                   );
@@ -476,7 +478,7 @@ export default function BaseHub({
                   className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 flex flex-col items-center justify-center gap-2 min-h-[140px] text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
                 >
                   <Plus className="w-6 h-6" />
-                  <span className="text-xs font-bold">Khu vực mới</span>
+                  <span className="text-xs font-bold">{l('Không gian mới', 'New space')}</span>
                 </button>
               </div>
             )
@@ -497,8 +499,8 @@ export default function BaseHub({
               >
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                   <div>
-                    <h2 className="text-base font-black text-slate-800 dark:text-slate-100">Chọn mẫu</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Bắt đầu bằng cấu trúc có sẵn hoặc trang trống</p>
+                    <h2 className="text-base font-black text-slate-800 dark:text-slate-100">{l('Chọn mẫu', 'Choose a template')}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{l('Bắt đầu bằng cấu trúc có sẵn hoặc một trang trống.', 'Start with a ready-made structure or a blank Base.')}</p>
                   </div>
                   <button type="button" onClick={() => setShowTemplateModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
                     <X className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -555,7 +557,7 @@ export default function BaseHub({
               onClick={() => setShowAddListModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 cursor-pointer transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" /> Danh sách mới
+              <Plus className="w-3.5 h-3.5" /> {l('Danh sách mới', 'New list')}
             </button>
             <div className="relative">
               <button
@@ -570,7 +572,7 @@ export default function BaseHub({
                   <div className="fixed inset-0 z-30" onClick={() => setShowSpaceMenu(false)} />
                   <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1 min-w-[160px]">
                     <button type="button" onClick={() => { handleDeleteSpace(activeSpace.id); setShowSpaceMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" /> Xóa khu vực
+                      <Trash2 className="w-3.5 h-3.5" /> {l('Xóa không gian', 'Delete space')}
                     </button>
                   </div>
                 </>
@@ -607,7 +609,7 @@ export default function BaseHub({
               onClick={() => setShowAddListModal(true)}
               className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors cursor-pointer mt-1"
             >
-              <Plus className="w-3.5 h-3.5" /> Thêm danh sách
+              <Plus className="w-3.5 h-3.5" /> {l('Thêm danh sách', 'Add list')}
             </button>
           </div>
 
@@ -629,17 +631,17 @@ export default function BaseHub({
             <div className="flex-1 overflow-y-auto p-4">
               {!activeListId && spaceLists.length > 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  Chọn một danh sách để xem công việc
+                  {l('Chọn một danh sách để xem công việc.', 'Select a list to view its tasks.')}
                 </div>
               )}
               {spaceLists.length === 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  Chưa có danh sách. Hãy tạo danh sách đầu tiên.
+                  {l('Chưa có danh sách. Hãy tạo danh sách đầu tiên.', 'There are no lists yet. Create the first one to get started.')}
                 </div>
               )}
               {activeListId && listTasks.length === 0 && (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  Danh sách này chưa có công việc.
+                  {l('Danh sách này chưa có công việc.', 'This list has no tasks yet.')}
                 </div>
               )}
               {activeListId && listTasks.length > 0 && (
@@ -677,18 +679,18 @@ export default function BaseHub({
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6"
               >
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 mb-4">Thêm danh sách mới</h3>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 mb-4">{l('Thêm danh sách mới', 'Add a new list')}</h3>
                 <input
                   type="text"
                   value={newListName}
                   onChange={e => setNewListName(e.target.value)}
-                  placeholder="Tên danh sách..."
+                  placeholder={l('Tên danh sách…', 'List name…')}
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 mb-4"
                   autoFocus
                 />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setShowAddListModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">Cancel</button>
-                  <button type="button" onClick={() => handleAddListToSpace(activeSpace.id)} className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 cursor-pointer">Create</button>
+                  <button type="button" onClick={() => setShowAddListModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">{l('Hủy', 'Cancel')}</button>
+                  <button type="button" onClick={() => handleAddListToSpace(activeSpace.id)} className="flex-1 py-2 rounded-xl text-xs font-black text-white bg-indigo-600 cursor-pointer">{l('Tạo', 'Create')}</button>
                 </div>
               </motion.div>
             </div>
@@ -715,7 +717,7 @@ export default function BaseHub({
         </button>
         <span className="text-lg">{activeBase.emoji || '📋'}</span>
         <h1 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate">{activeBase.name}</h1>
-        {isOffline && <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Offline</span>}
+        {isOffline && <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">{l('Ngoại tuyến', 'Offline')}</span>}
 
         <div className="ml-auto flex items-center gap-2">
           <div className="relative hidden sm:block">
@@ -723,7 +725,7 @@ export default function BaseHub({
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Tìm bản ghi..."
+              placeholder={l('Tìm bản ghi…', 'Search records…')}
               className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 w-44"
             />
           </div>
@@ -741,12 +743,12 @@ export default function BaseHub({
                 <div className="fixed inset-0 z-30" onClick={() => setShowBaseMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-40 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg py-1 min-w-[160px]">
                   <button type="button" onClick={handleDuplicateBase} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
-                    <Copy className="w-3.5 h-3.5" /> Duplicate
+                    <Copy className="w-3.5 h-3.5" /> {l('Nhân bản', 'Duplicate')}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm(`Delete "${activeBase.name}"? This cannot be undone.`)) {
+                      if (confirm(l(`Xóa "${activeBase.name}"? Thao tác này không thể hoàn tác.`, `Delete "${activeBase.name}"? This action cannot be undone.`))) {
                         onDeleteBase(activeBase.id);
                         setActiveBaseId(null);
                         setShowBaseMenu(false);
@@ -754,7 +756,7 @@ export default function BaseHub({
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Xóa cơ sở dữ liệu
+                    <Trash2 className="w-3.5 h-3.5" /> {l('Xóa cơ sở dữ liệu', 'Delete Base')}
                   </button>
                 </div>
               </>
@@ -766,7 +768,7 @@ export default function BaseHub({
       <div className="flex flex-1 overflow-hidden">
         {/* Table sidebar */}
         <div className="hidden md:flex flex-col w-44 shrink-0 border-r border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-3 px-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 mb-2">Tables</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-2 mb-2">{l('Bảng', 'Tables')}</span>
           {activeBase.tables.map(table => (
             <button
               key={table.id}
@@ -790,7 +792,7 @@ export default function BaseHub({
             onClick={handleAddTable}
             className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors cursor-pointer mt-1"
           >
-            <Plus className="w-3.5 h-3.5" /> Thêm bảng
+            <Plus className="w-3.5 h-3.5" /> {l('Thêm bảng', 'Add table')}
           </button>
         </div>
 
@@ -825,7 +827,7 @@ export default function BaseHub({
                 onClick={() => setShowFieldModal(prev => !prev)}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" /> View
+                <Plus className="w-3.5 h-3.5" /> {l('Chế độ xem', 'View')}
               </button>
             </div>
 
@@ -835,7 +837,7 @@ export default function BaseHub({
                 onClick={() => setShowFieldModal(true)}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
-                <Settings2 className="w-3.5 h-3.5" /> Fields
+                <Settings2 className="w-3.5 h-3.5" /> {l('Trường', 'Fields')}
               </button>
             </div>
           </div>
@@ -934,14 +936,14 @@ export default function BaseHub({
               className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             >
               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Thêm trường hoặc chế độ xem</h3>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">{l('Thêm trường hoặc chế độ xem', 'Add a field or view')}</h3>
                 <button type="button" onClick={() => setShowFieldModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
                   <X className="w-4 h-4 text-slate-400" />
                 </button>
               </div>
               <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Loại trường</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{l('Loại trường', 'Field type')}</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(BASE_FIELD_TYPE_LABELS) as BaseField['type'][]).map(type => (
                       <button
@@ -956,7 +958,7 @@ export default function BaseHub({
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Thêm chế độ xem</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{l('Thêm chế độ xem', 'Add view')}</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {(Object.keys(VIEW_LABELS) as BaseViewType[]).map(type => {
                       const Icon = VIEW_ICONS[type];
@@ -971,7 +973,7 @@ export default function BaseHub({
                         >
                           <Icon className="w-3.5 h-3.5" />
                           {VIEW_LABELS[type]}
-                          {exists && <span className="text-[9px] text-slate-400">(đã tồn tại)</span>}
+                          {exists && <span className="text-[9px] text-slate-400">{l('(đã tồn tại)', '(already exists)')}</span>}
                         </button>
                       );
                     })}
@@ -993,22 +995,22 @@ export default function BaseHub({
                 initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                 className="relative bg-white dark:bg-[#0c0e18] rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6"
               >
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Tạo khu vực mới</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">{l('Tạo không gian mới', 'Create a new space')}</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Name</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">{l('Tên', 'Name')}</label>
                     <input
                       type="text"
                       value={newSpaceName}
                       onChange={e => setNewSpaceName(e.target.value)}
-                      placeholder="Ví dụ: Tiếp thị, Kỹ thuật, Nhân sự"
+                      placeholder={l('Ví dụ: Tiếp thị, Kỹ thuật, Nhân sự', 'For example: Marketing, Engineering, People')}
                       className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold outline-none focus:border-indigo-500"
                       autoFocus
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Biểu tượng / Emoji</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">{l('Biểu tượng', 'Icon')}</label>
                       <EmojiIconPicker
                         value={newSpaceEmoji}
                         onChange={setNewSpaceEmoji}
@@ -1016,25 +1018,25 @@ export default function BaseHub({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Color</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">{l('Màu', 'Color')}</label>
                       <select
                         value={newSpaceColor}
                         onChange={e => setNewSpaceColor(e.target.value)}
                         className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:border-indigo-500 font-bold"
                       >
-                        <option value="indigo">Purple</option>
-                        <option value="rose">Pink</option>
-                        <option value="sky">Xanh da trời</option>
-                        <option value="emerald">Emerald</option>
-                        <option value="amber">Amber</option>
-                        <option value="sunset">Sunset</option>
+                        <option value="indigo">{l('Tím', 'Purple')}</option>
+                        <option value="rose">{l('Hồng', 'Pink')}</option>
+                        <option value="sky">{l('Xanh da trời', 'Sky')}</option>
+                        <option value="emerald">{l('Xanh ngọc', 'Emerald')}</option>
+                        <option value="amber">{l('Hổ phách', 'Amber')}</option>
+                        <option value="sunset">{l('Hoàng hôn', 'Sunset')}</option>
                       </select>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-5">
-                  <button type="button" onClick={() => setShowAddSpaceModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">Cancel</button>
-                  <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer active:scale-95">Tạo khu vực</button>
+                  <button type="button" onClick={() => setShowAddSpaceModal(false)} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer">{l('Hủy', 'Cancel')}</button>
+                  <button type="button" onClick={handleAddSpace} className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors cursor-pointer active:scale-95">{l('Tạo không gian', 'Create space')}</button>
                 </div>
               </motion.div>
             </div>

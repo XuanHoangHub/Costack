@@ -63,7 +63,7 @@ export default function BaseKanbanView({
         if (recordId) handleDrop(recordId, optionId);
       }}
     >
-      <div className="px-3 py-2.5 flex items-center gap-2 border-b border-slate-200/60">
+      <div className="px-3 py-2.5 flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800">
         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
         <span className="text-xs font-black text-slate-700 dark:text-slate-200 truncate">{label}</span>
         <span className="ml-auto text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-full">{columnRecords.length}</span>

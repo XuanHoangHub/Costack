@@ -272,7 +272,7 @@ export default function PageTreeSidebar({
   };
 
   return (
-    <div className="flex h-full w-full shrink-0 select-none flex-col border-r border-slate-200/70 bg-gradient-to-b from-slate-50/95 via-slate-50/80 to-white/90 font-sans backdrop-blur-xl dark:border-slate-800/70 dark:from-slate-950/95 dark:via-slate-950/80 dark:to-[#0b0f17]/90">
+    <div className="flex h-full w-full shrink-0 select-none flex-col border-r border-slate-200/70 bg-gradient-to-b from-slate-50/95 via-slate-50/80 to-white/90 font-sans backdrop-blur-xl dark:border-slate-800/70 dark:from-[#0a0a0a]/95 dark:via-[#0a0a0a]/80 dark:to-[#000000]/90">
       
       {/* Header & Primary CTA */}
       <div className="shrink-0 space-y-3 border-b border-slate-200/60 p-4 pb-3 dark:border-slate-800/60">

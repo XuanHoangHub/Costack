@@ -1243,12 +1243,12 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
       <div className={`absolute -inset-4 sm:-inset-8 bg-gradient-to-r ${auraGlowColor} rounded-[2.5rem] blur-3xl opacity-60 dark:opacity-40 transition-all duration-700 pointer-events-none -z-10`} />
 
       {/* Outer Application Window Frame */}
-      <div className="relative rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-[#0a0d14]/95 backdrop-blur-2xl shadow-[0_30px_100px_-20px_rgba(15,23,42,0.25)] dark:shadow-[0_30px_100px_-20px_rgba(0,0,0,0.9)] overflow-hidden transition-all ring-1 ring-slate-900/5 dark:ring-white/5">
+      <div className="relative rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl shadow-[0_30px_100px_-20px_rgba(15,23,42,0.25)] dark:shadow-[0_30px_100px_-20px_rgba(0,0,0,0.9)] overflow-hidden transition-all ring-1 ring-slate-900/5 dark:ring-white/5">
         
         {/* =========================================================================
             TOP APPLICATION WINDOW CHROME / HEADER BAR
             ========================================================================= */}
-        <div className="h-13 border-b border-slate-200/80 dark:border-white/10 bg-slate-100/90 dark:bg-[#0e131f]/90 px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-3 text-xs">
+        <div className="h-13 border-b border-slate-200/80 dark:border-white/10 bg-slate-100/90 dark:bg-[#181818]/90 px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-3 text-xs">
           
           {/* Left: macOS Window Controls & Workspace Breadcrumb */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
@@ -1285,16 +1285,11 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
           <div className="flex-1 max-w-sm hidden md:flex items-center justify-center">
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-950/80 border border-slate-200 dark:border-white/10 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-500/50 shadow-2xs transition-all cursor-pointer group"
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-white dark:bg-slate-950/80 border border-slate-200 dark:border-white/10 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:border-indigo-400 dark:hover:border-indigo-500/50 shadow-2xs transition-all cursor-pointer group"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
                 <span className="truncate">{isVietnamese ? 'Tìm kiếm task, docs, AI prompt...' : 'Search tasks, docs, AI prompt...'}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10 shadow-2xs flex items-center gap-0.5">
-                  <Command className="w-2.5 h-2.5" /> K
-                </kbd>
               </div>
             </button>
           </div>
@@ -1315,7 +1310,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
 
               {/* Diagnostic Popover */}
               {syncDiagnosticOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-2xl bg-white dark:bg-[#0e131f] border border-slate-200 dark:border-white/15 shadow-xl z-50 text-[10px] space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-2xl bg-white dark:bg-[#181818] border border-slate-200 dark:border-white/15 shadow-xl z-50 text-[10px] space-y-2 animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-1.5 font-bold">
                     <span className="text-slate-900 dark:text-white flex items-center gap-1.5">
                       <Cpu className="w-3.5 h-3.5 text-emerald-500" /> Realtime Sync Engine
@@ -1344,7 +1339,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                 <div
                   key={i}
                   title={m.status}
-                  className={`w-5 h-5 rounded-full bg-gradient-to-br ${m.bg} border-2 border-white dark:border-[#0e131f] text-white font-black text-[7.5px] flex items-center justify-center shadow-2xs hover:scale-110 transition-transform cursor-pointer`}
+                  className={`w-5 h-5 rounded-full bg-gradient-to-br ${m.bg} border-2 border-white dark:border-[#181818] text-white font-black text-[7.5px] flex items-center justify-center shadow-2xs hover:scale-110 transition-transform cursor-pointer`}
                 >
                   {m.name}
                 </div>
@@ -1360,7 +1355,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
         <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] min-h-[520px] lg:min-h-[560px]">
           
           {/* Left Navigation Sidebar (Modern Dark Theme) */}
-          <aside className="border-r border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-gradient-to-b dark:from-[#0e121b] dark:via-[#090b10] dark:to-[#07080c] p-3 flex flex-col justify-between hidden md:flex text-slate-800 dark:text-slate-200">
+          <aside className="border-r border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-gradient-to-b dark:from-[#181818] dark:via-[#121212] dark:to-[#0a0a0a] p-3 flex flex-col justify-between hidden md:flex text-slate-800 dark:text-slate-200">
             <div className="space-y-4">
               
               {/* Workspace Spaces Group */}
@@ -3731,7 +3726,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   const doubledCapabilityItems = [...PLATFORM_CAPABILITIES_LIST, ...PLATFORM_CAPABILITIES_LIST, ...PLATFORM_CAPABILITIES_LIST];
 
   return (
-    <div ref={containerRef} className="relative w-full overflow-x-clip bg-[#fafbfc] dark:bg-[#07090e] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
+    <div ref={containerRef} className="relative w-full overflow-x-clip bg-[#fafbfc] dark:bg-[#000000] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
       
       {/* Dynamic Ambient Mouse Spotlight */}
       <div
@@ -3812,7 +3807,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
 
       {/* FLOATING ISLAND HEADER NAVBAR (STICKY SHOTS STYLE) */}
       <header className="sticky top-2 sm:top-3.5 z-50 mx-auto max-w-6xl px-3 sm:px-4 pointer-events-none transition-all">
-        <div className="shots-dock pointer-events-auto flex items-center justify-between px-3 py-2.5 sm:px-4 transition-all shadow-xl">
+        <div className="shots-dock bg-white dark:bg-[#121212] pointer-events-auto flex items-center justify-between px-3 py-2.5 sm:px-4 transition-all shadow-xl">
           
           {/* Brand Logo */}
           <div 
@@ -3872,7 +3867,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden pointer-events-auto mt-2 p-4 shots-glass-card rounded-3xl space-y-2 select-none text-left shadow-2xl"
+            className="md:hidden pointer-events-auto mt-2 p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-white/10 rounded-3xl space-y-2 select-none text-left shadow-2xl"
           >
             {[
               { id: 'features', label: isVietnamese ? 'Sản phẩm' : 'Product' },
@@ -4011,7 +4006,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                 key={idx}
                 className="relative w-8 h-8 rounded-full ring-2 ring-white dark:ring-slate-900 overflow-hidden shadow-xs shrink-0"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={avatar.img}
                   alt={avatar.name}
@@ -4072,8 +4066,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
 
           <div className="overflow-hidden w-full relative py-0.5 group/marquee">
             {/* Left/Right Vignette Fades */}
-            <div className="absolute inset-y-0 left-0 w-20 sm:w-32 bg-gradient-to-r from-[#fafbfc] dark:from-[#07090e] to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-20 sm:w-32 bg-gradient-to-l from-[#fafbfc] dark:from-[#07090e] to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-20 sm:w-32 bg-gradient-to-r from-[#fafbfc] dark:from-[#000000] to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-20 sm:w-32 bg-gradient-to-l from-[#fafbfc] dark:from-[#000000] to-transparent z-10 pointer-events-none" />
             
             <motion.div
               animate={{ x: [0, -1600] }}
@@ -4174,7 +4168,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
               return (
                 <div
                   key={i}
-                  className="group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#0c101b]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                  className="group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-slate-300 dark:hover:border-white/20 transition-all duration-300 flex flex-col justify-between overflow-hidden"
                 >
                   {/* Top Row: Icon & Badge */}
                   <div className="flex items-center justify-between gap-2 mb-3.5">
@@ -4291,7 +4285,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.04 }}
                   onClick={onSignUp}
-                  className={`group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#0c101b]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-indigo-400/50 dark:hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between cursor-pointer overflow-hidden ${
+                  className={`group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-indigo-400/50 dark:hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between cursor-pointer overflow-hidden ${
                     feat.featured ? 'ring-1 ring-indigo-500/30' : ''
                   }`}
                 >
@@ -4487,7 +4481,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
                   className="h-full"
                 >
                   <GsapCard3DTilt maxTilt={3} scale={1.01} glare={false} className="h-full">
-                    <div className="h-full group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#0c101b]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-indigo-400/50 dark:hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between overflow-hidden">
+                    <div className="h-full group relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs hover:shadow-xl hover:border-indigo-400/50 dark:hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between overflow-hidden">
                       
                       <div className="space-y-3">
                         {/* Top Step Badge & Icon */}
@@ -5177,7 +5171,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           ========================================================================= */}
       <section className="relative z-10 max-w-7xl 2xl:max-w-[1400px] mx-auto px-5 sm:px-6 pb-20 sm:pb-28">
         <FadeInSection>
-          <div className="relative rounded-[36px] sm:rounded-[44px] p-8 sm:p-14 lg:p-20 text-center text-white overflow-hidden shadow-2xl border border-white/15 dark:border-white/10 bg-gradient-to-b from-[#0b162c] via-[#0d1c3a] to-[#080d1a] dark:from-[#060b17] dark:via-[#09142b] dark:to-[#040711]">
+          <div className="relative rounded-[36px] sm:rounded-[44px] p-8 sm:p-14 lg:p-20 text-center text-white overflow-hidden shadow-2xl border border-white/15 dark:border-white/10 bg-gradient-to-b from-[#0b162c] via-[#0d1c3a] to-[#080d1a] dark:from-[#181818] dark:via-[#121212] dark:to-[#0a0a0a]">
             
             {/* Ambient Cosmic Aurora Light Flares */}
             <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[750px] h-[360px] bg-gradient-to-r from-blue-500/25 via-indigo-500/35 to-purple-500/25 rounded-full blur-[130px] pointer-events-none -z-0" />

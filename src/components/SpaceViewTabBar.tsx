@@ -10,6 +10,43 @@ import {
   Download, ArrowLeft, ArrowRight, Search, Check, Layers, SlidersHorizontal, Activity, User as UserIcon
 } from 'lucide-react';
 import { User, Space } from '../types';
+import { useTranslation } from '../contexts/TranslationContext';
+
+const VIEW_TRANSLATIONS: Record<string, { vi: string; en: string }> = {
+  overview: { vi: 'Tổng quan', en: 'Overview' },
+  list: { vi: 'Danh sách', en: 'List' },
+  board: { vi: 'Bảng', en: 'Board' },
+  table: { vi: 'Bảng dữ liệu', en: 'Table' },
+  calendar: { vi: 'Lịch', en: 'Calendar' },
+  doc: { vi: 'Tài liệu', en: 'Docs' },
+  gantt: { vi: 'Gantt', en: 'Gantt' },
+  timeline: { vi: 'Dòng thời gian', en: 'Timeline' },
+  dashboard: { vi: 'Bảng điều khiển', en: 'Dashboard' },
+  whiteboard: { vi: 'Bảng trắng', en: 'Whiteboard' },
+  workload: { vi: 'Khối lượng', en: 'Workload' },
+  mindmap: { vi: 'Sơ đồ tư duy', en: 'Mindmap' },
+  team: { vi: 'Thành viên', en: 'Team' },
+  form: { vi: 'Biểu mẫu', en: 'Form' },
+  map: { vi: 'Bản đồ', en: 'Map' },
+  ai: { vi: 'Trợ lý AI', en: 'AI Copilot' },
+  activity: { vi: 'Hoạt động', en: 'Activity' },
+};
+
+export const getLocalizedViewLabel = (label: string, viewId: string, locale: string): string => {
+  const mapping = VIEW_TRANSLATIONS[viewId];
+  if (!mapping) return label;
+  const standardLabels = [
+    'Tổng quan', 'Overview', 'Danh sách', 'List', 'Bảng', 'Board', 'Bảng Kanban', 'Kanban Board',
+    'Bảng dữ liệu', 'Table', 'Lịch', 'Lịch biểu', 'Calendar', 'Tài liệu', 'Tài liệu Wiki', 'Docs', 'Wiki Docs',
+    'Gantt', 'Biểu đồ Gantt', 'Gantt Chart', 'Dòng thời gian', 'Timeline', 'Bảng điều khiển', 'Dashboard',
+    'Bảng trắng', 'Whiteboard', 'Khối lượng', 'Workload', 'Sơ đồ tư duy', 'Mindmap', 'Thành viên', 'Team',
+    'Biểu mẫu', 'Form', 'Bản đồ', 'Map', 'Trợ lý AI', 'AI Copilot', 'Hoạt động', 'Activity'
+  ];
+  if (standardLabels.includes(label)) {
+    return locale === 'vi' ? mapping.vi : mapping.en;
+  }
+  return label;
+};
 
 export type ViewSettingKey = 'pin' | 'private' | 'protect' | 'autosave' | 'default';
 
@@ -256,6 +293,7 @@ export default function SpaceViewTabBar({
   onOpenShareModal,
   onAddSyncLog,
 }: SpaceViewTabBarProps) {
+  const { t, locale } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -298,6 +336,17 @@ export default function SpaceViewTabBar({
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, [tabs, checkScroll]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const activeButton = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-space-view-tab]'))
+      .find(button => button.dataset.tabId === activeTabId);
+    if (!activeButton) return;
+    activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    const timer = window.setTimeout(checkScroll, 260);
+    return () => window.clearTimeout(timer);
+  }, [activeTabId, checkScroll]);
 
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
@@ -482,7 +531,7 @@ export default function SpaceViewTabBar({
   const contextTab = tabs.find(t => t.id === contextMenu.tabId);
 
   return (
-    <div className="relative flex items-center gap-1.5 shrink-0 max-w-full">
+    <div className="apexa-space-view-switcher relative flex items-center gap-1.5 shrink-0 max-w-full">
       {/* Scroll Left Button */}
       {canScrollLeft && (
         <button
@@ -496,10 +545,12 @@ export default function SpaceViewTabBar({
       )}
 
       {/* Main Pill Segmented Container */}
-      <div className="relative flex items-center bg-slate-100/90 dark:bg-[#0c0f18]/90 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
+      <div className="apexa-space-view-dock relative flex items-center bg-slate-100/90 dark:bg-[#0c0f18]/90 p-1 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-3xs backdrop-blur-md max-w-full overflow-hidden">
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
+          role="tablist"
+          aria-label="Chế độ xem Space"
           className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5 px-0.5 scroll-smooth"
         >
           {tabs.map((tab) => {
@@ -520,6 +571,11 @@ export default function SpaceViewTabBar({
               >
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  data-space-view-tab
+                  data-tab-id={tab.id}
                   onClick={() => {
                     if (isPro && !currentUser?.isPremium) {
                       onUpgradePremium?.();
@@ -527,8 +583,23 @@ export default function SpaceViewTabBar({
                     }
                     onSelectTab(tab.id, tab.viewId);
                   }}
+                  onKeyDown={(event) => {
+                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                    const tabList = event.currentTarget.closest('[role="tablist"]');
+                    const tabButtons = tabList ? Array.from(tabList.querySelectorAll<HTMLButtonElement>('[role="tab"]')) : [];
+                    if (tabButtons.length === 0) return;
+                    event.preventDefault();
+                    const currentIndex = tabButtons.indexOf(event.currentTarget);
+                    const nextIndex = event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? tabButtons.length - 1
+                        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabButtons.length) % tabButtons.length;
+                    tabButtons[nextIndex]?.focus();
+                    tabButtons[nextIndex]?.click();
+                  }}
                   onDoubleClick={() => handleStartRename(tab)}
-                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                  className={`apexa-space-view-tab relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer select-none shrink-0 ${
                     isActive
                       ? 'text-indigo-600 dark:text-indigo-300 font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-slate-800/50'
@@ -539,7 +610,7 @@ export default function SpaceViewTabBar({
                     <motion.div
                       layoutId="activeSpaceViewTabPill"
                       transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                      className="absolute inset-0 bg-white dark:bg-indigo-950/40 rounded-xl shadow-xs border border-slate-200/90 dark:border-indigo-500/30"
+                      className="apexa-space-tab-active absolute inset-0 bg-white dark:bg-indigo-950/40 rounded-xl shadow-xs border border-slate-200/90 dark:border-indigo-500/30"
                     />
                   )}
 
@@ -566,7 +637,7 @@ export default function SpaceViewTabBar({
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
-                      <span className="truncate max-w-[130px]">{tab.label}</span>
+                      <span className="truncate max-w-[130px]">{getLocalizedViewLabel(tab.label, tab.viewId, locale)}</span>
                     )}
 
                     {/* Indicators */}
@@ -606,6 +677,7 @@ export default function SpaceViewTabBar({
                     isActive ? 'opacity-70 hover:opacity-100' : 'opacity-0 group-hover/tab:opacity-100'
                   }`}
                   title="Tùy chọn chế độ xem"
+                  aria-label={`Tùy chọn cho chế độ xem ${tab.label}`}
                 >
                   <MoreHorizontal className="w-3 h-3" />
                 </button>
@@ -622,7 +694,7 @@ export default function SpaceViewTabBar({
               setShowAddMenu(!showAddMenu);
               setSearchViewQuery('');
             }}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               showAddMenu
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-white/80 dark:hover:bg-slate-800/60'
@@ -630,7 +702,7 @@ export default function SpaceViewTabBar({
             title="Thêm chế độ xem"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden md:inline text-[11px]">Thêm xem</span>
+            <span className="hidden md:inline text-[11px]">{locale === 'vi' ? 'Thêm xem' : 'Add View'}</span>
           </button>
         </div>
       </div>
@@ -664,7 +736,7 @@ export default function SpaceViewTabBar({
           >
             {/* Header info */}
             <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between">
-              <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{contextTab.label}</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{getLocalizedViewLabel(contextTab.label, contextTab.viewId, locale)}</span>
               <span className="text-[10px] uppercase font-bold text-slate-400">{contextTab.viewId}</span>
             </div>
 
@@ -674,7 +746,7 @@ export default function SpaceViewTabBar({
               className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-400" />
-              <span>Đổi tên chế độ xem</span>
+              <span>{locale === 'vi' ? 'Đổi tên chế độ xem' : 'Rename view'}</span>
             </button>
 
             {/* Set as default */}
@@ -687,7 +759,7 @@ export default function SpaceViewTabBar({
             >
               <div className="flex items-center gap-2.5">
                 <Star className={`w-3.5 h-3.5 ${contextTab.settings.default ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
-                <span>Đặt làm mặc định</span>
+                <span>{locale === 'vi' ? 'Đặt làm mặc định' : 'Set as default'}</span>
               </div>
               {contextTab.settings.default && <Check className="w-3.5 h-3.5 text-indigo-600" />}
             </button>
@@ -698,7 +770,7 @@ export default function SpaceViewTabBar({
               className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
             >
               <Copy className="w-3.5 h-3.5 text-slate-400" />
-              <span>Nhân bản chế độ xem</span>
+              <span>{locale === 'vi' ? 'Nhân bản chế độ xem' : 'Duplicate view'}</span>
             </button>
 
             {/* Copy link */}
@@ -707,238 +779,234 @@ export default function SpaceViewTabBar({
               className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
             >
               <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
-              <span>Sao chép liên kết</span>
+              <span>{locale === 'vi' ? 'Sao chép liên kết' : 'Copy link'}</span>
             </button>
 
-            {/* Customize fields / columns */}
-            {onOpenFieldsPanel && (
-              <button
-                onClick={() => {
-                  setContextMenu(prev => ({ ...prev, show: false }));
-                  onOpenFieldsPanel();
-                }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
-              >
-                <Cog className="w-3.5 h-3.5 text-slate-400" />
-                <span>Tùy chỉnh cột & trường</span>
-              </button>
-            )}
-
-            {/* Move Left / Right */}
-            <div className="flex items-center px-2 py-1 gap-1 border-t border-slate-100 dark:border-slate-800/80 my-1">
-              <button
-                onClick={() => handleMoveTab(contextTab.id, 'left')}
-                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
-                title="Di chuyển sang trái"
-              >
-                <ArrowLeft className="w-3 h-3" /> Sang trái
-              </button>
-              <button
-                onClick={() => handleMoveTab(contextTab.id, 'right')}
-                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
-                title="Di chuyển sang phải"
-              >
-                Sang phải <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* Toggles */}
-            <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-            <div className="px-3.5 py-1 space-y-2">
-              {[
-                { label: 'Ghim lên thanh điều hướng', key: 'pin' as const, icon: Pin },
-                { label: 'Chế độ riêng tư (Chỉ mình tôi)', key: 'private' as const, icon: Lock },
-                { label: 'Khóa chỉnh sửa', key: 'protect' as const, icon: Shield },
-              ].map(toggle => {
-                const Icon = toggle.icon;
-                const isChecked = contextTab.settings[toggle.key];
-                return (
-                  <div key={toggle.key} className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium">
-                      <Icon className="w-3 h-3 text-slate-400" />
-                      <span>{toggle.label}</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={e => updateSetting(contextTab.id, toggle.key, e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-7 h-4 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600" />
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Export & Actions */}
             <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 
-            {onExportCsv && (
-              <button
-                onClick={() => {
-                  setContextMenu(prev => ({ ...prev, show: false }));
-                  onExportCsv();
-                }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Xuất dữ liệu CSV</span>
-              </button>
-            )}
-
-            {/* Delete view */}
+            {/* Pin Toggle */}
             <button
-              onClick={() => handleDeleteTab(contextTab.id)}
-              disabled={tabs.length <= 1}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-1.5 text-left font-medium transition-colors ${
-                tabs.length <= 1
-                  ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                  : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer'
-              }`}
+              onClick={() => {
+                updateSetting(contextTab.id, 'pin', !contextTab.settings.pin);
+                setContextMenu(prev => ({ ...prev, show: false }));
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Xóa chế độ xem</span>
+              <div className="flex items-center gap-2.5">
+                <Pin className={`w-3.5 h-3.5 ${contextTab.settings.pin ? 'text-indigo-600 fill-indigo-600/20' : 'text-slate-400'}`} />
+                <span>{locale === 'vi' ? 'Ghim vào thanh tab' : 'Pin view'}</span>
+              </div>
+              {contextTab.settings.pin && <Check className="w-3.5 h-3.5 text-indigo-600" />}
             </button>
-          </div>
-        </>
-      )}
 
-      {/* Modern Categorized "Add View" Modal / Popover */}
-      {showAddMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-50 bg-black/20 backdrop-blur-2xs"
-            onClick={() => {
-              setShowAddMenu(false);
-              setSearchViewQuery('');
-            }}
-          />
-          <div className="absolute left-0 top-full mt-2 w-[340px] sm:w-[420px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-4 font-sans select-none animate-in fade-in zoom-in-95 duration-150">
-            {/* Popover Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">Thêm chế độ xem mới</h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Chọn dạng hiển thị trực quan phù hợp với quy trình</p>
+            {/* Lock/Protect toggle */}
+            <button
+              onClick={() => {
+                updateSetting(contextTab.id, 'protect', !contextTab.settings.protect);
+                setContextMenu(prev => ({ ...prev, show: false }));
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-left cursor-pointer font-medium transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <Shield className={`w-3.5 h-3.5 ${contextTab.settings.protect ? 'text-amber-500' : 'text-slate-400'}`} />
+                <span>{locale === 'vi' ? 'Khóa chỉnh sửa' : 'Lock editing'}</span>
+              </div>
+              {contextTab.settings.protect && <Check className="w-3.5 h-3.5 text-amber-500" />}
+            </button>
+
+            <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+            {/* Reorder Buttons */}
+            <div className="px-3.5 py-1 flex items-center justify-between text-slate-500">
+              <span className="text-[11px] font-medium">{locale === 'vi' ? 'Thứ tự vị trí' : 'Position'}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleMoveTab(contextTab.id, 'left')}
+                  disabled={tabs.findIndex(t => t.id === contextTab.id) === 0}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
+                  title="Di chuyển sang trái"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMoveTab(contextTab.id, 'right')}
+                  disabled={tabs.findIndex(t => t.id === contextTab.id) === tabs.length - 1}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
+                  title="Di chuyển sang phải"
+                >
+                  <ArrowRight className="w-3 h-3" />
+                </button>
               </div>
             </div>
 
-            {/* Search Input */}
-            <div className="relative mb-3">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                autoFocus
-                placeholder="Tìm kiếm: Kanban, Gantt, Lịch biểu, AI..."
-                value={searchViewQuery}
-                onChange={e => setSearchViewQuery(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl pl-8.5 pr-3 py-2 text-xs font-semibold outline-none text-slate-800 dark:text-slate-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 mb-3 overflow-x-auto scrollbar-none pb-0.5">
-              {[
-                { id: 'all', label: 'Tất cả' },
-                { id: 'core', label: 'Cơ bản' },
-                { id: 'planning', label: 'Kế hoạch & Báo cáo' },
-                { id: 'creative', label: 'Sáng tạo & AI' },
-              ].map(cat => (
+            {/* Delete view (disabled if last tab) */}
+            {tabs.length > 1 && (
+              <>
+                <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
                 <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    activeCategory === cat.id
-                      ? 'bg-indigo-600 text-white shadow-3xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
+                  onClick={() => handleDeleteTab(contextTab.id)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-left cursor-pointer font-medium transition-colors"
                 >
-                  {cat.label}
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{locale === 'vi' ? 'Xóa chế độ xem' : 'Delete view'}</span>
                 </button>
-              ))}
-            </div>
-
-            {/* View List Grid */}
-            <div className="space-y-1 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
-              {filteredViews.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400 font-medium">
-                  Không tìm thấy chế độ xem phù hợp
-                </div>
-              ) : (
-                filteredViews.map(viewDef => {
-                  const ViewIcon = viewDef.icon;
-                  const isExisting = tabs.some(t => t.viewId === viewDef.id);
-
-                  return (
-                    <button
-                      key={viewDef.id}
-                      onClick={() => handleAddView(viewDef)}
-                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all text-left cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-3xs transition-transform group-hover:scale-105"
-                          style={{ backgroundColor: viewDef.bg }}
-                        >
-                          <ViewIcon className="w-4 h-4" style={{ color: viewDef.color }} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
-                              {viewDef.label}
-                            </span>
-                            {viewDef.isPro && (
-                              <span className="text-[8px] font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1 py-0.5 rounded leading-none">
-                                PRO
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{viewDef.desc}</p>
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 ml-2">
-                        {isExisting ? (
-                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                            Đã thêm
-                          </span>
-                        ) : (
-                          <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 group-hover:bg-indigo-600 group-hover:text-white text-indigo-600 dark:text-indigo-400 flex items-center justify-center transition-colors">
-                            <Plus className="w-3.5 h-3.5" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Quick Settings Footer */}
-            <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={newTabPin}
-                  onChange={e => setNewTabPin(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-0 w-3.5 h-3.5"
-                />
-                <span>Ghim ngay</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={newTabPrivate}
-                  onChange={e => setNewTabPrivate(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-0 w-3.5 h-3.5"
-                />
-                <span>Chỉ mình tôi</span>
-              </label>
-            </div>
+              </>
+            )}
           </div>
         </>
       )}
+
+      {/* Add View Modal/Dropdown */}
+      <AnimatePresence>
+        {showAddMenu && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-2xs"
+              onClick={() => setShowAddMenu(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="absolute left-0 top-full mt-2 w-[340px] sm:w-[420px] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-3.5 font-sans select-none"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80 mb-2.5">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <span>{locale === 'vi' ? 'Thêm chế độ xem' : 'Add View'}</span>
+                  </h3>
+                  <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    {locale === 'vi' ? 'Lựa chọn cách hiển thị dữ liệu phù hợp với quy trình làm việc' : 'Choose how to visualize and manage your workflow data'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search view input */}
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 mb-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder={locale === 'vi' ? 'Tìm loại chế độ xem...' : 'Search view types...'}
+                  value={searchViewQuery}
+                  onChange={e => setSearchViewQuery(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xs font-semibold text-slate-800 dark:text-slate-100 w-full placeholder:text-slate-400"
+                />
+                {searchViewQuery && (
+                  <button onClick={() => setSearchViewQuery('')} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                )}
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1 mb-2.5 overflow-x-auto scrollbar-none pb-0.5">
+                {[
+                  { id: 'all', label: locale === 'vi' ? 'Tất cả' : 'All' },
+                  { id: 'core', label: locale === 'vi' ? 'Cơ bản' : 'Core' },
+                  { id: 'planning', label: locale === 'vi' ? 'Kế hoạch' : 'Planning' },
+                  { id: 'creative', label: locale === 'vi' ? 'Sáng tạo' : 'Creative' },
+                ].map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setActiveCategory(cat.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      activeCategory === cat.id
+                        ? 'bg-indigo-600 text-white shadow-3xs'
+                        : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Views Grid List */}
+              <div className="max-h-[280px] overflow-y-auto custom-scrollbar space-y-1 pr-0.5">
+                {filteredViews.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs font-medium">
+                    {locale === 'vi' ? 'Không tìm thấy chế độ xem phù hợp' : 'No matching views found'}
+                  </div>
+                ) : (
+                  filteredViews.map(v => {
+                    const isAlreadyAdded = tabs.some(t => t.viewId === v.id);
+                    const VIcon = v.icon;
+
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => handleAddView(v)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl transition-all text-left cursor-pointer border ${
+                          isAlreadyAdded
+                            ? 'border-indigo-200/60 bg-indigo-50/40 dark:border-indigo-900/30 dark:bg-indigo-950/20'
+                            : 'border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-3xs"
+                            style={{ backgroundColor: v.bg, color: v.color }}
+                          >
+                            <VIcon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-xs text-slate-800 dark:text-slate-100 truncate">
+                                {getLocalizedViewLabel(v.label, v.id, locale)}
+                              </span>
+                              {v.isPro && !currentUser?.isPremium && (
+                                <span className="text-[8px] font-black tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1 py-0.5 rounded leading-none">
+                                  PRO
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-tight mt-0.5 font-medium">
+                              {v.desc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isAlreadyAdded && (
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950 px-2 py-0.5 rounded-full shrink-0 ml-2">
+                            {locale === 'vi' ? 'Đang mở' : 'Open'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Pin / Private options when creating view */}
+              <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-slate-600 dark:text-slate-400 text-xs">
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={newTabPin}
+                    onChange={e => setNewTabPin(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 cursor-pointer"
+                  />
+                  <span>{locale === 'vi' ? 'Ghim vào thanh tab' : 'Pin tab'}</span>
+                </label>
+
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={newTabPrivate}
+                    onChange={e => setNewTabPrivate(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 cursor-pointer"
+                  />
+                  <span>{locale === 'vi' ? 'Chế độ riêng tư' : 'Private view'}</span>
+                </label>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

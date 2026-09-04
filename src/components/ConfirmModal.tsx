@@ -127,7 +127,7 @@ export default function ConfirmModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 6 }}
               transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-              className="relative w-full max-w-[420px] bg-white dark:bg-[#10141d] border border-slate-200/90 dark:border-slate-800 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-2xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
+              className="relative w-full max-w-[420px] bg-white dark:bg-[#181818] border border-slate-200/90 dark:border-slate-800 shadow-[0_16px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] rounded-2xl p-5 sm:p-6 text-left z-10 font-sans select-none overflow-hidden"
             >
               {/* Top Row: Icon + Title + Close Button */}
               <div className="flex items-start justify-between gap-3">

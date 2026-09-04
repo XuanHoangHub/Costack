@@ -412,7 +412,7 @@ export default function DocumentHub({
   }
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden rounded-[28px] border border-slate-200/80 bg-white font-sans text-slate-800 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] select-none dark:border-slate-800/80 dark:bg-[#0b0f17] dark:text-slate-100">
+    <div className="relative flex h-full w-full overflow-hidden rounded-[28px] border border-slate-200/80 bg-white font-sans text-slate-800 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] select-none dark:border-slate-800/80 dark:bg-[#000000] dark:text-slate-100">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-40 bg-[radial-gradient(circle_at_72%_-20%,rgba(59,130,246,0.13),transparent_55%)] dark:bg-[radial-gradient(circle_at_72%_-20%,rgba(59,130,246,0.16),transparent_55%)]" />
       
       {/* Sidebar Navigation */}
@@ -455,13 +455,13 @@ export default function DocumentHub({
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col bg-white/80 dark:bg-[#0b0f17]/85">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col bg-white/80 dark:bg-[#000000]">
         
         {/* Top Header Navigation Bar */}
         {(() => {
           const activeDoc = documents.find(d => d.id === activeDocId);
           return (
-            <div className="z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/75 px-3 backdrop-blur-xl sm:px-5 dark:border-slate-800/80 dark:bg-[#0b0f17]/75 select-none">
+            <div className="z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/75 px-3 backdrop-blur-xl sm:px-5 dark:border-slate-800/80 dark:bg-[#0a0a0a]/85 select-none">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
