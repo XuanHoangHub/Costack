@@ -702,41 +702,41 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                 {/* Core Value Proposition & Live KPI Card */}
                 <div className="relative z-10 space-y-6 my-auto py-4">
                   <div className="space-y-3">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/25 bg-sky-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-sky-300 backdrop-blur-md">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-300 backdrop-blur-md">
                       <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
                       </span>
-                      {isVietnamese ? 'Không gian làm việc tốc độ cao' : 'High-Velocity Workspace'}
+                      {isVietnamese ? 'Không gian làm việc thế hệ mới' : 'Next-Gen Workspace'}
                     </span>
-                    <h3 className="max-w-xs text-[28px] font-black leading-[1.18] tracking-[-0.035em] font-display">
+                    <h3 className="max-w-xs text-[28px] font-bold leading-tight tracking-tight font-display text-white">
                       {isVietnamese ? (
-                        <>Tối ưu vận hành, <span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">bứt phá năng suất</span> cùng AI.</>
+                        <>Tối ưu vận hành,<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">bứt phá cùng AI.</span></>
                       ) : (
-                        <>Supercharge <span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">team velocity</span> with AI.</>
+                        <>Supercharge velocity,<br /><span className="bg-gradient-to-r from-sky-300 via-indigo-200 to-cyan-300 bg-clip-text text-transparent inline-block">powered by AI.</span></>
                       )}
                     </h3>
-                    <p className="max-w-sm text-xs font-medium leading-relaxed text-slate-300/90">
+                    <p className="max-w-sm text-xs font-normal leading-relaxed text-slate-300/80">
                       {isVietnamese
-                        ? 'Hợp nhất quản lý công việc, tài liệu số, CRM và trợ lý AI thông minh trong một nền tảng tốc độ cao duy nhất.'
-                        : 'Unify projects, collaborative docs, CRM, and intelligent AI assistance in a single high-velocity canvas.'}
+                        ? 'Hợp nhất công việc, tài liệu và trợ lý AI trên một nền tảng tinh gọn, liền mạch.'
+                        : 'Unify tasks, documents, and AI assistance on a single seamless, modern platform.'}
                     </p>
                   </div>
 
                   {/* Live Interactive KPI Card */}
-                  <div className="rounded-[22px] border border-white/12 bg-white/[0.05] p-4.5 shadow-2xl backdrop-blur-2xl">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl backdrop-blur-xl">
                     <div className="mb-3.5 flex items-center justify-between">
                       <div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.16em] text-sky-300/80">
-                          {isVietnamese ? '⚡ Hiệu suất đội ngũ' : '⚡ Team Velocity Hub'}
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-300/80">
+                          {isVietnamese ? 'Tiến độ dự án' : 'Project Sprint'}
                         </div>
-                        <div className="mt-0.5 text-xs font-extrabold text-white">
+                        <div className="mt-0.5 text-xs font-semibold text-white">
                           {isVietnamese ? 'Ra mắt sản phẩm · Sprint 08' : 'Product launch · Sprint 08'}
                         </div>
                       </div>
                       <div className="flex -space-x-1.5">
                         {['HX', 'MA', 'QB'].map((member, index) => (
-                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-[8px] font-black text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
+                          <div key={member} className={`flex h-6 w-6 items-center justify-center rounded-full border border-white/10 text-[8px] font-bold text-white ${index === 0 ? 'bg-indigo-500' : index === 1 ? 'bg-fuchsia-500' : 'bg-cyan-500'}`}>
                             {member}
                           </div>
                         ))}
@@ -744,29 +744,29 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        ['98%', isVietnamese ? 'Tiến độ Sprint' : 'Sprint goal'],
-                        ['11.4ms', isVietnamese ? 'Đồng bộ siêu tốc' : 'Instant sync'],
-                        ['+4.8h', isVietnamese ? 'Tiết kiệm/tuần' : 'Saved/week']
+                        ['98%', isVietnamese ? 'Hoàn thành' : 'Completed'],
+                        ['2.5x', isVietnamese ? 'Tốc độ xử lý' : 'Speed boost'],
+                        ['+4.5h', isVietnamese ? 'Tiết kiệm / tuần' : 'Saved / week']
                       ].map(([value, label]) => (
-                        <div key={label} className="rounded-xl border border-white/8 bg-black/25 px-2.5 py-2.5 text-center">
-                          <div className="text-sm font-black tracking-tight text-white">{value}</div>
-                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
+                        <div key={label} className="rounded-xl border border-white/5 bg-white/[0.03] px-2 py-2.5 text-center">
+                          <div className="text-sm font-bold tracking-tight text-white">{value}</div>
+                          <div className="mt-0.5 text-[9px] font-medium text-slate-400">{label}</div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-[10px] font-bold text-emerald-300">
+                    <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-[10px] font-medium text-emerald-300">
                       <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                      <span>{isVietnamese ? 'Đồng bộ Local-First & Trợ lý AI sẵn sàng' : 'Local-First sync & AI Assistant ready'}</span>
+                      <span>{isVietnamese ? 'Đồng bộ tức thì & Trợ lý AI sẵn sàng' : 'Instant sync & AI Assistant ready'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Reassurance Footer */}
-                <div className="relative z-10 flex items-center justify-between text-[10px] font-semibold text-slate-400 pt-2 border-t border-white/10">
+                <div className="relative z-10 flex items-center justify-between text-[10px] font-normal text-slate-400 pt-2 border-t border-white/10">
                   <span>© {new Date().getFullYear()} Apexa Inc.</span>
-                  <span className="flex items-center gap-1 text-slate-300">
+                  <span className="flex items-center gap-1.5 text-slate-300">
                     <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    {isVietnamese ? 'Bảo mật cấp Doanh nghiệp · AES-256' : 'Enterprise Security · AES-256'}
+                    {isVietnamese ? 'Bảo mật chuẩn doanh nghiệp · AES-256' : 'Enterprise Security · AES-256'}
                   </span>
                 </div>
               </aside>
