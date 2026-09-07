@@ -1413,6 +1413,8 @@ export default function App() {
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
+  const displayMenuRef = useRef<HTMLDivElement>(null);
+  const displayButtonRef = useRef<HTMLButtonElement>(null);
 
   // Global Click-outside & Escape dismissal for Header Popovers (works everywhere on screen)
   useEffect(() => {
@@ -1432,17 +1434,25 @@ export default function App() {
           setShowStatusMenu(false);
         }
       }
+      if (showDisplayOptionsMenu) {
+        const isInsideMenu = displayMenuRef.current?.contains(target);
+        const isInsideButton = displayButtonRef.current?.contains(target);
+        if (!isInsideMenu && !isInsideButton) {
+          setShowDisplayOptionsMenu(false);
+        }
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (showNotificationsMenu) setShowNotificationsMenu(false);
         if (showStatusMenu) setShowStatusMenu(false);
+        if (showDisplayOptionsMenu) setShowDisplayOptionsMenu(false);
         if (isMobileSidebarOpen) setIsMobileSidebarOpen(false);
       }
     };
 
-    if (showNotificationsMenu || showStatusMenu || isMobileSidebarOpen) {
+    if (showNotificationsMenu || showStatusMenu || showDisplayOptionsMenu || isMobileSidebarOpen) {
       document.addEventListener('mousedown', handleClickOutside, true);
       document.addEventListener('keydown', handleKeyDown, true);
     }
@@ -1450,7 +1460,7 @@ export default function App() {
       document.removeEventListener('mousedown', handleClickOutside, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
+  }, [showNotificationsMenu, setShowNotificationsMenu, showStatusMenu, setShowStatusMenu, showDisplayOptionsMenu, setShowDisplayOptionsMenu, isMobileSidebarOpen, setIsMobileSidebarOpen]);
 
   const rawSidebarOrder = useUiStore((s) => s.sidebarOrder);
   const sidebarOrder = useMemo(() => rawSidebarOrder || DEFAULT_SIDEBAR_ORDER, [rawSidebarOrder]);
@@ -4909,6 +4919,7 @@ export default function App() {
               return (
                 <div className="relative">
                   <button
+                    ref={displayButtonRef}
                     type="button"
                     onClick={() => {
                       setShowDisplayOptionsMenu(!showDisplayOptionsMenu);
@@ -4921,7 +4932,7 @@ export default function App() {
                         ? 'bg-blue-50 dark:bg-zinc-800 border-blue-500/50 dark:border-blue-400/50 text-blue-600 dark:text-sky-300 ring-2 ring-blue-500/15'
                         : 'bg-white/70 dark:bg-white/[0.03] border-slate-200/80 dark:border-white/[0.08] text-slate-700 dark:text-zinc-200 hover:bg-white dark:hover:bg-white/[0.06] hover:border-slate-300 dark:hover:border-white/15'
                     }`}
-                    title={locale === 'vi' ? 'Tùy chọn hiển thị & Giao diện' : 'Display Options & Appearance'}
+                    title={locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time format'}
                   >
                     <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0 group-hover:rotate-12 transition-transform" />
                     {dateFormat === 'clock' && (
@@ -4934,300 +4945,111 @@ export default function App() {
                     <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 dark:group-hover:text-zinc-300 ${showDisplayOptionsMenu ? 'rotate-180 text-blue-500 group-hover:text-blue-600 dark:text-sky-300' : ''}`} />
                   </button>
 
-                  {/* Display Options & Appearance Popover Menu */}
+                  {/* Compact Date & Time Popover Menu */}
                   <AnimatePresence>
                     {showDisplayOptionsMenu && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40 bg-slate-900/10 dark:bg-black/30 backdrop-blur-[1px] transition-opacity" 
-                          onClick={() => setShowDisplayOptionsMenu(false)} 
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.96, y: 6 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.96, y: 6 }}
-                          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                          className="absolute right-0 top-full mt-2 w-[min(94vw,375px)] max-h-[min(88vh,640px)] overflow-y-auto custom-scrollbar bg-white/95 dark:bg-[#0c101a]/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.09] rounded-2xl shadow-[0_20px_50px_-12px_rgba(15,23,42,0.22),0_4px_16px_rgba(15,23,42,0.06)] dark:shadow-[0_28px_65px_-12px_rgba(0,0,0,0.85)] p-3.5 sm:p-4 z-50 text-left font-sans space-y-3 select-none"
-                        >
-                          {/* Ambient Accent Glow tailored to current preset */}
-                          <div 
-                            className="absolute -top-16 -right-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-25 dark:opacity-30 transition-all duration-500"
-                            style={{
-                              backgroundColor: accentPreset === 'ocean' ? '#0284c7' : accentPreset === 'forest' ? '#10b981' : accentPreset === 'sunset' ? '#f43f5e' : '#3b82f6'
-                            }}
-                          />
-
-                          {/* Popover Header */}
-                          <div className="relative flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-white/[0.06]">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/15 to-sky-500/15 dark:from-indigo-500/25 dark:to-sky-500/25 border border-indigo-500/20 text-indigo-600 dark:text-sky-300 flex items-center justify-center shrink-0 shadow-2xs">
-                                <Sliders className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <h4 className="text-xs font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                                  {locale === 'vi' ? 'Hiển thị & Giao diện' : 'Display & Appearance'}
-                                </h4>
-                                <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5 truncate">
-                                  {locale === 'vi' ? 'Tùy chỉnh ngày giờ, mật độ & màu sắc' : 'Date format, UI density & accents'}
-                                </p>
-                              </div>
+                      <motion.div
+                        ref={displayMenuRef}
+                        initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute right-0 top-full mt-2 w-72 bg-white/98 dark:bg-[#121620]/98 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-[0_20px_45px_-10px_rgba(0,0,0,0.3)] p-3 z-50 text-left font-sans space-y-2.5 select-none"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/[0.06]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                              <Calendar className="w-3.5 h-3.5" />
                             </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                                {locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time'}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 dark:text-zinc-400 font-medium leading-tight">
+                                {locale === 'vi' ? 'Hiển thị trên thanh tiêu đề' : 'Header display format'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowDisplayOptionsMenu(false)}
+                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                            title={locale === 'vi' ? 'Đóng' : 'Close'}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {/* Live Ticking Seconds Pill */}
-                              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-bold tabular-nums">
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                </span>
-                                <span>{currentTimeStr || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                              </div>
-
+                        {/* Format Options List */}
+                        <div className="space-y-1">
+                          {dateFmtOptions.map((fmt) => {
+                            const isSelected = dateFormat === fmt.id;
+                            const Icon = fmt.icon;
+                            return (
                               <button
+                                key={fmt.id}
                                 type="button"
-                                onClick={() => setShowDisplayOptionsMenu(false)}
-                                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-                                title={locale === 'vi' ? 'Đóng' : 'Close'}
+                                onClick={() => {
+                                  setDateFormat(fmt.id);
+                                  (window as any).playSystemSound?.('toggle');
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-blue-500/10 text-blue-600 dark:text-sky-400 border border-blue-500/25 font-semibold'
+                                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent'
+                                }`}
                               >
-                                <X className="w-3.5 h-3.5" />
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-medium truncate">{fmt.label}</div>
+                                    <div className="text-[9.5px] font-mono text-slate-400 dark:text-zinc-500 truncate">{renderDateValue(fmt.id, now)}</div>
+                                  </div>
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />}
                               </button>
-                            </div>
-                          </div>
+                            );
+                          })}
+                        </div>
 
-                          {/* 1. Date & Time Format */}
-                          <div className="relative space-y-1.5">
-                            <div className="flex items-center justify-between px-0.5">
-                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                <Calendar className="w-3 h-3 text-indigo-500" />
-                                <span>{locale === 'vi' ? 'Định dạng ngày & giờ' : 'Date & Time Format'}</span>
-                              </label>
-                              <span className="text-[9.5px] font-mono font-bold text-indigo-600 dark:text-sky-300 px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200/50 dark:border-indigo-500/25">
-                                {dateFmtOptions.find(f => f.id === dateFormat)?.label}
-                              </span>
-                            </div>
-
-                            <div className="p-1 bg-slate-50/90 dark:bg-white/[0.03] rounded-xl border border-slate-200/60 dark:border-white/[0.06] space-y-0.5">
-                              {dateFmtOptions.map((fmt) => {
-                                const isSelected = dateFormat === fmt.id;
-                                const Icon = fmt.icon;
-                                return (
-                                  <button
-                                    key={fmt.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setDateFormat(fmt.id);
-                                      (window as any).playSystemSound?.('toggle');
-                                    }}
-                                    className={`group relative w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-white dark:bg-white/[0.09] text-indigo-600 dark:text-sky-300 border border-indigo-500/30 dark:border-sky-400/30 shadow-2xs'
-                                        : 'text-slate-700 dark:text-zinc-300 hover:bg-white/80 dark:hover:bg-white/[0.04] border border-transparent'
-                                    }`}
-                                  >
-                                    <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-transform ${fmt.tile} ${isSelected ? 'scale-105 shadow-2xs' : 'opacity-80 group-hover:opacity-100'}`}>
-                                      <Icon className="w-3 h-3" />
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className={`block text-[11px] leading-tight truncate ${isSelected ? 'font-black text-indigo-600 dark:text-sky-300' : 'font-bold text-slate-800 dark:text-zinc-200'}`}>
-                                        {fmt.label}
-                                      </span>
-                                      <span className={`block font-mono text-[9px] leading-tight truncate tabular-nums mt-0.5 ${isSelected ? 'text-indigo-500/90 dark:text-sky-300/80 font-semibold' : 'text-slate-400 dark:text-zinc-400'}`}>
-                                        {renderDateValue(fmt.id, now)}
-                                      </span>
-                                    </span>
-                                    <span className="w-4 h-4 flex items-center justify-center shrink-0">
-                                      {isSelected && (
-                                        <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-sky-300 stroke-[3]" />
-                                      )}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 2. Interface Density */}
-                          <div className="relative space-y-1.5">
-                            <div className="flex items-center justify-between px-0.5">
-                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                <UnfoldVertical className="w-3 h-3 text-indigo-500" />
-                                <span>{locale === 'vi' ? 'Mật độ hiển thị' : 'Interface Density'}</span>
-                              </label>
-                              <span className="text-[9.5px] font-bold text-slate-400 dark:text-zinc-400">
-                                {uiDensity === 'comfortable' ? (locale === 'vi' ? 'Thoáng đãng' : 'Comfortable') : (locale === 'vi' ? 'Tối giản' : 'Compact')}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-50/90 dark:bg-white/[0.03] rounded-xl border border-slate-200/60 dark:border-white/[0.06]">
-                              {([
-                                {
-                                  id: 'comfortable',
-                                  label: locale === 'vi' ? 'Vừa vặn' : 'Comfortable',
-                                  desc: locale === 'vi' ? 'Thoáng mắt, dễ đọc' : 'Roomy & relaxed',
-                                  icon: UnfoldVertical,
-                                },
-                                {
-                                  id: 'compact',
-                                  label: locale === 'vi' ? 'Tối giản' : 'Compact',
-                                  desc: locale === 'vi' ? 'Nhiều dữ liệu hơn' : 'High data density',
-                                  icon: FoldVertical,
-                                },
-                              ] as const).map((d) => {
-                                const isSelected = uiDensity === d.id;
-                                const Icon = d.icon;
-                                return (
-                                  <button
-                                    key={d.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setUiDensity(d.id);
-                                      (window as any).playSystemSound?.('toggle');
-                                    }}
-                                    className={`group relative p-2 rounded-lg text-left transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-white dark:bg-white/[0.09] text-indigo-600 dark:text-sky-300 border border-indigo-500/30 dark:border-sky-400/30 shadow-xs'
-                                        : 'text-slate-600 dark:text-zinc-300 hover:bg-white/70 dark:hover:bg-white/[0.04] border border-transparent'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-500/15 text-indigo-600 dark:text-sky-300' : 'bg-slate-200/60 dark:bg-white/10 text-slate-500 dark:text-zinc-400'}`}>
-                                        <Icon className="w-3 h-3" />
-                                      </span>
-                                      {/* Visual density indicator bars */}
-                                      <div className="flex flex-col gap-0.5 w-4 items-end">
-                                        <span className={`h-0.5 rounded-full ${isSelected ? 'bg-indigo-500 dark:bg-sky-400' : 'bg-slate-300 dark:bg-zinc-600'}`} style={{ width: '100%' }} />
-                                        <span className={`h-0.5 rounded-full ${isSelected ? 'bg-indigo-400 dark:bg-sky-300' : 'bg-slate-300 dark:bg-zinc-600'}`} style={{ width: d.id === 'comfortable' ? '65%' : '85%' }} />
-                                        <span className={`h-0.5 rounded-full ${isSelected ? 'bg-indigo-300 dark:bg-sky-200' : 'bg-slate-300 dark:bg-zinc-600'}`} style={{ width: d.id === 'comfortable' ? '45%' : '70%' }} />
-                                      </div>
-                                    </div>
-                                    <span className={`block text-[11px] leading-tight truncate ${isSelected ? 'font-black' : 'font-bold'}`}>
-                                      {d.label}
-                                    </span>
-                                    <span className="block text-[9px] text-slate-400 dark:text-zinc-400 font-medium leading-tight mt-0.5 truncate">
-                                      {d.desc}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 3. Accent Color Swatches */}
-                          <div className="relative space-y-1.5">
-                            <div className="flex items-center justify-between px-0.5">
-                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                <Palette className="w-3 h-3 text-indigo-500" />
-                                <span>{locale === 'vi' ? 'Màu chủ đạo' : 'Accent Color'}</span>
-                              </label>
-                              <span className="text-[9.5px] font-bold text-slate-400 dark:text-zinc-400 capitalize">
-                                {accentPreset}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-50/90 dark:bg-white/[0.03] rounded-xl border border-slate-200/60 dark:border-white/[0.06]">
-                              {([
-                                { id: 'indigo', name: 'Indigo', bg: 'bg-[#2563eb]' },
-                                { id: 'ocean', name: 'Ocean', bg: 'bg-[#0284c7]' },
-                                { id: 'forest', name: 'Forest', bg: 'bg-[#10b981]' },
-                                { id: 'sunset', name: 'Sunset', bg: 'bg-[#f43f5e]' },
-                              ] as const).map((color) => {
-                                const isSelected = accentPreset === color.id;
-                                return (
-                                  <button
-                                    key={color.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setAccentPreset(color.id);
-                                      (window as any).playSystemSound?.('click');
-                                    }}
-                                    className={`group relative flex flex-col items-center gap-1 py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-white dark:bg-white/[0.09] shadow-2xs border border-slate-200/80 dark:border-white/15'
-                                        : 'hover:bg-white/60 dark:hover:bg-white/[0.04] border border-transparent'
-                                    }`}
-                                    title={color.name}
-                                  >
-                                    <span className={`relative w-4 h-4 rounded-full ${color.bg} shadow-xs flex items-center justify-center transition-transform ${isSelected ? 'scale-110 ring-2 ring-indigo-500/30 dark:ring-white/40' : 'group-hover:scale-105'}`}>
-                                      {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                                    </span>
-                                    <span className={`text-[9.5px] leading-none ${isSelected ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-500 dark:text-zinc-400'}`}>
-                                      {color.name}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 4. Theme Mode 3-Way Selector */}
-                          <div className="relative space-y-1.5">
-                            <div className="flex items-center justify-between px-0.5">
-                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                <Sun className="w-3 h-3 text-amber-500" />
-                                <span>{locale === 'vi' ? 'Chế độ giao diện' : 'Theme Mode'}</span>
-                              </label>
-                              <span className="text-[9.5px] font-bold text-slate-400 dark:text-zinc-400">
-                                {themePreference === 'dark'
-                                  ? (locale === 'vi' ? 'Chế độ tối' : 'Dark Mode')
-                                  : themePreference === 'light'
-                                  ? (locale === 'vi' ? 'Chế độ sáng' : 'Light Mode')
-                                  : (locale === 'vi' ? 'Theo hệ thống' : 'System Auto')}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-50/90 dark:bg-white/[0.03] rounded-xl border border-slate-200/60 dark:border-white/[0.06]">
-                              {([
-                                { id: 'light', label: locale === 'vi' ? 'Sáng' : 'Light', icon: Sun, color: 'text-amber-500' },
-                                { id: 'dark', label: locale === 'vi' ? 'Tối' : 'Dark', icon: Moon, color: 'text-indigo-500 dark:text-indigo-400' },
-                                { id: 'system', label: locale === 'vi' ? 'Tự động' : 'System', icon: Monitor, color: 'text-sky-500' },
-                              ] as const).map((th) => {
-                                const isSelected = themePreference === th.id;
-                                const Icon = th.icon;
-                                return (
-                                  <button
-                                    key={th.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setThemePreference(th.id);
-                                      (window as any).playSystemSound?.('toggle');
-                                    }}
-                                    className={`group relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs transition-all cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-white dark:bg-white/[0.09] text-slate-900 dark:text-white font-black shadow-2xs border border-slate-200/70 dark:border-white/10'
-                                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04] font-bold'
-                                    }`}
-                                  >
-                                    <Icon className={`w-3.5 h-3.5 ${isSelected ? th.color : 'text-slate-400 dark:text-zinc-400 group-hover:' + th.color}`} />
-                                    <span className="text-[10.5px]">{th.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 5. Footer */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between px-0.5 text-[9.5px] text-slate-400 dark:text-zinc-500 font-medium">
-                            <span className="flex items-center gap-1">
-                              <Check className="w-3 h-3 text-emerald-500" />
-                              <span>{locale === 'vi' ? 'Đã đồng bộ tùy chọn' : 'Preferences saved'}</span>
-                            </span>
+                        {/* Density toggle footer */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[10px]">
+                          <span className="font-semibold text-slate-400 dark:text-zinc-500">
+                            {locale === 'vi' ? 'Mật độ hiển thị:' : 'UI Density:'}
+                          </span>
+                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.06] p-0.5 rounded-lg">
                             <button
                               type="button"
                               onClick={() => {
-                                setDateFormat('short');
                                 setUiDensity('comfortable');
-                                setAccentPreset('indigo');
-                                setThemePreference('system');
-                                (window as any).playSystemSound?.('delete');
+                                (window as any).playSystemSound?.('toggle');
                               }}
-                              className="hover:text-slate-700 dark:hover:text-zinc-300 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
+                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                uiDensity === 'comfortable'
+                                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
+                                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
+                              }`}
                             >
-                              <RotateCcw className="w-2.5 h-2.5" />
-                              <span>{locale === 'vi' ? 'Khôi phục' : 'Reset'}</span>
+                              {locale === 'vi' ? 'Thoáng' : 'Comfortable'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUiDensity('compact');
+                                (window as any).playSystemSound?.('toggle');
+                              }}
+                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                uiDensity === 'compact'
+                                  ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-3xs font-semibold'
+                                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800'
+                              }`}
+                            >
+                              {locale === 'vi' ? 'Gọn' : 'Compact'}
                             </button>
                           </div>
-                        </motion.div>
-                      </>
+                        </div>
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
@@ -5731,7 +5553,9 @@ export default function App() {
                 </div>
                 {!isMainSidebarCollapsed && (
                   <div className="flex min-w-0 flex-1 items-center justify-between">
-                    <span className="truncate text-[13px] font-semibold text-white">Control Center</span>
+                    <span className="truncate text-[13px] font-semibold text-white">
+                      {locale === 'vi' ? 'Trung tâm điều khiển' : 'Control Center'}
+                    </span>
                     <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase text-sky-300 bg-sky-500/20 border border-sky-400/30">Admin</span>
                   </div>
                 )}

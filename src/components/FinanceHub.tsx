@@ -754,19 +754,43 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white shadow-lg shadow-indigo-500/20"><WalletCards className="h-5 w-5" /></div>
-            <div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-base font-black tracking-tight text-[var(--cu-text-primary)]">{profile.displayName}</h1><Badge variant={realtime === "live" ? "success" : realtime === "connecting" ? "warning" : "danger"} dot>{realtime === "live" ? "Realtime" : realtime === "connecting" ? "Đang kết nối" : "Mất realtime"}</Badge></div><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--cu-text-tertiary)]">{profile.currency} · {lastSync ? `Cập nhật ${lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đồng bộ"}</p></div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-base font-black tracking-tight text-[var(--cu-text-primary)]">
+                  {profile.displayName || (isVietnamese ? "Hồ sơ tài chính" : "Financial Profile")}
+                </h1>
+                <Badge variant={realtime === "live" ? "success" : realtime === "connecting" ? "warning" : "danger"} dot>
+                  {realtime === "live" ? "Realtime" : realtime === "connecting" ? (isVietnamese ? "Đang kết nối" : "Connecting") : (isVietnamese ? "Mất kết nối" : "Offline")}
+                </Badge>
+              </div>
+              <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--cu-text-tertiary)]">
+                {profile.currency} · {lastSync ? (isVietnamese ? `Cập nhật ${lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : `Updated ${lastSync.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`) : (isVietnamese ? "Chưa đồng bộ" : "Not synced")}
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void loadData(false)}>Làm mới</Button>
+            <Button variant="ghost" size="sm" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void loadData(false)}>
+              {isVietnamese ? "Làm mới" : "Refresh"}
+            </Button>
             {enabledModuleSet.has("cashbook") && (
               <>
-                <Button variant="secondary" size="sm" leftIcon={<Tag className="h-3.5 w-3.5" />} onClick={() => setModal("categories")}>Danh mục</Button>
-                <Button variant="secondary" size="sm" leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />} onClick={() => setModal("receipt-scan")}>Quét HĐ AI</Button>
+                <Button variant="secondary" size="sm" leftIcon={<Tag className="h-3.5 w-3.5" />} onClick={() => setModal("categories")}>
+                  {isVietnamese ? "Danh mục" : "Categories"}
+                </Button>
+                <Button variant="secondary" size="sm" leftIcon={<Camera className="h-3.5 w-3.5 text-rose-500" />} onClick={() => setModal("receipt-scan")}>
+                  {isVietnamese ? "Quét HĐ AI" : "AI Scan"}
+                </Button>
               </>
             )}
-            <Button variant="secondary" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCsv} disabled={activeTab === "invoices" ? !invoices.length : activeTab === "debts" ? !debts.length : activeTab === "budgets" ? !budgets.length : !filteredTransactions.length}>Xuất CSV</Button>
-            <Button variant="secondary" size="sm" leftIcon={<Settings2 className="h-3.5 w-3.5" />} onClick={() => { setProfileForm(profile); setModal("profile"); }}>Thiết lập</Button>
-            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openCreate}>Tạo mới</Button>
+            <Button variant="secondary" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={exportCsv} disabled={activeTab === "invoices" ? !invoices.length : activeTab === "debts" ? !debts.length : activeTab === "budgets" ? !budgets.length : !filteredTransactions.length}>
+              {isVietnamese ? "Xuất CSV" : "Export CSV"}
+            </Button>
+            <Button variant="secondary" size="sm" leftIcon={<Settings2 className="h-3.5 w-3.5" />} onClick={() => { setProfileForm(profile); setModal("profile"); }}>
+              {isVietnamese ? "Thiết lập" : "Settings"}
+            </Button>
+            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={openCreate}>
+              {isVietnamese ? "Tạo mới" : "Create"}
+            </Button>
           </div>
         </div>
       </header>
