@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
+import { APEXA_SUPER_ADMIN_UID, isApexaSuperAdmin } from '@/lib/admin/constants';
 import type { RuntimeConfig } from '@/lib/admin/types';
 import { adminJson, asObject, getAdminClient } from '@/lib/admin/server';
 
@@ -18,7 +18,7 @@ async function requestIsAdmin(request: Request) {
     client.auth.getUser(token),
     client.auth.getClaims(token),
   ]);
-  return data.user?.id === APEXA_SUPER_ADMIN_UID && claimsResult.data?.claims?.aal === 'aal2';
+  return isApexaSuperAdmin(data.user?.id) && claimsResult.data?.claims?.aal === 'aal2';
 }
 
 export async function GET(request: Request) {

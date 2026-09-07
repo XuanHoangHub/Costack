@@ -668,7 +668,7 @@ export default function TaskTableView({
   return (
     <div className="w-full flex-1 flex flex-col min-h-0 bg-white dark:bg-transparent select-none">
       <div className="overflow-x-auto custom-touch-scroll flex-1">
-      <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left">
+      <table className="apexa-task-table w-full min-w-[900px] border-separate border-spacing-0 text-left">
         <thead>
           <tr className="bg-white dark:bg-[#07080c]/95">
             <th className="sticky left-0 top-0 z-20 w-11 h-10 px-3 border-b border-slate-200/70 dark:border-white/[0.06] bg-white dark:bg-[#07080c]/95 backdrop-blur-md text-center">
@@ -1166,12 +1166,9 @@ export default function TaskTableView({
                       if (e.key === 'Enter') handleInlineCreate();
                       else if (e.key === 'Escape') { setIsCreatingInline(false); resetDrafts(); }
                     }}
-                    placeholder={t('inlineAddTitlePlaceholder') || "Tên công việc mới... (Nhấn Enter ↵ để tạo)"}
-                    className="w-full pl-3 pr-16 py-1.5 text-xs font-bold border border-indigo-300 dark:border-indigo-700/80 rounded-lg bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 shadow-2xs transition-all"
+                    placeholder={t('inlineAddTitlePlaceholder') || "Tên công việc mới..."}
+                    className="w-full px-3 py-1.5 text-xs font-bold border border-indigo-300 dark:border-indigo-700/80 rounded-lg bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 shadow-2xs transition-all"
                   />
-                  <div className="absolute right-2 flex items-center pointer-events-none select-none">
-                    <kbd className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded border border-slate-200 dark:border-slate-700">↵ Enter</kbd>
-                  </div>
                 </div>
               </td>
 

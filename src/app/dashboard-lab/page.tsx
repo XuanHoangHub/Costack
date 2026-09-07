@@ -56,7 +56,7 @@ const docs: Document[] = Array.from({ length: 12 }, (_, index) => ({
 export default function DashboardLabPage() {
   const [premium, setPremium] = useState(false);
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-[#090909]">
+    <main className="apexa-app-shell apexa-design-system apexa-preview-shell min-h-screen bg-slate-50 dark:bg-[#090909]">
       <button type="button" onClick={() => setPremium((value) => !value)} className="fixed right-4 top-4 z-[100] rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-xl">
         Test: {premium ? 'Premium' : 'Free'}
       </button>

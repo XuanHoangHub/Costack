@@ -46,7 +46,7 @@ export function createSocialImage() {
             Công việc, tài liệu và vận hành trong một workspace.
           </div>
           <div style={{ marginTop: 28, fontSize: 26, lineHeight: 1.4, color: '#cbd5e1' }}>
-            Tasks · Smart Docs · Realtime Chat · CRM · ERP · Finance · Apexa Brain AI
+            Tasks · Smart Docs · Realtime Chat · CRM · Finance · Apexa Brain AI
           </div>
         </div>
 

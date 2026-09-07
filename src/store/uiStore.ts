@@ -126,6 +126,11 @@ interface UiState {
   setSidebarOrder: (order: string[]) => void;
 }
 
+export const DEFAULT_SIDEBAR_ORDER: string[] = [
+  'dashboard', 'inbox', 'tasks', 'calendar', 'goals',
+  'finance', 'docs', 'chat', 'team'
+];
+
 export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
@@ -193,10 +198,7 @@ export const useUiStore = create<UiState>()(
       showPomoSettings: false,
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
-      sidebarOrder: [
-        'dashboard', 'inbox', 'tasks', 'my-tasks', 'calendar', 'productivity', 'analytics',
-        'crm', 'base', 'docs', 'whiteboard', 'chat', 'team'
-      ],
+      sidebarOrder: [...DEFAULT_SIDEBAR_ORDER],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
@@ -259,7 +261,7 @@ export const useUiStore = create<UiState>()(
 
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
       setViewingMemberProfileId: (viewingMemberProfileId) => set({ viewingMemberProfileId }),
-      setSidebarOrder: (sidebarOrder) => set({ sidebarOrder }),
+      setSidebarOrder: (sidebarOrder) => set({ sidebarOrder: (sidebarOrder || []).filter(id => id !== 'crm') }),
     }),
     {
       name: 'apexa_ui',
@@ -270,6 +272,7 @@ export const useUiStore = create<UiState>()(
           ...state,
           presencePreference: state.presencePreference || 'online',
           themePreference: getStoredThemePreference(),
+          sidebarOrder: (state.sidebarOrder || []).filter(id => id !== 'crm'),
         } as UiState;
       },
       onRehydrateStorage: () => (state) => {
@@ -278,6 +281,9 @@ export const useUiStore = create<UiState>()(
         const isDarkMode = applyThemePreference(themePreference, false, false);
         state.themePreference = themePreference;
         state.isDarkMode = isDarkMode;
+        if (state.sidebarOrder) {
+          state.sidebarOrder = state.sidebarOrder.filter(id => id !== 'crm');
+        }
       },
     }
   )

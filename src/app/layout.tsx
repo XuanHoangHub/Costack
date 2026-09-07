@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "./workspace.css";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import InlineHeadScript from "@/components/InlineHeadScript";
 
@@ -10,7 +11,7 @@ const INITIAL_THEME_SCRIPT = `(function(){try{var mode=localStorage.getItem('ape
 
 const INITIAL_LOCALE_SCRIPT = `(function(){try{var stored=localStorage.getItem('apexa_locale_mode')||localStorage.getItem('apexa_locale')||'vi';var mode=stored==='system'?'system':stored==='en'?'en':'vi';var languages=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||'en']);var system=languages.some(function(value){return String(value).toLowerCase().indexOf('vi')===0})?'vi':'en';var locale=mode==='system'?system:mode;var root=document.documentElement;root.lang=locale==='vi'?'vi-VN':'en-US';root.dir='ltr';root.dataset.locale=locale;root.dataset.localeMode=mode;}catch(e){}})();`;
 
-const CHUNK_RECOVERY_SCRIPT = `(function(){if(typeof window!=='undefined'){window.addEventListener('error',function(e){var msg=(e&&e.message)||'';var err=e&&e.error;if(msg.indexOf('Loading chunk')!==-1||msg.indexOf('missing:')!==-1||(err&&err.name==='ChunkLoadError')){var key='chunk_recovery_reload';var now=Date.now();var last=Number(sessionStorage.getItem(key)||0);if(now-last>8000){sessionStorage.setItem(key,String(now));window.location.reload();}}});}})();`;
+const CHUNK_RECOVERY_SCRIPT = `(function(){if(typeof window!=='undefined'){function checkChunk(r){var m=(r&&(r.message||r.stack||String(r)))||'';var n=(r&&r.name)||'';if(n==='ChunkLoadError'||m.indexOf('Loading chunk')!==-1||m.indexOf('missing:')!==-1||m.indexOf('Failed to fetch dynamically imported module')!==-1){var k='chunk_recovery_reload';var now=Date.now();var last=Number(sessionStorage.getItem(k)||0);if(now-last>6000){sessionStorage.setItem(k,String(now));window.location.reload();}}}window.addEventListener('error',function(e){checkChunk(e&&(e.error||e));});window.addEventListener('unhandledrejection',function(e){checkChunk(e&&(e.reason||(e.detail&&e.detail.reason)));});}})();`;
 
 const inter = Inter({
   variable: "--font-sans",

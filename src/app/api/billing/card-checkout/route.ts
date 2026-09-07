@@ -33,6 +33,9 @@ export async function POST(request: Request) {
   try {
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => ({}));
+    if (body?.cycle !== 'monthly' && body?.cycle !== 'yearly') {
+      throw new BillingHttpError(400, 'Chu kỳ thanh toán không hợp lệ.');
+    }
     const cycle: BillingCycle = body?.cycle === 'monthly' ? 'monthly' : 'yearly';
     if (!isSelfServeBillingPlan(body?.plan)) {
       throw new BillingHttpError(400, 'Gói thanh toán không hợp lệ.');

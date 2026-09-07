@@ -20,6 +20,9 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { ApexaLogoIcon } from './ApexaLogo';
 import LanguageSwitch from './LanguageSwitch';
 import LandingPage from './landing/LandingPage';
+import AuthErrorAlert from './auth/AuthErrorAlert';
+import OtpCodeInput from './auth/OtpCodeInput';
+import { formatAuthError } from '../lib/authError';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { id: string; name: string; email: string; avatar: string; role: 'admin' | 'member'; status: 'online' | 'busy' | 'offline' }, rememberMe: boolean) => void;
@@ -111,6 +114,9 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   const [mfaChallengeId, setMfaChallengeId] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [mfaRememberMe, setMfaRememberMe] = useState(true);
+  const [refreshingChallenge, setRefreshingChallenge] = useState(false);
+  const [challengeRefreshed, setChallengeRefreshed] = useState(false);
+  const mfaInputRef = useRef<HTMLInputElement>(null);
   const onLoginSuccessRef = useRef(onLoginSuccess);
   const oauthCompletionRef = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -402,38 +408,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
   };
 
   const getAuthErrorMessage = (caughtError: unknown) => {
-    const message = caughtError instanceof Error ? caughtError.message : '';
-    const normalizedMessage = message.toLowerCase();
-
-    if (normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_grant')) {
-      return isVietnamese
-        ? 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra và thử lại.'
-        : 'Incorrect email or password. Check your details and try again.';
-    }
-    if (normalizedMessage.includes('email not confirmed')) {
-      return isVietnamese
-        ? 'Email chưa được xác minh. Vui lòng kiểm tra hộp thư và mở liên kết xác minh.'
-        : 'Your email is not verified. Check your inbox for the verification link.';
-    }
-    if (normalizedMessage.includes('user already registered')) {
-      return isVietnamese
-        ? 'Email này đã được đăng ký. Vui lòng chuyển sang đăng nhập.'
-        : 'This email is already registered. Please sign in instead.';
-    }
-    if (normalizedMessage.includes('rate limit') || normalizedMessage.includes('too many requests')) {
-      return isVietnamese
-        ? 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại.'
-        : 'Too many requests. Wait a moment and try again.';
-    }
-    if (normalizedMessage.includes('password')) {
-      return isVietnamese
-        ? 'Mật khẩu chưa đáp ứng yêu cầu bảo mật. Vui lòng chọn mật khẩu khác.'
-        : 'The password does not meet the security requirements.';
-    }
-
-    return message || (isVietnamese
-      ? 'Không thể kết nối với dịch vụ xác thực. Vui lòng thử lại.'
-      : 'Could not connect to the authentication service. Try again.');
+    return formatAuthError(caughtError, isVietnamese).description;
   };
 
   const openAuth = (signUp: boolean) => {
@@ -565,13 +540,35 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     }
   };
 
-  const handleMfaVerify = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!mfaPendingUser || !/^\d{6}$/.test(mfaCode)) return;
+  const handleRefreshMfaChallenge = async () => {
+    if (!mfaFactorId || refreshingChallenge) return;
+    setRefreshingChallenge(true);
+    try {
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+      if (challengeError) throw challengeError;
+      setMfaChallengeId(challenge.id);
+      setMfaCode('');
+      setChallengeRefreshed(true);
+      setError('');
+      window.setTimeout(() => setChallengeRefreshed(false), 4000);
+      mfaInputRef.current?.focus();
+    } catch (err) {
+      setError(getAuthErrorMessage(err));
+    } finally {
+      setRefreshingChallenge(false);
+    }
+  };
+
+  const handleMfaVerify = async (eventOrCode?: React.FormEvent | string) => {
+    if (eventOrCode && typeof eventOrCode !== 'string' && 'preventDefault' in eventOrCode) {
+      eventOrCode.preventDefault();
+    }
+    const code = (typeof eventOrCode === 'string' ? eventOrCode : mfaCode).trim();
+    if (!mfaPendingUser || !/^\d{6}$/.test(code)) return;
     setLoading(true);
     setError('');
     try {
-      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code: mfaCode });
+      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaFactorId, challengeId: mfaChallengeId, code });
       if (verifyError) throw verifyError;
       const displayName = mfaPendingUser.user_metadata?.name || mfaPendingUser.email?.split('@')[0] || 'Apexa Champion';
       onLoginSuccess({
@@ -586,7 +583,12 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
       setError(getAuthErrorMessage(caughtError));
       setMfaCode('');
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-      if (!challengeError) setMfaChallengeId(challenge.id);
+      if (!challengeError && challenge) {
+        setMfaChallengeId(challenge.id);
+        setChallengeRefreshed(true);
+        window.setTimeout(() => setChallengeRefreshed(false), 4000);
+      }
+      mfaInputRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -598,6 +600,7 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
     setMfaFactorId('');
     setMfaChallengeId('');
     setMfaCode('');
+    setChallengeRefreshed(false);
     setError('');
   };
 
@@ -859,27 +862,42 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     <div className="w-10 h-10 mx-auto rounded-full bg-blue-600/10 dark:bg-sky-400/10 flex items-center justify-center text-blue-600 dark:text-sky-400 mb-2">
                       <ShieldCheck className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Tài khoản được bảo vệ bằng 2FA' : '2FA Protected Account'}</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Tài khoản được bảo vệ bằng Authenticator (2FA)' : '2FA Authenticator Protected Account'}</p>
                     <p className="mt-0.5 text-xs font-black text-slate-900 dark:text-slate-100">{mfaPendingUser.email}</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">{isVietnamese ? 'Mã xác thực 6 chữ số từ ứng dụng Authenticator' : '6-digit Authenticator code'}</span>
-                    <input 
-                      autoFocus 
-                      inputMode="numeric" 
-                      autoComplete="one-time-code" 
-                      maxLength={6} 
-                      value={mfaCode} 
-                      onChange={event => { 
-                        const val = event.target.value.replace(/\D/g, '').slice(0, 6);
-                        setMfaCode(val); 
-                        setError(''); 
-                      }} 
-                      placeholder="000000" 
-                      className="h-14 w-full rounded-2xl border border-slate-200 bg-white text-center font-sans tabular-nums text-2xl font-black tracking-[0.4em] text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15 dark:focus:border-sky-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white" 
-                    />
+                  <div className="space-y-2 text-center">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      {isVietnamese ? 'Nhập mã 6 chữ số từ ứng dụng Authenticator' : 'Enter the 6-digit code from your authenticator app'}
+                    </span>
+                    <div className="pt-1 flex justify-center">
+                      <OtpCodeInput
+                        id="login-mfa-otp"
+                        value={mfaCode}
+                        onChange={val => {
+                          setMfaCode(val);
+                          if (error) setError('');
+                        }}
+                        onComplete={code => handleMfaVerify(code)}
+                        disabled={loading}
+                        hasError={Boolean(error)}
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 pt-0.5">
+                      {isVietnamese
+                        ? 'Google Authenticator, Microsoft Authenticator hoặc Apple Keychain'
+                        : 'Google Authenticator, Microsoft Authenticator or Apple Keychain'}
+                    </p>
                   </div>
-                  {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+                  <AuthErrorAlert
+                    error={error}
+                    isVietnamese={isVietnamese}
+                    onClose={() => setError('')}
+                    onRefresh={handleRefreshMfaChallenge}
+                    isRefreshing={refreshingChallenge}
+                    isRefreshed={challengeRefreshed}
+                    showRefreshButton={Boolean(mfaFactorId)}
+                  />
                   <button type="submit" disabled={loading || mfaCode.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all cursor-pointer">
                     {loading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <ShieldCheck className="h-4 w-4" />}{isVietnamese ? 'Xác minh và đăng nhập' : 'Verify and sign in'}
                   </button>
@@ -902,17 +920,11 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
                     disabled={loading}
                   />
 
-                  {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      role="alert"
-                      className="flex items-start gap-2.5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 text-xs font-semibold"
-                    >
-                      <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                      <span className="leading-snug">{error}</span>
-                    </motion.div>
-                  )}
+                  <AuthErrorAlert
+                    error={error}
+                    isVietnamese={isVietnamese}
+                    onClose={() => setError('')}
+                  />
 
                   {success && (
                     <motion.div
@@ -1209,28 +1221,24 @@ export default function LoginScreen({ onLoginSuccess, registrationEnabled = true
 
                   {/* Error and Success Notifications */}
                   {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      role="alert"
-                      className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 text-xs font-semibold shadow-2xs space-y-2"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <ShieldAlert className="w-4.5 h-4.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span className="leading-snug">{error}</span>
-                      </div>
+                    <div className="space-y-2">
+                      <AuthErrorAlert
+                        error={error}
+                        isVietnamese={isVietnamese}
+                        onClose={() => setError('')}
+                      />
                       {!isSignUp && registrationEnabled && (
-                        <div className="flex items-center gap-2 pt-1 border-t border-rose-200/50 dark:border-rose-900/50 pl-7 flex-wrap">
+                        <div className="flex items-center gap-2 pt-0.5 pl-2">
                           <button
                             type="button"
                             onClick={() => switchAuthMode('signup')}
                             className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                           >
-                            {isVietnamese ? 'Chuyển sang đăng ký' : 'Switch to sign up'}
+                            {isVietnamese ? 'Chưa có tài khoản? Chuyển sang đăng ký' : 'No account yet? Switch to sign up'}
                           </button>
                         </div>
                       )}
-                    </motion.div>
+                    </div>
                   )}
 
                   {success && (

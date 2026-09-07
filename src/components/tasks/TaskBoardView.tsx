@@ -50,8 +50,8 @@ function KanbanColumn({ id, children, isOver }: { id: string; children: React.Re
   return (
     <div 
       ref={setNodeRef}
-      className={`flex-1 space-y-2 min-h-[150px] transition-colors duration-200 rounded-xl p-1.5 overflow-y-auto max-h-[calc(100vh-280px)] ${
-        isOver ? 'bg-indigo-500/[0.04] dark:bg-indigo-500/[0.02]' : ''
+      className={`flex-1 space-y-2 min-h-[150px] transition-all duration-200 rounded-[var(--ax-radius-xl)] p-2 overflow-y-auto max-h-[calc(100vh-260px)] custom-scrollbar ${
+        isOver ? 'bg-[var(--cu-primary-subtle)] ring-2 ring-[var(--cu-primary)]/30 ring-dashed' : 'bg-transparent'
       }`}
     >
       {children}
@@ -127,9 +127,9 @@ function KanbanCard({
         onClick={() => { if (!isDraggingRef.current) setSelectedTask(task); }}
         {...attributes}
         {...listeners}
-        whileHover={{ y: -3, scale: 1.01 }}
-        whileTap={{ scale: 0.98 }}
-        className={`group relative bg-white dark:bg-[#121212] rounded-[22px] border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-400/50 dark:hover:border-indigo-500/50 shadow-[0_2px_10px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.5)] border-l-[4px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-200 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-500/80' : ''} overflow-hidden`}
+        whileHover={{ y: -2, scale: 1.008 }}
+        whileTap={{ scale: 0.985 }}
+        className={`group relative bg-[var(--cu-surface)] rounded-[var(--ax-radius-xl)] border border-[var(--cu-border)] hover:border-[var(--cu-primary)]/40 shadow-[var(--ax-shadow-xs)] hover:shadow-[var(--ax-shadow-md)] border-l-[3.5px] ${dynamicPriorityColors[task.priority] || PRIORITY_COLORS[task.priority]} cursor-grab active:cursor-grabbing transition-all duration-150 ${selectedTaskIds.includes(task.id) ? 'ring-2 ring-[var(--cu-primary)] border-[var(--cu-primary)]' : ''} overflow-hidden`}
       >
         {imageAttachment && (
           <div className="w-full relative overflow-hidden bg-slate-50 dark:bg-slate-950" style={{ height: localCardSize === 'small' ? '65px' : localCardSize === 'large' ? '120px' : '90px' }}>

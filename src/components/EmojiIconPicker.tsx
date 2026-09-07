@@ -9,16 +9,6 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../contexts/TranslationContext';
 
-interface EmojiIconPickerProps {
-  value: string;
-  onChange: (value: string) => void;
-  className?: string;
-  size?: 'inline' | 'sm' | 'md' | 'lg';
-  align?: 'left' | 'right';
-  children?: React.ReactNode;
-  title?: string;
-}
-
 // 🎨 Standard Curated Color Palette for SVG Icons
 export const ICON_COLORS = [
   { id: 'indigo', name: 'Indigo (Chàm)', hex: '#6366F1', bg: 'bg-indigo-500', ring: 'ring-indigo-500' },
@@ -388,45 +378,164 @@ export const STANDARD_SVG_CATEGORIES: { name: string; label: string; icon: strin
 
 export const ALL_STANDARD_ICONS = STANDARD_SVG_CATEGORIES.flatMap(cat => cat.icons);
 
-// 2. Standard Curated Emojis Categorized
-export const STANDARD_EMOJI_CATEGORIES = [
+// 2. Standard Curated Emojis Categorized (250+ emojis across 9 categories)
+export interface EmojiCategoryDef {
+  name: string;
+  label: string;
+  icon: string;
+  tags: string[];
+  emojis: string[];
+}
+
+export const STANDARD_EMOJI_CATEGORIES: EmojiCategoryDef[] = [
   {
-    name: 'emotions',
+    name: 'smileys',
     label: 'Mặt cười & Cảm xúc',
     icon: 'Smile',
+    tags: ['cuoi', 'mat cuoi', 'vui', 'cam xuc', 'smile', 'happy', 'face', 'emotion'],
     emojis: [
-      '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
-      '🙂', '😉', '😍', '🥰', '😘', '😎', '🤩', '🥳', '😏', '🤔',
-      '🤫', '🫡', '🤗', '💪', '👏', '🙌', '🤝', '👍', '👎', '✌️',
-      '🤞', '🫰', '✨', '🔥', '💯', '⭐', '🌟', '💫', '❤️', '🧡',
-      '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💖', '🎉', '🎊'
+      '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+      '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+      '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+      '🫡', '🤐', '🤨', '😐', '😑', '😶', '🫥', '😏', '😒', '🙄',
+      '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+      '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳',
+      '😎', '🤓', '🧐'
+    ]
+  },
+  {
+    name: 'gestures',
+    label: 'Bàn tay & Con người',
+    icon: 'User',
+    tags: ['tay', 'ban tay', 'nguoi', 'team', 'con nguoi', 'hand', 'people', 'person'],
+    emojis: [
+      '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞',
+      '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👍',
+      '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝',
+      '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🧠', '🫀', '👁️', '🧑‍💻',
+      '👨‍💻', '👩‍💻', '🧑‍💼', '👨‍💼', '👩‍💼', '🧑‍🔬', '🧑‍🎨', '🦸', '🥷', '🧙'
     ]
   },
   {
     name: 'work',
-    label: 'Công việc & Đồ vật',
+    label: 'Công việc & Văn phòng',
     icon: 'Briefcase',
+    tags: ['cong viec', 'van phong', 'nhiem vu', 'task', 'work', 'office', 'job'],
     emojis: [
-      '📁', '📂', '📄', '📝', '📋', '📌', '📍', '📊', '📈', '📉',
-      '📆', '📅', '🗓️', '📇', '📦', '🏷️', '🔖', '💻', '🖥️', '⌨️',
-      '🖱️', '📱', '☎️', '📞', '📧', '✉️', '📨', '📬', '🔒', '🔓',
-      '🔑', '🛠️', '⚙️', '🗂️', '💼', '🗃️', '📥', '📤', '📮', '✏️',
-      '✒️', '🖊️', '🔍', '🔎', '💡', '🧠', '🎯', '🧮', '📚', '📖'
+      '📁', '📂', '📄', '📝', '📋', '📊', '📈', '📉', '📌', '📍',
+      '📎', '🖇️', '📐', '📏', '✂️', '💼', '🗂️', '🗃️', '🗄️', '📅',
+      '📆', '🗓️', '📇', '📦', '🏷️', '🔖', '✉️', '📧', '📨', '📩',
+      '📤', '📥', '📬', '📮', '⏰', '⏱️', '⏲️', '⌛', '⏳', '🧮'
     ]
   },
   {
-    name: 'activities',
-    label: 'Mục tiêu & Hoạt động',
-    icon: 'Zap',
+    name: 'tech',
+    label: 'Công nghệ & Thiết bị',
+    icon: 'Laptop',
+    tags: ['cong nghe', 'may tinh', 'laptop', 'code', 'lap trinh', 'tech', 'device', 'software'],
     emojis: [
-      '🚀', '🛸', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑', '💎',
-      '⚡', '🔋', '💥', '☀️', '🌙', '⭐', '🌈', '🎨', '🎭', '🎪',
-      '🎯', '🎳', '🎮', '🎲', '♟️', '🧩', '🏎️', '✈️', '⛵', '⚓',
-      '🌐', '🧭', '🏁', '🚩', '☕', '🍵', '🥤', '🍎', '🍕', '🍔',
-      '🎂', '🍰', '🎁', '🎈', '🛒', '💰', '💵', '💳', '🔔', '🔕'
+      '💻', '🖥️', '🖨️', '⌨️', '🖱️', '📱', '📲', '☎️', '📞', '📡',
+      '🌐', '🤖', '🔌', '🔋', '💾', '💿', '📀', '🎥', '🕹️', '🎙️',
+      '📺', '📷', '📸', '🔍', '🔎', '💡', '⚙️', '🛠️', '🔧', '🪛',
+      '🔨', '🔒', '🔓', '🔏', '🔐', '🔑', '🗝️', '🛰️', '🧭'
+    ]
+  },
+  {
+    name: 'creative',
+    label: 'Sáng tạo & Nghệ thuật',
+    icon: 'Palette',
+    tags: ['sang tao', 'nghe thuat', 'thiet ke', 've', 'am nhac', 'art', 'design', 'music', 'creative'],
+    emojis: [
+      '🎨', '🖌️', '🖍️', '🧵', '🧶', '✨', '🪄', '🔮', '💎', '🎭',
+      '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎸', '🎹', '🥁', '🎷',
+      '🎺', '🎻', '🌈', '🧩', '🎪', '🎟️', '🎫', '🖼️', '🖋️', '✒️'
+    ]
+  },
+  {
+    name: 'goals',
+    label: 'Mục tiêu & Thành tựu',
+    icon: 'Target',
+    tags: ['muc tieu', 'chien luoc', 'thanh cong', 'top', 'goal', 'target', 'win', 'trophy', 'rocket'],
+    emojis: [
+      '🎯', '🚀', '🛸', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑',
+      '🔥', '⚡', '🌟', '⭐', '💫', '💥', '🚩', '🏁', '🧭', '💯',
+      '🛡️', '⚔️', '🏹', '♟️', '🎳', '🎮', '🎲', '🏎️', '🧗', '🏋️'
+    ]
+  },
+  {
+    name: 'docs',
+    label: 'Sách & Tri thức',
+    icon: 'BookOpen',
+    tags: ['sach', 'tri thuc', 'tai lieu', 'hoc tap', 'book', 'read', 'knowledge', 'study'],
+    emojis: [
+      '📚', '📖', '📕', '📗', '📘', '📙', '📓', '📒', '📜', '🗞️',
+      '📰', '🎓', '🎒', '🏫', '🏛️', '🧾', '✏️', '🖊️', '🖋️', '🔬',
+      '🔭', '🧪', '🧬', '🩺', '📐', '📏', '📎', '📌', '🏷️', '🔖'
+    ]
+  },
+  {
+    name: 'lifestyle',
+    label: 'Đời sống & Thư giãn',
+    icon: 'Zap',
+    tags: ['doi song', 'an uong', 'cafe', 'thien nhien', 'life', 'relax', 'food', 'nature', 'coffee'],
+    emojis: [
+      '☕', '🍵', '🧋', '🥤', '🍺', '🍻', '🍷', '🍎', '🍇', '🍓',
+      '🍕', '🍔', '🌮', '🍣', '🍰', '🎂', '🍫', '🍩', '🎁', '🎈',
+      '🌿', '🍀', '🌸', '🌺', '🌻', '🌲', '🌳', '☀️', '🌙', '☁️',
+      '🌧️', '❄️', '🌊', '🧘', '🏖️', '🚲', '🚗', '✈️', '🛒', '💰',
+      '💵', '💳', '🔔', '🔕'
+    ]
+  },
+  {
+    name: 'symbols',
+    label: 'Ký hiệu & Trạng thái',
+    icon: 'Tag',
+    tags: ['ky hieu', 'trang thai', 'tim', 'dau', 'symbol', 'status', 'badge', 'heart', 'check'],
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✅', '❌',
+      '⚠️', '⛔', '🚫', '❓', '❗', '❕', '❔', '🟢', '🟡', '🔴',
+      '🟣', '🔵', '⚪', '⬛', '🔶', '🔷', '🔘', '💬', '💭', '🗯️',
+      '🆗', '🆙', '🆕', '🔝'
     ]
   }
 ];
+
+// Rich bilingual search tags for popular emojis
+export const EMOJI_KEYWORDS: Record<string, string[]> = {
+  '🔥': ['lua', 'chay', 'fire', 'hot', 'gap', 'urgent', 'chay'],
+  '🚀': ['rocket', 'ten lua', 'launch', 'phong', 'startup', 'fast'],
+  '🎯': ['target', 'muc tieu', 'goal', 'okr', 'tam ngam', 'dich'],
+  '❤️': ['tim', 'trai tim', 'heart', 'love', 'yeu', 'thich', 'love'],
+  '⭐': ['star', 'sao', 'favorite', 'danh gia', 'top', 'ngoi sao'],
+  '💡': ['lightbulb', 'bong den', 'y tuong', 'idea', 'sang tao', 'tip'],
+  '📝': ['note', 'ghi chu', 'viet', 'document', 'tai lieu', 'paper', 'soan thao'],
+  '💼': ['briefcase', 'cong viec', 'work', 'kinh doanh', 'business', 'cap'],
+  '💻': ['laptop', 'may tinh', 'computer', 'code', 'lap trinh', 'dev'],
+  '💰': ['money', 'tien', 'dollar', 'vang', 'rich', 'ngan sach', 'cash'],
+  '✅': ['check', 'done', 'xong', 'hoan thanh', 'ok', 'dung', 'success'],
+  '❌': ['cross', 'sai', 'huy', 'cancel', 'error', 'xoa', 'fail'],
+  '⚠️': ['warning', 'canh bao', 'chu y', 'alert', 'luu y', 'nguy hiem'],
+  '🎉': ['party', 'chuc mung', 'le hoi', 'celebrate', 'phao hoa', 'vui'],
+  '☕': ['coffee', 'ca phe', 'relax', 'nghi ngoi', 'uong', 'tea'],
+  '📚': ['books', 'sach', 'hoc tap', 'doc', 'read', 'tai lieu', 'thu vien'],
+  '🏆': ['trophy', 'cup', 'thanh tuu', 'nhat', 'winner', 'giai', 'vo dich'],
+  '👏': ['clap', 'vo tay', 'khen', 'bravo', 'hoan ho'],
+  '👍': ['like', 'thich', 'dong y', 'ok', 'good', 'tuyet', 'yes'],
+  '👎': ['dislike', 'khong thich', 'bad', 'che', 'no'],
+  '🤝': ['handshake', 'bat tay', 'hop tac', 'partner', 'dong nghiep'],
+  '💪': ['muscle', 'co bap', 'co len', 'manh me', 'strong', 'quyet tam'],
+  '✨': ['sparkles', 'lap lanh', 'magic', 'ai', 'sao', 'thong minh'],
+  '🔔': ['bell', 'chuong', 'thong bao', 'nhac nho', 'alert', 'notif'],
+  '🔑': ['key', 'khoa', 'chia khoa', 'mat ma', 'token', 'pass'],
+  '🔒': ['lock', 'khoa', 'rieng tu', 'bao mat', 'private', 'secure'],
+  '📱': ['phone', 'dien thoai', 'mobile', 'smartphone', 'alo'],
+  '🎨': ['palette', 'mau sac', 've', 'thiet ke', 'art', 'design'],
+  '📈': ['chart', 'tang truong', 'bieu do', 'growth', 'up'],
+  '📉': ['giam', 'ha', 'bieu do', 'down'],
+  '📅': ['calendar', 'lich', 'ngay', 'date', 'thang', 'schedule'],
+  '📋': ['clipboard', 'danh sach', 'checklist', 'ke hoach', 'todo']
+};
 
 export const parseIconValue = (val: string): { iconName: string; color?: string } => {
   if (!val) return { iconName: 'Package', color: 'indigo' };
@@ -437,15 +546,38 @@ export const parseIconValue = (val: string): { iconName: string; color?: string 
   return { iconName: val };
 };
 
-export const renderSpaceIcon = (iconStr: string, className = "w-4 h-4", forcedColor?: string) => {
+export interface RenderSpaceIconOptions {
+  preserveEmoji?: boolean;
+}
+
+export const renderSpaceIcon = (
+  iconStr: string, 
+  className = "w-4 h-4", 
+  forcedColor?: string,
+  options?: RenderSpaceIconOptions
+) => {
   if (!iconStr) {
     return <LucideIcons.Package className={`${className} shrink-0 text-indigo-500`} />;
   }
 
   const { iconName, color: customColor } = parseIconValue(iconStr);
 
-  // Resolve legacy emoji or direct icon name
-  const targetName = EMOJI_TO_LUCIDE_MAP[iconName] || iconName;
+  // Check if it is an emoji character
+  const isEmojiChar = /\p{Extended_Pictographic}/u.test(iconName);
+
+  // If preserveEmoji is not explicitly disabled and it is an emoji, render native emoji directly!
+  if (options?.preserveEmoji !== false && (options?.preserveEmoji || isEmojiChar)) {
+    if (isEmojiChar || !(LucideIcons as any)[iconName]) {
+      return (
+        <span className="inline-flex items-center justify-center leading-none select-none text-[1.15em] shrink-0">
+          {iconName}
+        </span>
+      );
+    }
+  }
+
+  // Resolve legacy emoji or direct icon name (only for legacy space mappings when preserveEmoji is explicitly false)
+  const targetName = options?.preserveEmoji ? iconName : (EMOJI_TO_LUCIDE_MAP[iconName] || iconName);
   const IconComponent = (LucideIcons as any)[targetName];
 
   if (IconComponent) {
@@ -471,20 +603,49 @@ export const renderSpaceIcon = (iconStr: string, className = "w-4 h-4", forcedCo
   return <span className="inline-flex items-center justify-center leading-none select-none text-[1.15em] shrink-0">{iconName}</span>;
 };
 
+export interface EmojiIconPickerProps {
+  value: string;
+  onChange: (value: string) => void;
+  onRemove?: () => void;
+  allowClear?: boolean;
+  className?: string;
+  size?: 'inline' | 'sm' | 'md' | 'lg' | 'custom';
+  triggerClassName?: string;
+  align?: 'left' | 'right';
+  children?: React.ReactNode;
+  title?: string;
+  defaultTab?: 'icons' | 'emojis';
+  preserveEmoji?: boolean;
+  disabled?: boolean;
+}
+
 export default function EmojiIconPicker({ 
   value, 
   onChange, 
+  onRemove,
+  allowClear = false,
   className = "",
   size = 'md',
+  triggerClassName,
   align = 'left',
   children,
-  title
+  title,
+  defaultTab,
+  preserveEmoji = true,
+  disabled = false
 }: EmojiIconPickerProps) {
   const { isVietnamese } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'icons' | 'emojis'>('icons');
+  
+  const isEmojiVal = Boolean(value && /\p{Extended_Pictographic}/u.test(value));
+  const [activeTab, setActiveTab] = useState<'icons' | 'emojis'>(() => {
+    if (defaultTab) return defaultTab;
+    return isEmojiVal ? 'emojis' : 'emojis';
+  });
+
   const [activeSvgCat, setActiveSvgCat] = useState<string>('all');
+  const [activeEmojiCat, setActiveEmojiCat] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -506,8 +667,8 @@ export default function EmojiIconPicker({
   const updateCoords = useCallback(() => {
     if (triggerRef.current && typeof window !== 'undefined') {
       const rect = triggerRef.current.getBoundingClientRect();
-      const popoverWidth = 368;
-      const popoverHeight = 440;
+      const popoverWidth = 384;
+      const popoverHeight = 490;
       let left = align === 'right' ? (rect.right - popoverWidth) : rect.left;
       if (left + popoverWidth > window.innerWidth - 12) {
         left = window.innerWidth - popoverWidth - 12;
@@ -563,6 +724,14 @@ export default function EmojiIconPicker({
     return ICON_COLORS.find(c => c.id === selectedColor) || ICON_COLORS[0];
   }, [selectedColor]);
 
+  const normalizeSearchText = (val: string) => val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+
   // Filter SVG Icons based on Category & Search
   const filteredSvgIcons = useMemo(() => {
     let list = ALL_STANDARD_ICONS;
@@ -572,26 +741,48 @@ export default function EmojiIconPicker({
     }
 
     if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase().trim();
+    const q = normalizeSearchText(searchQuery);
     return ALL_STANDARD_ICONS.filter(item => 
-      item.name.toLowerCase().includes(q) || item.tags.some(tag => tag.toLowerCase().includes(q))
+      normalizeSearchText(item.name).includes(q) || item.tags.some(tag => normalizeSearchText(tag).includes(q))
     );
   }, [activeSvgCat, searchQuery]);
 
-  // Filter Emojis based on Search
+  // Filter Emojis based on Category & Search
   const filteredEmojis = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return STANDARD_EMOJI_CATEGORIES;
+    let list = STANDARD_EMOJI_CATEGORIES;
+    if (activeEmojiCat !== 'all') {
+      const cat = STANDARD_EMOJI_CATEGORIES.find(c => c.name === activeEmojiCat);
+      if (cat) list = [cat];
     }
-    const q = searchQuery.toLowerCase().trim();
-    return STANDARD_EMOJI_CATEGORIES.map(cat => ({
-      ...cat,
-      emojis: cat.emojis.filter(e => e.includes(q) || cat.label.toLowerCase().includes(q))
-    })).filter(cat => cat.emojis.length > 0);
-  }, [searchQuery]);
 
-  const handleSelectIcon = (iconName: string) => {
-    onChange(`${iconName}:${selectedColor}`);
+    if (!searchQuery.trim()) {
+      return list;
+    }
+    const q = normalizeSearchText(searchQuery);
+    return STANDARD_EMOJI_CATEGORIES.map(category => {
+      const catMatches = normalizeSearchText(category.label).includes(q) || 
+        category.tags.some(t => normalizeSearchText(t).includes(q));
+
+      const matching = category.emojis.filter(e => {
+        if (e.includes(searchQuery.trim())) return true;
+        if (catMatches) return true;
+        const tags = EMOJI_KEYWORDS[e];
+        if (tags && tags.some(t => normalizeSearchText(t).includes(q))) {
+          return true;
+        }
+        return false;
+      });
+
+      return {
+        ...category,
+        emojis: matching
+      };
+    }).filter(cat => cat.emojis.length > 0);
+  }, [activeEmojiCat, searchQuery]);
+
+  const handleSelectIcon = (iconName: string, colorId?: string) => {
+    const c = colorId || selectedColor;
+    onChange(`${iconName}:${c}`);
     setIsOpen(false);
     setSearchQuery('');
   };
@@ -605,9 +796,32 @@ export default function EmojiIconPicker({
   const handleColorChange = (colorId: string) => {
     setSelectedColor(colorId);
     // If currently an SVG icon, immediately update color
-    if (currentIconName && !EMOJI_TO_LUCIDE_MAP[value]) {
+    if (currentIconName && !EMOJI_TO_LUCIDE_MAP[value] && !/\p{Extended_Pictographic}/u.test(value)) {
       onChange(`${currentIconName}:${colorId}`);
     }
+  };
+
+  const handleRandomSelect = () => {
+    if (activeTab === 'emojis') {
+      const allEmojis = STANDARD_EMOJI_CATEGORIES.flatMap(c => c.emojis);
+      const randEmoji = allEmojis[Math.floor(Math.random() * allEmojis.length)];
+      handleSelectEmoji(randEmoji);
+    } else {
+      const randIcon = ALL_STANDARD_ICONS[Math.floor(Math.random() * ALL_STANDARD_ICONS.length)];
+      const randColor = ICON_COLORS[Math.floor(Math.random() * ICON_COLORS.length)];
+      setSelectedColor(randColor.id);
+      handleSelectIcon(randIcon.name, randColor.id);
+    }
+  };
+
+  const handleRemoveIcon = () => {
+    if (onRemove) {
+      onRemove();
+    } else {
+      onChange('');
+    }
+    setIsOpen(false);
+    setSearchQuery('');
   };
 
   const targetIconName = EMOJI_TO_LUCIDE_MAP[currentIconName] || currentIconName;
@@ -617,7 +831,9 @@ export default function EmojiIconPicker({
       {/* Trigger Button */}
       <button
         type="button"
+        disabled={disabled}
         onClick={(e) => {
+          if (disabled) return;
           e.stopPropagation();
           setIsOpen(prev => !prev);
         }}
@@ -629,6 +845,8 @@ export default function EmojiIconPicker({
             ? 'w-8 h-8 rounded-lg bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-3xs'
             : size === 'lg'
             ? 'w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:shadow-md shadow-3xs'
+            : size === 'custom'
+            ? (triggerClassName || '')
             : 'w-10 h-10 rounded-xl bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-3xs'
           }
         `}
@@ -636,7 +854,9 @@ export default function EmojiIconPicker({
       >
         {children ? children : renderSpaceIcon(
           value, 
-          size === 'inline' ? "w-4.5 h-4.5 group-hover:scale-110 transition-transform" : size === 'sm' ? "w-4 h-4" : size === 'lg' ? "w-8 h-8" : "w-5.5 h-5.5"
+          size === 'inline' ? "w-4.5 h-4.5 group-hover:scale-110 transition-transform" : size === 'sm' ? "w-4 h-4" : size === 'lg' ? "w-8 h-8" : "w-5.5 h-5.5",
+          undefined,
+          { preserveEmoji }
         )}
       </button>
 
@@ -651,34 +871,34 @@ export default function EmojiIconPicker({
             zIndex: 99999
           }}
           onClick={(e) => e.stopPropagation()}
-          className="w-92 max-w-[94vw] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-3.5 animate-in fade-in zoom-in-95 duration-150 font-sans select-none"
+          className="w-96 max-w-[94vw] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150 font-sans select-none text-left"
         >
           
-          {/* Header Tab Switcher (SVG Icons vs Emojis) */}
-          <div className="flex items-center justify-between gap-1 p-1 bg-slate-100/80 dark:bg-slate-850/80 rounded-xl mb-3">
-            <button
-              type="button"
-              onClick={() => { setActiveTab('icons'); setSearchQuery(''); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                activeTab === 'icons'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>{isVietnamese ? 'Biểu tượng màu' : 'Color Icons'}</span>
-            </button>
+          {/* Header Tab Switcher (Emojis vs SVG Icons) */}
+          <div className="flex items-center justify-between gap-1 p-1 bg-slate-100/90 dark:bg-slate-850/90 rounded-2xl mb-3">
             <button
               type="button"
               onClick={() => { setActiveTab('emojis'); setSearchQuery(''); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 activeTab === 'emojis'
                   ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <Smile className="w-3.5 h-3.5" />
-              <span>{isVietnamese ? 'Emoji chuẩn' : 'Standard Emojis'}</span>
+              <span>{isVietnamese ? '😀 Emoji' : '😀 Emojis'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('icons'); setSearchQuery(''); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'icons'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>{isVietnamese ? '⚡ Biểu tượng màu' : '⚡ Color Icons'}</span>
             </button>
           </div>
 
@@ -726,22 +946,97 @@ export default function EmojiIconPicker({
               autoFocus
               placeholder={activeTab === 'icons' 
                 ? (isVietnamese ? "Tìm icon (VD: Folder, Rocket, Target, Dự án)..." : "Search icons (e.g. Folder, Rocket, Target)...") 
-                : (isVietnamese ? "Tìm kiếm emoji..." : "Search emojis...")}
+                : (isVietnamese ? "Tìm emoji (VD: cười, lửa, tim, sách, việc, tiền)..." : "Search emojis (e.g. smile, fire, heart)...")}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 rounded-xl pl-9 pr-7 py-1.5 text-xs font-semibold outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 rounded-xl pl-9 pr-7 py-2 text-xs font-semibold outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 transition-colors"
             />
             {searchQuery && (
               <button 
+                type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* TAB 1: SVG ICONS WITH COLORS */}
+          {/* TAB 1: EMOJIS */}
+          {activeTab === 'emojis' && (
+            <>
+              {/* Category Pills for Emojis */}
+              {!searchQuery && (
+                <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2 mb-2 pr-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveEmojiCat('all')}
+                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                      activeEmojiCat === 'all'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {isVietnamese ? 'Tất cả' : 'All'}
+                  </button>
+                  {STANDARD_EMOJI_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.name}
+                      type="button"
+                      onClick={() => setActiveEmojiCat(cat.name)}
+                      className={`px-2.5 py-1 rounded-lg text-[10.5px] font-black whitespace-nowrap transition-all cursor-pointer ${
+                        activeEmojiCat === cat.name
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Emoji Grid */}
+              <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1 space-y-3">
+                {filteredEmojis.length === 0 ? (
+                  <div className="text-center text-slate-400 font-semibold text-[11px] py-10">
+                    {isVietnamese ? 'Không tìm thấy emoji phù hợp' : 'No matching emoji found'}
+                  </div>
+                ) : (
+                  filteredEmojis.map(category => (
+                    <div key={category.name} className="space-y-1.5">
+                      {activeEmojiCat === 'all' && (
+                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs py-0.5 z-1">
+                          {category.label}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-8 gap-1 p-0.5">
+                        {category.emojis.map((emoji, eIdx) => {
+                          const isSelected = value === emoji;
+                          return (
+                            <button
+                              key={`${emoji}-${eIdx}`}
+                              type="button"
+                              onClick={() => handleSelectEmoji(emoji)}
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center text-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:scale-120 transition-all cursor-pointer select-none active:scale-95 border ${
+                                isSelected
+                                  ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 shadow-xs ring-2 ring-indigo-500/20'
+                                  : 'border-transparent hover:border-indigo-200 dark:hover:border-indigo-800/40'
+                              }`}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+
+          {/* TAB 2: SVG ICONS WITH COLORS */}
           {activeTab === 'icons' && (
             <>
               {/* Category Chips */}
@@ -761,14 +1056,10 @@ export default function EmojiIconPicker({
                   {STANDARD_SVG_CATEGORIES.map(cat => {
                     const localizedLabel = isVietnamese ? cat.label : (
                       cat.name === 'projects' ? 'Projects' :
-                      cat.name === 'tasks' ? 'Tasks' :
-                      cat.name === 'status' ? 'Status' :
-                      cat.name === 'business' ? 'Business' :
-                      cat.name === 'tech' ? 'Tech' :
-                      cat.name === 'design' ? 'Design' :
-                      cat.name === 'comm' ? 'Comm' :
-                      cat.name === 'time' ? 'Time' :
-                      cat.name === 'shapes' ? 'Shapes' : cat.label
+                      cat.name === 'strategy' ? 'Strategy' :
+                      cat.name === 'team' ? 'Team' :
+                      cat.name === 'tools' ? 'Tools' :
+                      cat.name === 'data' ? 'Data' : cat.label
                     );
                     return (
                       <button
@@ -789,13 +1080,13 @@ export default function EmojiIconPicker({
               )}
 
               {/* Icon Grid */}
-              <div className="max-h-56 overflow-y-auto custom-scrollbar pr-1">
+              <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1">
                 {filteredSvgIcons.length === 0 ? (
                   <div className="text-center text-slate-400 font-semibold text-[11px] py-10">
-                    Không tìm thấy biểu tượng phù hợp
+                    {isVietnamese ? 'Không tìm thấy biểu tượng phù hợp' : 'No matching icon found'}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-6 gap-1.5">
+                  <div className="grid grid-cols-6 gap-1.5 p-0.5">
                     {filteredSvgIcons.map(item => {
                       const IconComponent = (LucideIcons as any)[item.name];
                       if (!IconComponent) return null;
@@ -814,7 +1105,7 @@ export default function EmojiIconPicker({
                         >
                           <IconComponent 
                             className="w-5 h-5 transition-transform group-hover:scale-110" 
-                            style={{ color: activeColorObj.hex }}
+                            style={{ color: activeColorObj.hex }} 
                           />
                         </button>
                       );
@@ -825,60 +1116,37 @@ export default function EmojiIconPicker({
             </>
           )}
 
-          {/* TAB 2: EMOJIS */}
-          {activeTab === 'emojis' && (
-            <div className="max-h-68 overflow-y-auto custom-scrollbar pr-1 space-y-3">
-              {filteredEmojis.length === 0 ? (
-                <div className="text-center text-slate-400 font-semibold text-[11px] py-10">
-                  Không tìm thấy emoji phù hợp
-                </div>
-              ) : (
-                filteredEmojis.map(category => (
-                  <div key={category.name} className="space-y-1.5">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">
-                      {category.label}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                      {category.emojis.map(emoji => {
-                        const isSelected = value === emoji;
-                        return (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => handleSelectEmoji(emoji)}
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer select-none active:scale-90 border ${
-                              isSelected
-                                ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 shadow-xs ring-2 ring-indigo-500/20'
-                                : 'border-transparent'
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Footer with current selection indicator */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Đang chọn:</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
-                {renderSpaceIcon(value, "w-4 h-4")}
-                <span className="truncate">{currentIconName || 'Package'}</span>
-              </span>
-            </div>
+          {/* Bottom Action Footer */}
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
             <button
               type="button"
-              onClick={() => handleSelectIcon('Package')}
-              className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer"
+              onClick={handleRandomSelect}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              title={isVietnamese ? "Chọn biểu tượng ngẫu nhiên" : "Pick random icon"}
             >
-              Mặc định
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+              <span>{isVietnamese ? 'Ngẫu nhiên' : 'Random'}</span>
             </button>
+
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-[11px] max-w-[140px] truncate">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Đang chọn:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300 truncate flex items-center gap-1">
+                  {renderSpaceIcon(value, "w-3.5 h-3.5", undefined, { preserveEmoji: true })}
+                  <span className="truncate">{currentIconName || 'Trống'}</span>
+                </span>
+              </div>
+
+              {(allowClear || onRemove || value) && (
+                <button
+                  type="button"
+                  onClick={handleRemoveIcon}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
+                >
+                  {isVietnamese ? 'Gỡ biểu tượng' : 'Remove icon'}
+                </button>
+              )}
+            </div>
           </div>
 
         </div>,

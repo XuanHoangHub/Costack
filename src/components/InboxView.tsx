@@ -9,7 +9,7 @@ import {
   Tag, Paperclip, CornerDownRight, ExternalLink, Command, ShieldCheck, Flame,
   TrendingUp, Target, Plus, CheckCircle2, RefreshCw, Zap, ArrowLeft
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Task, User, Workspace, WorkspaceInvitation } from '../types';
 import TaskDetailsPanel from './tasks/TaskDetailsPanel';
 import SignedImage from './SignedImage';
@@ -577,10 +577,10 @@ export default function InboxView({
   ];
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row gap-3 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-1 sm:p-2">
+    <div className="apexa-inbox w-full h-full flex flex-col md:flex-row gap-3 font-sans text-left text-slate-800 dark:text-slate-100 select-none overflow-hidden p-1 sm:p-2">
       
       {/* ── Left Column: Stream Panel ── */}
-      <div className={`flex flex-col min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all ${
+      <div className={`apexa-inbox-list flex flex-col min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden transition-all ${
         selectedNotificationId 
           ? 'hidden md:flex md:w-[350px] lg:w-[390px] xl:w-[420px] shrink-0' 
           : 'flex-1 md:flex-initial md:w-[380px] lg:w-[420px] xl:w-[460px] shrink-0'
@@ -649,14 +649,15 @@ export default function InboxView({
                     setActiveTab(tab.id as any);
                     setSelectedNotificationId(null);
                   }}
-                  className={`flex-1 min-w-[54px] py-1 px-1.5 rounded-xl transition-all cursor-pointer relative flex items-center justify-center gap-1 text-center shrink-0 ${
+                  aria-pressed={isTabActive}
+                  className={`flex-none min-h-8 py-1 px-2.5 rounded-xl transition-colors cursor-pointer relative flex items-center justify-center gap-1 text-center whitespace-nowrap ${
                     isTabActive
                       ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-sky-300 shadow-xs font-black border border-slate-200/60 dark:border-slate-700/60'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-bold hover:bg-white/40 dark:hover:bg-slate-800/40'
                   }`}
                 >
                   <tab.icon className={`w-3 h-3 shrink-0 ${isTabActive ? 'text-blue-600 dark:text-sky-300' : 'text-slate-400'}`} />
-                  <span className="text-[10.5px] truncate">{tab.label}</span>
+                  <span className="text-xs">{tab.label}</span>
                   <span className={`text-[9.5px] px-1 rounded-full ${isTabActive ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-sky-300 font-black' : 'text-slate-400'}`}>
                     {tab.count}
                   </span>
@@ -959,7 +960,7 @@ export default function InboxView({
       </div>
 
       {/* ── Right Column: Detail / Productivity Hub (Responsive) ── */}
-      <div className={`flex-1 min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
+      <div className={`apexa-inbox-detail flex-1 min-w-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-2xl rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between relative ${
         selectedNotificationId ? 'flex' : 'hidden md:flex'
       }`}>
         
@@ -1113,7 +1114,7 @@ export default function InboxView({
             <div className="space-y-4">
               
               {/* Compact Sleek Greeting Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600/90 via-indigo-600/90 to-blue-700/90 text-white shadow-md relative overflow-hidden">
+              <div className="apexa-inbox-welcome p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600/90 via-indigo-600/90 to-blue-700/90 text-white shadow-md relative overflow-hidden">
                 <div className="absolute -right-8 -bottom-8 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
                 <div className="relative z-10 space-y-1.5">
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-[9.5px] font-black tracking-wide uppercase border border-white/20">

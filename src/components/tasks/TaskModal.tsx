@@ -922,11 +922,6 @@ export default function TaskModal({
                   {isVietnamese ? 'Tạo & tiếp tục tạo việc khác' : 'Create & add another'}
                 </span>
               </label>
-
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                <kbd className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 text-[9px] font-mono">Ctrl+Enter</kbd>
-                <span>để tạo nhanh</span>
-              </span>
             </div>
 
             {/* Right Footer: Cancel & Submit Buttons */}

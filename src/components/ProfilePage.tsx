@@ -17,6 +17,7 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import SignedImage from './SignedImage';
 import { presenceDotClass, uiStatusToPresence, UiPresenceStatus } from '../lib/presence';
+import { formatAuthError } from '../lib/authError';
 import { useUiStore } from '@/store/uiStore';
 
 interface ProfilePageProps {
@@ -853,8 +854,9 @@ function ProfilePage({
       triggerToast?.('success', locale === 'vi' ? 'Đã kích hoạt 2FA thành công 🛡️' : '2FA Authenticator enabled', locale === 'vi' ? 'Tài khoản của bạn hiện được bảo vệ bằng mã OTP từ ứng dụng Authenticator.' : 'Your account is now protected with 2FA Authenticator.');
       addSyncLog('Đã kích hoạt xác thực hai bước (2FA TOTP)');
     } catch (error: any) {
-      setMfaError(locale === 'vi' ? 'Mã xác thực 6 chữ số không đúng hoặc đã hết hạn.' : 'Invalid or expired 6-digit verification code.');
-      triggerToast?.('error', locale === 'vi' ? 'Mã OTP không hợp lệ' : 'Invalid code', error?.message || 'Try a new code.');
+      const formatted = formatAuthError(error, locale === 'vi');
+      setMfaError(formatted.description);
+      triggerToast?.('error', formatted.title, formatted.description);
     } finally {
       setMfaBusy(false);
     }
@@ -1022,60 +1024,63 @@ function ProfilePage({
             </div>
           ) : (
             /* Regular Banner Upload Actions Bar */
-            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
-              <button
-                type="button"
-                onClick={() => bannerFileInputRef.current?.click()}
-                disabled={isUploadingBanner}
-                className="px-3.5 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                title={locale === 'vi' ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
-              >
-                {isUploadingBanner ? (
-                  <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Camera className="w-3.5 h-3.5 text-cyan-300" />
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto -translate-y-1 group-hover:translate-y-0 transition-all duration-200">
+              <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 hover:bg-black/70 border border-white/20 backdrop-blur-xl shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  disabled={isUploadingBanner}
+                  className="px-3 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                  title={locale === 'vi' ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+                >
+                  {isUploadingBanner ? (
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5 text-cyan-300" />
+                  )}
+                  <span>
+                    {isUploadingBanner
+                      ? (locale === 'vi' ? 'Đang tải...' : 'Uploading...')
+                      : bannerUrl
+                        ? (locale === 'vi' ? 'Đổi ảnh bìa' : 'Change banner')
+                        : (locale === 'vi' ? 'Tải ảnh bìa' : 'Upload banner')}
+                  </span>
+                </button>
+
+                {bannerUrl && (
+                  <>
+                    <div className="h-3.5 w-[1px] bg-white/20 my-auto" />
+                    <button
+                      type="button"
+                      onClick={startRepositionBanner}
+                      className="px-2.5 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                      title={locale === 'vi' ? 'Kéo thả để căn chỉnh vị trí ảnh bìa' : 'Drag to reposition banner'}
+                    >
+                      <Move className="w-3.5 h-3.5 text-sky-300" />
+                      <span>{locale === 'vi' ? 'Căn chỉnh' : 'Reposition'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                      className="px-2.5 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                      title={bannerFit === 'cover' ? (locale === 'vi' ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (locale === 'vi' ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{bannerFit === 'cover' ? (locale === 'vi' ? 'Vừa khung' : 'Fit') : (locale === 'vi' ? 'Phóng đầy' : 'Fill')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveBanner}
+                      className="w-7 h-7 rounded-full hover:bg-rose-600/80 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                      title={locale === 'vi' ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove banner'}
+                    >
+                      <X className="w-3.5 h-3.5 text-rose-300" />
+                    </button>
+                  </>
                 )}
-                <span>
-                  {isUploadingBanner
-                    ? (locale === 'vi' ? 'Đang tải...' : 'Uploading...')
-                    : bannerUrl
-                      ? (locale === 'vi' ? 'Đổi ảnh bìa' : 'Change banner')
-                      : (locale === 'vi' ? 'Tải ảnh bìa' : 'Upload banner')}
-                </span>
-              </button>
-
-              {bannerUrl && (
-                <>
-                  <button
-                    type="button"
-                    onClick={startRepositionBanner}
-                    className="px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={locale === 'vi' ? 'Kéo thả để căn chỉnh vị trí ảnh bìa' : 'Drag to reposition banner'}
-                  >
-                    <Move className="w-3.5 h-3.5 text-sky-300" />
-                    <span>{locale === 'vi' ? 'Căn chỉnh' : 'Reposition'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover')}
-                    className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={bannerFit === 'cover' ? (locale === 'vi' ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (locale === 'vi' ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                    <span>{bannerFit === 'cover' ? (locale === 'vi' ? 'Vừa khung' : 'Fit') : (locale === 'vi' ? 'Phóng đầy' : 'Fill')}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRemoveBanner}
-                    className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    title={locale === 'vi' ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove banner'}
-                  >
-                    <X className="w-3.5 h-3.5 text-rose-300" />
-                  </button>
-                </>
-              )}
+              </div>
             </div>
           )}
 
@@ -1088,7 +1093,7 @@ function ProfilePage({
           />
           
           {/* Top Badges Bar */}
-          <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto -translate-y-1 group-hover:translate-y-0 transition-all duration-200">
             <button
               type="button"
               onClick={() => {
@@ -1102,7 +1107,7 @@ function ProfilePage({
                 const next = nextStatusMap[current] || 'online';
                 setUserStatus(next);
               }}
-              className="px-3.5 py-1.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-black/30 hover:bg-black/50 text-white backdrop-blur-md border border-white/20 shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
+              className="px-3.5 py-1.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-black/50 hover:bg-black/70 text-white backdrop-blur-xl border border-white/20 shadow-xl flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
               title={locale === 'vi' ? 'Nhấp để chuyển trạng thái hoạt động' : 'Click to change presence status'}
             >
               <span className={`w-2 h-2 rounded-full ${presenceDotClass(accountPresenceStatus, true)}`} />
@@ -1112,10 +1117,10 @@ function ProfilePage({
             <button
               type="button"
               onClick={handleCopyProfileLink}
-              className="p-2 rounded-full bg-black/30 hover:bg-black/40 text-white backdrop-blur-md border border-white/20 shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
+              className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white backdrop-blur-xl border border-white/20 shadow-xl flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
               title={locale === 'vi' ? 'Sao chép liên kết hồ sơ' : 'Copy profile link'}
             >
-              {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>

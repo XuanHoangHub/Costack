@@ -437,7 +437,7 @@ export default function TaskDetailsPanel({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showTagsDropdown]);
+  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -2117,7 +2117,7 @@ export default function TaskDetailsPanel({
           aria-labelledby="task-modal-title"
           tabIndex={-1}
           onClick={e => e.stopPropagation()}
-          className={`${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
+          className={`apexa-task-dialog ${panelClass} overflow-hidden outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0`}
         >
           {/* ══════════════════════════════════════════════════════════════ */}
           {/* ── LEFT PANEL: Details & Properties ── */}
@@ -2125,7 +2125,7 @@ export default function TaskDetailsPanel({
           <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 bg-white dark:bg-[#121212]">
             
             {/* ── Header Bar ── */}
-            <div className="shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#121212] select-none">
+            <div className="apexa-task-detail-header shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 border-b border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between gap-3 bg-white dark:bg-[#121212] select-none">
               
               {/* Left: Path Breadcrumb */}
               <div className="flex flex-1 min-w-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -2745,7 +2745,7 @@ export default function TaskDetailsPanel({
                 </div>
 
                 {/* Right: Sidebar properties panel (Scrollable) */}
-                <div className="w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto p-4 sm:p-5 space-y-4 text-left relative z-10 custom-scrollbar">
+                <div className="apexa-task-properties w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto p-4 sm:p-5 space-y-4 text-left relative z-10 custom-scrollbar">
                   <div>
                     <div className="flex items-center justify-between mb-2 select-none">
                       <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">

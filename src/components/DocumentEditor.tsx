@@ -6,6 +6,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Extension } from '@tiptap/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import { yCursorPlugin } from '@tiptap/y-tiptap';
@@ -17,14 +20,14 @@ import {
   Download, FileText, Copy, X, History, Share2, Globe2, LockKeyhole, Link2, Check,
   RotateCcw, RotateCw, UserPlus, CheckCircle2, ListTodo, ShieldCheck, Pilcrow, Minus, Wand2, Eye,
   Printer, BookOpen, Sliders, Lightbulb, AlertTriangle, Pin, ChevronDown, Lock, Unlock, Trash2,
-  Film, Clapperboard, Cloud, CloudOff, WifiOff, LoaderCircle
+  Cloud, CloudOff, WifiOff, LoaderCircle, Table2, Underline as UnderlineIcon, Palette,
+  Plus, ExternalLink, RefreshCw, Columns3, Rows3, CheckCheck, Shuffle, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMemberStore } from '@/store/memberStore';
 import { callAiApi } from '@/lib/aiClient';
-import { renderSpaceIcon } from './EmojiIconPicker';
+import EmojiIconPicker, { renderSpaceIcon } from './EmojiIconPicker';
 import { Select } from './ui/Select';
-import ScreenplayEditor from './script/ScreenplayEditor';
 import { ApexaAiIcon } from './ApexaAiIcon';
 import {
   SupabaseYjsProvider,
@@ -40,6 +43,8 @@ interface DocumentEditorProps {
   onUpdateCoverAndIcon: (coverUrl: string | null, icon: string | null) => void;
   onDocumentUpdated?: (updates: Record<string, unknown>) => void;
   onCreateTask?: (title: string, description: string) => void;
+  pendingInsertion?: { id: number; text: string } | null;
+  onInsertionHandled?: () => void;
 }
 
 interface DocumentVersion {
@@ -142,19 +147,59 @@ const CustomCollaborationCursor = Extension.create({
   },
 });
 
-// Preset Covers
-const COVERS = [
-  'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)',
-  'linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #6366f1 100%)',
-  'linear-gradient(135deg, #f59e0b 0%, #f43f5e 50%, #d946ef 100%)',
-  'linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%)',
-  'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)',
-  'linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)',
-  'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)',
-  'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+// Preset Gradients & Wallpapers
+export const PRESET_GRADIENTS = [
+  { label: 'Ánh hoàng hôn', value: 'linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)' },
+  { label: 'Đại dương xanh', value: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #6366f1 100%)' },
+  { label: 'Cực quang tím', value: 'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)' },
+  { label: 'Bạc hà tươi mát', value: 'linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%)' },
+  { label: 'Cam nhiệt đới', value: 'linear-gradient(135deg, #f59e0b 0%, #f43f5e 50%, #d946ef 100%)' },
+  { label: 'Vũ trụ sâu thẳm', value: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)' },
+  { label: 'Rừng thông Bắc Âu', value: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)' },
+  { label: 'Đêm huyền bí', value: 'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)' },
 ];
 
-const EMOJIS = ['📝', '💡', '🎨', '🚀', '🧠', '📅', '🛠️', '📊', '✨', '🌍', '🏠', '🎯', '📚', '⚡', '🔥', '💎', '🎉', '📌', '📑', '📘', '💼', '💻', '🔮'];
+export const PRESET_WALLPAPERS = [
+  { label: 'Kiến trúc tối giản', value: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80' },
+  { label: 'Bàn làm việc sáng tạo', value: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1600&q=80' },
+  { label: 'Sóng trừu tượng 3D', value: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80' },
+  { label: 'Đỉnh núi sương mù', value: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1600&q=80' },
+  { label: 'Ánh sáng hình học', value: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1600&q=80' },
+  { label: 'Thành phố Tokyo', value: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1600&q=80' },
+];
+
+export const EMOJI_CATEGORIES = [
+  {
+    id: 'work',
+    name: 'Công việc',
+    emojis: ['📝', '💼', '📊', '📈', '📅', '📋', '🗂️', '📌', '🖋️', '🏢', '🤝', '📁'],
+  },
+  {
+    id: 'tech',
+    name: 'Công nghệ',
+    emojis: ['💻', '🚀', '⚡', '🧠', '⚙️', '🛠️', '🔬', '📡', '🌐', '🤖', '🔑', '📦'],
+  },
+  {
+    id: 'creative',
+    name: 'Sáng tạo',
+    emojis: ['🎨', '✨', '💡', '🔮', '💎', '🎭', '🎬', '📸', '🎵', '🌈', '✒️', '🧩'],
+  },
+  {
+    id: 'goals',
+    name: 'Mục tiêu',
+    emojis: ['🎯', '🏆', '🥇', '🔥', '🌟', '🚩', '🎖️', '🧭', '⏳', '👑', '💯', '🚀'],
+  },
+  {
+    id: 'docs',
+    name: 'Tài liệu',
+    emojis: ['📑', '📚', '📖', '📘', '📗', '📙', '📕', '🔖', '📜', '🗞️', '📄', '🏷️'],
+  },
+  {
+    id: 'moods',
+    name: 'Đời sống',
+    emojis: ['☕', '🌿', '🌸', '🍀', '☀️', '🌙', '🍕', '🎈', '🎉', '🧘', '🏖️', '🍵'],
+  },
+];
 
 type SlashCommandId = 
   | 'text' 
@@ -164,6 +209,9 @@ type SlashCommandId =
   | 'bullet' 
   | 'order' 
   | 'todo' 
+  | 'table'
+  | 'underline'
+  | 'link'
   | 'quote' 
   | 'code' 
   | 'divider' 
@@ -187,6 +235,9 @@ const SLASH_COMMANDS: Array<{
   { id: 'bullet', name: 'Danh sách dấu chấm', desc: 'Danh sách không thứ tự', keywords: 'bullet list danh sach cham', category: 'Danh sách', icon: List },
   { id: 'order', name: 'Danh sách số', desc: 'Danh sách có thứ tự 1, 2, 3', keywords: 'number ordered list danh sach so', category: 'Danh sách', icon: ListOrdered },
   { id: 'todo', name: 'Danh sách việc cần làm', desc: 'Checklist có ô đánh dấu', keywords: 'todo task checklist cong viec', category: 'Danh sách', icon: CheckSquare },
+  { id: 'table', name: 'Bảng dữ liệu', desc: 'Bảng có thể chỉnh sửa như Notion', keywords: 'table bang excel spreadsheet du lieu', category: 'Dữ liệu', icon: Table2 },
+  { id: 'underline', name: 'Gạch chân', desc: 'Định dạng gạch dưới chân chữ', keywords: 'underline gach chan text', category: 'Cơ bản', icon: UnderlineIcon },
+  { id: 'link', name: 'Liên kết web', desc: 'Chèn đường link liên kết ngoài', keywords: 'link url lien ket web', category: 'Cơ bản', icon: Link2 },
   { id: 'quote', name: 'Khối trích dẫn', desc: 'Làm nổi bật đoạn văn trích dẫn', keywords: 'quote callout trich dan', category: 'Đặc biệt', icon: Quote },
   { id: 'code', name: 'Khối mã nguồn', desc: 'Đoạn mã code lập trình', keywords: 'code block ma nguon lap trinh', category: 'Đặc biệt', icon: Code },
   { id: 'note', name: '💡 Hộp mẹo & ý tưởng', desc: 'Gợi ý nổi bật có màu sắc', keywords: 'note tip meo y tuong callout', category: 'Hộp thông tin', icon: Lightbulb },
@@ -219,7 +270,9 @@ export default function DocumentEditor({
   onUpdateTitle,
   onUpdateCoverAndIcon,
   onDocumentUpdated,
-  onCreateTask
+  onCreateTask,
+  pendingInsertion,
+  onInsertionHandled,
 }: DocumentEditorProps) {
   const [docDetails, setDocDetails] = useState<any>(initialDocument || null);
   const [comments, setComments] = useState<any[]>([]);
@@ -253,7 +306,6 @@ export default function DocumentEditor({
   });
 
   const [isLocked, setIsLocked] = useState(false);
-  const [isScreenplayMode, setIsScreenplayMode] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
   const [showPaperSettings, setShowPaperSettings] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -272,10 +324,38 @@ export default function DocumentEditor({
   const [shareRole, setShareRole] = useState<'editor' | 'commenter' | 'viewer'>('editor');
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState('');
   const [copiedDocLink, setCopiedDocLink] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [coverTab, setCoverTab] = useState<'gradients' | 'wallpapers' | 'custom'>('gradients');
+  const [customCoverUrl, setCustomCoverUrl] = useState('');
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const [accessLevel, setAccessLevel] = useState<DocumentAccessLevel>(isOffline ? 'editor' : 'viewer');
+  const authUserId = resolveAuthUserId(currentUser);
+
+  const isCreator = Boolean(
+    (docDetails?.user_id && authUserId && (
+      docDetails.user_id === authUserId || 
+      docDetails.user_id === currentUser?.id || 
+      docDetails.user_id === `user-${authUserId}` ||
+      resolveAuthUserId({ id: docDetails.user_id }) === authUserId
+    )) ||
+    (initialDocument?.user_id && authUserId && (
+      initialDocument.user_id === authUserId || 
+      initialDocument.user_id === currentUser?.id || 
+      initialDocument.user_id === `user-${authUserId}` ||
+      resolveAuthUserId({ id: initialDocument.user_id }) === authUserId
+    ))
+  );
+
+  const isWorkspaceAdminOrOwner = Boolean(
+    currentUser?.role === 'owner' || 
+    currentUser?.role === 'admin' || 
+    currentUser?.workspaceRole === 'owner' || 
+    currentUser?.workspaceRole === 'admin'
+  );
+
+  const [accessLevel, setAccessLevel] = useState<DocumentAccessLevel>(() => {
+    if (isOffline || isCreator || isWorkspaceAdminOrOwner) return 'owner';
+    return 'editor';
+  });
   const [realtimeStatus, setRealtimeStatus] = useState<DocumentRealtimeStatus>(isOffline ? 'offline' : 'connecting');
   const [saveStatus, setSaveStatus] = useState<DocumentSaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -291,11 +371,16 @@ export default function DocumentEditor({
   const slashRangeRef = useRef({ from: 0, to: 0 });
   const slashActiveIndexRef = useRef(0);
   const filteredSlashCommandsRef = useRef(SLASH_COMMANDS);
-  const authUserId = resolveAuthUserId(currentUser);
   
   const members = useMemberStore(s => s.members);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
-  const canEdit = isOffline || accessLevel === 'owner' || accessLevel === 'editor';
+  const canEdit = !isLocked && (
+    isOffline || 
+    isCreator || 
+    isWorkspaceAdminOrOwner || 
+    accessLevel === 'owner' || 
+    accessLevel === 'editor'
+  );
   const canComment = canEdit || accessLevel === 'commenter';
 
   useEffect(() => {
@@ -379,8 +464,8 @@ export default function DocumentEditor({
     let cancelled = false;
 
     const loadAccessLevel = async () => {
-      if (isOffline) {
-        setAccessLevel('editor');
+      if (isOffline || isCreator || isWorkspaceAdminOrOwner) {
+        setAccessLevel('owner');
         return;
       }
 
@@ -391,8 +476,8 @@ export default function DocumentEditor({
       if (cancelled) return;
       if (!error && ['owner', 'editor', 'commenter', 'viewer', 'none'].includes(String(data))) {
         setAccessLevel(data as DocumentAccessLevel);
-      } else if (docDetails?.user_id === authUserId) {
-        setAccessLevel('owner');
+      } else {
+        setAccessLevel('editor');
       }
     };
 
@@ -400,7 +485,7 @@ export default function DocumentEditor({
     return () => {
       cancelled = true;
     };
-  }, [authUserId, docDetails?.user_id, documentId, isOffline]);
+  }, [authUserId, isCreator, isWorkspaceAdminOrOwner, documentId, isOffline]);
 
   // Load document details and comments from database
   useEffect(() => {
@@ -470,6 +555,15 @@ export default function DocumentEditor({
       StarterKit.configure({
         history: !isOffline && yDoc && typeof yDoc.getXmlFragment === 'function' ? false : undefined,
       } as any),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: {
+          class: 'text-indigo-600 dark:text-indigo-400 underline underline-offset-2 hover:opacity-80 transition-opacity',
+        },
+      }),
       Placeholder.configure({
         placeholder: "Gõ '/' để chèn tiêu đề, danh sách, khối ghi chú hoặc bảng...",
       }),
@@ -477,6 +571,10 @@ export default function DocumentEditor({
       TaskItem.configure({
         nested: true,
       }),
+      Table.configure({ resizable: true, HTMLAttributes: { class: 'apexa-doc-table' } }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ];
 
     if (!isOffline && provider && yDoc && typeof yDoc.getXmlFragment === 'function') {
@@ -571,6 +669,15 @@ export default function DocumentEditor({
       case 'bullet': chain.toggleBulletList().run(); break;
       case 'order': chain.toggleOrderedList().run(); break;
       case 'todo': chain.toggleTaskList().run(); break;
+      case 'table': chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); break;
+      case 'underline': chain.toggleUnderline().run(); break;
+      case 'link': {
+        const url = window.prompt('Nhập địa chỉ URL liên kết:', 'https://');
+        if (url) {
+          chain.setLink({ href: url }).run();
+        }
+        break;
+      }
       case 'quote': chain.toggleBlockquote().run(); break;
       case 'code': chain.toggleCodeBlock().run(); break;
       case 'divider': chain.setHorizontalRule().run(); break;
@@ -711,6 +818,17 @@ export default function DocumentEditor({
     hydratedDocumentId.current = documentId;
   }, [canEdit, docDetails, documentId, editor, isLocked]);
 
+  useEffect(() => {
+    if (!editor || !pendingInsertion?.text || !canEdit || isLocked) return;
+    const paragraphs = pendingInsertion.text
+      .split(/\n{2,}/)
+      .map(value => value.trim())
+      .filter(Boolean)
+      .map(value => ({ type: 'paragraph', content: [{ type: 'text', text: value }] }));
+    editor.chain().focus().insertContent(paragraphs).run();
+    onInsertionHandled?.();
+  }, [canEdit, editor, isLocked, onInsertionHandled, pendingInsertion]);
+
   const filteredSlashCommands = filterSlashCommands(slashQuery);
 
   useEffect(() => {
@@ -766,12 +884,11 @@ export default function DocumentEditor({
     }, 500);
   };
 
-  const selectEmoji = async (emoji: string) => {
+  const selectEmoji = async (emoji: string | null) => {
     if (!canEdit || isLocked) return;
     setDocDetails((prev: any) => prev ? { ...prev, icon: emoji } : null);
     onUpdateCoverAndIcon(docDetails?.cover_url || null, emoji);
     onDocumentUpdated?.({ icon: emoji });
-    setShowIconPicker(false);
     if (isOffline) return;
     await supabase
       .from('documents')
@@ -791,6 +908,24 @@ export default function DocumentEditor({
       .update({ cover_url: cover })
       .eq('id', documentId);
   };
+
+  const handleRandomCover = () => {
+    const allPresets = [...PRESET_GRADIENTS.map(g => g.value), ...PRESET_WALLPAPERS.map(w => w.value)];
+    const randomChoice = allPresets[Math.floor(Math.random() * allPresets.length)];
+    selectCover(randomChoice);
+  };
+
+  const handleSetLink = useCallback(() => {
+    if (!editor) return;
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('Nhập địa chỉ URL liên kết:', previousUrl || 'https://');
+    if (url === null) return;
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1056,28 +1191,18 @@ export default function DocumentEditor({
         ? 'text-sky-700 dark:text-sky-300 bg-sky-50/90 dark:bg-sky-950/35 border-sky-200/70 dark:border-sky-900/60'
         : 'text-amber-700 dark:text-amber-300 bg-amber-50/90 dark:bg-amber-950/35 border-amber-200/70 dark:border-amber-900/60';
 
-  if (isScreenplayMode) {
-    return (
-      <ScreenplayEditor
-        documentId={documentId}
-        initialTitle={docDetails?.title || 'The Girl & the Fox'}
-        currentUser={currentUser}
-        onBackToDocs={() => setIsScreenplayMode(false)}
-      />
-    );
-  }
 
   return (
     <div 
       style={getPaperBgStyle()}
       className={`flex-1 flex flex-col h-full ${
-        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[#121212]' : 'bg-white dark:bg-[#000000]'
+        paperStyle === 'warm' ? 'bg-[#fdfcf9] dark:bg-[#121212]' : 'bg-[#fbfbfc] dark:bg-[#0b0c0f]'
       } select-text overflow-y-auto font-sans relative scrollbar-thin print:bg-white print:p-0`}
     >
       
       {/* ── TOP STICKY PRO FORMATTING RIBBON & CONTROLS ── */}
       {!isFocusMode && (
-        <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800/90 px-2.5 sm:px-6 py-2 shadow-xs flex items-center justify-between gap-2 select-none print:hidden overflow-x-auto scrollbar-none">
+        <div className="sticky top-0 z-40 flex min-h-12 items-center justify-between gap-2 overflow-x-auto border-b border-slate-200/80 bg-white/95 px-2.5 py-1.5 shadow-xs backdrop-blur-xl scrollbar-none sm:px-4 dark:border-slate-800/90 dark:bg-[#111318]/95 select-none print:hidden">
           
           {/* Left Ribbon: Text Styles & Block Types */}
           <div className="flex items-center gap-1 flex-nowrap shrink-0 overflow-x-auto scrollbar-none py-0.5">
@@ -1177,6 +1302,16 @@ export default function DocumentEditor({
             </button>
             <button
               type="button"
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                editor.isActive('underline') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="Gạch chân (Ctrl+U)"
+            >
+              <UnderlineIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
               onClick={() => editor.chain().focus().toggleStrike().run()}
               className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                 editor.isActive('strike') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1194,6 +1329,16 @@ export default function DocumentEditor({
               title="Mã nội dòng"
             >
               <Code className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSetLink}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                editor.isActive('link') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="Chèn liên kết (Ctrl+K)"
+            >
+              <Link2 className="w-3.5 h-3.5" />
             </button>
 
             <div className="w-px h-4 bg-slate-200 dark:border-slate-800 mx-1" />
@@ -1229,6 +1374,14 @@ export default function DocumentEditor({
             >
               <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
             </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${editor.isActive('table') ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Chèn bảng dữ liệu"
+            >
+              <Table2 className="w-3.5 h-3.5" />
+            </button>
 
             <div className="w-px h-4 bg-slate-200 dark:border-slate-800 mx-1" />
 
@@ -1247,9 +1400,33 @@ export default function DocumentEditor({
               type="button"
               onClick={() => editor.chain().focus().insertContent('<blockquote><p>💡 <strong>Ghi chú:</strong> </p></blockquote>').run()}
               className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all cursor-pointer"
-              title="Chèn hộp ý tưởng (Idea Callout)"
+              title="Chèn hộp ý tưởng (💡 Idea)"
             >
               <Lightbulb className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent('<blockquote><p>⚠️ <strong>Lưu ý:</strong> </p></blockquote>').run()}
+              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
+              title="Chèn hộp lưu ý (⚠️ Warning)"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent('<blockquote><p>✅ <strong>Hoàn thành:</strong> </p></blockquote>').run()}
+              className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-all cursor-pointer"
+              title="Chèn hộp hoàn thành (✅ Done)"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().insertContent('<blockquote><p>📌 <strong>Ghi nhớ:</strong> </p></blockquote>').run()}
+              className="p-1.5 rounded-lg text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-all cursor-pointer"
+              title="Chèn hộp ghi nhớ (📌 Memo)"
+            >
+              <Pin className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
@@ -1480,17 +1657,6 @@ export default function DocumentEditor({
               </AnimatePresence>
             </div>
 
-            {/* Screenplay Editor Mode Button */}
-            <button
-              type="button"
-              onClick={() => setIsScreenplayMode(true)}
-              className="p-1.5 px-2.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 hover:from-pink-500/20 hover:to-rose-500/20 border border-pink-300 dark:border-pink-800/60 text-pink-600 dark:text-pink-400 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Chuyển sang chế độ Kịch bản phim (Screenplay)"
-            >
-              <Film className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Kịch bản</span>
-            </button>
-
             {/* Lock / Read-only Mode Toggle */}
             <button
               type="button"
@@ -1645,54 +1811,210 @@ export default function DocumentEditor({
         </div>
       )}
 
-      {/* 1. Cover Image Banner - Full Width */}
-      {!isFocusMode && (
-        <div 
-          className="relative w-full h-36 sm:h-48 md:h-56 group select-none shrink-0 transition-all duration-300 shadow-inner print:hidden" 
-          style={{ background: docDetails.cover_url || COVERS[0] }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-4 sm:p-6 gap-2 z-10 max-w-7xl mx-auto">
-            <button
-              onClick={() => setShowCoverPicker(!showCoverPicker)}
-              className="px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white text-slate-800 dark:text-slate-100 text-xs font-extrabold backdrop-blur-md shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Đổi ảnh bìa</span>
-            </button>
+      {/* 1. Cover Image Banner - Full Width (Only rendered when document has a cover) */}
+      {!isFocusMode && docDetails.cover_url && (
+        <div className="relative h-44 sm:h-52 w-full shrink-0 select-none overflow-hidden transition-all duration-300 group/cover print:hidden">
+          {docDetails.cover_url.startsWith('http') ? (
+            <img
+              src={docDetails.cover_url}
+              alt="Ảnh bìa tài liệu"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full" style={{ background: docDetails.cover_url }} />
+          )}
 
-            {showCoverPicker && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="absolute right-4 bottom-12 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 w-64 space-y-2 text-left"
-              >
-                <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">Chọn dải màu Gradient</span>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {COVERS.map((c, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => selectCover(c)}
-                      className="h-8 rounded-xl border border-white/40 hover:scale-105 transition-transform shadow-xs cursor-pointer"
-                      style={{ background: c }}
-                    />
-                  ))}
-                </div>
-                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800">
-                  <button
-                    onClick={() => selectCover(null)}
-                    className="w-full text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1.5 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Gỡ ảnh bìa
-                  </button>
-                </div>
-              </motion.div>
+          {/* Hover Overlay with Cover Actions */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent opacity-0 group-hover/cover:opacity-100 transition-opacity flex items-end justify-end p-4 sm:p-6 gap-2 z-10 max-w-7xl mx-auto">
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowCoverPicker(true)}
+                  className="px-3 py-1.5 rounded-xl bg-white/95 dark:bg-slate-900/95 hover:bg-white text-slate-800 dark:text-slate-100 text-xs font-black backdrop-blur-md shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Đổi ảnh bìa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectCover(null)}
+                  className="px-2.5 py-1.5 rounded-xl bg-black/60 hover:bg-rose-600 text-white text-xs font-bold backdrop-blur-md shadow-lg transition-all flex items-center gap-1 cursor-pointer"
+                  title="Gỡ ảnh bìa"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Gỡ</span>
+                </button>
+              </>
             )}
           </div>
         </div>
       )}
 
+      {/* Cover Picker Modal */}
+      <AnimatePresence>
+        {showCoverPicker && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs select-none">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowCoverPicker(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-lg bg-white dark:bg-[#161922] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-5 overflow-hidden text-left"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">Ảnh bìa tài liệu</h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Tùy biến hình nền không gian làm việc</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCoverPicker(false)}
+                  className="w-7 h-7 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Cover Tabs */}
+              <div className="flex items-center gap-2 mt-4 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60">
+                <button
+                  type="button"
+                  onClick={() => setCoverTab('gradients')}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    coverTab === 'gradients'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Dải màu Gradient
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverTab('wallpapers')}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    coverTab === 'wallpapers'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Hình nền nghệ thuật
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverTab('custom')}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    coverTab === 'custom'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  URL tùy chỉnh
+                </button>
+              </div>
+
+              {/* Tab Contents */}
+              <div className="mt-4 min-h-[190px] max-h-[260px] overflow-y-auto scrollbar-thin">
+                {coverTab === 'gradients' && (
+                  <div className="grid grid-cols-4 gap-2.5">
+                    {PRESET_GRADIENTS.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => selectCover(item.value)}
+                        className="group relative h-16 rounded-2xl overflow-hidden border border-white/40 hover:scale-105 transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        style={{ background: item.value }}
+                        title={item.label}
+                      >
+                        <span className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold px-1 text-center">
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {coverTab === 'wallpapers' && (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {PRESET_WALLPAPERS.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => selectCover(item.value)}
+                        className="group relative h-20 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 hover:scale-105 transition-all shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <img src={item.value} alt={item.label} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                          <span className="text-[10px] font-bold text-white leading-tight">{item.label}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {coverTab === 'custom' && (
+                  <div className="space-y-3 pt-2">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block">
+                      Dán đường dẫn ảnh trực tiếp (Unsplash, Pexels, v.v.):
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={customCoverUrl}
+                        onChange={e => setCustomCoverUrl(e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                        className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2 text-xs font-semibold outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customCoverUrl.trim()) {
+                            selectCover(customCoverUrl.trim());
+                            setCustomCoverUrl('');
+                          }
+                        }}
+                        disabled={!customCoverUrl.trim()}
+                        className="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-black cursor-pointer shadow-xs active:scale-95 transition-all"
+                      >
+                        Áp dụng
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleRandomCover}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Shuffle className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Ngẫu nhiên</span>
+                </button>
+                {docDetails.cover_url && (
+                  <button
+                    type="button"
+                    onClick={() => selectCover(null)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
+                  >
+                    Gỡ ảnh bìa hiện tại
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── MAIN WORKSPACE CONTAINER (FULL PAGE) ── */}
-      <div className="flex-1 flex justify-center w-full px-4 sm:px-8 md:px-14 py-6 min-h-[calc(100vh-200px)] print:p-0">
+      <div className="flex w-full flex-1 justify-center px-4 py-5 sm:px-7 md:px-10 min-h-[calc(100vh-200px)] print:p-0">
         
         {/* Outline Drawer (Table of Contents on the side) */}
         {showOutline && (
@@ -1732,47 +2054,87 @@ export default function DocumentEditor({
             pageWidth === 'full' 
               ? 'max-w-full w-full' 
               : pageWidth === 'standard' 
-                ? 'max-w-4xl w-full' 
-                : 'max-w-5xl w-full'
+                ? 'max-w-3xl w-full'
+                : 'max-w-[980px] w-full'
           } transition-all duration-300 relative text-left`}
         >
+          {/* Quick Notion-style hover chips when missing cover or icon */}
+          {canEdit && !isFocusMode && (!docDetails.cover_url || !docDetails.icon) && (
+            <div className="group/chips mb-3 -mt-1 flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity print:hidden">
+              {!docDetails.icon && (
+                <EmojiIconPicker
+                  value=""
+                  onChange={(newIcon) => selectEmoji(newIcon)}
+                  onRemove={() => selectEmoji(null)}
+                  allowClear={false}
+                  size="custom"
+                  defaultTab="emojis"
+                  preserveEmoji={true}
+                  title="Thêm biểu tượng tài liệu"
+                >
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    <span>➕</span>
+                    <span>Thêm biểu tượng</span>
+                  </div>
+                </EmojiIconPicker>
+              )}
+              {!docDetails.cover_url && (
+                <button
+                  type="button"
+                  onClick={() => setShowCoverPicker(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Thêm ảnh bìa</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 2. Page Icon & Live Status Header */}
           {!isFocusMode && (
-            <div className="relative select-none z-20 flex justify-between items-end mb-6 print:hidden -mt-12 sm:-mt-14">
-              <div className="relative group/emoji">
-                <button 
-                  onClick={() => setShowIconPicker(!showIconPicker)}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200/90 dark:border-slate-800 flex items-center justify-center text-3xl sm:text-4xl cursor-pointer hover:scale-105 transition-transform"
-                  title="Đổi biểu tượng trang"
-                >
-                  {docDetails.icon ? renderSpaceIcon(docDetails.icon, "w-8 h-8 text-slate-700 dark:text-slate-200") : '📝'}
-                </button>
-                
-                {showIconPicker && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="absolute left-0 top-full mt-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-40 grid grid-cols-6 gap-1.5 w-[min(92vw,16rem)] select-none"
+            <div className={`relative z-20 mb-4 flex items-end justify-between ${docDetails.cover_url ? '-mt-10 sm:-mt-12' : 'mt-2'} select-none print:hidden`}>
+              {docDetails.icon ? (
+                <div className="relative group/emoji">
+                  <EmojiIconPicker
+                    value={docDetails.icon}
+                    onChange={(newIcon) => selectEmoji(newIcon)}
+                    onRemove={() => selectEmoji(null)}
+                    allowClear={true}
+                    size="custom"
+                    defaultTab={/\p{Extended_Pictographic}/u.test(docDetails.icon) ? 'emojis' : 'icons'}
+                    preserveEmoji={true}
+                    title="Đổi biểu tượng trang"
+                    disabled={!canEdit}
                   >
-                    {EMOJIS.map(emo => (
-                      <button
-                        key={emo}
-                        onClick={() => selectEmoji(emo)}
-                        className="w-8 h-8 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-xl flex items-center justify-center text-xl cursor-pointer hover:scale-110 transition-transform"
-                      >
-                        {emo}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
+                    <div className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-3xl shadow-xl transition-all hover:scale-105 sm:h-16 sm:w-16 sm:text-4xl dark:border-slate-800 dark:bg-slate-900">
+                      {renderSpaceIcon(docDetails.icon, "w-8 h-8 text-slate-700 dark:text-slate-200", undefined, { preserveEmoji: true })}
+                    </div>
+                  </EmojiIconPicker>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectEmoji(null);
+                      }}
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center opacity-0 group-hover/emoji:opacity-100 transition-opacity hover:bg-rose-600 shadow-md cursor-pointer z-10"
+                      title="Gỡ biểu tượng"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div />
+              )}
 
-              {/* Realtime Collaborators & Status */}
-              <div className="flex items-center gap-2.5 select-none">
+              {/* Status and metadata badge on right */}
+              <div className="flex items-center gap-2 select-none ml-auto">
                 {!canEdit && (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-violet-200/70 bg-violet-50/90 px-2.5 py-1.5 text-[10.5px] font-black text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/35 dark:text-violet-300">
+                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200/70 bg-amber-50/90 px-2.5 py-1.5 text-[10.5px] font-black text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-300">
                     <Eye className="h-3.5 w-3.5" />
-                    {accessLevel === 'commenter' ? 'Chỉ bình luận' : 'Chỉ xem'}
+                    {isLocked ? 'Đã khóa chỉnh sửa' : accessLevel === 'commenter' ? 'Chỉ bình luận' : 'Chỉ xem'}
                   </span>
                 )}
                 <div
@@ -1782,31 +2144,174 @@ export default function DocumentEditor({
                   <CollaborationStatusIcon className={`h-3.5 w-3.5 ${['connecting', 'reconnecting'].includes(realtimeStatus) || saveStatus === 'saving' ? 'animate-spin' : ''}`} />
                   <span className="text-[10.5px] font-black">{collaborationStatus.label}</span>
                 </div>
-                {words > 0 && (
-                  <span className="hidden md:inline text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-                    {words} từ · {readTime} phút đọc
-                  </span>
-                )}
               </div>
             </div>
           )}
 
           {/* 3. Document Title Input */}
-          <div className="mb-6">
+          <div className="mb-2">
             <input 
               type="text" 
               value={docDetails.title || ''}
               onChange={e => handleSaveTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  editor?.commands.focus('start');
+                }
+              }}
               readOnly={!canEdit || isLocked}
               placeholder="Chưa có tiêu đề"
-              className="w-full bg-transparent border-0 outline-none font-black text-3xl sm:text-4xl md:text-5xl tracking-tight placeholder-slate-300 dark:placeholder-slate-700 text-slate-900 dark:text-white transition-all"
+              className="w-full border-0 bg-transparent text-3xl font-black tracking-[-0.035em] text-slate-950 outline-none transition-all placeholder-slate-300 sm:text-4xl dark:text-white dark:placeholder-slate-700"
             />
           </div>
+
+          {/* Document Subtitle & Metadata Row */}
+          {!isFocusMode && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-400 select-none pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <span className="flex items-center gap-1">
+                <History className="w-3.5 h-3.5" />
+                {lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Đã đồng bộ'}
+              </span>
+              <span>•</span>
+              <span>{words} từ</span>
+              <span>•</span>
+              <span>{readTime} phút đọc</span>
+              
+              <div className="flex items-center gap-1.5 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowOutline(!showOutline)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    showOutline ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Mục lục ({headings.length})</span>
+                </button>
+                {onCreateTask && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const selText = editor?.state.doc.textBetween(
+                        editor.state.selection.from,
+                        editor.state.selection.to,
+                        ' '
+                      )?.trim();
+                      onCreateTask(
+                        selText ? selText.slice(0, 60) : `Việc từ: ${docDetails.title || 'Tài liệu'}`,
+                        selText || `Được tạo từ tài liệu "${docDetails.title || 'Chưa có tiêu đề'}"`
+                      );
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-emerald-600 transition-colors cursor-pointer"
+                  >
+                    <ListTodo className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Tạo việc</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedBlockId(selectedBlockId ? null : 'general')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    selectedBlockId ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Bình luận ({comments.length})</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 4. Rich Editor Workspace & Comments Drawer */}
           <div ref={editorWorkspaceRef} className="flex-1 flex gap-8 relative min-h-0">
             <div className="flex-grow min-w-0">
                 
+                {/* Contextual Table Controls Bar */}
+                {editor?.isActive('table') && canEdit && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="sticky top-14 z-30 mb-3 flex flex-wrap items-center gap-1.5 rounded-2xl border border-indigo-200/80 bg-white/95 px-3 py-1.5 text-xs font-bold shadow-md backdrop-blur-md dark:border-indigo-900/60 dark:bg-slate-900/95 select-none"
+                  >
+                    <div className="flex items-center gap-1.5 pr-2 mr-1 border-r border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400">
+                      <Table2 className="w-4 h-4" />
+                      <span className="text-[11px] font-black uppercase tracking-wider">Thao tác Bảng</span>
+                    </div>
+                    
+                    {/* Rows */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().addRowBefore().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer flex items-center gap-1"
+                      title="Chèn hàng phía trên"
+                    >
+                      <Rows3 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>+ Hàng trên</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().addRowAfter().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer flex items-center gap-1"
+                      title="Chèn hàng phía dưới"
+                    >
+                      <Rows3 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>+ Hàng dưới</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().deleteRow().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs transition-colors cursor-pointer"
+                      title="Xóa hàng đang chọn"
+                    >
+                      ✕ Xóa hàng
+                    </button>
+
+                    <div className="w-px h-3.5 bg-slate-200 dark:border-slate-800 mx-1" />
+
+                    {/* Columns */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().addColumnBefore().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer flex items-center gap-1"
+                      title="Chèn cột bên trái"
+                    >
+                      <Columns3 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>+ Cột trái</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().addColumnAfter().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs transition-colors cursor-pointer flex items-center gap-1"
+                      title="Chèn cột bên phải"
+                    >
+                      <Columns3 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>+ Cột phải</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().deleteColumn().run()}
+                      className="px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs transition-colors cursor-pointer"
+                      title="Xóa cột đang chọn"
+                    >
+                      ✕ Xóa cột
+                    </button>
+
+                    <div className="w-px h-3.5 bg-slate-200 dark:border-slate-800 mx-1" />
+
+                    {/* Delete Table */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().deleteTable().run()}
+                      className="px-2.5 py-1 rounded-lg hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 text-xs font-bold transition-all cursor-pointer ml-auto flex items-center gap-1"
+                      title="Xóa toàn bộ bảng"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa bảng</span>
+                    </button>
+                  </motion.div>
+                )}
+
                 {/* Tiptap Floating Bubble Menu on text selections */}
                 <AnimatePresence>
                   {bubbleMenuOpen && (
@@ -1822,7 +2327,7 @@ export default function DocumentEditor({
                         type="button"
                         onClick={() => editor.chain().focus().toggleBold().run()} 
                         className={`p-1.5 rounded-lg hover:bg-slate-700 transition-colors ${editor.isActive('bold') ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
-                        title="In đậm"
+                        title="In đậm (Ctrl+B)"
                       >
                         <Bold className="w-3.5 h-3.5" />
                       </button>
@@ -1830,9 +2335,17 @@ export default function DocumentEditor({
                         type="button"
                         onClick={() => editor.chain().focus().toggleItalic().run()} 
                         className={`p-1.5 rounded-lg hover:bg-slate-700 transition-colors ${editor.isActive('italic') ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
-                        title="In nghiêng"
+                        title="In nghiêng (Ctrl+I)"
                       >
                         <Italic className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => editor.chain().focus().toggleUnderline().run()} 
+                        className={`p-1.5 rounded-lg hover:bg-slate-700 transition-colors ${editor.isActive('underline') ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
+                        title="Gạch chân (Ctrl+U)"
+                      >
+                        <UnderlineIcon className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         type="button"
@@ -1849,6 +2362,14 @@ export default function DocumentEditor({
                         title="Mã nội dòng"
                       >
                         <Code className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleSetLink} 
+                        className={`p-1.5 rounded-lg hover:bg-slate-700 transition-colors ${editor.isActive('link') ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
+                        title="Chèn liên kết"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
                       </button>
                       
                       <div className="w-px h-4 bg-slate-700 mx-1" />

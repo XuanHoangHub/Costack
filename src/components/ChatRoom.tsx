@@ -10,10 +10,11 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { 
   Hash, Send, Bot, Smile, Users, MessageSquare, Sparkles, Plus, X,
   Paperclip, ThumbsUp, Heart, Search, Trash2, Edit2, Loader2, ArrowRight,
-  Volume2, VolumeX, Globe, MoreVertical, Mic, Square, Play, Pause, FileAudio,
+  Volume2, VolumeX, Globe, MoreVertical, MoreHorizontal, Mic, Square, Play, Pause, FileAudio,
   Bold, Italic, Code, Quote, Pin, PinOff, CornerUpLeft, Copy,
-  Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, Clock, CheckSquare, Calendar,
-  BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap, Star, Sliders, Bell, SmilePlus, Image as ImageIcon
+  Forward, AtSign, Check, Settings, ChevronDown, ChevronLeft, ChevronRight, UserPlus, Clock, CheckSquare, Calendar,
+  BarChart3, Download, Eye, Vote, HelpCircle, Video, FileText, Zap, Star, Sliders, Bell, SmilePlus, Image as ImageIcon,
+  AlertCircle, RefreshCw, WifiOff
 } from 'lucide-react';
 import { callAiApi } from '@/lib/aiClient';
 import { useSpaceStore } from '../store/spaceStore';
@@ -196,16 +197,16 @@ const formatLineMarkdown = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`|@\w[\w\s]*?\b)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-black text-slate-900 dark:text-slate-100">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-black text-inherit">{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
-      return <em key={i} className="italic text-slate-700 dark:text-slate-300 font-semibold">{part.slice(1, -1)}</em>;
+      return <em key={i} className="italic font-semibold text-inherit opacity-90">{part.slice(1, -1)}</em>;
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-250/20 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-mono text-[10px] font-bold mx-0.5">{part.slice(1, -1)}</code>;
+      return <code key={i} className="mx-0.5 rounded border border-current/15 bg-black/5 px-1.5 py-0.5 font-mono text-[10px] font-bold text-inherit dark:bg-white/10">{part.slice(1, -1)}</code>;
     }
     if (part.startsWith('@') && part.length > 1) {
-      return <span key={i} className="px-1 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold text-[11px] cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors">{part}</span>;
+      return <span key={i} className="cursor-pointer rounded-md bg-current/10 px-1 py-0.5 text-[11px] font-bold text-inherit transition-opacity hover:opacity-75">{part}</span>;
     }
     return part;
   });
@@ -219,7 +220,7 @@ const formatMessageContent = (text: string) => {
     if (trimmed.startsWith('>')) {
       const content = line.substring(line.indexOf('>') + 1).trim();
       return (
-        <div key={idx} className="pl-3 py-1 border-l-3 border-indigo-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-r-lg text-slate-500 dark:text-slate-400 italic my-1">
+        <div key={idx} className="my-1 rounded-r-lg border-l-[3px] border-current/35 bg-black/5 py-1 pl-3 italic text-inherit opacity-80 dark:bg-white/5">
           {formatLineMarkdown(content)}
         </div>
       );
@@ -230,7 +231,7 @@ const formatMessageContent = (text: string) => {
       const content = numMatch[2];
       return (
         <div key={idx} className="flex items-start gap-2 py-0.5 min-h-[20px]">
-          <span className="shrink-0 w-4.5 h-4.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-[9.5px] font-black flex items-center justify-center shadow-3xs mt-0.5 select-none font-sans">
+          <span className="mt-0.5 flex h-4.5 w-4.5 shrink-0 select-none items-center justify-center rounded-full border border-current/15 bg-black/5 font-sans text-[9.5px] font-black text-inherit shadow-3xs dark:bg-white/10">
             {num}
           </span>
           <span className="flex-1 min-h-[16px]">
@@ -263,9 +264,26 @@ const mapChatMessage = (row: any): ChatMessage => ({
 });
 
 const safeFileName = (name: string) => name.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
+const MAX_CHAT_MESSAGE_LENGTH = 4000;
+const EMPTY_CHAT_SPACES: Space[] = [];
 const resolveMemberAuthId = (member: User) => {
   const candidate = member.userId || member.id;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : null;
+};
+
+type PendingChatAttachment = {
+  name: string;
+  size: number;
+  type: string;
+  url?: string;
+  file?: File | Blob;
+  isVoice?: boolean;
+  duration?: number;
+};
+
+type PendingChatMessage = {
+  message: ChatMessage;
+  attachment?: PendingChatAttachment | null;
 };
 
 export default function ChatRoom({
@@ -278,7 +296,7 @@ export default function ChatRoom({
   initialSelectedChannelId,
   onClearInitialSelectedChannelId,
   workspaceId,
-  spaces = [],
+  spaces = EMPTY_CHAT_SPACES,
   onSaveSpaces,
   onAddTask,
   setViewType
@@ -313,6 +331,11 @@ export default function ChatRoom({
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const channelSubscriptionRef = useRef<any>(null);
   const messageCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
+  const activeChannelIdRef = useRef('');
+  const isNearBottomRef = useRef(true);
+  const pendingMessagesRef = useRef<Map<string, PendingChatMessage>>(new Map());
+  const flushingPendingRef = useRef(false);
+  const typingRemovalTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Emoji Picker Popover state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -357,8 +380,8 @@ export default function ChatRoom({
 
   // Form input states
   const [inputVal, setInputVal] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [newMessagesBelow, setNewMessagesBelow] = useState(0);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -382,8 +405,18 @@ export default function ChatRoom({
     setReplyingToMessage(null);
   }, [activeChannelId]);
 
-  // Search channels
+  // Search channels & sidebar collapse state
   const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    shortcuts: false,
+    starred: false,
+    channels: false,
+    groups: false,
+    dms: false,
+  });
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   // Speech Synthesis & Search Web states
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
@@ -487,13 +520,53 @@ export default function ChatRoom({
   const [showChatSettingsModal, setShowChatSettingsModal] = useState(false);
 
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
+  const [moreMenuMsgId, setMoreMenuMsgId] = useState<string | null>(null);
 
   const [chatSettings, setChatSettings] = useState({
     soundEnabled: true,
     compactMode: false,
-    desktopNotifications: true,
+    desktopNotifications: false,
     enterToSend: true
   });
+  const [chatSettingsReady, setChatSettingsReady] = useState(false);
+  const chatSettingsRef = useRef(chatSettings);
+
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId;
+    isNearBottomRef.current = true;
+    setNewMessagesBelow(0);
+  }, [activeChannelId]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('apexa_chat_settings');
+      if (saved) setChatSettings(previous => ({ ...previous, ...JSON.parse(saved) }));
+    } catch {}
+    setChatSettingsReady(true);
+  }, []);
+
+  useEffect(() => {
+    chatSettingsRef.current = chatSettings;
+    if (!chatSettingsReady) return;
+    try { localStorage.setItem('apexa_chat_settings', JSON.stringify(chatSettings)); } catch {}
+  }, [chatSettings, chatSettingsReady]);
+
+  const handleDesktopNotificationsChange = async (enabled: boolean) => {
+    if (enabled && 'Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        triggerToast?.('info', 'Chưa bật thông báo', 'Trình duyệt chưa cấp quyền hiển thị thông báo desktop.');
+        setChatSettings(previous => ({ ...previous, desktopNotifications: false }));
+        return;
+      }
+    }
+    if (enabled && (!('Notification' in window) || Notification.permission === 'denied')) {
+      triggerToast?.('info', 'Không thể bật thông báo', 'Hãy cấp quyền thông báo cho Apexa trong cài đặt trình duyệt.');
+      setChatSettings(previous => ({ ...previous, desktopNotifications: false }));
+      return;
+    }
+    setChatSettings(previous => ({ ...previous, desktopNotifications: enabled }));
+  };
 
   // GIF dataset
   const GIF_GALLERY = [
@@ -970,7 +1043,10 @@ ${channelMessagesText}`;
 
     const loadChannels = async () => {
       if (isOffline) {
-        if (active) setChannels(defaultChannels);
+        if (active) {
+          setChannels(defaultChannels);
+          setActiveChannelId(previous => previous || `${workspaceId}:general`);
+        }
         return;
       }
 
@@ -1196,6 +1272,10 @@ ${channelMessagesText}`;
   // Load default simulated/mock messages when channel changes
   useEffect(() => {
     if (!activeChannelId) return;
+    let cancelled = false;
+    let subscription: any = null;
+    const typingRemovalTimers = typingRemovalTimersRef.current;
+    setTypingUsers([]);
 
     const seedMessages: Record<string, ChatMessage[]> = {
       'apexa-brain-ai': [
@@ -1247,6 +1327,12 @@ ${channelMessagesText}`;
       }
 
       if (isOffline) {
+        const cachedMessages = messageCacheRef.current.get(activeChannelId);
+        if (cachedMessages?.length) {
+          setMessages(cachedMessages);
+          scrollToBottom('auto');
+          return;
+        }
         if (isDm) {
           const memberId = activeChannelId.split('-').pop();
           const member = members.find(m => m.id === memberId);
@@ -1263,7 +1349,7 @@ ${channelMessagesText}`;
             { id: 'm1', senderId: 'system', senderName: 'System', senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S', content: `Đây là bắt đầu kênh thảo luận #${channelKey}.`, timestamp: 'Vừa xong' }
           ]);
         }
-        scrollToBottom();
+        scrollToBottom('auto');
         return;
       }
 
@@ -1279,22 +1365,27 @@ ${channelMessagesText}`;
           .limit(100);
 
         if (error) throw error;
+        if (cancelled || activeChannelIdRef.current !== activeChannelId) return;
         const loadedMessages = (data || []).reverse().map(mapChatMessage);
-        messageCacheRef.current.set(activeChannelId, loadedMessages);
-        setMessages(loadedMessages);
+        const pendingMessages = Array.from(pendingMessagesRef.current.values())
+          .map(item => item.message)
+          .filter(message => message.channelId === activeChannelId && !loadedMessages.some(remote => remote.id === message.id));
+        const mergedMessages = [...loadedMessages, ...pendingMessages];
+        messageCacheRef.current.set(activeChannelId, mergedMessages);
+        setMessages(mergedMessages);
       } catch (err) {
         console.error('Error loading messages from Supabase:', err);
       } finally {
-        setIsLoadingMessages(false);
+        if (!cancelled && activeChannelIdRef.current === activeChannelId) setIsLoadingMessages(false);
       }
-      scrollToBottom();
+      if (!cancelled && activeChannelIdRef.current === activeChannelId) scrollToBottom('auto');
     };
 
     loadMessages();
 
     // Set up Supabase Realtime channel subscription
     if (!isOffline) {
-      const sub = getCleanChannel(`realtime-chat-${activeChannelId}`)
+      subscription = getCleanChannel(`realtime-chat-${activeChannelId}`)
         .on(
           'postgres_changes',
           {
@@ -1310,13 +1401,17 @@ ${channelMessagesText}`;
 
             if (eventType === 'INSERT') {
               const newMsg = mapChatMessage(m);
+              const shouldFollowMessage = isNearBottomRef.current || newMsg.senderId === currentUser.id;
               setMessages(prev => {
-                if (prev.some(x => x.id === newMsg.id)) return prev;
-                const next = [...prev, newMsg];
+                const next = prev.some(x => x.id === newMsg.id)
+                  ? prev.map(x => x.id === newMsg.id ? { ...newMsg, deliveryState: 'sent' as const } : x)
+                  : [...prev, newMsg];
                 messageCacheRef.current.set(activeChannelId, next);
                 return next;
               });
-              scrollToBottom();
+              pendingMessagesRef.current.delete(newMsg.id);
+              if (shouldFollowMessage) scrollToBottom();
+              else setNewMessagesBelow(count => count + 1);
             } else if (eventType === 'UPDATE') {
               setMessages(prev => {
                 const next = prev.map(x => x.id === m.id ? mapChatMessage(m) : x);
@@ -1336,45 +1431,75 @@ ${channelMessagesText}`;
           'broadcast',
           { event: 'typing' },
           (payload) => {
-            const { userId, name } = payload.payload;
+            const { userId, name, isTyping = true } = payload.payload || {};
             if (userId === currentUser.id) return;
-            
+
+            const existingTimer = typingRemovalTimers.get(userId);
+            if (existingTimer) clearTimeout(existingTimer);
+            if (!isTyping) {
+              typingRemovalTimers.delete(userId);
+              setTypingUsers(prev => prev.filter(n => n !== name));
+              return;
+            }
+
             setTypingUsers(prev => {
               if (prev.includes(name)) return prev;
               return [...prev, name];
             });
-            
-            const timeoutKey = `typing-timeout-${userId}`;
-            if ((window as any)[timeoutKey]) {
-              clearTimeout((window as any)[timeoutKey]);
-            }
-            (window as any)[timeoutKey] = setTimeout(() => {
+
+            const timer = setTimeout(() => {
               setTypingUsers(prev => prev.filter(n => n !== name));
+              typingRemovalTimers.delete(userId);
             }, 3000);
+            typingRemovalTimers.set(userId, timer);
           }
         )
         .subscribe();
       
-      channelSubscriptionRef.current = sub;
+      channelSubscriptionRef.current = subscription;
     }
 
     return () => {
-      if (channelSubscriptionRef.current) {
-        supabase.removeChannel(channelSubscriptionRef.current);
+      cancelled = true;
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      lastTypingBroadcastRef.current = 0;
+      typingRemovalTimers.forEach(timer => clearTimeout(timer));
+      typingRemovalTimers.clear();
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+      if (channelSubscriptionRef.current === subscription) {
         channelSubscriptionRef.current = null;
       }
     };
   }, [activeChannelId, isOffline, currentUser.id, currentUser.name, members, spaces, workspaceId]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    isNearBottomRef.current = true;
+    setNewMessagesBelow(0);
     setTimeout(() => {
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTo({
           top: messagesContainerRef.current.scrollHeight,
-          behavior: 'smooth'
+          behavior
         });
       }
     }, 100);
+  };
+
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isNearBottom = distanceFromBottom < 120;
+    isNearBottomRef.current = isNearBottom;
+    if (isNearBottom && newMessagesBelow > 0) {
+      setNewMessagesBelow(0);
+      if (activeChannelId) markChannelAsRead(activeChannelId);
+    }
   };
 
   const insertFormatting = (type: 'bold' | 'italic' | 'code' | 'quote') => {
@@ -1465,6 +1590,15 @@ ${channelMessagesText}`;
   ).slice(0, 5);
 
   // Typing indicator broadcast (throttled: tối đa 1 broadcast / 2 giây)
+  const sendTypingState = (isTyping: boolean) => {
+    if (isOffline || !channelSubscriptionRef.current) return;
+    channelSubscriptionRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUser.id, name: currentUser.name, isTyping }
+    });
+  };
+
   const broadcastTyping = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
@@ -1472,16 +1606,13 @@ ${channelMessagesText}`;
       const now = Date.now();
       if (now - lastTypingBroadcastRef.current > 2000) {
         lastTypingBroadcastRef.current = now;
-        channelSubscriptionRef.current.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId: currentUser.id, name: currentUser.name }
-        });
+        sendTypingState(true);
       }
     }
 
     typingTimeoutRef.current = setTimeout(() => {
       lastTypingBroadcastRef.current = 0;
+      sendTypingState(false);
     }, 3000);
   };
 
@@ -1611,10 +1742,51 @@ ${channelMessagesText}`;
 
   // Track unread when messages arrive on non-active channels
   const incrementUnread = (channelId: string) => {
-    if (channelId !== activeChannelId) {
+    if (channelId !== activeChannelIdRef.current) {
       setUnreadCounts(prev => ({ ...prev, [channelId]: (prev[channelId] || 0) + 1 }));
     }
   };
+
+  // Keep one workspace-level inbox subscription so inactive channels receive live unread badges.
+  useEffect(() => {
+    if (isOffline || !workspaceId) return;
+    const inboxSubscription = getCleanChannel(`realtime-chat-inbox-${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `workspace_id=eq.${workspaceId}`
+        },
+        payload => {
+          const row = payload.new as any;
+          if (!row?.channel_id || row.channel_id === activeChannelIdRef.current) return;
+          const ownIds = [currentUser.id, currentUser.userId].filter(Boolean);
+          if (ownIds.includes(row.sender_id) || ownIds.includes(row.user_id)) return;
+
+          incrementUnread(row.channel_id);
+          if (chatSettingsRef.current.soundEnabled) (window as any).playSystemSound?.('notification');
+
+          if (
+            chatSettingsRef.current.desktopNotifications &&
+            document.visibilityState !== 'visible' &&
+            'Notification' in window &&
+            Notification.permission === 'granted'
+          ) {
+            const channelName = channels.find(channel => channel.id === row.channel_id)?.name;
+            new Notification(row.sender_name || 'Tin nhắn mới', {
+              body: `${channelName ? `#${channelName}: ` : ''}${row.content || 'Đã gửi một tệp đính kèm'}`,
+              tag: `apexa-chat-${row.channel_id}`,
+              icon: row.sender_avatar || undefined
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(inboxSubscription); };
+  }, [channels, currentUser.id, currentUser.userId, isOffline, workspaceId]);
 
   // Mark current channel as read when switching
   useEffect(() => {
@@ -2000,155 +2172,242 @@ ${channelMessagesText}`;
     }
   };
 
-  // Send new message handler
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((!inputVal.trim() && !selectedFile) || isSending) return;
+  const updateLocalMessage = useCallback((channelId: string, messageId: string, update: Partial<ChatMessage>) => {
+    const applyUpdate = (items: ChatMessage[]) => items.map(message => message.id === messageId ? { ...message, ...update } : message);
+    const cached = messageCacheRef.current.get(channelId);
+    if (cached) messageCacheRef.current.set(channelId, applyUpdate(cached));
+    if (activeChannelIdRef.current === channelId) {
+      setMessages(previous => {
+        const next = applyUpdate(previous);
+        messageCacheRef.current.set(channelId, next);
+        return next;
+      });
+    }
+  }, []);
 
-    const userMsgText = inputVal.trim();
-    if (userMsgText.startsWith('/') && !selectedFile) {
+  const persistPendingMessage = useCallback(async (messageId: string) => {
+    const pending = pendingMessagesRef.current.get(messageId);
+    if (!pending) return;
+
+    let message = pending.message;
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+
+    if (pending.attachment?.file && (!message.attachment?.filePath || message.attachment.filePath.startsWith('blob:'))) {
+      const storagePath = `${userId}/${workspaceId}/${message.channelId}/${crypto.randomUUID()}-${safeFileName(pending.attachment.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(storagePath, pending.attachment.file, {
+          contentType: pending.attachment.type || 'application/octet-stream',
+          upsert: false
+        });
+      if (uploadError) throw uploadError;
+
+      message = {
+        ...message,
+        attachment: message.attachment ? { ...message.attachment, filePath: storagePath } : undefined
+      };
+      pendingMessagesRef.current.set(messageId, { message, attachment: { ...pending.attachment, file: undefined } });
+      updateLocalMessage(message.channelId || '', messageId, { attachment: message.attachment });
+    }
+
+    const { error } = await supabase.from('chat_messages').insert({
+      id: message.id,
+      sender_id: message.senderId,
+      sender_name: message.senderName,
+      sender_avatar: message.senderAvatar,
+      content: message.content,
+      timestamp: message.timestamp,
+      channel_id: message.channelId,
+      is_ai_response: false,
+      workspace_id: workspaceId,
+      user_id: userId,
+      attachment: message.attachment || null,
+      parent_id: message.parentId || null
+    });
+    if (error && error.code !== '23505') throw error;
+
+    pendingMessagesRef.current.delete(messageId);
+    updateLocalMessage(message.channelId || '', messageId, { deliveryState: 'sent', attachment: message.attachment });
+    if (pending.attachment?.url?.startsWith('blob:')) URL.revokeObjectURL(pending.attachment.url);
+  }, [updateLocalMessage, workspaceId]);
+
+  const tryPersistPendingMessage = useCallback(async (messageId: string, showError = true) => {
+    const pending = pendingMessagesRef.current.get(messageId);
+    if (!pending) return true;
+    const channelId = pending.message.channelId || '';
+    pendingMessagesRef.current.set(messageId, {
+      ...pending,
+      message: { ...pending.message, deliveryState: 'sending' }
+    });
+    updateLocalMessage(channelId, messageId, { deliveryState: 'sending' });
+
+    try {
+      await persistPendingMessage(messageId);
+      return true;
+    } catch (error) {
+      const latest = pendingMessagesRef.current.get(messageId) || pending;
+      pendingMessagesRef.current.set(messageId, {
+        ...latest,
+        message: { ...latest.message, deliveryState: 'failed' }
+      });
+      updateLocalMessage(channelId, messageId, { deliveryState: 'failed' });
+      console.error('Unable to send chat message:', error);
+      if (showError) {
+        triggerToast?.('error', 'Không gửi được tin nhắn', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+      }
+      return false;
+    }
+  }, [persistPendingMessage, triggerToast, updateLocalMessage]);
+
+  const handleRetryMessage = async (messageId: string) => {
+    if (isOffline) {
+      triggerToast?.('info', 'Đang chờ kết nối', 'Tin nhắn sẽ được gửi lại khi có mạng.');
+      return;
+    }
+    await tryPersistPendingMessage(messageId);
+  };
+
+  // Send new messages optimistically; failed/offline messages remain visible and retryable.
+  const handleSendMessage = async (e: React.FormEvent, overrideText?: string) => {
+    e.preventDefault();
+    const userMsgText = (overrideText ?? inputVal).trim();
+    if ((!userMsgText && !selectedFile) || !activeChannelId) return;
+    if (userMsgText.length > MAX_CHAT_MESSAGE_LENGTH) {
+      triggerToast?.('info', 'Tin nhắn quá dài', `Mỗi tin nhắn tối đa ${MAX_CHAT_MESSAGE_LENGTH.toLocaleString('vi-VN')} ký tự.`);
+      return;
+    }
+
+    if (!overrideText && userMsgText.startsWith('/') && !selectedFile) {
       executeSlashCommand(userMsgText);
       setInputVal('');
       return;
     }
 
+    const targetChannelId = activeChannelId;
     const pendingFile = selectedFile;
-    setIsSending(true);
-    const msgId = `msg-${Date.now()}`;
-    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    let attachmentObj: ChatMessage['attachment'] | undefined;
+    const replyTarget = replyingToMessage;
+    const createdAt = new Date().toISOString();
+    const msgId = `msg-${crypto.randomUUID()}`;
+    const timeStr = new Date(createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const attachmentObj: ChatMessage['attachment'] | undefined = pendingFile ? {
+      name: pendingFile.name,
+      filePath: pendingFile.url || '',
+      size: pendingFile.size,
+      type: pendingFile.type,
+      isImage: pendingFile.type.startsWith('image/'),
+      isVoice: pendingFile.isVoice,
+      duration: pendingFile.duration
+    } : undefined;
+    const newMsg: ChatMessage = {
+      id: msgId,
+      senderId: currentUser.id || 'user',
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      content: userMsgText,
+      timestamp: timeStr,
+      channelId: targetChannelId,
+      attachment: attachmentObj,
+      parentId: replyTarget?.id,
+      createdAt,
+      deliveryState: 'sending'
+    };
 
-    try {
-      let storedPath = pendingFile?.url || '';
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || null;
-      if (!isOffline && pendingFile?.file) {
-        if (!userId) throw new Error('Authentication required');
-        const storagePath = `${userId}/${workspaceId}/${activeChannelId}/${crypto.randomUUID()}-${safeFileName(pendingFile.name)}`;
-        const { error: uploadError } = await supabase.storage
-          .from('chat-attachments')
-          .upload(storagePath, pendingFile.file, { contentType: pendingFile.type || 'application/octet-stream', upsert: false });
-        if (uploadError) throw uploadError;
-        storedPath = storagePath;
-      }
+    pendingMessagesRef.current.set(msgId, { message: newMsg, attachment: pendingFile });
+    setMessages(previous => {
+      const next = previous.some(message => message.id === msgId) ? previous : [...previous, newMsg];
+      messageCacheRef.current.set(targetChannelId, next);
+      return next;
+    });
+    setInputVal('');
+    delete chatDraftsRef.current[targetChannelId];
+    persistChatDrafts();
+    setSelectedFile(null);
+    setReplyingToMessage(null);
+    sendTypingState(false);
+    scrollToBottom();
 
-      attachmentObj = pendingFile ? {
-        name: pendingFile.name,
-        filePath: storedPath,
-        size: pendingFile.size,
-        type: pendingFile.type,
-        isImage: pendingFile.type.startsWith('image/'),
-        isVoice: pendingFile.isVoice,
-        duration: pendingFile.duration
-      } : undefined;
+    if (isOffline) return;
+    const sent = await tryPersistPendingMessage(msgId, false);
+    if (!sent) {
+      triggerToast?.('error', 'Không gửi được tin nhắn', 'Tin nhắn vẫn được giữ lại. Nhấn “Thử lại” khi kết nối ổn định.');
+      return;
+    }
 
-      const newMsg: ChatMessage = {
-        id: msgId,
-        senderId: currentUser.id || 'user',
-        senderName: currentUser.name,
-        senderAvatar: currentUser.avatar,
-        content: userMsgText,
-        timestamp: timeStr,
-        channelId: activeChannelId,
-        attachment: attachmentObj,
-        parentId: replyingToMessage?.id,
-        deliveryState: isOffline ? 'sending' : 'sent'
-      };
+    if (targetChannelId.endsWith('apexa-brain-ai')) {
+        setIsAiTyping(true);
+        try {
+          const channelHistory = messageCacheRef.current.get(targetChannelId) || [];
+          const historyToSend = channelHistory.slice(-10).map(message => ({
+            senderId: message.senderId === 'apexa-ai' ? 'model' : 'user',
+            content: message.content
+          }));
+          const response = await callAiApi('/api/ai/chat', {
+            message: userMsgText,
+            history: historyToSend,
+            googleSearch: searchWeb
+          });
+          const data = await response.json();
 
-      if (!isOffline) {
-        if (!userId) throw new Error('Authentication required');
-        const { error } = await supabase.from('chat_messages').insert({
-          id: msgId,
-          sender_id: currentUser.id || 'user',
-          sender_name: currentUser.name,
-          sender_avatar: currentUser.avatar,
-          content: userMsgText,
-          timestamp: timeStr,
-          channel_id: activeChannelId,
-          is_ai_response: false,
-          workspace_id: workspaceId,
-          user_id: userId,
-          attachment: attachmentObj || null,
-          parent_id: replyingToMessage?.id || null
-        });
-        if (error) throw error;
-      }
-
-      setMessages(prev => prev.some(message => message.id === msgId) ? prev : [...prev, newMsg]);
-      setInputVal('');
-      if (activeChannelId) {
-        delete chatDraftsRef.current[activeChannelId];
-        persistChatDrafts();
-      }
-      setSelectedFile(null);
-      setReplyingToMessage(null);
-      scrollToBottom();
-
-      // Check if chat is with AI Assistant channel
-      if (activeChannelId.endsWith('apexa-brain-ai')) {
-      setIsAiTyping(true);
-      try {
-        // Gather recent 10 messages for chat history
-        const historyToSend = messages.slice(-10).map(m => ({
-          senderId: m.senderId === 'apexa-ai' ? 'model' : 'user',
-          content: m.content
-        }));
-
-        // Trigger AI chat API call with history & search configuration
-        const response = await callAiApi('/api/ai/chat', { 
-          message: userMsgText,
-          history: historyToSend,
-          googleSearch: searchWeb
-        });
-        const data = await response.json();
-        
-        if (data.success && data.text) {
-          const aiMsgId = `ai-msg-${Date.now()}`;
-          const aiMsgTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-          const aiResponseMsg: ChatMessage = {
-            id: aiMsgId,
-            senderId: 'apexa-ai',
-            senderName: 'Apexa Brain AI',
-            senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
-            content: data.text,
-            timestamp: aiMsgTime,
-            isAi: true
-          };
-          setMessages(prev => [...prev, aiResponseMsg]);
-          (window as any).playSystemSound?.('notification');
-
-          if (!isOffline) {
-            await supabase.from('chat_messages').insert({
-              id: aiMsgId,
-              sender_id: 'apexa-ai',
-              sender_name: 'Apexa Brain AI',
-              sender_avatar: '',
+          if (data.success && data.text) {
+            const aiCreatedAt = new Date().toISOString();
+            const aiResponseMsg: ChatMessage = {
+              id: `ai-msg-${crypto.randomUUID()}`,
+              senderId: 'apexa-ai',
+              senderName: 'Apexa Brain AI',
+              senderAvatar: 'https://api.dicebear.com/7.x/initials/svg?seed=S',
               content: data.text,
-              timestamp: aiMsgTime,
-              channel_id: activeChannelId,
+              timestamp: new Date(aiCreatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+              channelId: targetChannelId,
+              createdAt: aiCreatedAt,
+              isAi: true,
+              deliveryState: 'sent'
+            };
+            const cached = messageCacheRef.current.get(targetChannelId) || [];
+            const next = cached.some(message => message.id === aiResponseMsg.id) ? cached : [...cached, aiResponseMsg];
+            messageCacheRef.current.set(targetChannelId, next);
+            if (activeChannelIdRef.current === targetChannelId) {
+              setMessages(next);
+              scrollToBottom();
+            }
+            if (chatSettingsRef.current.soundEnabled) (window as any).playSystemSound?.('notification');
+
+            const { data: { session } } = await supabase.auth.getSession();
+            await supabase.from('chat_messages').insert({
+              id: aiResponseMsg.id,
+              sender_id: aiResponseMsg.senderId,
+              sender_name: aiResponseMsg.senderName,
+              sender_avatar: '',
+              content: aiResponseMsg.content,
+              timestamp: aiResponseMsg.timestamp,
+              channel_id: targetChannelId,
               is_ai_response: true,
               workspace_id: workspaceId,
-              user_id: userId,
+              user_id: session?.user?.id,
               attachment: null
             });
           }
+        } catch (error) {
+          console.error('Error fetching AI response:', error);
+          triggerToast?.('error', 'AI chưa thể phản hồi', 'Tin nhắn của bạn đã được lưu. Hãy thử hỏi lại sau.');
+        } finally {
+          setIsAiTyping(false);
         }
-      } catch (err) {
-        console.error('Error fetching AI response:', err);
-      } finally {
-        setIsAiTyping(false);
-        scrollToBottom();
-      }
-      } else {
-        (window as any).playSystemSound?.('toggle');
-      }
-    } catch (error) {
-      console.error('Unable to send chat message:', error);
-      triggerToast?.('error', 'Không gửi được tin nhắn', error instanceof Error ? error.message : 'Vui lòng thử lại.');
-    } finally {
-      setIsSending(false);
+    } else if (chatSettingsRef.current.soundEnabled) {
+      (window as any).playSystemSound?.('toggle');
     }
   };
+
+  useEffect(() => {
+    if (isOffline || flushingPendingRef.current || pendingMessagesRef.current.size === 0) return;
+    flushingPendingRef.current = true;
+    void (async () => {
+      const pendingIds = Array.from(pendingMessagesRef.current.keys());
+      for (const messageId of pendingIds) await tryPersistPendingMessage(messageId, false);
+      flushingPendingRef.current = false;
+    })();
+  }, [isOffline, tryPersistPendingMessage]);
 
   // Message Actions: Edit & Delete & Reaction
   const handleEditMessage = async (id: string, newText: string) => {
@@ -2166,6 +2425,17 @@ ${channelMessagesText}`;
   };
 
   const handleDeleteMessage = async (id: string) => {
+    const pending = pendingMessagesRef.current.get(id);
+    if (pending) {
+      pendingMessagesRef.current.delete(id);
+      if (pending.attachment?.url?.startsWith('blob:')) URL.revokeObjectURL(pending.attachment.url);
+      setMessages(prev => {
+        const next = prev.filter(message => message.id !== id);
+        if (pending.message.channelId) messageCacheRef.current.set(pending.message.channelId, next);
+        return next;
+      });
+      return;
+    }
     if (!isOffline) {
       const { error } = await supabase.from('chat_messages').delete().eq('id', id);
       if (error) {
@@ -2188,8 +2458,31 @@ ${channelMessagesText}`;
     (window as any).playSystemSound?.('click');
   };
 
-  // Filter channels based on search
-  const filteredChannels = channels.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Filter channels & members based on search
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredChannels = useMemo(() => {
+    if (!normalizedSearch) return channels;
+    return channels.filter(c => 
+      c.name.toLowerCase().includes(normalizedSearch) || 
+      (c.description && c.description.toLowerCase().includes(normalizedSearch))
+    );
+  }, [channels, normalizedSearch]);
+
+  const filteredMembers = useMemo(() => {
+    const validMembers = members.filter(m => {
+      if (m.id === currentUser.id || m.id === 'user') return false;
+      if (currentUser.userId && m.userId === currentUser.userId) return false;
+      return true;
+    });
+    if (!normalizedSearch) return validMembers;
+    return validMembers.filter(m => 
+      m.name.toLowerCase().includes(normalizedSearch) ||
+      (m.email && m.email.toLowerCase().includes(normalizedSearch)) ||
+      (m.department && m.department.toLowerCase().includes(normalizedSearch)) ||
+      (m.statusMessage && m.statusMessage.toLowerCase().includes(normalizedSearch))
+    );
+  }, [members, currentUser.id, currentUser.userId, normalizedSearch]);
+
   const activeChannel = channels.find(c => c.id === activeChannelId);
 
   // Resolve DM member if activeChannelId is a DM
@@ -2295,274 +2588,536 @@ ${channelMessagesText}`;
     }
   }
 
+  const starredChannelsList = useMemo(() => {
+    return channels.filter(c => starredChannelIds.includes(c.id) && (!normalizedSearch || c.name.toLowerCase().includes(normalizedSearch)));
+  }, [channels, starredChannelIds, normalizedSearch]);
+
+  const normalChannels = useMemo(() => {
+    return filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && !c.name.includes('brain-ai') && !c.id.includes('brain-ai') && !c.id.includes(':space-'));
+  }, [filteredChannels]);
+
+  const groupChannels = useMemo(() => {
+    return filteredChannels.filter(c => c.type === 'group');
+  }, [filteredChannels]);
+
   return (
-    <div className="flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#000000] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
+    <div className="apexa-chat flex min-h-[500px] h-full w-full rounded-3xl bg-white dark:bg-[#000000] border border-slate-200/60 dark:border-slate-800/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden font-sans select-none animate-fadeIn text-slate-800 dark:text-slate-100">
       
-      {/* ── COLUMN 1: Channels Sidebar (w-64) ── */}
-      <div className={`w-full md:w-64 border-r border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#0a0a0a] flex flex-col justify-between shrink-0 text-left ${
+      {/* ── COLUMN 1: Channels Sidebar (w-68) ── */}
+      <div className={`w-full md:w-[268px] border-r border-slate-200/70 dark:border-slate-800/80 bg-slate-50/70 dark:bg-[#0a0c10] flex flex-col justify-between shrink-0 text-left ${
           isMobileChatActive ? 'hidden md:flex' : 'flex'
         }`}>
-        <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0">
-          {/* Header area */}
-          <div className="flex items-center justify-between px-2 py-1 select-none shrink-0">
-            <span className="text-[15px] font-black text-slate-800 dark:text-slate-100 tracking-tight">Trao đổi</span>
+        
+        {/* Sidebar Top: Title, Action & Live Search */}
+        <div className="p-3 pb-2 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between px-1 select-none">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100 tracking-tight">Trò chuyện</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800/80 px-1.5 py-0.2 rounded-full font-mono">
+                {channels.length}
+              </span>
+            </div>
             <button
-              onClick={() => {
-                const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
-                setActiveChannelId(selfDmId);
-              }}
-              className="p-1.5 rounded-lg border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 shadow-xs transition-all cursor-pointer active:scale-95"
-              title="Cuộc trò chuyện mới"
+              type="button"
+              onClick={() => setShowQuickCreateMenu(!showQuickCreateMenu)}
+              className="p-1.5 rounded-lg border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-2xs transition-all cursor-pointer active:scale-95"
+              title="Tạo nhanh cuộc trò chuyện, kênh hoặc nhóm"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Channels list scrollable */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1.5 scrollbar-thin min-h-0">
-            {/* Starred Channels Section */}
-            {starredChannelIds.length > 0 && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between px-2 mb-1.5">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    Đã ghim
-                  </span>
-                  <span className="text-[9px] font-extrabold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full font-mono">
-                    {starredChannelIds.length}
-                  </span>
-                </div>
+          {/* Live Search Input */}
+          <div className="relative flex items-center">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+            <input 
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kênh, đồng đội..."
+              className="w-full pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/90 rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-2xs"
+            />
+            {searchQuery && (
+              <button 
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Xóa tìm kiếm"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Scrollable list */}
+        <div className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 pr-1.5 scrollbar-thin min-h-0">
+          {/* Quick Shortcuts: Personal Notes & Apexa Brain AI */}
+          {!normalizedSearch && (
+            <div className="space-y-1">
+              {/* Saved Notes to Self */}
+              {(() => {
+                const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
+                const isSelfActive = activeChannelId === selfDmId || activeChannelId.endsWith(`-${currentUser.id}-${currentUser.id}`) || activeChannelId.endsWith('-user-user');
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveChannelId(selfDmId);
+                      triggerToast?.('info', 'Ghi chú cá nhân 📝', 'Đã mở không gian ghi chú của bạn');
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border ${
+                      isSelfActive 
+                        ? 'bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-300/40 dark:border-amber-700/40 font-bold shadow-3xs' 
+                        : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200/50 dark:border-amber-800/50">
+                        <FileText className="w-3.5 h-3.5" />
+                      </span>
+                      <span className="truncate">Ghi chú cá nhân</span>
+                    </div>
+                    <span className="text-[9.5px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-950/50 px-1.5 py-0.2 rounded-md font-mono">
+                      Bạn
+                    </span>
+                  </button>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Starred Channels Section */}
+          {starredChannelsList.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between px-1.5 mb-1 select-none">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('starred')}
+                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer"
+                >
+                  {collapsedSections.starred ? <ChevronRight className="w-3 h-3 text-amber-500/70" /> : <ChevronDown className="w-3 h-3 text-amber-500/70" />}
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                  <span>Đã ghim</span>
+                </button>
+                <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.2 rounded-full font-mono">
+                  {starredChannelsList.length}
+                </span>
+              </div>
+              {!collapsedSections.starred && (
                 <div className="space-y-0.5">
-                  {channels.filter(c => starredChannelIds.includes(c.id)).map(c => {
+                  {starredChannelsList.map(c => {
                     const isActive = c.id === activeChannelId;
                     return (
                       <button
                         key={`starred-${c.id}`}
                         onClick={() => setActiveChannelId(c.id)}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border border-transparent ${
                           isActive 
-                            ? 'bg-amber-50/80 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-bold border-amber-200/40' 
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+                            ? 'bg-amber-500/10 text-amber-800 dark:text-amber-200 font-bold border-amber-300/40 dark:border-amber-700/40 shadow-3xs' 
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
                           <span className="truncate">{c.name}</span>
                         </div>
+                        {(unreadCounts[c.id] || 0) > 0 && (
+                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs">
+                            {unreadCounts[c.id] > 99 ? '99+' : unreadCounts[c.id]}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            <div>
-              <div className="flex items-center justify-between px-2 mb-1.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Channels</span>
+          {/* Public / Workspace Channels */}
+          <div>
+            <div className="flex items-center justify-between px-1.5 mb-1 select-none">
+              <button
+                type="button"
+                onClick={() => toggleSection('channels')}
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                {collapsedSections.channels ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <span>Kênh trao đổi</span>
+              </button>
+              <div className="flex items-center gap-0.5">
+                <span className="text-[9px] font-bold text-slate-400 bg-slate-200/50 dark:bg-slate-800 px-1.5 py-0.2 rounded-full font-mono">
+                  {normalChannels.length}
+                </span>
                 <button 
                   onClick={() => setShowCreateChannelModal(true)}
-                  className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                  className="p-1 rounded-md hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                  title="Tạo kênh mới"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
+            </div>
+
+            {!collapsedSections.channels && (
               <div className="space-y-0.5">
-                {filteredChannels.filter(c => c.type !== 'dm' && c.type !== 'group' && !c.name.includes('brain-ai') && !c.id.includes('brain-ai') && !c.id.includes(':space-')).map(c => {
+                {normalChannels.map(c => {
                   const isActive = c.id === activeChannelId;
                   const isDefault = c.id === `${workspaceId}:general` || c.id === `${workspaceId}:project-planning` || c.id === `${workspaceId}:design-review`;
+                  const isStarred = starredChannelIds.includes(c.id);
                   
                   return (
                     <div 
                       key={c.id}
                       className={`w-full flex items-center justify-between rounded-xl group/chan border border-transparent transition-all ${
                         isActive 
-                          ? 'bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-transparent dark:from-indigo-950/50 dark:via-cyan-950/30 dark:to-transparent text-indigo-650 dark:text-indigo-300 border-indigo-200/40 dark:border-indigo-800/40 font-bold shadow-3xs' 
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-900/60 hover:text-slate-900 dark:hover:text-slate-200'
+                          ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-300/40 dark:border-indigo-700/40 font-bold shadow-3xs' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       <button
                         onClick={() => setActiveChannelId(c.id)}
-                        className="flex-1 flex items-center gap-2 px-3 py-2 text-xs font-semibold cursor-pointer text-left truncate"
+                        className="flex-1 flex items-center gap-2 px-2.5 py-2 text-xs font-semibold cursor-pointer text-left truncate"
                       >
                         <Hash className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-slate-500'}`} />
                         <span className="truncate">{c.name}</span>
                         {(unreadCounts[c.id] || 0) > 0 && (
-                          <span className="ml-auto px-1.5 py-0.5 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-sm animate-bounce">
+                          <span className="ml-auto px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs">
                             {unreadCounts[c.id] > 99 ? '99+' : unreadCounts[c.id]}
                           </span>
                         )}
                       </button>
                       
-                      {!isDefault && (
-                        <div className="relative shrink-0 flex items-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveChannelMenuId(activeChannelMenuId === c.id ? null : c.id);
-                            }}
-                            className="p-1 mr-1.5 rounded-lg text-slate-450 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
-                            title="Tùy chọn kênh"
-                          >
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </button>
-                          {activeChannelMenuId === c.id && (
-                            <>
-                              <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveChannelMenuId(null); }} />
-                              <div className="absolute right-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-lg p-1.5 z-30 min-w-[140px] text-left">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveChannelMenuId(null);
-                                    setRenamingChannelId(c.id);
-                                    setRenameChannelName(c.name);
-                                    setRenameChannelDesc(c.description || '');
-                                    setShowRenameModal(true);
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5 text-slate-400" />
-                                  Đổi tên kênh
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveChannelMenuId(null);
-                                    if (confirm(`Bạn có chắc chắn muốn xóa kênh #${c.name}? Hành động này không thể hoàn tác.`)) {
-                                      handleDeleteChannel(c.id, c.name);
-                                    }
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer flex items-center gap-2"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                  Xóa kênh
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
+                      <div className="relative shrink-0 flex items-center pr-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveChannelMenuId(activeChannelMenuId === c.id ? null : c.id);
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/chan:opacity-100 cursor-pointer"
+                          title="Tùy chọn kênh"
+                        >
+                          <MoreVertical className="w-3.5 h-3.5" />
+                        </button>
+                        {activeChannelMenuId === c.id && (
+                          <>
+                            <div className="fixed inset-0 z-20 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveChannelMenuId(null); }} />
+                            <div className="absolute right-0 top-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-xl p-1 z-30 min-w-[145px] text-left animate-fadeIn">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveChannelMenuId(null);
+                                  toggleStarChannel(c.id);
+                                }}
+                                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                              >
+                                <Star className={`w-3.5 h-3.5 ${isStarred ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+                                {isStarred ? 'Bỏ ghim' : 'Ghim kênh'}
+                              </button>
+                              {!isDefault && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveChannelMenuId(null);
+                                      setRenamingChannelId(c.id);
+                                      setRenameChannelName(c.name);
+                                      setRenameChannelDesc(c.description || '');
+                                      setShowRenameModal(true);
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                    Đổi tên kênh
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveChannelMenuId(null);
+                                      if (confirm(`Bạn có chắc chắn muốn xóa kênh #${c.name}? Hành động này không thể hoàn tác.`)) {
+                                        handleDeleteChannel(c.id, c.name);
+                                      }
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                    Xóa kênh
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            )}
+          </div>
 
-            {channels.some(channel => channel.type === 'group') && (
-              <div>
-                <div className="mb-1.5 mt-3 flex items-center justify-between px-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nhóm chat</span>
+          {/* Group Chats Section */}
+          {groupChannels.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between px-1.5 mb-1 select-none">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('groups')}
+                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                >
+                  {collapsedSections.groups ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  <span>Nhóm chat</span>
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-slate-400 bg-slate-200/50 dark:bg-slate-800 px-1.5 py-0.2 rounded-full font-mono">
+                    {groupChannels.length}
+                  </span>
                   <button
                     onClick={() => setShowCreateGroupModal(true)}
-                    className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+                    className="cursor-pointer rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
                     title="Tạo nhóm chat"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
+              </div>
+              {!collapsedSections.groups && (
                 <div className="space-y-0.5">
-                  {channels.filter(channel => channel.type === 'group').map(channel => {
+                  {groupChannels.map(channel => {
                     const isActive = channel.id === activeChannelId;
                     return (
                       <button
                         key={channel.id}
                         onClick={() => setActiveChannelId(channel.id)}
-                        className={`flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-colors ${isActive ? 'border-indigo-200/30 bg-indigo-50/80 font-bold text-indigo-700 dark:border-indigo-800/40 dark:bg-indigo-950/40 dark:text-indigo-300' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200'}`}
+                        className={`flex w-full cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-all ${
+                          isActive 
+                            ? 'border-indigo-300/40 dark:border-indigo-700/40 bg-indigo-500/10 font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 shadow-3xs' 
+                            : 'border-transparent text-slate-600 hover:bg-slate-200/50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200'
+                        }`}
                       >
-                        <span className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-950/60 dark:text-violet-300">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-950/70 dark:text-violet-300 border border-violet-200/50 dark:border-violet-800/50">
                           <Users className="h-3.5 w-3.5" />
                         </span>
                         <span className="flex-1 truncate text-left">{channel.name}</span>
                         {(unreadCounts[channel.id] || 0) > 0 && (
-                          <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white">{unreadCounts[channel.id] > 99 ? '99+' : unreadCounts[channel.id]}</span>
+                          <span className="rounded-full bg-rose-500 px-1.5 py-0.2 text-[9px] font-black text-white">
+                            {unreadCounts[channel.id] > 99 ? '99+' : unreadCounts[channel.id]}
+                          </span>
                         )}
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Direct Messages Section */}
-            <div>
-              <div className="flex items-center justify-between px-2 mb-1.5 mt-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Tin nhắn trực tiếp</span>
-                <div className="flex items-center gap-0.5">
-                  <button onClick={() => setShowCreateGroupModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Tạo nhóm chat"><Users className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => setShowNewDmModal(true)} className="cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" title="Nhắn tin với thành viên"><Plus className="h-3.5 w-3.5" /></button>
-                </div>
+          {/* Direct Messages Section */}
+          <div>
+            <div className="flex items-center justify-between px-1.5 mb-1 select-none">
+              <button
+                type="button"
+                onClick={() => toggleSection('dms')}
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                {collapsedSections.dms ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <span>Tin nhắn trực tiếp</span>
+              </button>
+              <div className="flex items-center gap-0.5">
+                <span className="text-[9px] font-bold text-slate-400 bg-slate-200/50 dark:bg-slate-800 px-1.5 py-0.2 rounded-full font-mono">
+                  {filteredMembers.length}
+                </span>
+                <button 
+                  onClick={() => setShowCreateGroupModal(true)} 
+                  className="cursor-pointer rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" 
+                  title="Tạo nhóm chat"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                </button>
+                <button 
+                  onClick={() => setShowNewDmModal(true)} 
+                  className="cursor-pointer rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-200/70 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400" 
+                  title="Nhắn tin với thành viên"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
               </div>
+            </div>
+
+            {!collapsedSections.dms && (
               <div className="space-y-0.5">
-                {members.filter(m => m.id !== currentUser.id && m.id !== 'user').map(member => {
+                {filteredMembers.map(member => {
                   const peerId = member.userId || member.id;
                   const dmKey = [currentUser.userId || currentUser.id, peerId].sort().join(':');
                   const dmChannelId = channels.find(channel => channel.type === 'dm' && channel.dmKey === dmKey)?.id || '';
                   const isActive = activeChannelId === dmChannelId;
+                  const unread = unreadCounts[dmChannelId] || 0;
+
+                  const isOnline = member.status === 'online';
+                  const isBusy = member.status === 'busy';
+                  const isAway = member.status === 'away';
                   
+                  const statusDotColor = isOnline 
+                    ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' 
+                    : isBusy 
+                    ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.7)]' 
+                    : isAway 
+                    ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]' 
+                    : 'bg-slate-300 dark:bg-slate-600';
+
+                  const statusLabel = isOnline ? 'Đang hoạt động' : isBusy ? 'Đang bận' : isAway ? 'Tạm vắng' : 'Ngoại tuyến';
+
                   return (
                     <button
                       key={member.id}
                       onClick={() => openDirectMessage(member)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors border border-transparent ${
+                      className={`w-full group/dm relative flex items-center gap-2.5 px-2 py-1.5 rounded-xl text-xs cursor-pointer transition-all border ${
                         isActive 
-                          ? 'bg-indigo-50/80 text-indigo-650 border-indigo-200/20 font-bold' 
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
+                          ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-300/40 dark:border-indigo-700/40 font-bold shadow-3xs' 
+                          : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100 font-medium'
                       }`}
                     >
-                      <div className="relative shrink-0 flex">
-                        <SignedImage filePath={member.avatar} alt={member.name} className="w-5.5 h-5.5 rounded-full border border-slate-200/50 dark:border-slate-700 bg-white dark:bg-slate-800 animate-fadeIn" />
-                        <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${presenceDotClass(member.status, true)}`}></span>
+                      <div className="relative shrink-0">
+                        <SignedImage 
+                          filePath={member.avatar} 
+                          alt={member.name} 
+                          className="w-8 h-8 rounded-xl object-cover border border-slate-200/80 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 shadow-2xs" 
+                        />
+                        <span 
+                          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-[#0a0c10] ${statusDotColor}`}
+                          title={statusLabel}
+                        />
                       </div>
-                      <span className="truncate flex-1 text-left">{member.name}</span>
-                      {(unreadCounts[dmChannelId] || 0) > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9.5px] font-black shadow-xs">
-                          {unreadCounts[dmChannelId] > 99 ? '99+' : unreadCounts[dmChannelId]}
-                        </span>
-                      )}
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`truncate text-xs ${isActive ? 'font-bold text-indigo-900 dark:text-indigo-200' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {member.name}
+                          </span>
+                          {unread > 0 && (
+                            <span className="px-1.5 py-0.2 min-w-[18px] text-center text-[9px] font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 rounded-full shadow-xs shrink-0">
+                              {unread > 99 ? '99+' : unread}
+                            </span>
+                          )}
+                        </div>
+                        <div className="truncate text-[10.5px] text-slate-400 dark:text-slate-500 font-normal mt-0.5 flex items-center gap-1">
+                          {member.statusMessage ? (
+                            <span className="truncate">{member.statusEmoji || '💬'} {member.statusMessage}</span>
+                          ) : member.department ? (
+                            <span className="truncate">{member.department}</span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotColor}`} />
+                              <span>{statusLabel}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-
-
+            )}
           </div>
+
+          {/* If search query has no results */}
+          {normalizedSearch && normalChannels.length === 0 && groupChannels.length === 0 && filteredMembers.length === 0 && (
+            <div className="text-center py-8 px-2 select-none">
+              <Search className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Không tìm thấy kết quả</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Không có kênh hay thành viên nào khớp với &ldquo;{searchQuery}&rdquo;</p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                Xóa tìm kiếm
+              </button>
+            </div>
+          )}
+
+          {/* Quick Action prompt card to gracefully fill void */}
+          {!normalizedSearch && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowNewDmModal(true)}
+                className="w-full p-2.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/60 bg-white/50 dark:bg-slate-900/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all flex items-center justify-center gap-2 text-xs font-semibold group cursor-pointer shadow-3xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <span>Nhắn tin với đồng đội</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Sidebar Footer Bar */}
-        <div className="relative px-4 py-2.5 bg-slate-100/30 dark:bg-[#0a0a0a] border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shrink-0 text-slate-400 dark:text-slate-500 select-none">
-          <div className="flex items-center gap-3">
-            <button 
-              type="button" 
-              onClick={() => setShowQuickCreateMenu(!showQuickCreateMenu)}
-              className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="Tạo nhanh"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+        {/* Sidebar Footer Bar: User Profile & Quick Actions */}
+        <div className="relative p-2 bg-white/70 dark:bg-[#08090c] border-t border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between shrink-0 select-none gap-1.5">
+          {/* Current User Pill */}
+          <div 
+            onClick={() => setShowChatSettingsModal(true)}
+            className="flex items-center gap-2 flex-1 min-w-0 p-1 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
+            title="Tùy chỉnh chat & tài khoản"
+          >
+            <div className="relative shrink-0">
+              <SignedImage 
+                filePath={currentUser?.avatar} 
+                alt={currentUser?.name || 'User'} 
+                className="w-8 h-8 rounded-xl object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs"
+              />
+              <span 
+                className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-[#08090c] ${
+                  ownPresenceStatus === 'online' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' :
+                  ownPresenceStatus === 'busy' ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.7)]' :
+                  ownPresenceStatus === 'away' ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]' :
+                  'bg-slate-400'
+                }`} 
+              />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                {currentUser?.name || 'Tài khoản của bạn'}
+              </div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  ownPresenceStatus === 'online' ? 'bg-emerald-500' :
+                  ownPresenceStatus === 'busy' ? 'bg-rose-500' :
+                  ownPresenceStatus === 'away' ? 'bg-amber-400' :
+                  'bg-slate-400'
+                }`} />
+                <span className="capitalize">{ownPresenceStatus === 'online' ? 'Đang hoạt động' : ownPresenceStatus === 'busy' ? 'Đang bận' : ownPresenceStatus === 'away' ? 'Tạm vắng' : 'Ngoại tuyến'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-0.5 shrink-0 text-slate-400 dark:text-slate-500">
             <button 
               type="button" 
               onClick={() => setShowActivityLogModal(true)}
-              className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
               title="Lịch sử hoạt động"
             >
               <Clock className="w-4 h-4" />
             </button>
+            <button 
+              type="button" 
+              onClick={() => setShowChatSettingsModal(true)}
+              className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              title="Tùy chỉnh Chat"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            type="button" 
-            onClick={() => setShowChatSettingsModal(true)}
-            className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-            title="Tùy chỉnh Chat"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
 
           {/* Quick Create Menu Popover */}
           {showQuickCreateMenu && (
-            <div className="absolute left-4 bottom-12 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[180px] text-left animate-fadeIn">
-              <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
+            <div className="absolute left-3 bottom-14 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[190px] text-left animate-fadeIn">
+              <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Tạo nhanh</span>
+                <button onClick={() => setShowQuickCreateMenu(false)} className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
               </div>
               <button
                 onClick={() => { setShowQuickCreateMenu(false); setShowCreateChannelModal(true); }}
@@ -2579,6 +3134,13 @@ ${channelMessagesText}`;
                 Tin nhắn cá nhân (DM)
               </button>
               <button
+                onClick={() => { setShowQuickCreateMenu(false); setShowCreateGroupModal(true); }}
+                className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <Users className="w-3.5 h-3.5 text-violet-500" />
+                Tạo Nhóm chat
+              </button>
+              <button
                 onClick={() => {
                   setShowQuickCreateMenu(false);
                   const selfDmId = `${workspaceId}:dm-${currentUser.id}-${currentUser.id}`;
@@ -2587,14 +3149,13 @@ ${channelMessagesText}`;
                 }}
                 className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 rounded-xl transition-colors cursor-pointer flex items-center gap-2"
               >
-                <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                <FileText className="w-3.5 h-3.5 text-amber-500" />
                 Viết ghi chú cá nhân
               </button>
             </div>
           )}
         </div>
-
-        </div>
+      </div>
 
       {/* ── COLUMN 2: Main Chat Workspace ── */}
       <div 
@@ -2810,7 +3371,11 @@ ${channelMessagesText}`;
         )}
 
         {/* Messages List Area */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 pr-3 scrollbar-thin">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          className="flex flex-1 flex-col space-y-0.5 overflow-y-auto px-3 py-4 scrollbar-thin sm:px-5"
+        >
           {isLoadingMessages && messages.length === 0 && (
             <div className="space-y-5 px-2 py-4" aria-label="Đang tải tin nhắn">
               {[0, 1, 2].map(item => (
@@ -2996,35 +3561,31 @@ ${channelMessagesText}`;
 
             // Date separator logic
             let showDateSep = false;
-            const msgDateLabel = getDateLabel(msg.timestamp);
+            const msgDateLabel = getDateLabel(msg.createdAt || msg.timestamp);
             if (idx === 0 && msgDateLabel) {
               showDateSep = true;
             } else if (idx > 0 && msgDateLabel) {
-              const prevLabel = getDateLabel(filtered[idx - 1].timestamp);
+              const prevLabel = getDateLabel(filtered[idx - 1].createdAt || filtered[idx - 1].timestamp);
               if (prevLabel !== msgDateLabel) showDateSep = true;
             }
 
-            return (
-              <div key={msg.id}>
-                {/* Channel History Top Anchor */}
-                {idx === 0 && !isSelfDm && (
-                  <div className="pt-2 pb-6 px-2 text-left space-y-2 border-b border-slate-100 dark:border-slate-800/60 mb-4 select-none animate-fadeIn">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-indigo-500/20">
-                      {isSpaceChan ? (spaceChanName ? '📁' : '#') : '#'}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-slate-900 dark:text-white">
-                        {isDm && dmMember ? `Cuộc trò chuyện với ${dmMember.name}` : `#${activeChannel?.name || 'chat-room'}`}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                        {isDm && dmMember
-                          ? `Đây là sự khởi đầu của cuộc trò chuyện trực tiếp giữa bạn và ${dmMember.name}.`
-                          : `Đây là sự khởi đầu của kênh #${activeChannel?.name || 'chat-room'}.`}
-                      </p>
-                    </div>
-                  </div>
-                )}
+            const previousMessage = filtered[idx - 1];
+            const nextMessage = filtered[idx + 1];
+            const groupedWithPrevious = Boolean(
+              !showDateSep &&
+              previousMessage &&
+              previousMessage.senderId === msg.senderId &&
+              Boolean(previousMessage.isAi) === Boolean(msg.isAi)
+            );
+            const groupedWithNext = Boolean(
+              nextMessage &&
+              nextMessage.senderId === msg.senderId &&
+              Boolean(nextMessage.isAi) === Boolean(msg.isAi) &&
+              getDateLabel(nextMessage.createdAt || nextMessage.timestamp) === msgDateLabel
+            );
 
+            return (
+              <div key={msg.id} className={idx === 0 ? 'mt-auto' : undefined}>
                 {/* Date Separator Pill */}
                 {showDateSep && msgDateLabel && (
                   <div className="flex items-center gap-3 py-3 mb-2">
@@ -3038,31 +3599,30 @@ ${channelMessagesText}`;
 
               <div 
                 id={`msg-${msg.id}`}
-                className={`flex gap-3.5 items-start group relative rounded-2xl p-3.5 transition-all ${
-                  msg.isAi 
-                    ? 'bg-gradient-to-r from-indigo-50/40 via-purple-50/20 to-transparent border-l-4 border-indigo-500 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-transparent shadow-2xs' 
-                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-850/50'
-                }`}
+                className={`group relative flex items-end gap-2 transition-all ${isMe ? 'flex-row-reverse' : ''} ${groupedWithPrevious ? 'mt-0.5' : 'mt-3'}`}
               >
                 {/* Sender Avatar */}
-                {msg.isAi ? (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 flex items-center justify-center text-white shrink-0 shadow-sm">
-                    <Bot className="w-4.5 h-4.5 animate-pulse" />
+                {!isMe && (groupedWithNext ? (
+                  <div className="mb-4 h-8 w-8 shrink-0" aria-hidden="true" />
+                ) : msg.isAi ? (
+                  <div className="mb-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-cyan-400 text-white shadow-sm ring-2 ring-white dark:ring-slate-950">
+                    <Bot className="h-4.5 w-4.5" />
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setViewingMemberProfileId(msg.senderId)}
-                    className="rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer transition-transform active:scale-95 hover:opacity-85 group/avatar shrink-0"
+                    className="group/avatar mb-4 shrink-0 cursor-pointer rounded-full transition-transform hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
                     title={`Xem hồ sơ của ${msg.senderName}`}
                   >
-                    <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700 shrink-0 object-cover" />
+                    <SignedImage filePath={msg.senderAvatar} alt={msg.senderName} className="h-8 w-8 shrink-0 rounded-full border border-slate-200/50 bg-slate-100 object-cover ring-2 ring-white dark:border-slate-700 dark:bg-slate-800 dark:ring-slate-950" />
                   </button>
-                )}
+                ))}
 
                 {/* Message Body */}
-                <div className="flex-1 min-w-0 text-left space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className={`flex min-w-0 max-w-[84%] flex-col space-y-1 text-left sm:max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
+                  {!isMe && !groupedWithPrevious && (
+                  <div className="flex items-center gap-2 px-1">
                     {msg.isAi ? (
                       <span className="text-[11px] font-black text-indigo-650 dark:text-indigo-400">{msg.senderName}</span>
                     ) : (
@@ -3074,22 +3634,6 @@ ${channelMessagesText}`;
                       >
                         {msg.senderName}
                       </button>
-                    )}
-                    <span className="text-[9px] text-slate-450 dark:text-slate-500 font-mono">{msg.timestamp}</span>
-                    {msg.editedAt && <span className="text-[8.5px] text-slate-400 font-semibold">đã chỉnh sửa</span>}
-                    {isMe && (
-                      <span className="flex items-center gap-0.5 ml-1 select-none group/ticks relative" title={isOffline ? "Sent (Offline)" : "Read by team"}>
-                        {isOffline ? (
-                          <span className="text-slate-400 font-mono text-[9px] font-bold">✓</span>
-                        ) : (
-                          <>
-                            <span className="text-emerald-500 font-mono text-[9.5px] font-black tracking-tighter">✓✓</span>
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-5 bg-slate-900 text-white text-[9.5px] font-bold px-2 py-1 rounded-lg opacity-0 pointer-events-none group-hover/ticks:opacity-100 transition-opacity whitespace-nowrap z-30 shadow-md">
-                              Đã đọc bởi: {members.slice(0, 2).map(m => m.name).join(', ')}
-                            </div>
-                          </>
-                        )}
-                      </span>
                     )}
                     {msg.isAi && (
                       <div className="flex items-center gap-1.5">
@@ -3104,6 +3648,17 @@ ${channelMessagesText}`;
                       </div>
                     )}
                   </div>
+                  )}
+
+                  {/* Message Bubble Row with Option 3 Dots Beside It */}
+                  <div className={`group/bubble relative flex items-center gap-1.5 max-w-full ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`max-w-full break-words px-3.5 py-2.5 text-xs font-medium leading-relaxed shadow-sm ${
+                      isMe
+                        ? `bg-gradient-to-br from-blue-600 to-indigo-600 text-white ${groupedWithNext ? 'rounded-[20px] rounded-br-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tr-md' : ''}`
+                        : msg.isAi
+                          ? `border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 text-slate-800 dark:border-indigo-900/70 dark:from-indigo-950/60 dark:to-violet-950/40 dark:text-slate-100 ${groupedWithNext ? 'rounded-[20px] rounded-bl-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tl-md' : ''}`
+                          : `border border-slate-200/70 bg-slate-100 text-slate-800 dark:border-slate-700/80 dark:bg-slate-800 dark:text-slate-100 ${groupedWithNext ? 'rounded-[20px] rounded-bl-md' : 'rounded-[20px]'} ${groupedWithPrevious ? 'rounded-tl-md' : ''}`
+                    }`}>
 
                   {/* Quoted reply context (trả lời tin nhắn nào) */}
                   {msg.parentId && (() => {
@@ -3143,10 +3698,10 @@ ${channelMessagesText}`;
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium break-words">
+                    <div className="break-words text-xs font-medium leading-relaxed text-inherit">
                       {formatMessageContent(msg.content)}
                       
-                      {msg.attachment && (
+                      {msg.attachment && !msg.attachment.isPoll && (
                         <div className="mt-2 select-none">
                           {msg.attachment.isVoice ? (
                             <VoiceMessagePlayer 
@@ -3204,6 +3759,245 @@ ${channelMessagesText}`;
                             </div>
                           )}
                         </div>
+                      )}
+                    </div>
+                  )}
+                  </div>
+
+                  {/* UI Option 3 Chấm Kế Bên Tin Nhắn */}
+                  {(!msg.deliveryState || msg.deliveryState === 'sent') && (
+                    <div className="relative shrink-0 flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReactionPickerMsgId(null);
+                          setMoreMenuMsgId(moreMenuMsgId === msg.id ? null : msg.id);
+                        }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all cursor-pointer select-none ${
+                          moreMenuMsgId === msg.id || reactionPickerMsgId === msg.id
+                            ? 'opacity-100 border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-md scale-105'
+                            : 'opacity-0 group-hover:opacity-100 group-hover/bubble:opacity-100 border-slate-200/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/95 text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800 hover:scale-110 shadow-xs'
+                        }`}
+                        title="Tùy chọn tin nhắn"
+                        aria-label="Tùy chọn tin nhắn"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+
+                      {/* Options Dropdown Menu */}
+                      {moreMenuMsgId === msg.id && (
+                        <>
+                          <div className="fixed inset-0 z-30 cursor-default" onClick={() => setMoreMenuMsgId(null)} />
+                          <div className={`absolute ${idx < 3 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} z-40 w-52 rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-2xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/98 animate-fadeIn ${isMe ? 'right-0' : 'left-0'}`}>
+                            {/* Quick Reactions Header */}
+                            <div className="flex items-center justify-between gap-1 px-1 py-1 border-b border-slate-100 dark:border-slate-800 mb-1">
+                              {['👍', '❤️', '😂', '🎉', '🔥'].map(emoji => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => {
+                                    handleAddReaction(msg.id, emoji);
+                                    setMoreMenuMsgId(null);
+                                  }}
+                                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-sm select-none transition-transform hover:scale-125"
+                                  title={`Thả ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMoreMenuMsgId(null);
+                                  setReactionPickerMsgId(msg.id);
+                                }}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 hover:text-indigo-600 transition-colors"
+                                title="Thêm biểu cảm khác"
+                              >
+                                <SmilePlus className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            {/* Actions list */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyingToMessage(msg);
+                                inputRef.current?.focus();
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              <CornerUpLeft className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>Trả lời (Reply)</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleCopyMessage(msg.content);
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Sao chép nội dung</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleOpenThread(msg);
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 text-sky-500" />
+                              <span>Phản hồi luồng</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleTogglePinMessage(msg.id, !msg.isPinned);
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              {msg.isPinned ? <PinOff className="w-3.5 h-3.5 text-amber-500" /> : <Pin className="w-3.5 h-3.5 text-amber-500" />}
+                              <span>{msg.isPinned ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setForwardingMessage(msg);
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              <Forward className="w-3.5 h-3.5 text-blue-500" />
+                              <span>Chuyển tiếp</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleTranslateMessage(msg.id, msg.content);
+                                setMoreMenuMsgId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                            >
+                              {translatingMsgId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" /> : <Globe className="w-3.5 h-3.5 text-indigo-500" />}
+                              <span>{translatedMessages[msg.id] ? "Ẩn bản dịch" : "Dịch bằng AI"}</span>
+                            </button>
+
+                            {onAddTask && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleOpenConvertModal(msg);
+                                  setMoreMenuMsgId(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                              >
+                                <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Tạo Task</span>
+                              </button>
+                            )}
+
+                            {/* Owner Actions */}
+                            {isMe && msg.deliveryState === 'sent' && (
+                              <>
+                                <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingMsgId(msg.id);
+                                    setEditVal(msg.content);
+                                    setMoreMenuMsgId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                                  <span>Chỉnh sửa</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleDeleteMessage(msg.id);
+                                    setMoreMenuMsgId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa tin nhắn</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Full Reaction Picker Popover */}
+                      {reactionPickerMsgId === msg.id && (
+                        <>
+                          <div className="fixed inset-0 z-30 cursor-default" onClick={() => setReactionPickerMsgId(null)} />
+                          <div className={`absolute ${idx < 3 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'} p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl z-40 w-[232px] animate-fadeIn ${isMe ? 'right-0' : 'left-0'}`}>
+                            <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider px-1 pb-1.5">Chọn biểu cảm</div>
+                            <div className="grid grid-cols-7 gap-0.5">
+                              {['😀', '😂', '😍', '🥳', '😎', '🤔', '😭', '👍', '🙌', '🤝', '👏', '🙏', '💪', '🔥', '🎉', '🚀', '❤️', '💜', '💡', '🧠', '👀', '💯', '✅', '⚡', '☕', '🏆', '🎯', '🤯'].map(emoji => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => { handleAddReaction(msg.id, emoji); setReactionPickerMsgId(null); }}
+                                  className="w-7 h-7 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-center text-sm select-none cursor-pointer transition-all hover:scale-110 active:scale-95"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                  {!groupedWithNext && (
+                    <div className={`flex min-h-4 items-center gap-1.5 px-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <span className="font-mono">
+                        {msg.createdAt && !Number.isNaN(new Date(msg.createdAt).getTime())
+                          ? new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                          : msg.timestamp}
+                      </span>
+                      {msg.editedAt && <span>· đã chỉnh sửa</span>}
+                      {isMe && (
+                        msg.deliveryState === 'failed' ? (
+                          <span className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleRetryMessage(msg.id)}
+                              className="flex items-center gap-1 rounded-full px-1 py-0.5 font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                              title="Gửi lại tin nhắn"
+                            >
+                              <AlertCircle className="h-3 w-3" />
+                              Thử lại
+                            </button>
+                            <button type="button" onClick={() => handleDeleteMessage(msg.id)} className="rounded-full p-0.5 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800" title="Xóa tin nhắn lỗi">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ) : msg.deliveryState === 'sending' ? (
+                          <span className="flex items-center gap-1" title={isOffline ? 'Đang chờ kết nối' : 'Đang gửi'}>
+                            {isOffline ? <WifiOff className="h-3 w-3" /> : <RefreshCw className="h-3 w-3 animate-spin" />}
+                            {isOffline ? 'Chờ mạng' : 'Đang gửi'}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-0.5" title="Đã gửi">
+                            <Check className="h-3 w-3" /> Đã gửi
+                          </span>
+                        )
                       )}
                     </div>
                   )}
@@ -3287,157 +4081,13 @@ ${channelMessagesText}`;
                     </button>
                   )}
                 </div>
-
-                {/* Actions Popover (Hover menus) */}
-                <div className={`absolute right-2 top-2 transition-all flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-xl shadow-xl backdrop-blur-md p-1 z-20 ${reactionPickerMsgId === msg.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                  {/* Quick Reactions */}
-                  {['👍', '❤️', '🎉', '😂'].map(emoji => (
-                    <button 
-                      key={emoji}
-                      onClick={() => handleAddReaction(msg.id, emoji)}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-xs select-none transition-all"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-
-                  {/* Full Reaction Picker Toggle */}
-                  <button 
-                    onClick={() => setReactionPickerMsgId(reactionPickerMsgId === msg.id ? null : msg.id)}
-                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
-                      reactionPickerMsgId === msg.id
-                        ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400'
-                        : 'text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                    title="Chọn biểu cảm khác"
-                  >
-                    <SmilePlus className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Translate Message Button */}
-                  <button 
-                    onClick={() => handleTranslateMessage(msg.id, msg.content)}
-                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
-                      translatedMessages[msg.id] ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                    title={translatingMsgId === msg.id ? "Đang dịch..." : "Dịch tin nhắn bằng AI"}
-                  >
-                    {translatingMsgId === msg.id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" /> : <Globe className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {/* Reply Quote Button */}
-                  <button 
-                    onClick={() => {
-                      setReplyingToMessage(msg);
-                      inputRef.current?.focus();
-                    }}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    title="Trả lời tin nhắn (Reply)"
-                  >
-                    <CornerUpLeft className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Reply in Thread */}
-                  <button 
-                    onClick={() => handleOpenThread(msg)}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors"
-                    title="Phản hồi trong luồng"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Pin/Unpin Message */}
-                  <button 
-                    onClick={() => handleTogglePinMessage(msg.id, !!msg.isPinned)}
-                    className={`p-1 rounded-lg cursor-pointer transition-colors ${
-                      msg.isPinned 
-                        ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-955/30' 
-                        : 'text-slate-400 dark:text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-955/30'
-                    }`}
-                    title={msg.isPinned ? "Unpin message" : "Pin message"}
-                  >
-                    {msg.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {/* Forward Message */}
-                  <button 
-                    onClick={() => setForwardingMessage(msg)}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-                    title="Chuyển tiếp tin nhắn"
-                  >
-                    <Forward className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Convert to Task */}
-                  {onAddTask && (
-                    <button 
-                      onClick={() => handleOpenConvertModal(msg)}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                      title="Tạo Task từ tin nhắn"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  {/* Copy Message Content */}
-                  <button 
-                    onClick={() => handleCopyMessage(msg.content)}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    title="Sao chép nội dung tin nhắn"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Edit/Delete for own messages */}
-                  {isMe && (
-                    <>
-                      <button 
-                        onClick={() => { setEditingMsgId(msg.id); setEditVal(msg.content); }}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                        title="Sửa tin nhắn"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="p-1 hover:bg-rose-50 rounded-md cursor-pointer text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Xóa tin nhắn"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-
-                  {/* Full Reaction Picker Popover */}
-                  {reactionPickerMsgId === msg.id && (
-                    <>
-                      <div className="fixed inset-0 z-30 cursor-default" onClick={() => setReactionPickerMsgId(null)} />
-                      <div className="absolute right-0 top-full mt-1.5 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl z-40 w-[232px] animate-fadeIn">
-                        <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider px-1 pb-1.5">Chọn biểu cảm</div>
-                        <div className="grid grid-cols-7 gap-0.5">
-                          {['😀', '😂', '😍', '🥳', '😎', '🤔', '😭', '👍', '🙌', '🤝', '👏', '🙏', '💪', '🔥', '🎉', '🚀', '❤️', '💜', '💡', '🧠', '👀', '💯', '✅', '⚡', '☕', '🏆', '🎯', '🤯'].map(emoji => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => { handleAddReaction(msg.id, emoji); setReactionPickerMsgId(null); }}
-                              className="w-7 h-7 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-center text-sm select-none cursor-pointer transition-all hover:scale-110 active:scale-95"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
               </div>
               </div>
             );
           })}
 
           {/* AI typing simulation tracker */}
-          {isAiTyping && (
+          {isAiTyping && activeChannelId.endsWith('apexa-brain-ai') && (
             <div className="flex gap-3 items-start animate-pulse">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shrink-0 shadow-sm">
                 <Bot className="w-4.5 h-4.5 animate-spin" />
@@ -3471,30 +4121,15 @@ ${channelMessagesText}`;
           <div ref={messageEndRef} />
         </div>
 
-        {/* Attachment preview box */}
-        {selectedFile && (
-          <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-3 animate-slideUp">
-            <div className="flex items-center gap-2 min-w-0">
-              {selectedFile.type.startsWith('image/') ? (
-                <SignedImage filePath={selectedFile.url} alt={selectedFile.name} bucket="chat-attachments" className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" />
-              ) : (
-                <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
-                  <Globe className="w-4.5 h-4.5" />
-                </div>
-              )}
-              <div className="min-w-0 text-left">
-                <span className="block text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{selectedFile.name}</span>
-                <span className="block text-[9.5px] text-slate-400 font-bold font-mono">{(selectedFile.size / 1024).toFixed(1)} KB</span>
-              </div>
-            </div>
-            <button 
-              type="button" 
-              onClick={() => setSelectedFile(null)}
-              className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+        {newMessagesBelow > 0 && (
+          <button
+            type="button"
+            onClick={() => scrollToBottom()}
+            className="absolute bottom-[86px] left-1/2 z-30 -translate-x-1/2 rounded-full border border-indigo-200/80 bg-white/95 px-3.5 py-2 text-[10.5px] font-black text-indigo-650 shadow-xl backdrop-blur-md transition-all hover:-translate-y-0.5 dark:border-indigo-800 dark:bg-slate-900/95 dark:text-indigo-300"
+          >
+            <ChevronDown className="mr-1 inline h-3.5 w-3.5" />
+            {newMessagesBelow} tin nhắn mới
+          </button>
         )}
 
         {/* Rich Emoji & Sticker Picker popover */}
@@ -3614,8 +4249,14 @@ ${channelMessagesText}`;
           </>
         )}
 
-                {/* ── MESSENGER-STANDARD CHAT INPUT AREA ── */}
+        {/* ── MESSENGER-STANDARD CHAT INPUT AREA ── */}
         <div className="px-3.5 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] bg-white/90 dark:bg-[#0a0a0a]/90 border-t border-slate-200/70 dark:border-slate-800/80 backdrop-blur-xl shrink-0 z-30">
+          {isOffline && (
+            <div className="mx-auto mb-2 flex max-w-7xl items-center justify-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+              <WifiOff className="h-3.5 w-3.5" />
+              Đang ngoại tuyến — tin nhắn sẽ tự gửi khi kết nối trở lại
+            </div>
+          )}
           <form onSubmit={handleSendMessage} className="relative flex flex-col gap-2 max-w-7xl mx-auto select-text">
 
             {/* Reply Preview Bar */}
@@ -3738,142 +4379,131 @@ ${channelMessagesText}`;
                 </div>
               </div>
             ) : (
-              /* Messenger Input Control Bar */
-              <div className="flex items-end gap-2 relative">
-                {/* Left Action Buttons */}
-                <div className="flex items-center gap-1 pb-1 text-slate-500 dark:text-slate-400 select-none shrink-0">
-                  {/* More Tools Expandable Menu (+) */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowToolsMenu(!showToolsMenu)}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                        showToolsMenu
-                          ? 'bg-indigo-600 text-white shadow-md rotate-45'
-                          : 'bg-slate-100/90 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                      title="Công cụ mở rộng & Định dạng"
-                    >
-                      <Plus className="w-4 h-4 transition-transform duration-200" />
-                    </button>
+              /* Unified Modern Chat Composer Bar */
+              <div className="w-full bg-slate-100/80 dark:bg-[#11131a] focus-within:bg-white dark:focus-within:bg-[#0c0d14] border border-slate-200/90 dark:border-slate-800 focus-within:border-indigo-500/80 dark:focus-within:border-indigo-500/80 focus-within:ring-2 focus-within:ring-indigo-500/15 rounded-2xl sm:rounded-3xl p-1.5 sm:p-2 transition-all shadow-xs flex items-end gap-1 sm:gap-1.5 relative">
+                {/* Left Action: Expandable Tools Menu (+) */}
+                <div className="relative shrink-0 select-none">
+                  <button
+                    type="button"
+                    onClick={() => setShowToolsMenu(!showToolsMenu)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                      showToolsMenu
+                        ? 'bg-indigo-600 text-white shadow-md rotate-45'
+                        : 'hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300'
+                    }`}
+                    title="Công cụ mở rộng & Định dạng"
+                  >
+                    <Plus className="w-4 h-4 transition-transform duration-200" />
+                  </button>
 
-                    {/* Expandable Tools Popover Grid */}
-                    {showToolsMenu && (
-                      <>
-                        <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowToolsMenu(false)} />
-                        <div className="absolute left-0 bottom-12 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl p-2.5 z-50 min-w-[260px] animate-fadeIn text-left space-y-2">
-                          <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Khung công cụ nhắn tin</span>
-                            <button type="button" onClick={() => setShowToolsMenu(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          
-                          {/* Formatting Tools Row */}
-                          <div className="flex items-center gap-1 px-1 py-1 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 justify-around">
-                            <button type="button" onClick={() => { insertFormatting('bold'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In đậm (**text**)">
-                              <Bold className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={() => { insertFormatting('italic'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In nghiêng (*text*)">
-                              <Italic className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={() => { insertFormatting('code'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Khối mã (`code`)">
-                              <Code className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={() => { insertFormatting('quote'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Trích dẫn (> quote)">
-                              <Quote className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          {/* Feature Apps List */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => { setShowVideoMeetModal(true); setShowToolsMenu(false); }}
-                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
-                            >
-                              <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                <Video className="w-3.5 h-3.5" />
-                              </div>
-                              <span>Họp Video</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setShowPollModal(true); setShowToolsMenu(false); }}
-                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
-                            >
-                              <div className="w-7 h-7 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                                <Vote className="w-3.5 h-3.5" />
-                              </div>
-                              <span>Tạo Thăm dò</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setShowChecklistModal(true); setShowToolsMenu(false); }}
-                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
-                            >
-                              <div className="w-7 h-7 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                                <CheckSquare className="w-3.5 h-3.5" />
-                              </div>
-                              <span>Tạo Checklist</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setShowTemplateModal(true); setShowToolsMenu(false); }}
-                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
-                            >
-                              <div className="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                                <FileText className="w-3.5 h-3.5" />
-                              </div>
-                              <span>Mẫu tin nhắn</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => { setShowAutomationModal(true); setShowToolsMenu(false); }}
-                              className="flex items-center gap-2 p-2 rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
-                            >
-                              <div className="w-7 h-7 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                                <Zap className="w-3.5 h-3.5" />
-                              </div>
-                              <span>Tự động hóa</span>
-                            </button>
-                          </div>
+                  {/* Expandable Tools Popover Grid */}
+                  {showToolsMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowToolsMenu(false)} />
+                      <div className="absolute left-0 bottom-11 bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-2xl backdrop-blur-xl p-2.5 z-50 min-w-[260px] animate-fadeIn text-left space-y-2">
+                        <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Khung công cụ nhắn tin</span>
+                          <button type="button" onClick={() => setShowToolsMenu(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </>
-                    )}
-                  </div>
+                        
+                        {/* Formatting Tools Row */}
+                        <div className="flex items-center gap-1 px-1 py-1 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 justify-around">
+                          <button type="button" onClick={() => { insertFormatting('bold'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In đậm (**text**)">
+                            <Bold className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('italic'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="In nghiêng (*text*)">
+                            <Italic className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('code'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Khối mã (`code`)">
+                            <Code className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => { insertFormatting('quote'); setShowToolsMenu(false); }} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer" title="Trích dẫn (> quote)">
+                            <Quote className="w-4 h-4" />
+                          </button>
+                        </div>
 
-                  {/* Media / File Upload Button */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
-                    title="Đính kèm Ảnh & Tệp"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                  </button>
+                        {/* Feature Apps List */}
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => { setShowVideoMeetModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                              <Video className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Họp Video</span>
+                          </button>
 
-                  {/* Mic Button */}
-                  <button
-                    type="button"
-                    onClick={startRecording}
-                    className="w-9 h-9 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
-                    title="Ghi âm giọng nói"
-                  >
-                    <Mic className="w-4 h-4" />
-                  </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowPollModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                              <Vote className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Tạo Thăm dò</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowChecklistModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              <CheckSquare className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Tạo Checklist</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowTemplateModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                              <FileText className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Mẫu tin nhắn</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setShowAutomationModal(true); setShowToolsMenu(false); }}
+                            className="flex items-center gap-2 p-2 rounded-2xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer text-left"
+                          >
+                            <div className="w-7 h-7 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                              <Zap className="w-3.5 h-3.5" />
+                            </div>
+                            <span>Tự động hóa</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Middle Input Pill (Messenger Capsule Box) */}
-                <div className="flex-1 bg-slate-100/90 dark:bg-slate-800/70 focus-within:bg-white dark:focus-within:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 focus-within:border-indigo-500/80 focus-within:ring-4 focus-within:ring-indigo-500/15 rounded-[24px] px-4 py-2 transition-all shadow-inner-xs flex items-center gap-2 relative min-w-0">
+                {/* Left Action: Media / File Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-8 h-8 rounded-full hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0 select-none"
+                  title="Đính kèm Ảnh & Tệp"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+
+                {/* Center: Textarea Input with Autocompletes */}
+                <div className="flex-1 min-w-0 py-1 px-1 relative">
                   <textarea
                     ref={inputRef}
                     value={inputVal}
                     onChange={handleInputChange}
+                    onBlur={() => sendTypingState(false)}
+                    maxLength={MAX_CHAT_MESSAGE_LENGTH}
                     placeholder={
                       isSelfDm
                         ? `Nhắn tin cho chính bạn... (Space cho AI, / lệnh)`
@@ -3882,7 +4512,8 @@ ${channelMessagesText}`;
                           : `Nhắn tin đến ${isDm && dmMember ? dmMember.name : (activeChannel?.name || 'chat')}...`
                     }
                     rows={1}
-                    className="w-full bg-transparent border-0 outline-none text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none max-h-32 min-h-[22px] custom-scrollbar focus:ring-0 p-0 leading-relaxed"
+                    className="w-full bg-transparent border-0 outline-none ring-0 shadow-none text-xs sm:text-[13px] font-medium placeholder-slate-400 dark:placeholder-slate-500 text-slate-800 dark:text-slate-100 resize-none max-h-36 min-h-[22px] custom-scrollbar p-0 leading-relaxed focus:outline-hidden focus:outline-none focus:ring-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0"
+                    style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                     onKeyDown={e => {
                       if (showCommandDropdown && filteredCommands.length > 0) {
                         if (e.key === 'ArrowDown') {
@@ -3907,7 +4538,7 @@ ${channelMessagesText}`;
                         }
                       }
 
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (chatSettings.enterToSend && e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage(e);
                       }
@@ -3916,7 +4547,7 @@ ${channelMessagesText}`;
 
                   {/* Autocomplete Dropdowns */}
                   {showMentionDropdown && filteredMentionMembers.length > 0 && (
-                    <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[200px] max-h-[180px] overflow-y-auto animate-fadeIn">
+                    <div className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[200px] max-h-[180px] overflow-y-auto animate-fadeIn">
                       <div className="px-2 py-1 mb-1">
                         <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Gợi ý thành viên</span>
                       </div>
@@ -3936,7 +4567,7 @@ ${channelMessagesText}`;
                   )}
 
                   {showCommandDropdown && filteredCommands.length > 0 && (
-                    <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
+                    <div className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-[60] min-w-[240px] max-h-[220px] overflow-y-auto animate-fadeIn">
                       <div className="px-2 py-1 mb-1 border-b border-slate-100 dark:border-slate-800">
                         <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Lệnh nhanh Slash (/)</span>
                       </div>
@@ -3953,22 +4584,41 @@ ${channelMessagesText}`;
                       ))}
                     </div>
                   )}
+                </div>
 
-                  {/* Right inner buttons inside pill (AI Writer & Emoji & GIF) */}
-                  <div className="flex items-center gap-1 text-slate-400 shrink-0 select-none">
-                    {/* AI Assistant Popover inside Pill */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowAiEnhanceMenu(!showAiEnhanceMenu)}
-                        className={`p-1 hover:text-amber-500 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 rounded-full transition-colors cursor-pointer ${showAiEnhanceMenu ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' : ''}`}
-                        title="AI Trợ lý viết & Tối ưu văn bản"
-                      >
-                        <Sparkles className={`w-4 h-4 text-amber-500 ${isAiEnhancing ? 'animate-spin' : ''}`} />
-                      </button>
+                {/* Right Actions: Voice Memo, AI, GIF, Emoji, and Send/Like */}
+                <div className="flex items-center gap-0.5 sm:gap-1 text-slate-400 shrink-0 select-none pb-0.5">
+                  {inputVal.length > 3600 && (
+                    <span className={`text-[9px] font-bold tabular-nums pr-1 ${inputVal.length >= MAX_CHAT_MESSAGE_LENGTH ? 'text-rose-500' : 'text-slate-400'}`}>
+                      {inputVal.length}/{MAX_CHAT_MESSAGE_LENGTH}
+                    </span>
+                  )}
 
-                      {showAiEnhanceMenu && (
-                        <div className="absolute right-0 bottom-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
+                  {/* Mic Button */}
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="w-8 h-8 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
+                    title="Ghi âm giọng nói"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+
+                  {/* AI Assistant Popover inside Bar */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAiEnhanceMenu(!showAiEnhanceMenu)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/40 ${showAiEnhanceMenu ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' : 'text-amber-500/80 hover:text-amber-500'}`}
+                      title="AI Trợ lý viết & Tối ưu văn bản"
+                    >
+                      <Sparkles className={`w-4 h-4 text-amber-500 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                    </button>
+
+                    {showAiEnhanceMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowAiEnhanceMenu(false)} />
+                        <div className="absolute right-0 bottom-11 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl p-1.5 z-50 min-w-[210px] text-left animate-fadeIn">
                           <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Trợ lý viết AI Apexa</span>
@@ -3989,53 +4639,50 @@ ${channelMessagesText}`;
                             ✏️ Sửa lỗi chính tả
                           </button>
                         </div>
-                      )}
-                    </div>
-
-                    {/* GIF Picker Trigger */}
-                    <button
-                      type="button"
-                      onClick={() => setShowGifPicker(!showGifPicker)}
-                      className={`px-1.5 py-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer text-[9.5px] font-black tracking-wider ${showGifPicker ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400' : 'text-slate-400'}`}
-                      title="Kho GIF & Sticker"
-                    >
-                      GIF
-                    </button>
-
-                    {/* Emoji Picker Trigger */}
-                    <button
-                      type="button"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className={`p-1 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 rounded-full transition-colors cursor-pointer ${showEmojiPicker ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : ''}`}
-                      title="Biểu cảm Emoji"
-                    >
-                      <Smile className="w-4 h-4" />
-                    </button>
+                      </>
+                    )}
                   </div>
-                </div>
 
-                {/* Right Send or Quick Like Button */}
-                <div className="pb-0.5 shrink-0 select-none">
+                  {/* GIF Picker Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setShowGifPicker(!showGifPicker)}
+                    className={`h-8 px-1.5 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer text-[10px] font-black tracking-wider flex items-center ${showGifPicker ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                    title="Kho GIF & Sticker"
+                  >
+                    GIF
+                  </button>
+
+                  {/* Emoji Picker Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-800 ${showEmojiPicker ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+                    title="Biểu cảm Emoji"
+                  >
+                    <Smile className="w-4 h-4" />
+                  </button>
+
+                  {/* Divider */}
+                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+                  {/* Send or Quick Like Button */}
                   {inputVal.trim() || selectedFile ? (
                     <button
                       type="submit"
-                      disabled={isSending}
-                      className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md shadow-blue-500/25 flex items-center justify-center cursor-pointer active:scale-90 transition-all"
+                      className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-sm shadow-blue-500/30 flex items-center justify-center cursor-pointer active:scale-90 transition-all shrink-0"
                       title="Gửi tin nhắn (Enter)"
                     >
-                      {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 fill-current ml-0.5" />}
+                      <Send className="w-3.5 h-3.5 fill-current ml-0.5" />
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => {
-                        setInputVal('👍');
-                        setTimeout(() => {
-                          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-                          handleSendMessage(fakeEvent);
-                        }, 50);
+                        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+                        handleSendMessage(fakeEvent, '👍');
                       }}
-                      className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-500 transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-90 text-lg hover:scale-110"
+                      className="w-8 h-8 rounded-full hover:bg-amber-100/70 dark:hover:bg-amber-950/50 text-amber-500 transition-all flex items-center justify-center cursor-pointer active:scale-90 text-base hover:scale-110 shrink-0"
                       title="Gửi Thumbs Up 👍"
                     >
                       👍
@@ -5318,7 +5965,7 @@ ${channelMessagesText}`;
                   <input 
                     type="checkbox"
                     checked={chatSettings.desktopNotifications}
-                    onChange={e => setChatSettings({ ...chatSettings, desktopNotifications: e.target.checked })}
+                    onChange={e => { void handleDesktopNotificationsChange(e.target.checked); }}
                     className="w-4 h-4 accent-indigo-600 cursor-pointer rounded"
                   />
                 </label>

@@ -16,7 +16,7 @@ import {
   XAxis, YAxis,
 } from 'recharts';
 import { supabase, getCleanChannel } from '@/lib/supabaseClient';
-import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
+import { APEXA_SUPER_ADMIN_UID, isApexaSuperAdmin } from '@/lib/admin/constants';
 import type { AdminAuditEntry, AdminOverview, AdminSetting, AdminUser, AdminVersion } from '@/lib/admin/types';
 import AdminMfaGate from '@/components/admin/AdminMfaGate';
 
@@ -125,6 +125,7 @@ export default function AdminDashboard() {
   const [access, setAccess] = useState<AccessState>('checking');
   const [mfaRequired, setMfaRequired] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [currentAdminId, setCurrentAdminId] = useState<string>('');
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, perPage: 25, total: 0, pages: 1 });
@@ -158,6 +159,7 @@ export default function AdminDashboard() {
       setAccess('signed-out');
       throw new Error('Phiên đăng nhập không tồn tại.');
     }
+    if (session.user?.id) setCurrentAdminId(session.user.id);
     const send = (accessToken: string) => fetch(url, {
       ...init,
       cache: 'no-store',
@@ -179,7 +181,7 @@ export default function AdminDashboard() {
     }
     if (response.status === 401) setAccess('signed-out');
     if (response.status === 403) {
-      const ownerNeedsMfa = session.user.id === APEXA_SUPER_ADMIN_UID && /AAL2|xác thực hai bước|TOTP/i.test(String(body.error || ''));
+      const ownerNeedsMfa = isApexaSuperAdmin(session.user.id) && /AAL2|xác thực hai bước|TOTP/i.test(String(body.error || ''));
       setMfaRequired(ownerNeedsMfa);
       setAccess('denied');
     }
@@ -522,7 +524,7 @@ export default function AdminDashboard() {
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="mt-1.5 truncate font-mono text-[9px] font-bold text-emerald-700/80 dark:text-emerald-400/60">
-            {APEXA_SUPER_ADMIN_UID}
+            {currentAdminId || APEXA_SUPER_ADMIN_UID}
           </p>
         </div>
       </aside>

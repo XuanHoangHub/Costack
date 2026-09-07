@@ -510,78 +510,81 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
             ) : (
               /* Regular Banner Actions Overlay: Upload, Reposition, Fit Toggle, HD View, Remove */
-              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    bannerFileInputRef.current?.click();
-                  }}
-                  disabled={isUploadingBanner}
-                  className="px-3 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                  title={isVietnamese ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
-                >
-                  {isUploadingBanner ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Camera className="w-3.5 h-3.5 text-cyan-300" />
+              <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto -translate-y-1 group-hover:translate-y-0 transition-all duration-200">
+                <div className="flex items-center gap-1 p-1 rounded-full bg-black/50 hover:bg-black/70 border border-white/20 backdrop-blur-xl shadow-xl">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      bannerFileInputRef.current?.click();
+                    }}
+                    disabled={isUploadingBanner}
+                    className="px-3 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                    title={isVietnamese ? 'Tải lên hoặc đổi ảnh bìa' : 'Upload or change profile banner'}
+                  >
+                    {isUploadingBanner ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5 text-cyan-300" />
+                    )}
+                    <span>
+                      {isUploadingBanner
+                        ? (isVietnamese ? 'Đang tải...' : 'Uploading...')
+                        : customBannerUrl
+                          ? (isVietnamese ? 'Đổi ảnh bìa' : 'Change banner')
+                          : (isVietnamese ? 'Tải ảnh bìa' : 'Upload banner')}
+                    </span>
+                  </button>
+
+                  {customBannerUrl && (
+                    <>
+                      <div className="h-3.5 w-[1px] bg-white/20 my-auto" />
+                      <button
+                        type="button"
+                        onClick={startRepositionBanner}
+                        className="px-2.5 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                        title={isVietnamese ? 'Kéo thả để căn chỉnh vị trí ảnh bìa' : 'Drag to reposition banner'}
+                      >
+                        <Move className="w-3.5 h-3.5 text-sky-300" />
+                        <span>{isVietnamese ? 'Căn chỉnh' : 'Reposition'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
+                        }}
+                        className="px-2.5 py-1.5 rounded-full hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer active:scale-95"
+                        title={bannerFit === 'cover' ? (isVietnamese ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (isVietnamese ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
+                        <span>{bannerFit === 'cover' ? (isVietnamese ? 'Vừa khung' : 'Fit') : (isVietnamese ? 'Phóng đầy' : 'Fill')}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxImage({ url: customBannerUrl, title: `${member.name} Banner` });
+                        }}
+                        className="w-7 h-7 rounded-full hover:bg-white/15 text-white flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                        title={isVietnamese ? 'Xem ảnh gốc độ nét cao (HD)' : 'View original HD image'}
+                      >
+                        <Eye className="w-3.5 h-3.5 text-sky-300" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveBanner}
+                        className="w-7 h-7 rounded-full hover:bg-rose-600/80 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                        title={isVietnamese ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove custom banner'}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-300" />
+                      </button>
+                    </>
                   )}
-                  <span>
-                    {isUploadingBanner
-                      ? (isVietnamese ? 'Đang tải...' : 'Uploading...')
-                      : customBannerUrl
-                        ? (isVietnamese ? 'Đổi ảnh bìa' : 'Change banner')
-                        : (isVietnamese ? 'Tải ảnh bìa' : 'Upload banner')}
-                  </span>
-                </button>
-
-                {customBannerUrl && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={startRepositionBanner}
-                      className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                      title={isVietnamese ? 'Kéo thả để căn chỉnh vị trí ảnh bìa' : 'Drag to reposition banner'}
-                    >
-                      <Move className="w-3.5 h-3.5 text-sky-300" />
-                      <span>{isVietnamese ? 'Căn chỉnh' : 'Reposition'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setBannerFit(prev => prev === 'cover' ? 'contain' : 'cover');
-                      }}
-                      className="px-2.5 py-1.5 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                      title={bannerFit === 'cover' ? (isVietnamese ? 'Chuyển sang vừa khung (không cắt ảnh)' : 'Switch to fit contain') : (isVietnamese ? 'Chuyển sang phóng đầy khung' : 'Switch to cover fill')}
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                      <span>{bannerFit === 'cover' ? (isVietnamese ? 'Vừa khung' : 'Fit') : (isVietnamese ? 'Phóng đầy' : 'Fill')}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLightboxImage({ url: customBannerUrl, title: `${member.name} Banner` });
-                      }}
-                      className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                      title={isVietnamese ? 'Xem ảnh gốc độ nét cao (HD)' : 'View original HD image'}
-                    >
-                      <Eye className="w-3.5 h-3.5 text-sky-300" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleRemoveBanner}
-                      className="w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white flex items-center justify-center transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                      title={isVietnamese ? 'Gỡ ảnh bìa (Dùng gradient mặc định)' : 'Remove custom banner'}
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-rose-300" />
-                    </button>
-                  </>
-                )}
+                </div>
               </div>
             )}
 

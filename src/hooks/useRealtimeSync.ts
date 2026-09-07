@@ -14,6 +14,7 @@ import { usePomodoroStore } from '@/store/pomodoroStore';
 import { Task, Document, User, Workspace, Space, BaseApp, WorkspaceInvitation } from '@/types';
 import { extractTaskRelationships } from '@/lib/taskRelationships';
 import { resolveAppRole } from '@/lib/authRole';
+import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 export function useSupabaseSync() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -170,14 +171,17 @@ export function useSupabaseSync() {
 
         if (myDbProfile) {
           const dbAvatar = myDbProfile.avatar && !myDbProfile.avatar.includes('api.dicebear.com') ? myDbProfile.avatar : '';
+          const isSuper = isApexaSuperAdmin(userId);
           useAuthStore.getState().updateCurrentUser({
             id: userId,
             name: myDbProfile.name || googleName || myName,
             email: myEmail,
             avatar: googleAvatar || dbAvatar || myAvatar,
-            role: (myDbProfile.role || myRole) as any,
+            role: (isSuper ? 'admin' : (myDbProfile.role || myRole)) as any,
             status: 'online',
-            isPremium: Boolean(myDbProfile.is_premium)
+            isPremium: isSuper ? true : Boolean(myDbProfile.is_premium),
+            subscriptionPlan: isSuper ? 'enterprise' : undefined,
+            billingStatus: isSuper ? 'active' : undefined,
           });
         }
 
@@ -655,14 +659,17 @@ export function useSupabaseSync() {
                   isPremium: Boolean(m.is_premium)
                 };
                 if (isMe) {
+                  const isSuper = isApexaSuperAdmin(userId);
                   useAuthStore.getState().updateCurrentUser({
                     id: userId,
                     name: m.name,
                     email: m.email,
                     avatar: m.avatar,
-                    role: m.role as any,
+                    role: (isSuper ? 'admin' : (m.role || 'member')) as any,
                     status: 'online',
-                    isPremium: Boolean(m.is_premium)
+                    isPremium: isSuper ? true : Boolean(m.is_premium),
+                    subscriptionPlan: isSuper ? 'enterprise' : undefined,
+                    billingStatus: isSuper ? 'active' : undefined,
                   });
                 }
                 setMembers(prev => {

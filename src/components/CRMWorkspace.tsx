@@ -302,7 +302,7 @@ export default function CRMWorkspace({
   return (
     <div className="space-y-5 font-sans select-none">
       {/* Top Header Card */}
-      <section className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:flex-row xl:items-center xl:justify-between shadow-xs">
+      <section className="apexa-module-header flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:flex-row xl:items-center xl:justify-between shadow-xs">
         <div className="flex items-center gap-3.5">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
             <Handshake className="h-6 w-6" />

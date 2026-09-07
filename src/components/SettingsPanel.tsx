@@ -9,8 +9,11 @@ import {
   LockKeyhole, LogOut, Mail, Menu, MonitorCog, Moon, Palette, Plus,
   RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles,
   Sun, Trash2, Upload, UserRoundCog, Users, UsersRound, Volume2, VolumeX, X,
-  Zap
+  Zap, Smartphone, ShieldAlert
 } from 'lucide-react';
+import QRCode from 'qrcode';
+import OtpCodeInput from './auth/OtpCodeInput';
+import SidebarOrderModal from './SidebarOrderModal';
 import SignedImage from './SignedImage';
 import TeamDirectory from './TeamDirectory';
 import LanguageDropdown from './LanguageDropdown';
@@ -20,6 +23,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { supabase } from '@/lib/supabaseClient';
 import { callAiApi } from '@/lib/aiClient';
+import { formatAuthError } from '@/lib/authError';
 import type { ThemePreference } from '@/lib/theme';
 import type { NotificationSettings, SyncLog, Task, User, Workspace } from '@/types';
 import { ApexaAiIcon } from './ApexaAiIcon';
@@ -104,15 +108,18 @@ function SectionHeader({ eyebrow, title, description, action }: { eyebrow: strin
   );
 }
 
-function SettingsCard({ title, description, icon: Icon, children, tone = 'default' }: { title: string; description?: string; icon?: React.ElementType; children: React.ReactNode; tone?: 'default' | 'danger' }) {
+function SettingsCard({ title, description, icon: Icon, children, tone = 'default', action }: { title: string; description?: string; icon?: React.ElementType; children: React.ReactNode; tone?: 'default' | 'danger'; action?: React.ReactNode }) {
   return (
     <section className={`overflow-hidden rounded-2xl border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:bg-slate-900 ${tone === 'danger' ? 'border-rose-200 dark:border-rose-900/60' : 'border-slate-200/80 dark:border-slate-800'}`}>
-      <div className={`flex items-start gap-3 border-b px-5 py-4 ${tone === 'danger' ? 'border-rose-100 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/15' : 'border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900'}`}>
-        {Icon && <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-sky-50 text-sky-500 dark:bg-sky-950/50 dark:text-sky-300'}`}><Icon className="h-4.5 w-4.5" /></div>}
-        <div>
-          <h3 className={`text-sm font-extrabold ${tone === 'danger' ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'}`}>{title}</h3>
-          {description && <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>}
+      <div className={`flex items-center justify-between gap-3 border-b px-5 py-4 ${tone === 'danger' ? 'border-rose-100 bg-rose-50/50 dark:border-rose-900/40 dark:bg-rose-950/15' : 'border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900'}`}>
+        <div className="flex items-start gap-3">
+          {Icon && <div className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 ${tone === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-sky-50 text-sky-500 dark:bg-sky-950/50 dark:text-sky-300'}`}><Icon className="h-4.5 w-4.5" /></div>}
+          <div>
+            <h3 className={`text-sm font-extrabold ${tone === 'danger' ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'}`}>{title}</h3>
+            {description && <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>}
+          </div>
         </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="p-5">{children}</div>
     </section>
@@ -212,10 +219,13 @@ export default function SettingsPanel({
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [revokingSessions, setRevokingSessions] = useState(false);
   const [sessionDetails, setSessionDetails] = useState<{ lastSignIn?: string; expiresAt?: number } | null>(null);
+  const [showSidebarOrderModal, setShowSidebarOrderModal] = useState(false);
   const [mfaFactors, setMfaFactors] = useState<Array<{ id: string; friendly_name?: string; status: string; created_at?: string }>>([]);
   const [mfaEnrollment, setMfaEnrollment] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [confirmDisableMfaModal, setConfirmDisableMfaModal] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
@@ -519,43 +529,81 @@ export default function SettingsPanel({
     }
   };
 
+  const verifiedMfaFactor = useMemo(() => mfaFactors.find(factor => factor.status === 'verified'), [mfaFactors]);
+  const isMfaActive = Boolean(verifiedMfaFactor);
+
   const startMfaEnrollment = async () => {
     setMfaBusy(true);
+    setMfaError('');
     try {
       await Promise.all(mfaFactors.filter(factor => factor.status !== 'verified').map(factor => supabase.auth.mfa.unenroll({ factorId: factor.id })));
       const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Apexa Authenticator' });
       if (error) throw error;
-      setMfaEnrollment({ factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret });
+
+      let qrDataUrl = data.totp.qr_code;
+      if (data.totp.uri) {
+        try {
+          qrDataUrl = await QRCode.toDataURL(data.totp.uri, {
+            width: 240,
+            margin: 1,
+            color: {
+              dark: '#0f172a',
+              light: '#ffffff'
+            }
+          });
+        } catch (qrErr) {
+          console.warn('Failed to render PNG QR code, falling back to SVG:', qrErr);
+          if (qrDataUrl && qrDataUrl.startsWith('<svg')) {
+            qrDataUrl = `data:image/svg+xml;utf-8,${encodeURIComponent(qrDataUrl)}`;
+          }
+        }
+      } else if (qrDataUrl && qrDataUrl.startsWith('<svg')) {
+        qrDataUrl = `data:image/svg+xml;utf-8,${encodeURIComponent(qrDataUrl)}`;
+      }
+
+      setMfaEnrollment({ factorId: data.id, qrCode: qrDataUrl, secret: data.totp.secret });
       setMfaCode('');
     } catch (error) {
-      triggerToast?.('error', isVietnamese ? 'Không thể bật xác thực hai bước' : 'Could not start MFA setup', error instanceof Error ? error.message : 'Please try again.');
+      const formatted = formatAuthError(error, isVietnamese);
+      setMfaError(formatted.description || formatted.title);
+      triggerToast?.('error', formatted.title, formatted.description);
     } finally {
       setMfaBusy(false);
     }
   };
 
   const cancelMfaEnrollment = async () => {
-    if (mfaEnrollment) await supabase.auth.mfa.unenroll({ factorId: mfaEnrollment.factorId });
+    if (mfaEnrollment) {
+      try {
+        await supabase.auth.mfa.unenroll({ factorId: mfaEnrollment.factorId });
+      } catch {}
+    }
     setMfaEnrollment(null);
     setMfaCode('');
+    setMfaError('');
     await loadSecurityState();
   };
 
-  const verifyMfaEnrollment = async () => {
-    if (!mfaEnrollment || !/^\d{6}$/.test(mfaCode)) return;
+  const verifyMfaEnrollment = async (codeToVerify?: string) => {
+    const code = (typeof codeToVerify === 'string' ? codeToVerify : mfaCode).trim();
+    if (!mfaEnrollment || !/^\d{6}$/.test(code)) return;
     setMfaBusy(true);
+    setMfaError('');
     try {
       const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaEnrollment.factorId });
       if (challengeError) throw challengeError;
-      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaEnrollment.factorId, challengeId: challenge.id, code: mfaCode });
+      const { error: verifyError } = await supabase.auth.mfa.verify({ factorId: mfaEnrollment.factorId, challengeId: challenge.id, code });
       if (verifyError) throw verifyError;
       setMfaEnrollment(null);
       setMfaCode('');
+      setMfaError('');
       await loadSecurityState();
       triggerToast?.('success', isVietnamese ? 'Đã bật xác thực hai bước' : 'Two-factor authentication enabled', isVietnamese ? 'Tài khoản hiện được bảo vệ bằng ứng dụng Authenticator.' : 'Your account is now protected by an authenticator app.');
       onAddSyncLog?.(isVietnamese ? 'Đã bật xác thực hai bước (TOTP)' : 'Enabled two-factor authentication (TOTP)');
     } catch (error) {
-      triggerToast?.('error', isVietnamese ? 'Mã xác thực không hợp lệ' : 'Invalid verification code', error instanceof Error ? error.message : 'Try a new code.');
+      const formatted = formatAuthError(error, isVietnamese);
+      setMfaError(formatted.description || formatted.title);
+      triggerToast?.('error', formatted.title, formatted.description);
     } finally {
       setMfaBusy(false);
     }
@@ -566,12 +614,25 @@ export default function SettingsPanel({
     try {
       const { error } = await supabase.auth.mfa.unenroll({ factorId });
       if (error) throw error;
+      setConfirmDisableMfaModal(null);
       await loadSecurityState();
       triggerToast?.('success', isVietnamese ? 'Đã tắt xác thực hai bước' : 'Two-factor authentication disabled', isVietnamese ? 'Thiết bị xác thực đã được gỡ.' : 'The authenticator factor was removed.');
+      onAddSyncLog?.(isVietnamese ? 'Đã tắt xác thực hai bước (TOTP)' : 'Disabled two-factor authentication (TOTP)');
     } catch (error) {
       triggerToast?.('error', isVietnamese ? 'Không thể gỡ xác thực' : 'Could not remove MFA', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setMfaBusy(false);
+    }
+  };
+
+  const handleToggleMfa = () => {
+    if (mfaBusy) return;
+    if (isMfaActive && verifiedMfaFactor) {
+      setConfirmDisableMfaModal(verifiedMfaFactor.id);
+    } else if (mfaEnrollment) {
+      void cancelMfaEnrollment();
+    } else {
+      void startMfaEnrollment();
     }
   };
 
@@ -853,6 +914,54 @@ export default function SettingsPanel({
                     <SettingRow title={t('uiSounds') || (isVietnamese ? 'Âm thanh giao diện' : 'Interface Sounds')} description={t('uiSoundsDesc') || (isVietnamese ? 'Phát âm thanh phản hồi nhẹ cho các thao tác quan trọng.' : 'Play subtle audio feedback for key interactions.')} last>
                       <Toggle checked={soundEnabled} onChange={setSoundEnabled} label={t('uiSounds') || 'Interface Sounds'} />
                     </SettingRow>
+                  </div>
+                </SettingsCard>
+
+                {/* 🧭 Sidebar & Navigation Customization Card */}
+                <SettingsCard 
+                  title={isVietnamese ? 'Thanh điều hướng & Sắp xếp Module' : 'Navigation & Sidebar Modules'} 
+                  description={isVietnamese ? 'Tùy biến vị trí và thứ tự các tính năng trên thanh bên theo thói quen sử dụng của bạn.' : 'Customize the order and placement of navigation modules to match your daily workflow.'} 
+                  icon={SlidersHorizontal}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSidebarOrderModal(true);
+                        if (typeof window !== 'undefined') {
+                          (window as any).playSystemSound?.('click');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 transition-all cursor-pointer"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                      <span>{isVietnamese ? 'Sắp xếp module' : 'Arrange modules'}</span>
+                    </button>
+                  }
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-1">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {isVietnamese ? 'Quản lý thứ tự hiển thị các module' : 'Manage module display order'}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {isVietnamese 
+                          ? 'Kéo thả trực tiếp trên thanh bên hoặc sử dụng bảng điều khiển này để di chuyển các module Lên/Xuống.' 
+                          : 'Drag and drop directly on the sidebar or use this manager to move modules Up/Down.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSidebarOrderModal(true);
+                        if (typeof window !== 'undefined') {
+                          (window as any).playSystemSound?.('click');
+                        }
+                      }}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white hover:bg-sky-400 active:scale-95 transition-all shadow-sm hover:shadow-md cursor-pointer shrink-0"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span>{isVietnamese ? 'Mở bảng sắp xếp' : 'Open Reorder Dialog'}</span>
+                    </button>
                   </div>
                 </SettingsCard>
               </>
@@ -1210,85 +1319,214 @@ export default function SettingsPanel({
                   </form>
                 </SettingsCard>
 
-                <SettingsCard title={isVietnamese ? 'Xác thực 2 yếu tố (2FA)' : 'Two-factor Authentication (2FA)'} description={isVietnamese ? 'Tùy chọn bảo vệ tài khoản bằng mã OTP 30s từ Google Authenticator, Microsoft Authenticator hoặc 1Password.' : 'Protect your account with 30s TOTP codes from any authenticator app.'} icon={ShieldCheck}>
+                <SettingsCard
+                  title={t('authenticatorApp') || (isVietnamese ? 'Ứng dụng Authenticator (TOTP)' : 'Authenticator App (TOTP)')}
+                  description={t('authenticatorDesc') || (isVietnamese ? 'Bảo vệ tài khoản bằng mã OTP 6 chữ số từ Google Authenticator, Microsoft Authenticator hoặc Apple Keychain khi đăng nhập.' : 'Protect your account with 6-digit TOTP codes from any authenticator app.')}
+                  icon={ShieldCheck}
+                  action={
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-extrabold ${isMfaActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                        {isMfaActive
+                          ? (isVietnamese ? 'Đang bật' : 'Enabled')
+                          : (isVietnamese ? 'Đang tắt' : 'Disabled')}
+                      </span>
+                      <Toggle
+                        checked={isMfaActive || Boolean(mfaEnrollment)}
+                        onChange={handleToggleMfa}
+                        disabled={mfaBusy}
+                        label={isVietnamese ? 'Bật/tắt ứng dụng xác thực' : 'Toggle Authenticator 2FA'}
+                      />
+                    </div>
+                  }
+                >
                   {mfaEnrollment ? (
-                    <div className="grid gap-5 md:grid-cols-[180px_1fr] items-center">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-white flex flex-col items-center">
-                        <img src={mfaEnrollment.qrCode} alt="Authenticator QR code" className="h-full w-full object-contain" />
-                        <span className="text-[9.5px] text-slate-400 font-semibold mt-1">{isVietnamese ? 'Quét trong app' : 'Scan in app'}</span>
+                    <div className="space-y-4 text-left">
+                      <div className="flex items-center justify-between gap-3 rounded-xl bg-blue-50/80 px-3.5 py-2.5 dark:bg-sky-950/30 border border-blue-200/80 dark:border-sky-900/40">
+                        <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
+                          <Smartphone className="h-4 w-4 shrink-0" />
+                          <span>{isVietnamese ? 'Đang thiết lập Authenticator (Bước 1/2)' : 'Setting up Authenticator (Step 1/2)'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={cancelMfaEnrollment}
+                          disabled={mfaBusy}
+                          className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
+                        </button>
                       </div>
-                      <div className="space-y-3.5 text-left">
-                        <div>
-                          <p className="text-sm font-black text-slate-800 dark:text-slate-100">{isVietnamese ? 'Quét mã bằng ứng dụng Authenticator' : 'Scan with your authenticator app'}</p>
-                          <p className="mt-0.5 text-xs leading-5 text-slate-500">{isVietnamese ? 'Sau khi quét hoặc nhập khóa bí mật, điền mã 6 chữ số để hoàn tất.' : 'After scanning or entering the secret key, enter the 6-digit code to finish.'}</p>
-                        </div>
-                        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800/60 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{isVietnamese ? 'Khóa thiết lập thủ công' : 'Manual setup secret'}</p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(mfaEnrollment.secret);
-                                setCopiedSecret(true);
-                                triggerToast?.('info', isVietnamese ? 'Đã sao chép khóa bí mật' : 'Secret copied', mfaEnrollment.secret);
-                                setTimeout(() => setCopiedSecret(false), 2500);
-                              }}
-                              className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
-                            >
-                              {copiedSecret ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                              <span>{copiedSecret ? (isVietnamese ? 'Đã sao chép' : 'Copied') : (isVietnamese ? 'Sao chép' : 'Copy')}</span>
-                            </button>
+
+                      <div className="grid gap-6 md:grid-cols-[200px_1fr] items-start">
+                        <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-white text-center">
+                          <div className="h-44 w-44 flex items-center justify-center overflow-hidden rounded-xl bg-white">
+                            <img
+                              src={mfaEnrollment.qrCode}
+                              alt="Authenticator QR Code"
+                              className="h-full w-full object-contain"
+                            />
                           </div>
-                          <code className="block break-all text-xs font-mono font-bold text-slate-800 dark:text-slate-200 select-all">{mfaEnrollment.secret}</code>
+                          <p className="text-[10px] font-bold text-slate-500">
+                            {isVietnamese ? 'Quét bằng camera trong app' : 'Scan in authenticator app'}
+                          </p>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block">{isVietnamese ? 'Mã 6 chữ số' : '6-digit OTP code'}</label>
-                          <input 
-                            inputMode="numeric" 
-                            autoComplete="one-time-code" 
-                            maxLength={6} 
-                            value={mfaCode} 
-                            onChange={event => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} 
-                            placeholder="000000" 
-                            className={`${inputClass} max-w-48 text-center text-base font-bold font-sans tabular-nums tracking-[0.35em]`} 
-                          />
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button type="button" onClick={verifyMfaEnrollment} disabled={mfaBusy || mfaCode.length !== 6} className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md disabled:opacity-40 cursor-pointer flex items-center gap-1.5">
-                            {mfaBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                            <span>{isVietnamese ? 'Xác minh và bật 2FA' : 'Verify & Enable 2FA'}</span>
-                          </button>
-                          <button type="button" onClick={cancelMfaEnrollment} disabled={mfaBusy} className="h-9 rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 cursor-pointer">{t('cancel') || 'Cancel'}</button>
+
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-2.5">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">1</span>
+                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                {t('authenticatorStep1') || (isVietnamese ? 'Mở Google Authenticator, Microsoft Authenticator hoặc Apple Keychain trên điện thoại.' : 'Open Google Authenticator, Microsoft Authenticator or Apple Keychain.')}
+                              </p>
+                            </div>
+
+                            <div className="flex items-start gap-2.5">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">2</span>
+                              <div className="space-y-1.5 flex-1">
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                  {t('authenticatorStep2') || (isVietnamese ? 'Quét mã QR bên cạnh hoặc sao chép khóa bí mật thiết lập thủ công:' : 'Scan the QR code or enter this secret key manually:')}
+                                </p>
+                                <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800 px-3 py-1.5">
+                                  <code className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100 select-all break-all">
+                                    {mfaEnrollment.secret}
+                                  </code>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(mfaEnrollment.secret);
+                                      setCopiedSecret(true);
+                                      triggerToast?.('info', t('secretCopied') || (isVietnamese ? 'Đã sao chép khóa bí mật' : 'Secret copied'), mfaEnrollment.secret);
+                                      setTimeout(() => setCopiedSecret(false), 2500);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:text-sky-700 dark:text-sky-400 shrink-0 cursor-pointer"
+                                  >
+                                    {copiedSecret ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                    <span>{copiedSecret ? (isVietnamese ? 'Đã chép' : 'Copied') : (isVietnamese ? 'Sao chép' : 'Copy')}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start gap-2.5 pt-1">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">3</span>
+                              <div className="space-y-2 flex-1">
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                  {t('authenticatorStep3') || (isVietnamese ? 'Điền mã 6 chữ số xuất hiện trên ứng dụng để kích hoạt:' : 'Enter the 6-digit code from your app to activate:')}
+                                </p>
+                                <div className="pt-1 flex flex-col items-start gap-3">
+                                  <OtpCodeInput
+                                    id="enrollment-otp"
+                                    value={mfaCode}
+                                    onChange={(val) => {
+                                      setMfaCode(val);
+                                      if (mfaError) setMfaError('');
+                                    }}
+                                    onComplete={(code) => verifyMfaEnrollment(code)}
+                                    disabled={mfaBusy}
+                                    hasError={Boolean(mfaError)}
+                                    autoFocus
+                                  />
+                                  {mfaError && (
+                                    <p role="alert" className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                      <span>{mfaError}</span>
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => verifyMfaEnrollment()}
+                                      disabled={mfaBusy || mfaCode.length !== 6}
+                                      className="inline-flex h-9.5 items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md transition disabled:opacity-40 cursor-pointer"
+                                    >
+                                      {mfaBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                                      <span>{t('verifyAndEnable') || (isVietnamese ? 'Xác minh và Bật 2FA' : 'Verify & Enable 2FA')}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelMfaEnrollment}
+                                      disabled={mfaBusy}
+                                      className="h-9.5 rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 cursor-pointer"
+                                    >
+                                      {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  ) : mfaFactors.some(factor => factor.status === 'verified') ? (
-                    <div className="space-y-3">
-                      {mfaFactors.filter(factor => factor.status === 'verified').map(factor => (
-                        <div key={factor.id} className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/15">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                              <ShieldCheck className="h-5 w-5" />
-                            </div>
-                            <div className="text-left">
-                              <p className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                                <span>{factor.friendly_name || 'Apexa Authenticator'}</span>
-                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">Active</span>
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-emerald-600/90 dark:text-emerald-400/80">{isVietnamese ? 'Đang bảo vệ tài khoản bằng mã OTP TOTP.' : 'Account is protected by TOTP OTP.'}</p>
-                            </div>
+                  ) : isMfaActive && verifiedMfaFactor ? (
+                    <div className="space-y-4 text-left">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4.5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                        <div className="flex items-start gap-3.5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <ShieldCheck className="h-5 w-5" />
                           </div>
-                          <button type="button" onClick={() => removeMfaFactor(factor.id)} disabled={mfaBusy} className="h-9 rounded-xl border border-rose-200 bg-white px-3 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 cursor-pointer">{isVietnamese ? 'Tắt / Gỡ 2FA' : 'Remove 2FA'}</button>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-black text-emerald-950 dark:text-emerald-200">
+                                {verifiedMfaFactor.friendly_name || 'Apexa Authenticator'}
+                              </h4>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                {isVietnamese ? 'Đang bảo vệ' : 'Active'}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-relaxed text-emerald-800/80 dark:text-emerald-300/80">
+                              {isVietnamese
+                                ? 'Tài khoản của bạn được bảo vệ bằng mã 6 số từ ứng dụng Authenticator mỗi lần đăng nhập.'
+                                : 'Your account is protected by 6-digit TOTP codes whenever you sign in.'}
+                            </p>
+                          </div>
                         </div>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDisableMfaModal(verifiedMfaFactor.id)}
+                          disabled={mfaBusy}
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 text-xs font-bold text-rose-600 hover:bg-rose-50 shadow-sm transition dark:border-rose-900/60 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30 cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>{t('disable2FA') || (isVietnamese ? 'Tắt Authenticator' : 'Disable 2FA')}</span>
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                        <span className="font-semibold">{isVietnamese ? 'Ứng dụng tương thích:' : 'Supported apps:'}</span>
+                        {['Google Authenticator', 'Microsoft Authenticator', '1Password', 'Apple Keychain', 'Authy'].map(appName => (
+                          <span key={appName} className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                            {appName}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-left">
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{isVietnamese ? 'Chưa kích hoạt xác thực hai bước (Tùy chọn)' : 'Two-factor authentication is off (Optional)'}</p>
-                        <p className="mt-1 text-xs text-slate-500">{isVietnamese ? 'Hỗ trợ Google Authenticator, Microsoft Authenticator, 1Password, Authy và Apple Keychain.' : 'Works with Google Authenticator, Microsoft Authenticator, 1Password and Apple Keychain.'}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            {t('twoFactorDisabled') || (isVietnamese ? 'Chưa kích hoạt xác thực hai bước' : 'Two-factor authentication is off')}
+                          </p>
+                          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                            {isVietnamese ? 'Tùy chọn' : 'Optional'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
+                          {isVietnamese
+                            ? 'Bổ sung một lớp bảo mật thứ hai bằng mã xác thực 6 chữ số thay đổi mỗi 30 giây từ ứng dụng Google Authenticator, Microsoft Authenticator hoặc Apple Keychain.'
+                            : 'Add a second layer of defense requiring a 6-digit TOTP code that refreshes every 30s from your authenticator app.'}
+                        </p>
                       </div>
-                      <button type="button" onClick={startMfaEnrollment} disabled={mfaBusy} className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md disabled:opacity-50 cursor-pointer shrink-0"><ShieldCheck className="h-3.5 w-3.5" />{isVietnamese ? 'Kích hoạt ngay' : 'Set up now'}</button>
+                      <button
+                        type="button"
+                        onClick={startMfaEnrollment}
+                        disabled={mfaBusy}
+                        className="inline-flex h-9.5 items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-xs font-black text-white shadow-md transition disabled:opacity-50 cursor-pointer shrink-0"
+                      >
+                        {mfaBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                        <span>{t('enable2FA') || (isVietnamese ? 'Bật Authenticator' : 'Enable 2FA')}</span>
+                      </button>
                     </div>
                   )}
                 </SettingsCard>
@@ -1450,7 +1688,42 @@ export default function SettingsPanel({
             </motion.div>
           </div>
         )}
+
+        {/* Modal: Confirm Disable MFA */}
+        {confirmDisableMfaModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.button type="button" aria-label="Close" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setConfirmDisableMfaModal(null)} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="relative z-10 w-full max-w-md rounded-3xl border border-rose-200 bg-white p-6 shadow-2xl dark:border-rose-900 dark:bg-slate-900">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                <ShieldAlert className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-lg font-black text-slate-950 dark:text-white">
+                {t('disableAuthenticatorConfirmTitle') || (isVietnamese ? 'Xác nhận tắt Authenticator?' : 'Disable Authenticator?')}
+              </h3>
+              <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {t('disableAuthenticatorConfirmDesc') || (isVietnamese ? 'Tài khoản của bạn sẽ không còn được yêu cầu mã bảo mật 6 chữ số khi đăng nhập. Bạn có thể bật lại bất kỳ lúc nào.' : 'Your account will no longer require a 6-digit verification code when logging in. You can re-enable it anytime.')}
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button type="button" onClick={() => setConfirmDisableMfaModal(null)} className="h-9 rounded-xl px-4 text-xs font-extrabold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer">
+                  {t('cancel') || (isVietnamese ? 'Hủy' : 'Cancel')}
+                </button>
+                <button type="button" disabled={mfaBusy} onClick={() => removeMfaFactor(confirmDisableMfaModal)} className="inline-flex h-9 items-center gap-2 rounded-xl bg-rose-600 px-4 text-xs font-extrabold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer">
+                  {mfaBusy && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                  {t('confirmDisable') || (isVietnamese ? 'Tắt 2FA' : 'Disable 2FA')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
+
+      {showSidebarOrderModal && (
+        <SidebarOrderModal
+          isOpen={showSidebarOrderModal}
+          onClose={() => setShowSidebarOrderModal(false)}
+          triggerToast={triggerToast}
+        />
+      )}
     </div>
   );
 }

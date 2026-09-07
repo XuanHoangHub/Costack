@@ -618,12 +618,6 @@ export default function NotionDocEditor({
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
-
-          {/* Slash Hint */}
-          <div className="ml-auto pr-1 hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400 dark:text-slate-500">
-            <kbd className="px-1 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 text-[9px] font-bold">/</kbd>
-            <span>cho lệnh khối</span>
-          </div>
         </div>
       )}
 

@@ -1,0 +1,308 @@
+/* ═══════════════════════════════════════════════════════
+   Apexa Design Tokens — design-tokens.css
+   Modern, organized token system for the Apexa Design System.
+   Imported by globals.css. Uses --ax- prefix for new tokens.
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Spacing Scale (4px base grid) ── */
+:root {
+  --ax-space-0: 0px;
+  --ax-space-px: 1px;
+  --ax-space-0-5: 2px;
+  --ax-space-1: 4px;
+  --ax-space-1-5: 6px;
+  --ax-space-2: 8px;
+  --ax-space-2-5: 10px;
+  --ax-space-3: 12px;
+  --ax-space-4: 16px;
+  --ax-space-5: 20px;
+  --ax-space-6: 24px;
+  --ax-space-7: 28px;
+  --ax-space-8: 32px;
+  --ax-space-10: 40px;
+  --ax-space-12: 48px;
+  --ax-space-14: 56px;
+  --ax-space-16: 64px;
+  --ax-space-20: 80px;
+  --ax-space-24: 96px;
+}
+
+/* ── Typography Scale ── */
+:root {
+  --ax-text-display: 3rem;         /* 48px */
+  --ax-text-h1: 2.25rem;           /* 36px */
+  --ax-text-h2: 1.875rem;          /* 30px */
+  --ax-text-h3: 1.5rem;            /* 24px */
+  --ax-text-h4: 1.25rem;           /* 20px */
+  --ax-text-body-lg: 1.125rem;     /* 18px */
+  --ax-text-body: 0.875rem;        /* 14px */
+  --ax-text-body-sm: 0.8125rem;    /* 13px */
+  --ax-text-caption: 0.75rem;      /* 12px */
+  --ax-text-micro: 0.6875rem;      /* 11px */
+  --ax-text-nano: 0.625rem;        /* 10px */
+
+  --ax-leading-tight: 1.2;
+  --ax-leading-snug: 1.35;
+  --ax-leading-normal: 1.5;
+  --ax-leading-relaxed: 1.625;
+  --ax-leading-loose: 1.75;
+
+  --ax-tracking-tight: -0.025em;
+  --ax-tracking-normal: 0;
+  --ax-tracking-wide: 0.025em;
+  --ax-tracking-wider: 0.05em;
+}
+
+/* ── Border Radius Scale ── */
+:root {
+  --ax-radius-xs: 4px;
+  --ax-radius-sm: 6px;
+  --ax-radius-md: 8px;
+  --ax-radius-lg: 10px;
+  --ax-radius-xl: 12px;
+  --ax-radius-2xl: 16px;
+  --ax-radius-3xl: 20px;
+  --ax-radius-4xl: 24px;
+  --ax-radius-full: 9999px;
+}
+
+/* ── Elevation / Shadow Scale ── */
+:root {
+  --ax-shadow-none: none;
+  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ax-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --ax-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.04);
+  --ax-shadow-xl: 0 20px 40px -12px rgba(0, 0, 0, 0.16), 0 8px 16px rgba(0, 0, 0, 0.06);
+  --ax-shadow-2xl: 0 32px 64px -16px rgba(0, 0, 0, 0.2);
+  --ax-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+
+  /* Colored shadows */
+  --ax-shadow-primary: 0 8px 24px -6px rgba(37, 99, 235, 0.35);
+  --ax-shadow-success: 0 8px 24px -6px rgba(16, 185, 129, 0.35);
+  --ax-shadow-danger: 0 8px 24px -6px rgba(239, 68, 68, 0.35);
+}
+
+.dark {
+  --ax-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --ax-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ax-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.7), 0 2px 4px rgba(0, 0, 0, 0.5);
+  --ax-shadow-lg: 0 12px 28px -8px rgba(0, 0, 0, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
+  --ax-shadow-xl: 0 20px 40px -12px rgba(0, 0, 0, 0.85), 0 8px 16px rgba(0, 0, 0, 0.6);
+  --ax-shadow-2xl: 0 32px 64px -16px rgba(0, 0, 0, 0.9);
+  --ax-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+
+  --ax-shadow-primary: 0 8px 24px -6px rgba(59, 130, 246, 0.3);
+  --ax-shadow-success: 0 8px 24px -6px rgba(16, 185, 129, 0.3);
+  --ax-shadow-danger: 0 8px 24px -6px rgba(239, 68, 68, 0.3);
+}
+
+/* ── Animation / Easing Tokens ── */
+:root {
+  --ax-ease-linear: linear;
+  --ax-ease-in: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  --ax-ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ax-ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ax-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ax-ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ax-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  --ax-duration-instant: 50ms;
+  --ax-duration-fast: 120ms;
+  --ax-duration-base: 200ms;
+  --ax-duration-moderate: 300ms;
+  --ax-duration-slow: 500ms;
+  --ax-duration-slower: 700ms;
+}
+
+/* ── Z-Index Scale ── */
+:root {
+  --ax-z-dropdown: 50;
+  --ax-z-sticky: 100;
+  --ax-z-fixed: 200;
+  --ax-z-drawer: 300;
+  --ax-z-modal: 400;
+  --ax-z-popover: 500;
+  --ax-z-tooltip: 600;
+  --ax-z-toast: 700;
+  --ax-z-overlay: 800;
+  --ax-z-command: 900;
+  --ax-z-max: 9999;
+}
+
+/* ── Layout Dimensions ── */
+:root {
+  --ax-sidebar-width: 260px;
+  --ax-sidebar-collapsed: 64px;
+  --ax-header-height: 56px;
+  --ax-mobile-nav-height: 64px;
+  --ax-content-max-width: 1400px;
+}
+
+/* ── AI / Brand Gradient Tokens ── */
+:root {
+  --ax-gradient-brand: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
+  --ax-gradient-brand-hover: linear-gradient(135deg, #1D4ED8 0%, #0891B2 100%);
+  --ax-gradient-ai: linear-gradient(135deg, #7C3AED 0%, #2563EB 50%, #06B6D4 100%);
+  --ax-gradient-ai-shimmer: linear-gradient(90deg, transparent 0%, rgba(124, 58, 237, 0.15) 25%, rgba(37, 99, 235, 0.2) 50%, rgba(6, 182, 212, 0.15) 75%, transparent 100%);
+  --ax-gradient-surface: linear-gradient(180deg, var(--cu-surface) 0%, var(--cu-bg) 100%);
+  --ax-gradient-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  --ax-gradient-danger: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+/* ── Priority Color Tokens ── */
+:root {
+  --ax-priority-urgent: #EF4444;
+  --ax-priority-high: #F59E0B;
+  --ax-priority-normal: #3B82F6;
+  --ax-priority-low: #94A3B8;
+
+  --ax-priority-urgent-bg: rgba(239, 68, 68, 0.1);
+  --ax-priority-high-bg: rgba(245, 158, 11, 0.1);
+  --ax-priority-normal-bg: rgba(59, 130, 246, 0.1);
+  --ax-priority-low-bg: rgba(148, 163, 184, 0.1);
+}
+
+/* ── Status Color Tokens ── */
+:root {
+  --ax-status-online: #10B981;
+  --ax-status-away: #F59E0B;
+  --ax-status-dnd: #EF4444;
+  --ax-status-offline: #94A3B8;
+  --ax-status-focused: #8B5CF6;
+}
+
+/* ── View Density Modes ── */
+:root,
+[data-density="comfortable"] {
+  --ax-row-height: 40px;
+  --ax-row-padding: 12px;
+  --ax-cell-padding: 8px;
+  --ax-gap-items: 8px;
+}
+
+[data-density="compact"] {
+  --ax-row-height: 32px;
+  --ax-row-padding: 8px;
+  --ax-cell-padding: 6px;
+  --ax-gap-items: 4px;
+}
+
+[data-density="spacious"] {
+  --ax-row-height: 48px;
+  --ax-row-padding: 16px;
+  --ax-cell-padding: 12px;
+  --ax-gap-items: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   New Keyframe Animations
+   ═══════════════════════════════════════════════════════ */
+
+@keyframes ax-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes ax-slide-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ax-slide-down {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ax-slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes ax-scale-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ax-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ax-pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ax-gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes ax-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ax-bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ax-checkmark-draw {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes ax-completion-ring {
+  0% { stroke-dashoffset: 56; }
+  100% { stroke-dashoffset: 0; }
+}
+
+/* ── Utility Animation Classes ── */
+.ax-animate-shimmer {
+  animation: ax-shimmer 1.5s infinite;
+}
+
+.ax-animate-slide-up {
+  animation: ax-slide-up var(--ax-duration-base) var(--ax-ease-out-expo) both;
+}
+
+.ax-animate-slide-down {
+  animation: ax-slide-down var(--ax-duration-base) var(--ax-ease-out-expo) both;
+}
+
+.ax-animate-scale-in {
+  animation: ax-scale-in var(--ax-duration-base) var(--ax-ease-out-expo) both;
+}
+
+.ax-animate-fade-in {
+  animation: ax-fade-in var(--ax-duration-base) var(--ax-ease-out-expo) both;
+}
+
+.ax-animate-bounce-in {
+  animation: ax-bounce-in var(--ax-duration-slow) var(--ax-ease-spring) both;
+}
+
+.ax-animate-gradient-flow {
+  background-size: 200% 200%;
+  animation: ax-gradient-flow 3s ease infinite;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .ax-animate-shimmer,
+  .ax-animate-slide-up,
+  .ax-animate-slide-down,
+  .ax-animate-scale-in,
+  .ax-animate-fade-in,
+  .ax-animate-bounce-in,
+  .ax-animate-gradient-flow {
+    animation: none !important;
+    transition: none !important;
+  }
+}

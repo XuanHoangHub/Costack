@@ -657,11 +657,8 @@ export default function WorkspaceSettingsModal({
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={isVietnamese ? 'Tìm cài đặt...' : 'Search settings...'}
-                  className="w-full pl-8 pr-12 py-1.5 min-h-[44px] text-[11px] font-semibold rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-905 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 min-h-[44px] text-[11px] font-semibold rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-905 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                 />
-                <span className="absolute right-2 top-3 text-[8px] font-black text-slate-400 border border-slate-200 dark:border-slate-805 rounded px-1 select-none">
-                  Ctrl+K
-                </span>
               </div>
 
               {/* Grouped Links */}

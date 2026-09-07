@@ -5,9 +5,11 @@ import { supabase, getCleanChannel } from '../supabaseClient';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import PageTreeSidebar from './PageTreeSidebar';
 import DocumentEditor from './DocumentEditor';
-import ScreenplayEditor from './script/ScreenplayEditor';
-import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ChevronRight, Film, Radio, CloudOff } from 'lucide-react';
+import { Sparkles, FileText, PanelLeftOpen, PanelLeftClose, Plus, ChevronRight, Radio, CloudOff, Link2, Bot, UploadCloud, FolderKanban, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import DocumentStartModal from './DocumentStartModal';
+import DocumentAiPanel from './DocumentAiPanel';
+import type { ImportedApexaDocument } from '@/lib/documentImport';
 
 interface DocumentHubProps {
   currentUser: any;
@@ -42,9 +44,11 @@ export default function DocumentHub({
   const activeWorkspaceId = storeActiveWorkspaceId || (currentUser as any)?.workspaceId || 'workspace-default';
   const [documents, setDocuments] = useState<any[]>([]);
   const [activeDocId, setActiveDocId] = useState<string>('');
-  const [isScreenplayMode, setIsScreenplayMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [pendingInsertion, setPendingInsertion] = useState<{ id: number; text: string } | null>(null);
 
   useEffect(() => {
     if (window.innerWidth < 768) setIsSidebarOpen(false);
@@ -202,21 +206,21 @@ export default function DocumentHub({
   }, [initialSelectedDocId, documents, onClearInitialSelectedDocId]);
 
   // 4. Robust Document Operations
-  const handleAddDoc = async (parentId?: string) => {
+  const handleAddDoc = async (parentId?: string, seed: Partial<ImportedApexaDocument> = {}) => {
     const newDocId = typeof crypto !== 'undefined' && crypto.randomUUID 
       ? crypto.randomUUID() 
       : `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     const newDoc = {
       id: newDocId,
-      title: 'Tài liệu mới',
+      title: seed.title || 'Tài liệu mới',
       workspace_id: activeWorkspaceId,
       space_id: spaceId || null,
       folder_id: folderId || null,
       parent_document_id: parentId || null,
-      icon: '📝',
+      icon: seed.icon || '📝',
       cover_url: null,
-      content: { type: 'doc', content: [] },
+      content: seed.content || { type: 'doc', content: [{ type: 'paragraph' }] },
       is_archived: false,
       is_published: false,
       is_favorite: false,
@@ -229,6 +233,7 @@ export default function DocumentHub({
     // A. Optimistically update local state immediately
     setDocuments(prev => [...prev, newDoc]);
     setActiveDocId(newDocId);
+    setIsAiPanelOpen(false);
     onAddSyncLog?.(`Đã tạo tài liệu mới: "${newDoc.title}"`);
     propOnAddDoc?.(newDoc);
 
@@ -412,7 +417,7 @@ export default function DocumentHub({
   }
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden rounded-[28px] border border-slate-200/80 bg-white font-sans text-slate-800 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] select-none dark:border-slate-800/80 dark:bg-[#000000] dark:text-slate-100">
+    <div className="relative flex h-full w-full overflow-hidden rounded-[24px] border border-slate-200/80 bg-[#f8f9fb] font-sans text-slate-800 shadow-[0_18px_55px_-32px_rgba(15,23,42,0.28)] select-none dark:border-slate-800/80 dark:bg-[#0b0c0f] dark:text-slate-100">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-40 bg-[radial-gradient(circle_at_72%_-20%,rgba(59,130,246,0.13),transparent_55%)] dark:bg-[radial-gradient(circle_at_72%_-20%,rgba(59,130,246,0.16),transparent_55%)]" />
       
       {/* Sidebar Navigation */}
@@ -432,7 +437,7 @@ export default function DocumentHub({
               animate={{ x: 0 }}
               exit={{ x: -288 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed md:relative inset-y-0 left-0 z-50 md:z-10 h-full w-[19rem] shrink-0 shadow-2xl md:shadow-none"
+              className="fixed md:relative inset-y-0 left-0 z-50 md:z-10 h-full w-[18rem] shrink-0 shadow-2xl md:shadow-none"
             >
               <PageTreeSidebar 
                 documents={documents}
@@ -448,6 +453,7 @@ export default function DocumentHub({
                 onUpdateDoc={handleUpdateDoc}
                 onDeleteDoc={handleDeleteDoc}
                 workspaceId={activeWorkspaceId || ''}
+                onOpenCreateCenter={() => setIsStartModalOpen(true)}
               />
             </motion.div>
           </>
@@ -455,13 +461,13 @@ export default function DocumentHub({
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col bg-white/80 dark:bg-[#000000]">
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col bg-white/85 dark:bg-[#0b0c0f]">
         
         {/* Top Header Navigation Bar */}
         {(() => {
           const activeDoc = documents.find(d => d.id === activeDocId);
           return (
-            <div className="z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/75 px-3 backdrop-blur-xl sm:px-5 dark:border-slate-800/80 dark:bg-[#0a0a0a]/85 select-none">
+            <div className="z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 bg-white/90 px-3 backdrop-blur-xl sm:px-4 dark:border-slate-800/80 dark:bg-[#111318]/90 select-none">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -478,7 +484,7 @@ export default function DocumentHub({
                       <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-sm shadow-blue-500/20">
                         <FileText className="h-3.5 w-3.5" />
                       </span>
-                      Docs
+                      Tài liệu
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="font-bold text-slate-850 dark:text-slate-100 truncate flex items-center gap-1">
@@ -492,7 +498,7 @@ export default function DocumentHub({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <span className={`hidden items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[10px] font-black sm:inline-flex ${
+                <span className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-bold xl:inline-flex ${
                   isOffline
                     ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-300'
                     : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-300'
@@ -500,59 +506,83 @@ export default function DocumentHub({
                   {isOffline ? <CloudOff className="h-3.5 w-3.5" /> : <Radio className="h-3.5 w-3.5" />}
                   {isOffline ? 'Offline' : 'Realtime sẵn sàng'}
                 </span>
+                {activeDoc && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsStartModalOpen(true)}
+                      className="hidden items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:flex dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                    >
+                      <UploadCloud className="h-3.5 w-3.5" /> Nhập / kết nối
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsAiPanelOpen(current => !current)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-extrabold transition ${isAiPanelOpen ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-800' : 'text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40'}`}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hỏi AI</span>
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
-                  onClick={() => handleAddDoc()}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-2 text-[11px] font-black text-white shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/25 active:translate-y-0"
+                  onClick={() => setIsStartModalOpen(true)}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-md active:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-400"
                 >
                   <Plus className="h-3.5 w-3.5 stroke-[2.8]" />
-                  <span className="hidden sm:inline">Tài liệu mới</span>
+                  <span className="hidden sm:inline">Tạo mới</span>
                 </button>
               </div>
             </div>
           );
         })()}
-
-        {isScreenplayMode ? (
-          <ScreenplayEditor
-            currentUser={currentUser}
-            initialTitle={activeDocId ? (documents.find(d => d.id === activeDocId)?.title || 'The Girl & the Fox') : 'The Girl & the Fox'}
-            onBackToDocs={() => setIsScreenplayMode(false)}
-          />
-        ) : activeDocId ? (
-          <div className="flex-1 flex flex-col min-w-0 h-full relative">
-            <DocumentEditor 
-              key={activeDocId}
-              documentId={activeDocId}
-              initialDocument={documents.find(d => d.id === activeDocId)}
-              currentUser={currentUser}
-              isOffline={isOffline}
-              onCreateTask={(title, description) => onCreateTaskFromDoc?.(title, description, activeDocId)}
-              onDocumentUpdated={(updates) => {
-                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, ...updates } : d));
-              }}
-              onUpdateTitle={(title) => {
-                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, title } : d));
-              }}
-              onUpdateCoverAndIcon={(coverUrl, icon) => {
-                setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, cover_url: coverUrl, icon } : d));
-              }}
-            />
+        {activeDocId ? (
+          <div className="relative flex min-h-0 flex-1 min-w-0 overflow-hidden">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <DocumentEditor
+                key={activeDocId}
+                documentId={activeDocId}
+                initialDocument={documents.find(d => d.id === activeDocId)}
+                currentUser={currentUser}
+                isOffline={isOffline}
+                pendingInsertion={pendingInsertion}
+                onInsertionHandled={() => setPendingInsertion(null)}
+                onCreateTask={(title, description) => onCreateTaskFromDoc?.(title, description, activeDocId)}
+                onDocumentUpdated={(updates) => {
+                  setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, ...updates } : d));
+                }}
+                onUpdateTitle={(title) => {
+                  setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, title } : d));
+                }}
+                onUpdateCoverAndIcon={(coverUrl, icon) => {
+                  setDocuments(prev => prev.map(d => d.id === activeDocId ? { ...d, cover_url: coverUrl, icon } : d));
+                }}
+              />
+            </div>
+            <AnimatePresence>
+              {isAiPanelOpen && (
+                <DocumentAiPanel
+                  document={documents.find(d => d.id === activeDocId)}
+                  onClose={() => setIsAiPanelOpen(false)}
+                  onInsert={(text) => setPendingInsertion({ id: Date.now(), text })}
+                />
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           /* Empty State / Welcome Screen */
-          <div className="flex-grow flex flex-col items-center justify-center bg-gradient-to-b from-slate-50/80 via-white to-slate-50/50 dark:from-slate-950/60 dark:via-slate-900 dark:to-slate-950/40 p-6 md:p-12 overflow-y-auto scrollbar-thin">
+          <div className="flex-grow flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_15%,rgba(99,102,241,.10),transparent_38%)] p-6 md:p-12 overflow-y-auto scrollbar-thin">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
-              className="max-w-3xl w-full flex flex-col items-center text-center space-y-8"
+              className="max-w-4xl w-full flex flex-col items-center text-center space-y-8"
             >
               {/* Hero Icon with Ambient Glow */}
               <div className="relative group">
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 opacity-25 blur-xl group-hover:opacity-40 transition duration-500 animate-pulse" />
-                <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-500 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30 border border-white/20">
-                  <FileText className="w-12 h-12 stroke-[1.5]" />
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-indigo-600 via-violet-500 to-fuchsia-400 opacity-20 blur-xl group-hover:opacity-35 transition duration-500" />
+                <div className="relative w-20 h-20 rounded-[26px] bg-gradient-to-br from-indigo-600 via-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/25 border border-white/20">
+                  <FolderKanban className="w-9 h-9 stroke-[1.7]" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-9 h-9 rounded-2xl bg-amber-400 flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-slate-900">
                   <Sparkles className="w-5 h-5 fill-white" />
@@ -562,29 +592,36 @@ export default function DocumentHub({
               {/* Title & Description */}
               <div className="space-y-3 max-w-xl">
                 <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Không gian Soạn thảo & Quản lý Tài liệu
+                  Mọi tri thức của bạn, ở cùng một nơi
                 </h3>
                 <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                  Soạn thảo tài liệu thông minh, biên kịch kịch bản phim ảnh chuẩn Hollywood, lập kế hoạch dự án và hợp tác theo thời gian thực.
+                  Viết như Notion, cộng tác theo thời gian thực, nhập Word/Excel/CSV và tập trung tài liệu từ Google hoặc Microsoft vào một workspace duy nhất.
                 </p>
               </div>
 
               {/* Quick Actions */}
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
-                  onClick={() => handleAddDoc()}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
+                  onClick={() => setIsStartModalOpen(true)}
+                  className="px-6 py-3 bg-slate-950 hover:bg-indigo-600 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all flex items-center gap-2.5 cursor-pointer active:scale-95 dark:bg-white dark:text-slate-950 dark:hover:bg-indigo-400"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>Tạo tài liệu mới</span>
+                  <span>Tạo hoặc nhập tài liệu</span>
                 </button>
-                <button
-                  onClick={() => setIsScreenplayMode(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-600 via-rose-600 to-amber-500 hover:from-pink-700 hover:to-amber-600 text-white rounded-2xl text-xs font-extrabold shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all flex items-center gap-2.5 cursor-pointer active:scale-95"
-                >
-                  <Film className="w-4 h-4 stroke-[2.5]" />
-                  <span>Soạn thảo Kịch bản (Screenplay)</span>
-                </button>
+              </div>
+
+              <div className="grid w-full gap-3 sm:grid-cols-3">
+                {[
+                  { icon: UploadCloud, title: 'Nhập mọi định dạng', text: 'Word, Excel, CSV, Markdown' },
+                  { icon: Link2, title: 'Kết nối nguồn', text: 'Google & Microsoft 365' },
+                  { icon: Bot, title: 'AI theo ngữ cảnh', text: 'Hỏi, tóm tắt và viết tiếp' },
+                ].map(item => (
+                  <button key={item.title} onClick={() => setIsStartModalOpen(true)} className="group rounded-2xl border border-slate-200/80 bg-white/80 p-4 text-left shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70">
+                    <item.icon className="mb-3 h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+                    <span className="block text-xs font-extrabold text-slate-900 dark:text-white">{item.title}</span>
+                    <span className="mt-1 flex items-center justify-between text-[11px] text-slate-500">{item.text}<ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" /></span>
+                  </button>
+                ))}
               </div>
 
             </motion.div>
@@ -592,6 +629,12 @@ export default function DocumentHub({
         )}
         
       </div>
+
+      <DocumentStartModal
+        open={isStartModalOpen}
+        onClose={() => setIsStartModalOpen(false)}
+        onCreate={(document) => handleAddDoc(undefined, document)}
+      />
       
     </div>
   );

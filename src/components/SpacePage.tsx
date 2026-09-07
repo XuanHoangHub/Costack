@@ -2762,24 +2762,7 @@ export default function SpacePage({
           className={`group relative z-40 hidden h-full w-[3px] shrink-0 cursor-col-resize select-none bg-transparent transition-all hover:w-[5px] hover:bg-indigo-500/40 md:block dark:hover:bg-indigo-500/50 ${
             isResizing ? 'bg-indigo-500/70 w-[6px]' : ''
           }`}
-        >
-          {/* Custom Instructions Tooltip */}
-          <div className="pointer-events-none absolute left-full ml-3 top-12 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[10px] py-2 px-3 rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.3)] border border-slate-800 z-50 whitespace-nowrap space-y-1.5 font-sans">
-            <div className="font-extrabold uppercase text-[8px] tracking-wider text-indigo-400">Điều khiển thanh bên</div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Đổi kích thước</span>
-              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Kéo</kbd>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Bật/tắt</span>
-              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Ctrl + \</kbd>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-300">Đặt lại</span>
-              <kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white font-mono text-[9px] border border-slate-700 font-bold shadow-xs">Nhấp đúp</kbd>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
 {/* Restore sub-sidebar trigger if collapsed */}
@@ -4760,37 +4743,6 @@ export default function SpacePage({
                 </div>
               </button>
 
-              {/* Whiteboard */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const targetSpaceId = activeSpaceMenu.id;
-                  const targetSpace = spaces.find(s => s.id === targetSpaceId);
-                  setActiveSpaceMenu(null);
-                  openPromptModal({
-                    type: 'whiteboard',
-                    title: 'Tạo bảng trắng mới',
-                    subtitle: targetSpace ? `Trong không gian: ${targetSpace.name}` : undefined,
-                    placeholder: 'Nhập tên bảng trắng...',
-                    confirmText: 'Tạo bảng trắng',
-                    onConfirm: (name) => {
-                      if (name?.trim() && onAddWhiteboardToSpace) {
-                        onAddWhiteboardToSpace(targetSpaceId, name.trim());
-                      }
-                    }
-                  });
-                }}
-                className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/30 transition-colors">
-                  <Sparkles className="w-4 h-4 text-amber-500 group-hover:text-amber-650 dark:group-hover:text-amber-400 transition-colors" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-855 dark:text-slate-200">Bảng trắng</p>
-                  <p className="text-[10px] text-slate-455 dark:text-slate-500 leading-tight mt-0.5">Trực quan hóa và động não ý tưởng</p>
-                </div>
-              </button>
-
               {/* Form */}
               <button 
                 onClick={(e) => {
@@ -5418,31 +5370,6 @@ export default function SpacePage({
               </button>
 
               {/* Whiteboard */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveListMenu(null);
-                  openPromptModal({
-                    type: 'whiteboard',
-                    title: 'Tạo bảng trắng mới',
-                    subtitle: `Trong không gian: ${space.name}`,
-                    placeholder: 'Nhập tên bảng trắng...',
-                    confirmText: 'Tạo bảng trắng',
-                    onConfirm: (boardName) => {
-                      if (boardName?.trim() && onAddWhiteboardToSpace) {
-                        onAddWhiteboardToSpace(space.id, boardName.trim());
-                      }
-                    }
-                  });
-                }}
-                className="w-full flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 text-left cursor-pointer transition-all duration-150 group/item"
-              >
-                <div className="w-7 h-7 rounded-xl bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover/item:scale-110 transition-transform shrink-0 shadow-3xs">
-                  <Brain className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-extrabold text-xs text-slate-700 dark:text-slate-200">Bảng trắng</span>
-              </button>
             </motion.div>
           </Portal>
         );

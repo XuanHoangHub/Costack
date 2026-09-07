@@ -15,15 +15,16 @@ import {
   Check, ChevronDown, UserMinus, Plus, Info, LayoutGrid,
   Award, Activity, Star, Phone, Search, X, SlidersHorizontal,
   Briefcase, Calendar, CheckSquare, ClipboardList, Flame, Edit, 
-  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap,
-  List, Copy, Crown, ShieldCheck
+  ExternalLink, UserCheck, Clock, GitBranch, ShieldAlert, CheckCircle2, 
+  AlertTriangle, MessageSquare, Megaphone, LayoutDashboard, PlugZap,
+  List, Copy, Crown, ShieldCheck, Building2, UserCircle2, ArrowRight,
+  TrendingUp, Laptop, Palette, Filter, RefreshCw
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import SignedImage from './SignedImage';
 import InviteModal from './InviteModal';
 import { setUserPresenceStatus } from '../hooks/useUserPresence';
 import { renderSpaceIcon } from './EmojiIconPicker';
-import { TeamCommandCenter, TeamIntegrations } from './team/TeamCommandCenter';
 import TeamManagement, { DepartmentRow, TeamMemberRow, TeamRow } from './team/TeamManagement';
 
 interface TeamDirectoryProps {
@@ -41,34 +42,45 @@ interface TeamDirectoryProps {
 }
 
 const DEPARTMENTS = [
-  { id: 'd-hq', label: 'Executive Headquarters', icon: 'Building2' },
-  { id: 'd-eng', label: 'Engineering & Technology', icon: 'Laptop' },
-  { id: 'd-design', label: 'Design & Product Experience', icon: 'Palette' },
-  { id: 'd-growth', label: 'Marketing & Sales Growth', icon: 'TrendingUp' },
+  { id: 'd-hq', label: 'Executive Headquarters', icon: 'Building2', viLabel: 'Ban Giám đốc & Điều hành' },
+  { id: 'd-eng', label: 'Engineering & Technology', icon: 'Laptop', viLabel: 'Kỹ thuật & Công nghệ' },
+  { id: 'd-design', label: 'Design & Product Experience', icon: 'Palette', viLabel: 'Thiết kế & Trải nghiệm Sản phẩm' },
+  { id: 'd-growth', label: 'Marketing & Sales Growth', icon: 'TrendingUp', viLabel: 'Tiếp thị & Tăng trưởng Bán hàng' },
 ];
 
-const getDeptBadge = (deptId?: string) => {
+const getDeptBadge = (deptId?: string, isVi = false) => {
   switch (deptId) {
-    case 'd-hq': return { label: 'dept_hq_badge', icon: 'Building2', class: 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-455' };
-    case 'd-eng': return { label: 'dept_eng_badge', icon: 'Laptop', class: 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-700 dark:text-cyan-455' };
-    case 'd-design': return { label: 'dept_design_badge', icon: 'Palette', class: 'bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-455' };
-    case 'd-growth': return { label: 'dept_growth_badge', icon: 'TrendingUp', class: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-455' };
-    default: return { label: 'General Member', icon: 'Zap', class: 'bg-slate-500/10 border border-slate-500/20 text-slate-700 dark:text-slate-400' };
+    case 'd-hq': 
+      return { 
+        label: isVi ? 'Ban Điều hành' : 'Executive HQ', 
+        icon: 'Building2', 
+        class: 'bg-indigo-500/10 border-indigo-500/25 text-indigo-700 dark:text-indigo-300' 
+      };
+    case 'd-eng': 
+      return { 
+        label: isVi ? 'Kỹ thuật & Công nghệ' : 'Engineering', 
+        icon: 'Laptop', 
+        class: 'bg-sky-500/10 border-sky-500/25 text-sky-700 dark:text-sky-300' 
+      };
+    case 'd-design': 
+      return { 
+        label: isVi ? 'Thiết kế Sản phẩm' : 'Product Design', 
+        icon: 'Palette', 
+        class: 'bg-purple-500/10 border-purple-500/25 text-purple-700 dark:text-purple-300' 
+      };
+    case 'd-growth': 
+      return { 
+        label: isVi ? 'Tiếp thị & Tăng trưởng' : 'Growth & Sales', 
+        icon: 'TrendingUp', 
+        class: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300' 
+      };
+    default: 
+      return { 
+        label: isVi ? 'Thành viên chung' : 'General Member', 
+        icon: 'Users', 
+        class: 'bg-slate-500/10 border-slate-500/25 text-slate-700 dark:text-slate-300' 
+      };
   }
-};
-
-const maskEmail = (email?: string) => {
-  if (!email || !email.includes('@')) return '••••••••@••••.com';
-  const [user, domain] = email.split('@');
-  const userMasked = user.length > 2 ? user.slice(0, 2) + '••••' : user + '••••';
-  return `${userMasked}@${domain}`;
-};
-
-const maskPhone = (phone?: string) => {
-  if (!phone) return '••••••••••';
-  const clean = phone.trim();
-  if (clean.length <= 4) return '••••' + clean;
-  return '••••••••' + clean.slice(-3);
 };
 
 export default function TeamDirectory({
@@ -84,20 +96,21 @@ export default function TeamDirectory({
   onSendWorkspaceInvites,
   onStartChat
 }: TeamDirectoryProps) {
-  const { t, locale } = useTranslation();
-  // Top-level Team OS sub-tab state (Default to directory for fast, clean view)
-  const [teamOSView, setTeamOSView] = useState<'directory' | 'teams' | 'overview' | 'org_chart' | 'workload' | 'integrations'>('directory');
+  const { t, locale, isVietnamese } = useTranslation();
+  const isVi = locale === 'vi' || isVietnamese;
+
+  // Streamlined 3 Core Views: 'directory' | 'teams' | 'org_chart'
+  const [teamOSView, setTeamOSView] = useState<'directory' | 'teams' | 'org_chart'>('directory');
   const [directoryViewMode, setDirectoryViewMode] = useState<'grid' | 'table'>('grid');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  
-  // Presence is mounted once at app level; this action updates that shared connection.
-  const setCustomStatus = setUserPresenceStatus;
-  
+
   // Custom status popover state
   const [showStatusPopover, setShowStatusPopover] = useState(false);
   const me = members.find(m => m.id === currentUser?.id || m.userId === currentUser?.id || m.email === currentUser?.email)
     || members.find(m => m.id === 'user');
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
+  const currentWorkspaceName = activeWorkspace?.name || 'Apexa Workspace';
+
   const [workspaceRole, setWorkspaceRole] = useState<WorkspaceRole | null>(activeWorkspace?.membershipRole || null);
   const isOwner = workspaceRole === 'owner'
     || workspaceRole === 'admin'
@@ -107,6 +120,7 @@ export default function TeamDirectory({
     || activeWorkspace?.membershipRole === 'admin'
     || activeWorkspace?.user_id === currentUser?.id
     || activeWorkspace?.user_id === me?.id;
+
   const [statusVal, setStatusVal] = useState<'online' | 'busy' | 'away' | 'offline'>(me?.customStatus || 'online');
   const [statusMsg, setStatusMsg] = useState(me?.statusMessage || '');
   const [statusEmj, setStatusEmj] = useState(me?.statusEmoji || '');
@@ -118,8 +132,6 @@ export default function TeamDirectory({
   const [membershipRoles, setMembershipRoles] = useState<Record<string, WorkspaceRole>>({});
   const [hierarchyLoading, setHierarchyLoading] = useState(true);
   const [hierarchyError, setHierarchyError] = useState('');
-  const [activeAnnouncementTeam, setActiveAnnouncementTeam] = useState<TeamRow | null>(null);
-  const [newAnnouncementText, setNewAnnouncementText] = useState('');
 
   // Keep state in sync when 'me' changes
   useEffect(() => {
@@ -163,7 +175,6 @@ export default function TeamDirectory({
         })(),
       ]);
 
-      // Fallback departments if DB is empty or offline
       const fallbackDepts: DepartmentRow[] = [
         { id: 'd-hq', name: 'Executive Headquarters', description: 'Corporate Strategy & Leadership office', parent_id: null, manager_id: null },
         { id: 'd-eng', name: 'Engineering & Technology', description: 'Product development, infrastructure and QA teams', parent_id: 'd-hq', manager_id: null },
@@ -176,7 +187,6 @@ export default function TeamDirectory({
         : fallbackDepts;
 
       let tms: TeamRow[] = (teamsResult.data as TeamRow[]) || [];
-      // Fallback to local storage if remote teams returned empty
       if (!tms.length && typeof window !== 'undefined') {
         try {
           const cached = localStorage.getItem(`apexa_teams_${activeWorkspaceId}`);
@@ -244,59 +254,31 @@ export default function TeamDirectory({
     return () => { void supabase.removeChannel(channel); };
   }, [activeWorkspaceId, fetchHierarchy]);
 
-  // Relative time helper
-  const formatLastSeen = (timestamp?: string) => {
-    if (!timestamp) return 'Offline';
-    try {
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      if (isNaN(diffMs) || diffMs < 0) return 'Active recently';
-      
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins < 1) return 'Active just now';
-      if (diffMins < 60) return `Active ${diffMins}m ago`;
-      
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) return `Active ${diffHours}h ago`;
-      
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays === 1) return 'Active yesterday';
-      return `Active ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
-    } catch (e) {
-      return 'Offline';
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState<'workspace' | 'all'>('workspace');
+  // Modals & Active Selections
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
+  const [detailActiveTab, setDetailActiveTab] = useState<'overview' | 'settings'>('overview');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showAddExistingDropdown, setShowAddExistingDropdown] = useState(false);
-  
-  // Search and Advanced Filters
+  const [scopeTab, setScopeTab] = useState<'workspace' | 'all'>('workspace');
+
+  // Member editing form states
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editDepartment, setEditDepartment] = useState('d-eng');
+  const [editRole, setEditRole] = useState<'admin' | 'member' | 'guest'>('member');
+  const [editBio, setEditBio] = useState('');
+
+  // Filters state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDept, setFilterDept] = useState<string>('all');
 
-  // Member detail view modal state
-  const [selectedMember, setSelectedMember] = useState<User | null>(null);
-  const [detailActiveTab, setDetailActiveTab] = useState<'overview' | 'settings'>('overview');
-
-  // Member detailed editing form inside details panel
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editDepartment, setEditDepartment] = useState('');
-  const [editRole, setEditRole] = useState<'admin' | 'member' | 'guest'>('member');
-  const [editBio, setEditBio] = useState('');
-
-  const currentWorkspaceName = workspaces.find(w => w.id === activeWorkspaceId)?.name || 'Current Workspace';
-
-  // Open detailing modal helper
   const handleOpenDetail = (member: User) => {
-    const membershipRole = member.userId ? membershipRoles[member.userId] : undefined;
     setSelectedMember(member);
     setDetailActiveTab('overview');
+    const membershipRole = member.userId ? membershipRoles[member.userId] : member.role;
     setEditName(member.name);
     setEditEmail(member.email);
     setEditPhone(member.phone || '');
@@ -395,25 +377,41 @@ export default function TeamDirectory({
   const totalWorkspaceCount = workspaceMembers.length;
   const onlineWorkspaceCount = workspaceMembers.filter(m => m.status === 'online').length;
   const busyWorkspaceCount = workspaceMembers.filter(m => m.status === 'busy').length;
+  const activeNowCount = onlineWorkspaceCount + busyWorkspaceCount;
+
+  // Task metrics across workspace
+  const totalTasksCount = workspaceTasks.length;
+  const completedTasksCount = workspaceTasks.filter(t => t.status === 'completed').length;
+  const overallCompletionRate = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const totalPendingTasks = totalTasksCount - completedTasksCount;
 
   const statusColors = {
-    online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30 animate-pulse',
+    online: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] ring-2 ring-emerald-500/30',
     busy: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] ring-2 ring-rose-500/30',
     away: 'bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.7)] ring-2 ring-amber-500/30',
     offline: 'bg-slate-400 ring-2 ring-slate-400/20'
   };
 
-  const statusLabelsEng = {
-    online: locale === 'vi' ? 'Trực tuyến' : 'Online',
-    busy: locale === 'vi' ? 'Đang bận' : 'Busy / DND',
-    away: locale === 'vi' ? 'Vắng mặt' : 'Away',
-    offline: locale === 'vi' ? 'Ngoại tuyến' : 'Offline'
+  const statusLabels = {
+    online: isVi ? 'Trực tuyến' : 'Online',
+    busy: isVi ? 'Đang bận' : 'Busy',
+    away: isVi ? 'Vắng mặt' : 'Away',
+    offline: isVi ? 'Ngoại tuyến' : 'Offline'
   };
 
   const roleLabels = {
-    admin: { text: t('roleAdmin') || 'Admin', bg: 'bg-indigo-50 border-indigo-200/50 text-indigo-700 dark:bg-indigo-950/35 dark:border-indigo-900/40 dark:text-indigo-400' },
-    member: { text: t('roleMember') || 'Member', bg: 'bg-cyan-50 border-cyan-200/50 text-cyan-700 dark:bg-cyan-950/35 dark:border-cyan-900/40 dark:text-cyan-400' },
-    guest: { text: locale === 'vi' ? 'Khách / Đối tác' : 'Guest / Partner', bg: 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/40 dark:border-slate-800 dark:text-slate-400' }
+    admin: { 
+      text: isVi ? 'Quản trị viên' : 'Admin', 
+      badge: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60' 
+    },
+    member: { 
+      text: isVi ? 'Thành viên' : 'Member', 
+      badge: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60' 
+    },
+    guest: { 
+      text: isVi ? 'Khách mời' : 'Guest', 
+      badge: 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700' 
+    }
   };
 
   // Find users in the organization not yet in this active workspace
@@ -442,7 +440,7 @@ export default function TeamDirectory({
   const handleRemoveFromWorkspace = async (member: User) => {
     if (!isOwner || member.id === me?.id || !member.userId) return;
     if (membershipRoles[member.userId] === 'owner') return;
-    if (!window.confirm(`Xóa ${member.name} khỏi ${currentWorkspaceName}?`)) return;
+    if (!window.confirm(isVi ? `Xác nhận xoá ${member.name} khỏi workspace ${currentWorkspaceName}?` : `Remove ${member.name} from ${currentWorkspaceName}?`)) return;
     const { error } = await supabase
       .from('workspace_memberships')
       .delete()
@@ -518,7 +516,7 @@ export default function TeamDirectory({
       return;
     }
 
-    const formattedJoinedDate = new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedJoinedDate = new Date().toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     emails.forEach(email => {
       const baseName = email.split('@')[0];
@@ -549,17 +547,17 @@ export default function TeamDirectory({
     });
   };
 
-  const displayMembers = activeTab === 'workspace' ? workspaceMembers : deduplicatedMembers;
+  const displayMembers = scopeTab === 'workspace' ? workspaceMembers : deduplicatedMembers;
 
   // Filter implementation
   const filteredMembers = displayMembers.filter(m => {
     const query = searchQuery.toLowerCase().trim();
-    const deptInfo = getDeptBadge(m.department);
+    const deptInfo = getDeptBadge(m.department, isVi);
     const matchesSearch = !query || 
       m.name.toLowerCase().includes(query) || 
       m.email.toLowerCase().includes(query) || 
       (m.phone && m.phone.toLowerCase().includes(query)) ||
-      t(deptInfo.label).toLowerCase().includes(query) ||
+      deptInfo.label.toLowerCase().includes(query) ||
       (m.bio && m.bio.toLowerCase().includes(query));
 
     const matchesRole = filterRole === 'all' || m.role === filterRole;
@@ -576,183 +574,742 @@ export default function TeamDirectory({
     setFilterDept('all');
   };
 
-  // POST Announcement to a Team
-  const handlePostAnnouncement = async () => {
-    if (!isOwner || !activeAnnouncementTeam) return;
-
-    try {
-      const { error } = await supabase
-        .from('teams')
-        .update({ announcement: newAnnouncementText.trim() || null, updated_at: new Date().toISOString() })
-        .eq('id', activeAnnouncementTeam.id);
-
-      if (error) throw error;
-      await fetchHierarchy();
-      onAddSyncLog(newAnnouncementText.trim() ? `Posted new announcement for team: ${activeAnnouncementTeam.name}` : `Cleared announcement for team: ${activeAnnouncementTeam.name}`);
-      setNewAnnouncementText('');
-      setActiveAnnouncementTeam(null);
-      (window as any).playSystemSound?.('success');
-    } catch (e) {
-      console.warn(e);
-      onAddSyncLog(`Could not update announcement for ${activeAnnouncementTeam.name}`);
-    }
+  const handleCopyEmail = (e: React.MouseEvent, memberId: string, email: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(email);
+    setCopiedId(memberId);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto px-1 sm:px-2 pb-12">
       
-      {/* Team workspace header */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white/80 p-5 md:p-6 shadow-xs backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/80 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-600 text-white shadow-lg shadow-blue-500/25">
-            <Users className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 text-left">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="truncate text-xl font-black tracking-tight text-slate-900 dark:text-white">
-                {locale === 'vi' ? 'Thành viên & Đội ngũ' : 'Members & Teams'}
-              </h2>
-              <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3 py-1 text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300">
-                {currentWorkspaceName}
-              </span>
+      {/* 1. TOP HEADER: Modern Neu-SaaS Header with Pulse & Actions */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 p-6 shadow-sm backdrop-blur-xl">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25">
+              <Users className="h-6 w-6" />
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-400 flex items-center gap-2">
-              <span>{workspaceMembers.length} {locale === 'vi' ? 'thành viên' : 'members'}</span>
-              <span className="inline-block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  {isVi ? 'Thành viên & Đội ngũ' : 'Members & Teams'}
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60">
+                  <Building2 className="w-3 h-3 text-indigo-500" />
+                  <span>{currentWorkspaceName}</span>
                 </span>
-                {onlineWorkspaceCount + busyWorkspaceCount} {locale === 'vi' ? 'đang hoạt động' : 'active now'}
-              </span>
-            </p>
+              </div>
+              <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span>{workspaceMembers.length} {isVi ? 'thành viên' : 'members'}</span>
+                <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <span className="inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  {activeNowCount} {isVi ? 'đang hoạt động' : 'active now'}
+                </span>
+                <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <span>{dbTeams.length} {isVi ? 'nhóm chuyên trách' : 'squads'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Quick enroll button for admins */}
+            {isOwner && membersAvailableToEnroll.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowAddExistingDropdown(!showAddExistingDropdown)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>{isVi ? 'Thêm từ tổ chức' : 'Add from organization'}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                <AnimatePresence>
+                  {showAddExistingDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setShowAddExistingDropdown(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.96, y: 6 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 6 }}
+                        className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-30 p-2 overflow-hidden"
+                      >
+                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
+                          {isVi ? `Thêm vào ${currentWorkspaceName}` : `Add to ${currentWorkspaceName}`}
+                        </div>
+                        <div className="max-h-56 overflow-y-auto custom-scrollbar p-1 space-y-1">
+                          {membersAvailableToEnroll.map(m => (
+                            <button
+                              key={m.id}
+                              onClick={() => handleEnrollExisting(m)}
+                              className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <SignedImage 
+                                filePath={m.avatar} 
+                                className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                                alt={m.name}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{m.name}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{m.email}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Main Invite button */}
+            <button
+              type="button"
+              id="btn_open_invite_member"
+              onClick={() => {
+                (window as any).playSystemSound?.('click');
+                setShowInviteModal(true);
+              }}
+              className="px-4.5 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{isVi ? 'Mời thành viên' : 'Invite Members'}</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Quick enroll button */}
-          {activeTab === 'workspace' && membersAvailableToEnroll.length > 0 && (
-            <div className="relative">
-              <button
-                id="btn_enroll_existing"
-                onClick={() => setShowAddExistingDropdown(!showAddExistingDropdown)}
-                className="py-2.5 px-4 bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-2xl flex items-center gap-2 transition-all shadow-2xs cursor-pointer select-none"
-              >
-                <Plus className="w-4 h-4 text-indigo-500" />
-                <span>{locale === 'vi' ? 'Thêm từ tổ chức' : 'Add from organization'}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              </button>
+        {/* 2. PRIMARY NAVIGATION: 3 Core Focused Views */}
+        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between flex-wrap gap-3">
+          <nav className="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1">
+            {[
+              { id: 'directory', label: isVi ? 'Thành viên' : 'Members', icon: Users, count: totalWorkspaceCount },
+              { id: 'teams', label: isVi ? 'Phòng ban & Nhóm' : 'Departments & Teams', icon: Building2, count: dbTeams.length },
+              { id: 'org_chart', label: isVi ? 'Sơ đồ tổ chức' : 'Org Chart', icon: GitBranch },
+            ].map(tab => {
+              const isActive = teamOSView === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setTeamOSView(tab.id as any);
+                    (window as any).playSystemSound?.('click');
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                      isActive 
+                        ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-slate-200 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
 
-              <AnimatePresence>
-                {showAddExistingDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowAddExistingDropdown(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                      className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xl z-30 p-2 overflow-hidden"
-                    >
-                    <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400">
-                      {locale === 'vi' ? `Chọn người để thêm vào ${currentWorkspaceName}` : `Select member to add to ${currentWorkspaceName}`}
-                    </div>
-                    <div className="max-h-52 overflow-y-auto custom-scrollbar p-1 space-y-1 mt-1">
-                      {membersAvailableToEnroll.map(m => (
-                        <button
-                          key={m.id}
-                          onClick={() => handleEnrollExisting(m)}
-                          className="w-full text-left p-2 hover:bg-slate-50 dark:hover:bg-slate-805 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
-                        >
-                          <SignedImage 
-                            filePath={m.avatar} 
-                            className="w-7 h-7 rounded-full object-cover border border-slate-100 dark:border-slate-800"
-                            alt={m.name}
-                          />
-                          <div className="min-w-0 text-left">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{m.name}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{m.email}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    </motion.div>
-                  </>
+          {/* Current user quick status indicator */}
+          {me && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-400 text-[11px] font-medium hidden sm:inline">{isVi ? 'Trạng thái của bạn:' : 'Your status:'}</span>
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
+                <span className={`w-2 h-2 rounded-full ${statusColors[statusVal]}`} />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{statusLabels[statusVal]}</span>
+                {statusMsg && (
+                  <span className="text-xs text-slate-400 italic max-w-40 truncate">
+                    {statusEmj ? `${statusEmj} ` : ''}"{statusMsg}"
+                  </span>
                 )}
-              </AnimatePresence>
+              </div>
             </div>
           )}
-
-          <button
-            id="btn_open_invite_member"
-            onClick={() => {
-              (window as any).playSystemSound?.('click');
-              setShowInviteModal(true);
-            }}
-            className="py-2.5 px-4.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-extrabold rounded-2xl shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 cursor-pointer hover:scale-103 active:scale-97"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>{locale === 'vi' ? 'Thêm / Mời thành viên' : 'Add / Invite Staff'}</span>
-          </button>
         </div>
       </div>
 
-      {/* Primary navigation */}
-      <nav aria-label="Điều hướng đội ngũ" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 shadow-xs backdrop-blur-md scrollbar-none dark:border-slate-800 dark:bg-slate-900/80">
-        {[
-          { id: 'directory', label: locale === 'vi' ? 'Thành viên' : 'Members', icon: LayoutGrid },
-          { id: 'teams', label: locale === 'vi' ? 'Phòng ban & Nhóm' : 'Teams', icon: Users },
-          { id: 'overview', label: locale === 'vi' ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
-          { id: 'org_chart', label: locale === 'vi' ? 'Sơ đồ tổ chức' : 'Organization', icon: GitBranch },
-          { id: 'workload', label: locale === 'vi' ? 'Tải công việc' : 'Capacity', icon: ClipboardList },
-          { id: 'integrations', label: locale === 'vi' ? 'Kết nối' : 'Integrations', icon: PlugZap }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            aria-current={teamOSView === tab.id ? 'page' : undefined}
-            onClick={() => {
-              setTeamOSView(tab.id as any);
-              (window as any).playSystemSound?.('click');
-            }}
-            className={`flex min-w-max flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
-              teamOSView === tab.id
-                ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-800 dark:text-white'
-                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
-
       {hierarchyError && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-400 sm:flex-row sm:items-center sm:justify-between">
-          <span>Không thể đồng bộ dữ liệu Team: {hierarchyError}</span>
-          <button type="button" onClick={() => void fetchHierarchy()} className="rounded-lg bg-white px-3 py-1.5 text-[10px] font-black text-rose-600 shadow-sm dark:bg-slate-900">Thử lại</button>
+        <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/20 text-xs font-bold text-rose-700 dark:text-rose-400">
+          <span>{isVi ? `Không thể đồng bộ dữ liệu Team: ${hierarchyError}` : `Sync error: ${hierarchyError}`}</span>
+          <button type="button" onClick={() => void fetchHierarchy()} className="rounded-lg bg-white dark:bg-slate-900 px-3 py-1.5 text-[10px] font-black shadow-xs cursor-pointer">
+            {isVi ? 'Thử lại' : 'Retry'}
+          </button>
         </div>
       )}
 
-      {hierarchyLoading && (teamOSView === 'teams' || teamOSView === 'org_chart') && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center text-xs font-bold text-slate-400 dark:border-slate-800 dark:bg-slate-900">Đang đồng bộ cấu trúc Team…</div>
+      {/* 3. VIEW TAB 1: MEMBERS DIRECTORY */}
+      {teamOSView === 'directory' && (
+        <div className="space-y-5">
+          
+          {/* A. QUICK METRICS RIBBON: High density, clean stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVi ? 'Thành viên Workspace' : 'Workspace Members'}
+                </span>
+                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                  <Users className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                  {totalWorkspaceCount}
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{isVi ? 'nhân sự' : 'members'}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400 truncate">
+                {isVi ? 'Trong không gian' : 'In workspace'} <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVi ? 'Đang hoạt động' : 'Live Presence'}
+                </span>
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                  <Activity className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight">
+                  {onlineWorkspaceCount}
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{isVi ? 'trực tuyến' : 'online'}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                <span>{busyWorkspaceCount} {isVi ? 'đang bận / trong cuộc họp' : 'busy / in meetings'}</span>
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVi ? 'Tiến độ công việc' : 'Task Completion'}
+                </span>
+                <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                  {overallCompletionRate}%
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{completedTasksCount}/{totalTasksCount} {isVi ? 'việc' : 'tasks'}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">{totalPendingTasks}</span> {isVi ? 'việc đang thực hiện' : 'tasks pending'}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {isVi ? 'Cơ cấu tổ chức' : 'Org Structure'}
+                </span>
+                <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                  {dbTeams.length}
+                </span>
+                <span className="text-xs font-semibold text-slate-400">{isVi ? 'nhóm' : 'teams'}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                {isVi ? 'Phân bổ qua' : 'Across'} <span className="font-bold text-slate-700 dark:text-slate-300">{dbDepts.length} {isVi ? 'phòng ban' : 'departments'}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* B. TOOLBAR: Search, Scope Switcher, Filters, and View Mode Toggle */}
+          <div className="p-3.5 bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl backdrop-blur-xl shadow-xs flex flex-col lg:flex-row items-center gap-3">
+            
+            {/* Scope segmented control: Workspace vs Organization */}
+            <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0 self-stretch sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setScopeTab('workspace')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeTab === 'workspace'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                {isVi ? `Trong workspace (${totalWorkspaceCount})` : `In Workspace (${totalWorkspaceCount})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setScopeTab('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  scopeTab === 'all'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                {isVi ? `Toàn tổ chức (${deduplicatedMembers.length})` : `All Org (${deduplicatedMembers.length})`}
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={isVi ? "Tìm theo tên, email, phòng ban, số điện thoại..." : "Search name, email, department, phone..."}
+                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-50 focus:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-950 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-semibold"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown Filters */}
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+              >
+                <option value="all">{isVi ? 'Tất cả phòng ban' : 'All departments'}</option>
+                {DEPARTMENTS.map(d => (
+                  <option key={d.id} value={d.id}>{isVi ? d.viLabel : d.label}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+              >
+                <option value="all">{isVi ? 'Tất cả vai trò' : 'All roles'}</option>
+                <option value="admin">{isVi ? 'Quản trị viên (Admin)' : 'Admin'}</option>
+                <option value="member">{isVi ? 'Thành viên (Member)' : 'Member'}</option>
+                <option value="guest">{isVi ? 'Khách (Guest)' : 'Guest'}</option>
+              </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
+              >
+                <option value="all">{isVi ? 'Tất cả trạng thái' : 'All statuses'}</option>
+                <option value="online">{isVi ? 'Trực tuyến' : 'Online'}</option>
+                <option value="busy">{isVi ? 'Đang bận' : 'Busy'}</option>
+                <option value="away">{isVi ? 'Vắng mặt' : 'Away'}</option>
+                <option value="offline">{isVi ? 'Ngoại tuyến' : 'Offline'}</option>
+              </select>
+
+              {/* View switch: Grid vs Table */}
+              <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDirectoryViewMode('grid')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    directoryViewMode === 'grid' 
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title={isVi ? "Chế độ lưới" : "Grid View"}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryViewMode('table')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    directoryViewMode === 'table' 
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                  title={isVi ? "Chế độ bảng" : "Table View"}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+
+              {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all cursor-pointer"
+                >
+                  {isVi ? 'Đặt lại' : 'Reset'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Members count indicator */}
+          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
+            <span>
+              {isVi 
+                ? `Hiển thị ${filteredMembers.length} trên tổng số ${displayMembers.length} nhân sự` 
+                : `Showing ${filteredMembers.length} of ${displayMembers.length} members`}
+            </span>
+          </div>
+
+          {/* C. MEMBERS DISPLAY: GRID VIEW */}
+          {directoryViewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {filteredMembers.map((member) => {
+                const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+                const totalCount = memberTasks.length;
+                const completedCount = memberTasks.filter(t => t.status === 'completed').length;
+                const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                const pendingCount = totalCount - completedCount;
+                const deptBadge = getDeptBadge(member.department, isVi);
+                const isCurrentUser = member.id === 'user' || member.id === me?.id;
+                const roleMeta = roleLabels[member.role] || roleLabels.member;
+                const currentStatus = (member.status || 'offline') as keyof typeof statusColors;
+
+                return (
+                  <motion.div
+                    key={member.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="group relative rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-5 shadow-sm hover:shadow-lg hover:border-indigo-500/40 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between"
+                  >
+                    <div className="space-y-4">
+                      
+                      {/* Top Pill Bar: Role badge & Presence status */}
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${roleMeta.badge}`}>
+                          {roleMeta.text}
+                        </span>
+
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusColors[currentStatus]}`} />
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                            {statusLabels[currentStatus] || statusLabels.offline}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Avatar, Name, Email with 1-click copy */}
+                      <div className="flex items-start gap-3.5">
+                        <div 
+                          className="relative shrink-0 cursor-pointer"
+                          onClick={() => handleOpenDetail(member)}
+                        >
+                          <SignedImage 
+                            filePath={member.avatar} 
+                            className="w-13 h-13 rounded-2xl object-cover border-2 border-slate-100 dark:border-slate-800 group-hover:border-indigo-500/40 transition-colors shadow-xs" 
+                            alt={member.name} 
+                          />
+                          <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[currentStatus]}`} />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h3 
+                            onClick={() => handleOpenDetail(member)}
+                            className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors cursor-pointer"
+                          >
+                            {member.name}
+                          </h3>
+
+                          {/* Unmasked, clean email with 1-click copy */}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
+                              {member.email}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyEmail(e, member.id, member.email)}
+                              className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer p-0.5"
+                              title={isVi ? "Sao chép email" : "Copy email"}
+                            >
+                              {copiedId === member.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          {/* Custom Status Quote if present */}
+                          {member.statusMessage && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium italic mt-1 truncate">
+                              {member.statusEmoji ? `${member.statusEmoji} ` : ''}"{member.statusMessage}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Department Chip */}
+                      <div className="pt-0.5">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${deptBadge.class}`}>
+                          {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
+                          <span>{deptBadge.label}</span>
+                        </span>
+                      </div>
+
+                      {/* Workload Progress Bar */}
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className="text-slate-500 dark:text-slate-400">{isVi ? 'Tiến độ việc' : 'Workload'}</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 tabular-nums">{completedCount}/{totalCount} {isVi ? 'hoàn thành' : 'done'}</span>
+                        </div>
+
+                        {totalCount > 0 ? (
+                          <div className="space-y-1">
+                            <div className="w-full bg-slate-200/80 dark:bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  completionRate === 100 
+                                    ? 'bg-emerald-500' 
+                                    : 'bg-indigo-600 dark:bg-indigo-500'
+                                }`} 
+                                style={{ width: `${completionRate}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold tabular-nums">
+                              <span>{completionRate}%</span>
+                              <span className="text-amber-600 dark:text-amber-400">{pendingCount} {isVi ? 'đang làm' : 'pending'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic text-center py-0.5">
+                            {isVi ? 'Chưa được phân công việc' : 'No tasks assigned'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Joined Date and Actions */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-slate-400">
+                        {isVi ? `Gia nhập ${member.joinedDate || '2026'}` : `Joined ${member.joinedDate || '2026'}`}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        {!isCurrentUser && onStartChat && (
+                          <button
+                            type="button"
+                            onClick={() => onStartChat(member.id)}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-600 dark:bg-indigo-950/60 dark:hover:bg-indigo-600 text-indigo-600 hover:text-white dark:text-indigo-400 dark:hover:text-white border border-indigo-200/60 dark:border-indigo-800/60 text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                            title={isVi ? "Nhắn tin trực tiếp" : "Direct Message"}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>{isVi ? 'Nhắn tin' : 'Chat'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(member)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          {isVi ? 'Hồ sơ' : 'Profile'}
+                        </button>
+
+                        {isOwner && !isCurrentUser && scopeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFromWorkspace(member)}
+                            className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
+                            title={isVi ? "Xoá khỏi workspace" : "Remove from workspace"}
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            /* D. MEMBERS DISPLAY: TABLE VIEW */
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200/70 dark:border-slate-800 text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/70 dark:bg-slate-950/40">
+                      <th className="py-3.5 px-5">{isVi ? 'Thành viên' : 'Member'}</th>
+                      <th className="py-3.5 px-4">{isVi ? 'Phòng ban' : 'Department'}</th>
+                      <th className="py-3.5 px-4">{isVi ? 'Vai trò' : 'Role'}</th>
+                      <th className="py-3.5 px-4">{isVi ? 'Trạng thái' : 'Status'}</th>
+                      <th className="py-3.5 px-4">{isVi ? 'Tiến độ việc' : 'Tasks'}</th>
+                      <th className="py-3.5 px-5 text-right">{isVi ? 'Hành động' : 'Actions'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
+                    {filteredMembers.map((member) => {
+                      const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
+                      const totalCount = memberTasks.length;
+                      const completedCount = memberTasks.filter(t => t.status === 'completed').length;
+                      const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                      const deptBadge = getDeptBadge(member.department, isVi);
+                      const isCurrentUser = member.id === 'user' || member.id === me?.id;
+                      const roleMeta = roleLabels[member.role] || roleLabels.member;
+                      const currentStatus = (member.status || 'offline') as keyof typeof statusColors;
+
+                      return (
+                        <tr key={member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3.5 px-5">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="relative shrink-0 cursor-pointer"
+                                onClick={() => handleOpenDetail(member)}
+                              >
+                                <SignedImage 
+                                  filePath={member.avatar} 
+                                  className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-slate-700" 
+                                  alt={member.name} 
+                                />
+                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[currentStatus]}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 
+                                  onClick={() => handleOpenDetail(member)}
+                                  className="font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer truncate"
+                                >
+                                  {member.name}
+                                </h4>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="text-[11px] text-slate-400 truncate">{member.email}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleCopyEmail(e, member.id, member.email)}
+                                    className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer"
+                                    title={isVi ? "Sao chép email" : "Copy email"}
+                                  >
+                                    {copiedId === member.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10.5px] font-bold border ${deptBadge.class}`}>
+                              {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
+                              <span>{deptBadge.label}</span>
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${roleMeta.badge}`}>
+                              {roleMeta.text}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60">
+                              <span className={`w-1.5 h-1.5 rounded-full ${statusColors[currentStatus]}`} />
+                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                {statusLabels[currentStatus]}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="w-32 space-y-1">
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-bold tabular-nums">
+                                <span>{completedCount}/{totalCount} việc</span>
+                                <span>{completionRate}%</span>
+                              </div>
+                              <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full" 
+                                  style={{ width: `${completionRate}%` }} 
+                                />
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!isCurrentUser && onStartChat && (
+                                <button
+                                  type="button"
+                                  onClick={() => onStartChat(member.id)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                                  title={isVi ? "Nhắn tin" : "Chat"}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDetail(member)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title={isVi ? "Xem chi tiết" : "View profile"}
+                              >
+                                <Info className="w-4 h-4" />
+                              </button>
+                              {isOwner && !isCurrentUser && scopeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFromWorkspace(member)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                  title={isVi ? "Xoá khỏi workspace" : "Remove"}
+                                >
+                                  <UserMinus className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Empty state when no members match */}
+          {filteredMembers.length === 0 && (
+            <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50">
+              <Users className="w-8 h-8 mx-auto text-slate-400 mb-2 opacity-60" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                {isVi ? 'Không tìm thấy thành viên nào phù hợp' : 'No matching members found'}
+              </p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                {isVi ? 'Thử thay đổi từ khóa tìm kiếm hoặc đặt lại các bộ lọc vai trò, phòng ban.' : 'Try adjusting your search query or reset active filters.'}
+              </p>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="mt-4 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                {isVi ? 'Đặt lại tất cả bộ lọc' : 'Reset all filters'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* TAB CONTENT 0: TEAM COMMAND CENTER */}
-      {teamOSView === 'overview' && (
-        <TeamCommandCenter
-          members={workspaceMembers}
-          tasks={workspaceTasks}
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          onInvite={() => setShowInviteModal(true)}
-          onOpenDirectory={() => setTeamOSView('directory')}
-          onOpenWorkload={() => setTeamOSView('workload')}
-          onStartChat={onStartChat}
-        />
-      )}
-
-      {/* TAB CONTENT 1: TEAM MANAGEMENT */}
+      {/* 4. VIEW TAB 2: DEPARTMENTS & SQUADS MANAGEMENT */}
       {teamOSView === 'teams' && (
         <TeamManagement
           teams={dbTeams}
@@ -767,854 +1324,139 @@ export default function TeamDirectory({
         />
       )}
 
-      {/* TAB CONTENT 2: STAFF DIRECTORY */}
-      {teamOSView === 'directory' && (
-        <div className="space-y-5">
-          {/* Workspace Analytics Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-blue-400/40 dark:hover:border-blue-700/40">
-              <div className="space-y-1 text-left">
-                <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Thành viên workspace
-                </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
-                    {totalWorkspaceCount} <span className="text-xs font-semibold text-slate-500">người</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">
-                  Trong <span className="font-bold text-slate-700 dark:text-slate-300">{currentWorkspaceName}</span>
-                </p>
-              </div>
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl text-blue-600 dark:text-blue-400 shadow-3xs">
-                <Users className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-emerald-400/40 dark:hover:border-emerald-700/40">
-              <div className="space-y-1 text-left">
-                <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Đang hoạt động
-                </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums flex items-center gap-1.5">
-                    {onlineWorkspaceCount} <span className="text-xs font-semibold text-slate-500">trực tuyến</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block animate-ping" />
-                  <span>{busyWorkspaceCount} đang bận / họp</span>
-                </p>
-              </div>
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-400 shadow-3xs">
-                <Activity className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs flex items-center justify-between transition-all hover:border-indigo-400/40 dark:hover:border-indigo-700/40">
-              <div className="space-y-1 text-left">
-                <span className="text-[10.5px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                  Toàn tổ chức
-                </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums">
-                    {members.length} <span className="text-xs font-semibold text-slate-500">thành viên</span>
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">
-                  Phân bổ trên {workspaces.length} workspace kết nối
-                </p>
-              </div>
-              <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-3xs">
-                <Award className="w-5 h-5" />
-              </div>
-            </div>
+      {/* 5. VIEW TAB 3: ORGANIZATIONAL CHART */}
+      {teamOSView === 'org_chart' && (
+        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-sm overflow-x-auto min-h-[500px] flex flex-col items-center">
+          
+          <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-4 text-center">
+            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+              {isVi ? `Sơ đồ tổ chức · ${currentWorkspaceName}` : `Organization Hierarchy · ${currentWorkspaceName}`}
+            </span>
+            <h2 className="text-base font-black text-slate-900 dark:text-white mt-1">
+              {isVi ? 'Cấu trúc phòng ban và nhóm chuyên môn' : 'Department & Team Squad Hierarchy'}
+            </h2>
           </div>
 
-          {/* Tabs Filter Selector Row (Workspace vs Global) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 gap-2">
-            <div className="flex items-center gap-1 pb-px">
-              <button
-                onClick={() => {
-                  setActiveTab('workspace');
-                  setShowAddExistingDropdown(false);
-                }}
-                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
-                  activeTab === 'workspace' 
-                    ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black' 
-                    : 'text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-350'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Trong {currentWorkspaceName} ({totalWorkspaceCount})</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('all');
-                  setShowAddExistingDropdown(false);
-                }}
-                className={`py-3 px-4 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
-                  activeTab === 'all' 
-                    ? 'text-indigo-655 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black' 
-                    : 'text-slate-400 hover:text-slate-600 dark:text-slate-550 dark:hover:text-slate-350'
-                }`}
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Toàn tổ chức ({members.length})</span>
-              </button>
-            </div>
-
-            <div className="text-[11px] px-3 pb-2 sm:pb-0 text-slate-400 dark:text-slate-550 font-bold italic">
-              Hiển thị {filteredMembers.length} thành viên phù hợp
-            </div>
-          </div>
-
-          {/* 🔍 SEARCH AND ADVANCED FILTERS WITH VIEW MODE TOGGLE */}
-          <div className="p-4 bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl flex flex-col md:flex-row items-center gap-3 backdrop-blur-md shadow-xs">
-            <div className="relative flex-1 w-full">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400" />
-              </span>
-              <input
-                id="team_search_input"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm theo tên, email, phòng ban, số điện thoại..."
-                className="w-full pl-9.5 pr-8 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 hover:bg-slate-50 focus:bg-white dark:bg-slate-950/70 dark:hover:bg-slate-950 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 outline-none transition-all font-semibold"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-              <select
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{t('allDepartments') || 'All departments'}</option>
-                {DEPARTMENTS.map(d => (
-                  <option key={d.id} value={d.id}>{t('dept_' + d.id + '_name') || d.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{t('allRoles') || 'All roles'}</option>
-                <option value="admin">{t('roleAdminLabel') || 'Admin'}</option>
-                <option value="member">{t('roleMemberLabel') || 'Member'}</option>
-                <option value="guest">{t('roleGuestLabel') || 'Guest'}</option>
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-bold outline-none cursor-pointer focus:border-indigo-500"
-              >
-                <option value="all">{t('allStatuses') || 'All statuses'}</option>
-                <option value="online">{t('online') || 'Online'}</option>
-                <option value="away">{locale === 'vi' ? 'Vắng mặt' : 'Away'}</option>
-                <option value="busy">{t('busy') || 'Busy / DND'}</option>
-                <option value="offline">{t('offline') || 'Offline'}</option>
-              </select>
-
-              {/* View Mode Toggle Button */}
-              <div className="flex items-center rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
-                <button
-                  type="button"
-                  onClick={() => setDirectoryViewMode('grid')}
-                  className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                    directoryViewMode === 'grid' 
-                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                  title={locale === 'vi' ? "Chế độ lưới" : "Grid View"}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDirectoryViewMode('table')}
-                  className={`p-1.5 rounded-xl transition-all cursor-pointer ${
-                    directoryViewMode === 'table' 
-                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
-                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                  title={locale === 'vi' ? "Chế độ danh sách" : "Table/List View"}
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {(searchQuery || filterRole !== 'all' || filterStatus !== 'all' || filterDept !== 'all') && (
-                <button
-                  onClick={clearAllFilters}
-                  className="px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-2xl border border-rose-500/20 transition-all cursor-pointer"
-                >
-                  {t('clearFilters') || 'Reset'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Members Display: GRID VIEW */}
-          {directoryViewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-              {filteredMembers.map((member) => {
-                const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
-                const totalTaskCount = memberTasks.length;
-                const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
-                const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
-                const pendingTaskCount = totalTaskCount - completedTaskCount;
-                const deptBadge = getDeptBadge(member.department);
-                const isCurrentUser = member.id === 'user';
-
-                return (
-                  <motion.div
-                    key={member.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="group relative p-4 rounded-2xl bg-white dark:bg-[#121212] border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-blue-400/60 dark:hover:border-blue-700/60 transition-all duration-200 flex flex-col justify-between overflow-hidden"
-                  >
-                    <div className="space-y-3.5 relative z-10">
-                      
-                      {/* Status Pill & Role Badge */}
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider select-none ${roleLabels[member.role].bg}`}>
-                            {roleLabels[member.role].text}
-                          </span>
-                        </div>
-                        <div className="py-0.5 px-2 bg-slate-50 dark:bg-slate-900 rounded-full border border-slate-200/60 dark:border-slate-800 flex items-center gap-1.5 select-none">
-                          <div className={`w-1.5 h-1.5 rounded-full ${statusColors[member.status as 'online' | 'busy' | 'away' | 'offline']} shrink-0`} />
-                          <span className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold whitespace-nowrap">
-                            {statusLabelsEng[member.status as 'online' | 'busy' | 'away' | 'offline']}
+          <div className="mt-8 space-y-10 w-full max-w-3xl flex flex-col items-center">
+            {/* Root Node: Executive HQ */}
+            {dbDepts.filter(d => !d.parent_id).map(hq => {
+              const manager = workspaceMembers.find(m => m.id === hq.manager_id || (m.id === 'user' && hq.manager_id?.includes('user')));
+              return (
+                <div key={hq.id} className="flex flex-col items-center space-y-6 w-full">
+                  
+                  {/* HQ Box */}
+                  <div className="relative p-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 text-white rounded-2xl shadow-xl w-72 text-center border border-indigo-400/20">
+                    <span className="inline-block px-2 py-0.5 bg-white/20 text-white text-[9px] font-bold uppercase tracking-wider rounded-md mb-2">
+                      {isVi ? 'Văn phòng Điều hành' : 'Executive HQ'}
+                    </span>
+                    <h3 className="text-sm font-black">{hq.name}</h3>
+                    <p className="text-[10px] text-indigo-100 mt-1 leading-relaxed">{hq.description}</p>
+                    
+                    {manager && (
+                      <div className="mt-3.5 pt-3 border-t border-white/20 flex items-center gap-2.5 text-left">
+                        <SignedImage 
+                          filePath={manager.avatar} 
+                          className="w-8 h-8 rounded-full bg-white/10 p-0.5 object-cover" 
+                          alt={manager.name} 
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold leading-tight truncate">{manager.name}</p>
+                          <span className="text-[9px] text-indigo-200 font-medium block">
+                            {isVi ? 'Tổng Giám đốc / Trưởng ban' : 'Executive Director'}
                           </span>
                         </div>
                       </div>
+                    )}
+                  </div>
 
-                      {/* Member Core Info (Avatar, Name, Email) */}
-                      <div className="flex items-center gap-3 pt-0.5">
-                        <div className="relative group/avatar cursor-pointer shrink-0">
-                          <SignedImage 
-                            filePath={member.avatar} 
-                            className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 p-0.5 object-cover shrink-0 select-none shadow-xs" 
-                            alt={member.name} 
-                          />
-                          <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']} shrink-0`} />
-                        </div>
-                        <div className="min-w-0 flex-1 text-left" onClick={() => handleOpenDetail(member)}>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-snug truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer">
-                            {member.name}
-                          </h4>
-                          {(() => {
-                            const canViewSensitiveInfo = currentUser?.role === 'admin' || member.id === 'user' || member.id === currentUser?.id || member.email === currentUser?.email;
-                            const emailText = canViewSensitiveInfo ? member.email : maskEmail(member.email);
-                            return (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate">
-                                  {emailText}
-                                </span>
-                                {canViewSensitiveInfo && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigator.clipboard.writeText(member.email);
-                                      setCopiedId(member.id);
-                                      setTimeout(() => setCopiedId(null), 2000);
-                                    }}
-                                    className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                                    title="Sao chép email"
-                                  >
-                                    {copiedId === member.id ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          {member.statusMessage && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-1 flex items-center gap-1 pt-0.5">
-                              {member.statusEmoji ? <span className="text-xs">{member.statusEmoji}</span> : null}
-                              <span className="italic">"{member.statusMessage}"</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  {/* Vertical connector */}
+                  <div className="w-0.5 h-8 bg-slate-300 dark:bg-slate-700 relative">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900" />
+                  </div>
 
-                      {/* Department badge indicator */}
-                      <div className="flex items-center gap-1.5 text-left">
-                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">{t('department') || 'Phòng ban'}:</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${deptBadge.class}`}>
-                          {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
-                          <span>{t(deptBadge.label) || deptBadge.label}</span>
-                        </span>
-                      </div>
-
-                      {/* Task workload meter */}
-                      <div className="bg-slate-50 dark:bg-slate-900/60 p-2.5 border border-slate-100 dark:border-slate-800 rounded-xl space-y-1.5 text-left">
-                        <div className="flex items-center justify-between text-[11px] font-semibold">
-                          <span className="text-slate-500 dark:text-slate-400 font-sans">Tiến độ công việc</span>
-                          <span className="text-blue-600 dark:text-blue-400 font-sans font-bold tabular-nums">{completedTaskCount}/{totalTaskCount} việc</span>
-                        </div>
-                        
-                        {totalTaskCount > 0 ? (
-                          <div className="space-y-1">
-                            <div className="w-full bg-slate-200/70 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                              <div 
-                                className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all duration-300" 
-                                style={{ width: `${completionPercent}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums">
-                              <span>Hoàn thành: {completionPercent}%</span>
-                              <span className="text-amber-600 dark:text-amber-400 font-semibold">{pendingTaskCount} đang làm</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500 italic py-0.5 text-center">
-                            Chưa có việc được giao
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between relative z-10">
-                      <span className="text-[10px] text-slate-400 font-medium">Gia nhập {member.joinedDate || '2026'}</span>
-                      
-                      <div className="flex items-center gap-1.5">
-                        {!isCurrentUser && onStartChat && (
-                          <button
-                            onClick={() => onStartChat(member.id)}
-                            className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 dark:hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-200/60 dark:border-blue-800/60 text-[10.5px] font-bold transition-all cursor-pointer flex items-center gap-1"
-                            title="Nhắn tin trực tiếp"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>Nhắn tin</span>
-                          </button>
-                        )}
-                        {isOwner && !isCurrentUser && activeTab === 'workspace' && member.userId && membershipRoles[member.userId] !== 'owner' && (
-                          <button
-                            onClick={() => handleRemoveFromWorkspace(member)}
-                            className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
-                            title="Xóa khỏi không gian"
-                          >
-                            <UserMinus className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            /* Members Display: TABLE / COMPACT LIST VIEW */
-            <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200/70 dark:border-slate-800 text-[10.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-950/30">
-                      <th className="py-3.5 px-5">Thành viên</th>
-                      <th className="py-3.5 px-4">Phòng ban</th>
-                      <th className="py-3.5 px-4">Vai trò</th>
-                      <th className="py-3.5 px-4">Trạng thái</th>
-                      <th className="py-3.5 px-4">Tiến độ việc</th>
-                      <th className="py-3.5 px-5 text-right">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-semibold">
-                    {filteredMembers.map((member) => {
-                      const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
-                      const totalTaskCount = memberTasks.length;
-                      const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
-                      const completionPercent = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
-                      const deptBadge = getDeptBadge(member.department);
-                      const isCurrentUser = member.id === 'user';
+                  {/* Child Departments Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full pt-2">
+                    {dbDepts.filter(d => d.parent_id === hq.id).map(dept => {
+                      const deptTeams = dbTeams.filter(t => t.department_id === dept.id);
+                      const deptBadge = getDeptBadge(dept.id, isVi);
 
                       return (
-                        <tr key={member.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors group">
-                          <td className="py-3.5 px-5">
-                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenDetail(member)}>
-                              <div className="relative shrink-0">
-                                <SignedImage filePath={member.avatar} alt={member.name} className="h-9 w-9 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
-                                <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors || 'online']}`} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{member.name}</p>
-                                <p className="truncate text-[10.5px] text-slate-400">{member.email}</p>
-                              </div>
+                        <div key={dept.id} className="flex flex-col items-center space-y-4">
+                          <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 shadow-xs w-60 text-center hover:border-indigo-500/40 transition-all">
+                            <div className="flex justify-center mb-1">
+                              {renderSpaceIcon(deptBadge.icon, "w-5 h-5 text-indigo-500")}
                             </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-flex items-center gap-1 ${deptBadge.class}`}>
-                              {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
-                              <span>{t(deptBadge.label) || deptBadge.label}</span>
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${roleLabels[member.role].bg}`}>
-                              {roleLabels[member.role].text}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${statusColors[member.status as 'online' | 'busy' | 'away' | 'offline']}`} />
-                              <span className="text-[11px] text-slate-600 dark:text-slate-300 font-bold">{statusLabelsEng[member.status as 'online' | 'busy' | 'away' | 'offline']}</span>
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-1">{dept.name}</h4>
+                            <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{dept.description}</p>
+                            
+                            <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                              {deptTeams.length} {isVi ? 'nhóm chuyên trách' : 'squads'}
                             </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="w-32">
-                              <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
-                                <span>{completedTaskCount}/{totalTaskCount}</span>
-                                <span>{completionPercent}%</span>
-                              </div>
-                              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full" style={{ width: `${completionPercent}%` }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-5 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {!isCurrentUser && onStartChat && (
-                                <button
-                                  type="button"
-                                  onClick={() => onStartChat(member.id)}
-                                  className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
-                                  title="Nhắn tin"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleOpenDetail(member)}
-                                className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              >
-                                Chi tiết
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {filteredMembers.length === 0 && (
-            <div className="p-16 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/20">
-              <Users className="w-10 h-10 mx-auto text-slate-350 dark:text-slate-700 mb-3" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Không có đồng nghiệp phù hợp với bộ lọc</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-sm mx-auto">Điều chỉnh từ khóa hoặc đặt lại bộ lọc để xem danh bạ tổ chức.</p>
-              <button
-                onClick={clearAllFilters}
-                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
-              >
-                Xóa bộ lọc
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB CONTENT 2: ORGANIZATIONAL TREE CHART */}
-      {teamOSView === 'org_chart' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
-          {/* Main Org Tree Canvas area */}
-          <div className="lg:col-span-3 p-6 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl space-y-8 overflow-x-auto min-h-[500px] flex flex-col items-center justify-start">
-            
-            {/* Visual Header */}
-            <div className="w-full border-b border-slate-200/50 dark:border-slate-800/60 pb-4 text-center">
-              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">Sơ đồ tổ chức · {currentWorkspaceName}</span>
-              <h3 className="text-base font-black text-slate-850 dark:text-slate-100 mt-0.5">Cấu trúc phòng ban và nhóm</h3>
-            </div>
-
-            {/* Tree Nodes Renderer */}
-            <div className="space-y-12 w-full max-w-3xl flex flex-col items-center">
-              {/* Root node - HQ */}
-              {dbDepts.filter(d => !d.parent_id).map(hq => {
-                const manager = workspaceMembers.find(m => m.id === hq.manager_id || (m.id === 'user' && hq.manager_id?.includes('user')));
-                return (
-                  <div key={hq.id} className="flex flex-col items-center space-y-8 w-full">
-                    {/* HQ Node Box */}
-                    <div className="relative p-5 bg-gradient-to-br from-blue-600 to-cyan-600 text-white rounded-3xl shadow-xl w-64 text-center border border-indigo-400/20 hover:scale-105 transition-all duration-300">
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-white text-indigo-750 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm border border-indigo-50 select-none">
-                        {locale === 'vi' ? 'Văn phòng Cao nhất' : 'Top Office'}
-                      </div>
-                      <h4 className="text-sm font-black tracking-tight">{t('dept_' + hq.id + '_name') || hq.name}</h4>
-                      <p className="text-[10px] text-indigo-100 font-medium mt-1 leading-relaxed">{t('dept_' + hq.id + '_desc') || hq.description}</p>
-                      
-                      {/* Leader profile block */}
-                      {manager && (
-                        <div className="mt-3.5 pt-3 border-t border-white/20 flex items-center gap-2 text-left justify-start">
-                          <SignedImage 
-                            filePath={manager.avatar} 
-                            className="w-7 h-7 rounded-full bg-white/10 p-0.5 object-cover" 
-                            alt={manager.name} 
-                          />
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black leading-none truncate">{manager.name}</p>
-                            <span className="text-[8px] text-indigo-150 uppercase tracking-widest font-black block mt-0.5">{locale === 'vi' ? 'Giám đốc Điều hành' : 'HQ Director'}</span>
                           </div>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Hierarchy Line Spacer */}
-                    <div className="w-0.5 h-10 bg-slate-300 dark:bg-slate-800 relative">
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900" />
-                    </div>
-
-                    {/* Level 2: Child Departments Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full relative">
-                      
-                      {dbDepts.filter(d => d.parent_id === hq.id).map(dept => {
-                        const deptManager = workspaceMembers.find(m => m.id === dept.manager_id || (m.id === 'user' && dept.manager_id?.includes('user')));
-                        const deptTeams = dbTeams.filter(t => t.department_id === dept.id);
-
-                        return (
-                          <div key={dept.id} className="flex flex-col items-center space-y-6">
-                            {/* Department Box */}
-                            <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800/80 rounded-2xl shadow-md w-56 text-center hover:border-indigo-500/40 dark:hover:border-indigo-400/40 transition-all duration-300">
-                              <div className="flex justify-center mb-1">{renderSpaceIcon(getDeptBadge(dept.id).icon, "w-4 h-4 text-indigo-500")}</div>
-                              <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 mt-1">{t('dept_' + dept.id + '_name') || dept.name}</h5>
-                              
-                              {deptManager && (
-                                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 justify-start text-left">
-                                  <SignedImage 
-                                    filePath={deptManager.avatar} 
-                                    className="w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-900 border object-cover" 
-                                    alt={deptManager.name} 
-                                  />
-                                  <div className="min-w-0">
-                                    <p className="text-[9px] font-bold text-slate-700 dark:text-slate-300 leading-none truncate">{deptManager.name}</p>
-                                    <span className="text-[8px] text-slate-400 font-medium block mt-px">{locale === 'vi' ? 'Trưởng phòng' : 'Dept Lead'}</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Line connecting to teams */}
-                            <div className="w-0.5 h-6 bg-slate-205 dark:bg-slate-805" />
-
-                            {/* Teams under this Department */}
-                            <div className="space-y-4 w-full flex flex-col items-center">
-                              {deptTeams.map(team => {
-                                const teamLeader = workspaceMembers.find(m => m.id === team.leader_id || (m.id === 'user' && team.leader_id?.includes('user')));
-                                const memberCount = dbTeamMembers.filter(tm => tm.team_id === team.id).length;
+                          {/* Squads in Department */}
+                          {deptTeams.length > 0 && (
+                            <div className="w-full space-y-2">
+                              {deptTeams.map(t => {
+                                const teamLead = workspaceMembers.find(m => m.id === t.leader_id || (m.id === 'user' && t.leader_id?.includes('user')));
+                                const memberCount = dbTeamMembers.filter(tm => tm.team_id === t.id).length;
 
                                 return (
-                                  <div 
-                                    key={team.id}
-                                    onClick={() => {
-                                      setActiveAnnouncementTeam(team);
-                                      setNewAnnouncementText(team.announcement || '');
-                                      (window as any).playSystemSound?.('click');
-                                    }}
-                                    className="p-3 bg-slate-50/50 hover:bg-white dark:bg-slate-900/40 dark:hover:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl shadow-2xs w-48 text-left cursor-pointer hover:border-indigo-500/25 dark:hover:border-indigo-400/25 transition-all"
-                                  >
-                                    <div className="flex items-start justify-between gap-1">
-                                      <h6 className="text-[11px] font-black text-slate-805 dark:text-slate-200 leading-tight truncate">{t('team_' + team.id + '_name') || team.name}</h6>
-                                      <span className="text-[8px] font-black px-1.5 py-0.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-455 rounded-md shrink-0">
-                                        {t('memberCount').replace('{count}', String(memberCount))}
+                                  <div key={t.id} className="p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 text-left flex items-center justify-between gap-2 shadow-2xs">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{t.name}</p>
+                                      <span className="text-[9px] text-slate-400 font-medium">
+                                        {teamLead ? `Lead: ${teamLead.name}` : `${memberCount} members`}
                                       </span>
                                     </div>
-                                    
-                                    {teamLeader && (
-                                      <div className="mt-2.5 flex items-center gap-1.5">
-                                        <SignedImage 
-                                          filePath={teamLeader.avatar} 
-                                          className="w-5 h-5 rounded-full object-cover bg-slate-200 dark:bg-slate-800" 
-                                          alt={teamLeader.name} 
-                                        />
-                                        <span className="text-[9px] text-slate-550 dark:text-slate-400 font-bold truncate leading-none">{teamLeader.name}</span>
-                                      </div>
-                                    )}
-
-                                    {team.announcement && (
-                                      <div className="mt-2 text-[9px] bg-amber-500/5 border border-amber-500/10 p-1 px-1.5 rounded text-amber-700 dark:text-amber-400 font-medium truncate flex items-center gap-1">
-                                        <Megaphone className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                        <span>{team.announcement}</span>
-                                      </div>
-                                    )}
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shrink-0">
+                                      {memberCount}
+                                    </span>
                                   </div>
                                 );
                               })}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-              {!hierarchyLoading && !dbDepts.some(department => !department.parent_id) && (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-8 py-14 text-center dark:border-slate-700 dark:bg-slate-900">
-                  <GitBranch className="mx-auto h-9 w-9 text-slate-300" />
-                  <h4 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">Chưa có cấu trúc phòng ban</h4>
-                  <p className="mt-1 max-w-md text-xs text-slate-400">Migration Team sẽ tạo cấu trúc mặc định. Sau đó, gán Team vào phòng ban trong tab Nhóm.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Announcements Dashboard */}
-          <div className="space-y-5">
-            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl space-y-4">
-              <h4 className="text-xs font-black text-slate-850 dark:text-slate-200 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2 uppercase tracking-wider">
-                <Megaphone className="w-4 h-4 text-amber-500" />
-                <span>{t('teamBroadcasts') || 'Team Broadcasts'}</span>
-              </h4>
-
-              {activeAnnouncementTeam ? (
-                <div className="space-y-3.5 text-left font-sans text-xs">
-                  <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200/50 dark:border-slate-800">
-                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest block">{t('selectedTeam') || 'Selected Team'}</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100 block mt-0.5">{t('team_' + activeAnnouncementTeam.id + '_name') || activeAnnouncementTeam.name}</span>
-                  </div>
-
-                  {isOwner ? (
-                    <>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 block">{t('broadcastMessage') || 'Broadcast Message'}</label>
-                        <textarea
-                          rows={3}
-                          value={newAnnouncementText}
-                          onChange={(e) => setNewAnnouncementText(e.target.value)}
-                          placeholder={t('writeBroadcastPlaceholder') || 'Write team broadcast notice (e.g. Schedule changes)...'}
-                          className="w-full p-2.5 text-xs rounded-xl border border-slate-250 dark:border-slate-855 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-550 font-semibold"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveAnnouncementTeam(null)}
-                          className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl font-bold transition-all cursor-pointer"
-                        >
-                          {t('cancelFocus') || 'Cancel'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handlePostAnnouncement}
-                          className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer"
-                        >
-                          {t('publish') || 'Publish'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
-                      {t('broadcastOwnerOnly') || 'Only workspace owners can publish broadcast announcements.'}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-slate-400 italic text-[11px] font-medium leading-relaxed">
-                  {t('clickTeamToBroadcast') || 'Click any Team card on the visual tree to read or broadcast a new announcement notice.'}
-                </div>
-              )}
-            </div>
-
-            <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-3xl space-y-3.5 text-left">
-              <h4 className="text-xs font-black text-slate-850 dark:text-slate-200 pb-2 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider">
-                {t('corporateGuidelines') || 'Corporate Guidelines'}
-              </h4>
-              <p className="text-[11px] text-slate-405 leading-relaxed font-medium">
-                {t('corporateGuidelinesDesc') || 'Our organizational structure synchronizes roles dynamically. All modifications here auto-provision unified team chat threads and calendar overlays.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT 3: RESOURCE CAPACITY & WORKLOAD */}
-      {teamOSView === 'workload' && (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-left">
-              <h3 className="flex items-center gap-2 text-base font-black text-slate-900 dark:text-white">
-                <ClipboardList className="h-5 w-5 text-indigo-500" /> {locale === 'vi' ? 'Năng lực đội ngũ' : 'Team Capacity & Workload'}
-              </h3>
-              <p className="mt-1 text-[11px] text-slate-400">
-                {locale === 'vi' ? 'Ước tính trên năng lực chuẩn 40 giờ mỗi tuần cho từng thành viên.' : 'Estimated based on a standard 40-hour work week per member.'}
-              </p>
-            </div>
-            <div className="flex gap-2 text-[10px] font-black">
-              <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
-                {workspaceMembers.filter(member => { const hours = workspaceTasks.filter(task => task.status !== 'completed' && (task.assigneeId === member.id || task.assigneeIds?.includes(member.id))).reduce((sum, task) => sum + (task.hoursEstimate || 0), 0); return hours <= 32; }).length} {locale === 'vi' ? 'cân bằng' : 'balanced'}
-              </span>
-              <span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
-                {workspaceMembers.filter(member => { const hours = workspaceTasks.filter(task => task.status !== 'completed' && (task.assigneeId === member.id || task.assigneeIds?.includes(member.id))).reduce((sum, task) => sum + (task.hoursEstimate || 0), 0); return hours > 40; }).length} {locale === 'vi' ? 'quá tải' : 'overloaded'}
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workspaceMembers.map(member => {
-              // Retrieve active task workload stats
-              const memberTasks = workspaceTasks.filter(t => t.assigneeId === member.id || t.assigneeIds?.includes(member.id));
-              const activeTasks = memberTasks.filter(t => t.status !== 'completed');
-              const totalTaskCount = memberTasks.length;
-              const completedTaskCount = memberTasks.filter(t => t.status === 'completed').length;
-              const totalEst = activeTasks.reduce((sum, t) => sum + (t.hoursEstimate || 0), 0);
-              const totalAct = memberTasks.reduce((sum, t) => sum + (t.hoursLogged || 0), 0);
-              
-              // Base standard capacity limit is 40 hours/week
-              const weeklyCapacity = 40;
-              const capacityRatio = Math.round((totalEst / weeklyCapacity) * 100);
-              
-              // Theme color of the allocation progress bar
-              let barColor = 'from-emerald-500 to-emerald-600';
-              let textColor = 'text-emerald-650 dark:text-emerald-400';
-              
-              if (capacityRatio > 100) {
-                barColor = 'from-rose-500 to-rose-600';
-                textColor = 'text-rose-600 dark:text-rose-455 font-black';
-              } else if (capacityRatio > 80) {
-                barColor = 'from-amber-500 to-amber-600';
-                textColor = 'text-amber-650 dark:text-amber-455';
-              }
-
-              return (
-                <div 
-                  key={member.id}
-                  className="p-5.5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 shadow-xs space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3.5">
-                    {/* Member header card */}
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <SignedImage 
-                          filePath={member.avatar} 
-                          className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover" 
-                          alt={member.name} 
-                        />
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white dark:border-slate-900 ${statusColors[member.status as keyof typeof statusColors]} shrink-0`} />
-                      </div>
-                      <div className="min-w-0 text-left">
-                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{member.name}</h4>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide block mt-0.5">{t(getDeptBadge(member.department).label)}</span>
-                      </div>
-                    </div>
-
-                    {/* Allocation progress bar */}
-                    <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/20 border border-slate-205/40 dark:border-slate-805">
-                      <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-450 dark:text-slate-500">{locale === 'vi' ? 'Năng lực tuần' : 'Weekly Capacity'}</span>
-                        <span className={textColor}>{totalEst}h / {weeklyCapacity}h ({capacityRatio}%)</span>
-                      </div>
-
-                      <div className="w-full bg-slate-200/60 dark:bg-slate-800/65 h-2 rounded-full overflow-hidden p-0.5">
-                        <div 
-                          className={`bg-gradient-to-r ${barColor} h-full rounded-full transition-all duration-300`} 
-                          style={{ width: `${Math.min(capacityRatio, 100)}%` }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[8.5px] text-slate-400 font-bold mt-1">
-                        <span>{locale === 'vi' ? 'Đã ghi nhận:' : 'Logged:'} {totalAct}h</span>
-                        {capacityRatio > 100 ? (
-                          <span className="text-rose-500 flex items-center gap-0.5">
-                            <ShieldAlert className="w-3 h-3 animate-pulse" />
-                            <span>{locale === 'vi' ? 'Đang quá tải' : 'Overloaded'}</span>
-                          </span>
-                        ) : (
-                          <span className="text-emerald-500 font-medium">{locale === 'vi' ? 'Năng lực ổn định' : 'Balanced load'}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Assigned task lists */}
-                    <div className="space-y-2 text-left">
-                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                        {locale === 'vi' ? `Công việc đang mở (${activeTasks.length})` : `Open Tasks (${activeTasks.length})`}
-                      </span>
-                      <div className="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-                        {activeTasks.length > 0 ? (
-                          activeTasks.map(task => (
-                            <div key={task.id} className="p-2.5 bg-white dark:bg-slate-850/50 border border-slate-150 dark:border-slate-800/80 rounded-xl text-[10.5px] font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2 justify-between">
-                              <span className="line-clamp-1 truncate flex-1">{task.title}</span>
-                              <span className="text-[8.5px] text-slate-400 font-bold shrink-0">{task.hoursEstimate || 0}h {locale === 'vi' ? 'dự kiến' : 'est'}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-[9.5px] text-slate-400 italic py-2 text-center border border-dashed border-slate-205 dark:border-slate-805 rounded-xl bg-slate-50/20">
-                            {locale === 'vi' ? 'Chưa có công việc đang mở.' : 'No open tasks.'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800/85 text-left text-[10px] text-slate-400 font-semibold flex items-center justify-between">
-                    <span>{locale === 'vi' ? 'Tổng việc:' : 'Total tasks:'} {totalTaskCount}</span>
-                    <span>{locale === 'vi' ? 'Hoàn thành:' : 'Completed:'} {completedTaskCount}</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
-            {!workspaceMembers.length && (
-              <div className="col-span-full rounded-3xl border border-dashed border-slate-300 bg-slate-50/50 py-16 text-center dark:border-slate-700 dark:bg-slate-900/30">
-                <Users className="mx-auto h-9 w-9 text-slate-300" />
-                <h3 className="mt-3 text-sm font-black text-slate-700 dark:text-slate-200">
-                  {locale === 'vi' ? 'Chưa có dữ liệu năng lực' : 'No capacity data'}
-                </h3>
-                <p className="mt-1 text-xs text-slate-400">
-                  {locale === 'vi' ? 'Mời thành viên vào workspace để bắt đầu phân bổ công việc.' : 'Invite members to this workspace to start allocating work.'}
-                </p>
-                <button type="button" onClick={() => setShowInviteModal(true)} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white cursor-pointer">
-                  {locale === 'vi' ? 'Mời thành viên' : 'Invite Members'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* TAB CONTENT 4: INTEGRATION HUB */}
-      {teamOSView === 'integrations' && (
-        <TeamIntegrations workspaces={workspaces} members={workspaceMembers} tasks={workspaceTasks} />
-      )}
-
-      {/* Member Details Modal Backdrop */}
+      {/* 6. MEMBER DETAIL DRAWER / MODAL */}
       <AnimatePresence>
         {selectedMember && (
-          <div className="fixed inset-0 z-50 bg-slate-955/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="absolute inset-0" onClick={() => setSelectedMember(null)} />
-            
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm cursor-pointer"
+              onClick={() => setSelectedMember(null)}
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
               className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-10 flex flex-col max-h-[85vh]"
             >
               {/* Modal Header */}
-              <div className="px-6 py-4.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-905/30 shrink-0">
-                <div className="flex items-center gap-3.5">
-                  <div className="relative group/avatar cursor-pointer">
+              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/40 shrink-0">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="relative group/avatar cursor-pointer shrink-0">
                     <SignedImage 
                       filePath={selectedMember.avatar} 
-                      className="w-12 h-12 rounded-full border border-slate-250 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 object-cover" 
+                      className="w-13 h-13 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 object-cover" 
                       alt={selectedMember.name} 
                     />
-                    <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
-                      <Upload className="w-3.5 h-3.5 text-white" />
+                    <label className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 cursor-pointer transition-opacity">
+                      <Upload className="w-4 h-4 text-white" />
                       <input
                         type="file"
                         accept="image/*"
@@ -1623,91 +1465,88 @@ export default function TeamDirectory({
                       />
                     </label>
                   </div>
+                  
                   <div className="min-w-0 text-left">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-extrabold text-slate-850 dark:text-slate-55 text-base leading-tight">
+                      <h3 className="font-black text-slate-900 dark:text-white text-base leading-tight truncate">
                         {selectedMember.name}
                       </h3>
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border antialiased ${roleLabels[selectedMember.role].bg}`}>
-                        {roleLabels[selectedMember.role].text}
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${roleLabels[selectedMember.role]?.badge || roleLabels.member.badge}`}>
+                        {roleLabels[selectedMember.role]?.text || 'Member'}
                       </span>
                     </div>
-                    <p className="text-xs text-indigo-650 dark:text-indigo-400 font-bold block mt-0.5">{selectedMember.email}</p>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold block mt-0.5 truncate">
+                      {selectedMember.email}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-405">Trạng thái:</span>
-                  <div
-                    className="py-1.5 px-3 bg-slate-50 dark:bg-slate-850 text-slate-750 dark:text-slate-100 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shadow-xs"
-                  >
-                    <div className={`w-2 h-2 rounded-full ${statusColors[selectedMember.status as 'online' | 'busy' | 'away' | 'offline']}`} />
-                    <span>{statusLabelsEng[selectedMember.status as 'online' | 'busy' | 'away' | 'offline']}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <span className={`w-2 h-2 rounded-full ${statusColors[(selectedMember.status || 'offline') as keyof typeof statusColors]}`} />
+                    <span>{statusLabels[(selectedMember.status || 'offline') as keyof typeof statusLabels]}</span>
                   </div>
+
                   <button
+                    type="button"
                     onClick={() => setSelectedMember(null)}
-                    className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 font-bold transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
                   >
-                    ✕
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Navigation Tabs in Details */}
-              <div className="flex border-b border-slate-150 dark:border-slate-805 bg-white dark:bg-slate-900 px-6">
+              {/* Sub-tabs in Details Modal */}
+              <div className="flex border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 gap-2">
                 <button
+                  type="button"
                   onClick={() => setDetailActiveTab('overview')}
-                  className={`py-3.5 px-4 text-xs font-black transition-all relative cursor-pointer select-none flex items-center gap-2 ${
+                  className={`py-3 px-3 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
                     detailActiveTab === 'overview'
-                      ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400'
-                      : 'text-slate-405 hover:text-slate-700 dark:hover:text-slate-350'
+                      ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black'
+                      : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
                   <CheckSquare className="w-4 h-4" />
-                  <span>Tổng quan và công việc</span>
+                  <span>{isVi ? 'Tổng quan & Công việc' : 'Overview & Tasks'}</span>
                 </button>
+
                 {(isOwner || selectedMember.id === me?.id || selectedMember.userId === currentUser?.id) && (
                   <button
+                    type="button"
                     onClick={() => setDetailActiveTab('settings')}
-                    className={`py-3.5 px-4 text-xs font-black transition-all relative cursor-pointer select-none flex items-center gap-2 ${
+                    className={`py-3 px-3 text-xs font-bold transition-all relative cursor-pointer select-none flex items-center gap-2 ${
                       detailActiveTab === 'settings'
-                        ? 'text-indigo-650 dark:text-indigo-400 border-b-2 border-indigo-605 dark:border-indigo-400'
-                        : 'text-slate-405 hover:text-slate-700 dark:hover:text-slate-350'
+                        ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-black'
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
                     <Edit className="w-4 h-4" />
-                    <span>Chỉnh sửa hồ sơ</span>
+                    <span>{isVi ? 'Chỉnh sửa hồ sơ' : 'Edit Profile'}</span>
                   </button>
                 )}
               </div>
 
               {/* Modal Body Contents */}
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-                
                 {detailActiveTab === 'overview' ? (
-                  <div className="space-y-6">
-                    {/* Status Message Display */}
-                    {(selectedMember.statusMessage || selectedMember.status === 'offline') && (
-                      <div className="p-4 bg-indigo-500/5 dark:bg-indigo-950/10 border border-indigo-500/10 rounded-2xl flex items-center justify-between text-left">
-                        <div className="text-left">
-                          <span className="text-[10px] font-black uppercase text-indigo-500 block mb-1">Trạng thái hiện tại</span>
-                          <p className="text-xs text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1.5">
-                            {selectedMember.statusEmoji ? <span className="text-sm">{selectedMember.statusEmoji}</span> : null}
-                            <span className={selectedMember.statusMessage ? "italic" : "text-slate-400 italic"}>
-                              {selectedMember.statusMessage ? `"${selectedMember.statusMessage}"` : "Chưa đặt thông điệp trạng thái"}
-                            </span>
-                          </p>
-                        </div>
-                        {selectedMember.status === 'offline' && (
-                          <div className="text-right">
-                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Hoạt động gần nhất</span>
-                            <span className="text-[10px] text-slate-500 font-bold">{formatLastSeen(selectedMember.lastSeenAt)}</span>
-                          </div>
-                        )}
+                  <div className="space-y-6 text-left">
+                    
+                    {/* Status Message if present */}
+                    {selectedMember.statusMessage && (
+                      <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
+                        <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider block mb-1">
+                          {isVi ? 'Trạng thái hiện tại' : 'Current Status'}
+                        </span>
+                        <p className="text-xs text-slate-800 dark:text-slate-200 font-bold flex items-center gap-1.5">
+                          {selectedMember.statusEmoji ? <span>{selectedMember.statusEmoji}</span> : null}
+                          <span className="italic">"{selectedMember.statusMessage}"</span>
+                        </p>
                       </div>
                     )}
 
-                    {/* Key stats widgets row */}
+                    {/* Task Stats Row */}
                     {(() => {
                       const memberTasks = workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
                       const totalAssigned = memberTasks.length;
@@ -1716,123 +1555,122 @@ export default function TeamDirectory({
                       const ratio = totalAssigned > 0 ? Math.round((completed / totalAssigned) * 100) : 0;
                       
                       return (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          <div className="p-3.5 bg-slate-50/10 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
-                            <ClipboardList className="w-5 h-5 mx-auto text-indigo-500 mb-1" />
-                            <p className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{totalAssigned}</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Assigned</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                            <ClipboardList className="w-4 h-4 mx-auto text-indigo-500 mb-1" />
+                            <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{totalAssigned}</p>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">
+                              {isVi ? 'Được giao' : 'Assigned'}
+                            </span>
                           </div>
                           
-                          <div className="p-3.5 bg-slate-50/10 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
-                            <Clock className="w-5 h-5 mx-auto text-amber-500 mb-1" />
-                            <p className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{ongoing}</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Đang thực hiện</span>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                            <Clock className="w-4 h-4 mx-auto text-amber-500 mb-1" />
+                            <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{ongoing}</p>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">
+                              {isVi ? 'Đang làm' : 'In Progress'}
+                            </span>
                           </div>
 
-                          <div className="p-3.5 bg-slate-50/10 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
-                            <UserCheck className="w-5 h-5 mx-auto text-emerald-500 mb-1" />
-                            <p className="text-xl font-black text-slate-800 dark:text-slate-100 leading-none">{completed}</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Completed</span>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                            <UserCheck className="w-4 h-4 mx-auto text-emerald-500 mb-1" />
+                            <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{completed}</p>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">
+                              {isVi ? 'Hoàn thành' : 'Completed'}
+                            </span>
                           </div>
 
-                          <div className="p-3.5 bg-slate-50/10 dark:bg-slate-855/20 border border-slate-150 dark:border-slate-800 rounded-2xl text-center">
-                            <Flame className="w-5 h-5 mx-auto text-rose-550 mb-1" />
-                            <p className="text-xl font-black text-slate-800 dark:text-slate-101 leading-none">{ratio}%</p>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase font-sans">Tỷ lệ hoàn thành</span>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                            <Flame className="w-4 h-4 mx-auto text-rose-500 mb-1" />
+                            <p className="text-xl font-black text-slate-900 dark:text-white leading-none">{ratio}%</p>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">
+                              {isVi ? 'Tỷ lệ' : 'Rate'}
+                            </span>
                           </div>
                         </div>
                       );
                     })()}
 
-                    {/* Member details info segments */}
+                    {/* Member Details & Tasks list */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Left side: General Bio & Dept */}
+                      
+                      {/* Left: Bio & Contact info */}
                       <div className="space-y-4">
-                        <div className="space-y-1.5 p-4 bg-slate-50/40 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800/80 rounded-2xl text-left">
-                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl">
+                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
                             <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>{t('bio') || 'Bio'}</span>
+                            <span>{isVi ? 'Giới thiệu bản thân' : 'Bio'}</span>
                           </h4>
                           <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                            {selectedMember.bio || t('noBiographyYet') || 'No biography updated yet.'}
+                            {selectedMember.bio || (isVi ? 'Chưa cập nhật tiểu sử.' : 'No biography updated yet.')}
                           </p>
                         </div>
 
-                        <div className="space-y-1.5 p-4 bg-slate-50/40 dark:bg-slate-850/20 border border-slate-150 dark:border-slate-800/80 rounded-2xl text-left">
-                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('detailsLabel') || 'Details'}</h4>
-                          <div className="space-y-2 text-xs font-semibold text-slate-750 dark:text-slate-350">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2.5">
+                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
+                            {isVi ? 'Thông tin liên lạc' : 'Contact Information'}
+                          </h4>
+                          <div className="space-y-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                             <div className="flex items-center gap-2">
-                              <Briefcase className="w-4 h-4 text-slate-400" />
-                              <span>{t('department') || 'Department'}: <strong>{t(getDeptBadge(selectedMember.department).label) || getDeptBadge(selectedMember.department).label}</strong></span>
+                              <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{isVi ? 'Phòng ban:' : 'Department:'} <strong>{getDeptBadge(selectedMember.department, isVi).label}</strong></span>
                             </div>
                             {selectedMember.phone && (
                               <div className="flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-slate-400" />
-                                <span>{t('phone') || 'Phone'}: <a href={`tel:${selectedMember.phone}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">{selectedMember.phone}</a></span>
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{isVi ? 'Số điện thoại:' : 'Phone:'} <a href={`tel:${selectedMember.phone}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">{selectedMember.phone}</a></span>
                               </div>
                             )}
                             <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-slate-400" />
-                              <span>{t('joinedDate') || 'Joined'}: <span className="text-slate-500">{selectedMember.joinedDate || '2026'}</span></span>
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{isVi ? 'Ngày gia nhập:' : 'Joined:'} <span className="text-slate-400">{selectedMember.joinedDate || '2026'}</span></span>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right side: Tasks distribution list */}
-                      <div className="space-y-3 text-left">
-                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                          <CheckSquare className="w-3.5 h-3.5 text-indigo-554" />
-                          <span>Danh sách công việc ({workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id)).length})</span>
+                      {/* Right: Task list */}
+                      <div className="space-y-2.5">
+                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>{isVi ? 'Danh sách công việc' : 'Assigned Tasks'} ({workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id)).length})</span>
                         </h4>
-                        
-                        <div className="max-h-64 overflow-y-auto space-y-2.5 custom-scrollbar pr-1">
+
+                        <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                           {(() => {
                             const memberTasks = workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
                             if (memberTasks.length === 0) {
                               return (
-                                <div className="p-8 text-center border border-dashed border-slate-205 dark:border-slate-805 rounded-2xl text-slate-450 italic text-[11px] font-medium">
-                                  Thành viên này chưa được giao công việc nào.
+                                <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 italic text-xs">
+                                  {isVi ? 'Thành viên này chưa có công việc nào được giao.' : 'No tasks currently assigned.'}
                                 </div>
                               );
                             }
 
-                            const priorityNames = {
-                              low: { label: 'Low', color: 'bg-slate-100 text-slate-650 dark:bg-slate-800 dark:text-slate-400' },
-                              medium: { label: 'Medium', color: 'bg-blue-50 text-blue-600 dark:bg-blue-952/30 dark:text-blue-400' },
-                              high: { label: 'High', color: 'bg-amber-50 text-amber-600 dark:bg-amber-952/30 dark:text-amber-400' },
-                              urgent: { label: 'Urgent', color: 'bg-rose-50 text-rose-600 dark:bg-rose-952/30 dark:text-rose-400' }
-                            };
-
-                            const statusStrings = {
-                              todo: { label: 'To Do', color: 'text-slate-500' },
-                              inprogress: { label: 'In Progress', color: 'text-indigo-600 dark:text-indigo-400' },
-                              review: { label: 'Review', color: 'text-cyan-650 dark:text-cyan-400' },
-                              completed: { label: 'Completed', color: 'text-emerald-655 dark:text-emerald-400' }
-                            };
-
                             return memberTasks.map(task => (
                               <div
                                 key={task.id}
-                                className={`p-3 bg-white dark:bg-slate-850/60 border rounded-2xl transition-all ${
-                                  task.status === 'completed' 
-                                    ? 'border-emerald-100/50 dark:border-emerald-950 bg-emerald-50/5 dark:bg-emerald-950/5' 
-                                    : 'border-slate-150 dark:border-slate-800 hover:border-slate-250 dark:hover:border-slate-700'
+                                className={`p-3 rounded-xl border text-xs transition-all ${
+                                  task.status === 'completed'
+                                    ? 'bg-emerald-50/20 border-emerald-200/50 dark:border-emerald-900/40 text-slate-400'
+                                    : 'bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 text-slate-800 dark:text-slate-100'
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <p className={`text-xs font-bold text-slate-800 dark:text-slate-105 leading-snug line-clamp-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-550' : ''}`}>
+                                  <p className={`font-bold line-clamp-1 ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>
                                     {task.title}
                                   </p>
-                                  <span className={`text-[8px] font-black px-1.5 py-px rounded-md shrink-0 uppercase tracking-wide ${priorityNames[task.priority].color}`}>
-                                    {priorityNames[task.priority].label}
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase shrink-0 ${
+                                    task.priority === 'urgent' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400' :
+                                    task.priority === 'high' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' :
+                                    'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                  }`}>
+                                    {task.priority}
                                   </span>
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] font-bold mt-1.5 text-slate-450">
-                                  <span className={`${statusStrings[task.status].color}`}>{statusStrings[task.status].label}</span>
-                                  {task.dueDate && (
-                                    <span>Hạn: <span className="text-slate-500">{task.dueDate}</span></span>
-                                  )}
+                                <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold mt-1">
+                                  <span className="capitalize">{task.status}</span>
+                                  {task.dueDate && <span>{isVi ? 'Hạn:' : 'Due:'} {task.dueDate}</span>}
                                 </div>
                               </div>
                             ));
@@ -1842,80 +1680,87 @@ export default function TeamDirectory({
                     </div>
                   </div>
                 ) : (
-                  // Settings tab - Profile editor
-                  <form onSubmit={handleUpdateProfileSubmit} className="space-y-4 font-sans text-left">
+                  /* Profile editor tab */
+                  <form onSubmit={handleUpdateProfileSubmit} className="space-y-4 text-left">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-wider font-sans">Họ và tên</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          {isVi ? 'Họ và tên' : 'Full Name'}
+                        </label>
                         <input
                           type="text"
                           required
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 outline-none text-slate-800 dark:text-slate-100 font-semibold focus:border-indigo-500"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold focus:border-indigo-500"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Địa chỉ email</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          {isVi ? 'Địa chỉ email' : 'Email Address'}
+                        </label>
                         <input
                           type="email"
                           required
                           value={editEmail}
-                          onChange={(e) => setEditEmail(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs rounded-xl bg-slate-55 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 outline-none text-slate-400 dark:text-slate-500 font-semibold cursor-not-allowed"
                           disabled
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none text-slate-400 cursor-not-allowed font-semibold"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Số điện thoại</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          {isVi ? 'Số điện thoại' : 'Phone Number'}
+                        </label>
                         <input
                           type="text"
                           value={editPhone}
                           onChange={(e) => setEditPhone(e.target.value)}
-                          placeholder="E.g., +84 90 123 4567"
-                          className="w-full px-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 outline-none text-slate-800 dark:text-slate-100 font-semibold focus:border-indigo-500"
+                          placeholder="e.g. +84 90 123 4567"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold focus:border-indigo-500"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Department</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          {isVi ? 'Phòng ban' : 'Department'}
+                        </label>
                         <select
                           value={editDepartment}
                           onChange={(e) => setEditDepartment(e.target.value)}
-                          className="w-full px-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 outline-none text-slate-800 dark:text-slate-100 font-semibold focus:border-indigo-500 cursor-pointer"
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold focus:border-indigo-500 cursor-pointer"
                         >
                           {DEPARTMENTS.map(d => (
-                            <option key={d.id} value={d.id}>{d.label}</option>
+                            <option key={d.id} value={d.id}>{isVi ? d.viLabel : d.label}</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
                     {isOwner && membershipRoles[selectedMember.userId || ''] !== 'owner' && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider font-sans">
-                          {locale === 'vi' ? 'Vai trò & Phân quyền Workspace' : 'Workspace Role & Permissions'}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          {isVi ? 'Vai trò & Phân quyền Workspace' : 'Workspace Role & Permissions'}
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {[
-                            { id: 'admin', label: locale === 'vi' ? 'Quản trị (Admin)' : 'Admin', desc: locale === 'vi' ? 'Toàn quyền quản lý' : 'Full management' },
-                            { id: 'member', label: locale === 'vi' ? 'Thành viên (Member)' : 'Member', desc: locale === 'vi' ? 'Truy cập mục công khai' : 'Standard workspace access' },
-                            { id: 'guest', label: locale === 'vi' ? 'Khách (Guest)' : 'Guest', desc: locale === 'vi' ? 'Chỉ mục được chia sẻ' : 'Invited items only' }
+                            { id: 'admin', label: isVi ? 'Quản trị (Admin)' : 'Admin', desc: isVi ? 'Toàn quyền quản lý' : 'Full workspace management' },
+                            { id: 'member', label: isVi ? 'Thành viên (Member)' : 'Member', desc: isVi ? 'Truy cập mục công khai' : 'Standard workspace access' },
+                            { id: 'guest', label: isVi ? 'Khách (Guest)' : 'Guest', desc: isVi ? 'Chỉ mục được chia sẻ' : 'Invited items only' }
                           ].map(roleOpt => (
                             <button
                               key={roleOpt.id}
                               type="button"
                               onClick={() => setEditRole(roleOpt.id as any)}
-                              className={`p-3 text-left rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
+                              className={`p-3 text-left rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                                 editRole === roleOpt.id
-                                  ? 'border-blue-500 bg-blue-50/70 text-blue-700 dark:text-sky-400 dark:bg-sky-950/30 font-black shadow-2xs'
-                                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-300'
+                                  ? 'border-indigo-500 bg-indigo-50/70 text-indigo-700 dark:text-indigo-300 dark:bg-indigo-950/40 shadow-xs'
+                                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
                               }`}
                             >
-                              <p className="font-extrabold">{roleOpt.label}</p>
-                              <span className="text-[9.5px] text-slate-400 font-medium block mt-0.5">{roleOpt.desc}</span>
+                              <p className="font-black">{roleOpt.label}</p>
+                              <span className="text-[10px] text-slate-400 font-normal block mt-0.5">{roleOpt.desc}</span>
                             </button>
                           ))}
                         </div>
@@ -1923,29 +1768,31 @@ export default function TeamDirectory({
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-555 dark:text-slate-400 uppercase tracking-wider font-sans">Giới thiệu / Ghi chú cá nhân</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        {isVi ? 'Giới thiệu / Ghi chú' : 'Bio / Notes'}
+                      </label>
                       <textarea
                         rows={3}
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
-                        placeholder="Viết mô tả ngắn..."
-                        className="w-full p-3 text-xs rounded-xl border border-slate-250 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-semibold"
+                        placeholder={isVi ? "Viết mô tả ngắn về bản thân..." : "Write a brief note..."}
+                        className="w-full p-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-semibold"
                       />
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
                       <button
                         type="button"
                         onClick={() => setDetailActiveTab('overview')}
-                        className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        className="px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded-xl text-xs font-bold transition-all cursor-pointer"
                       >
-                        Discard
+                        {isVi ? 'Hủy bỏ' : 'Discard'}
                       </button>
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/10 transition-all cursor-pointer"
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer"
                       >
-                        Lưu thông tin hồ sơ
+                        {isVi ? 'Lưu thông tin hồ sơ' : 'Save Profile'}
                       </button>
                     </div>
                   </form>
@@ -1956,7 +1803,7 @@ export default function TeamDirectory({
         )}
       </AnimatePresence>
 
-      {/* Global Staff Enrollment/Invite Modal Overlay */}
+      {/* 7. INVITE MODAL INTEGRATION */}
       <InviteModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}

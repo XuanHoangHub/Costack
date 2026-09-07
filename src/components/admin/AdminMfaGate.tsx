@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useTranslation } from '@/contexts/TranslationContext';
+import AuthErrorAlert from '@/components/auth/AuthErrorAlert';
+import { formatAuthError } from '@/lib/authError';
 
 type GateMode = 'loading' | 'setup' | 'challenge' | 'success';
 
@@ -45,7 +47,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       }
     } catch (mfaError) {
       setMode('setup');
-      setError(mfaError instanceof Error ? mfaError.message : l('Không thể kiểm tra trạng thái xác thực hai bước.', 'Could not check two-factor authentication status.'));
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
     }
   }, [onSuccess, l]);
 
@@ -73,7 +75,7 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       setQrCode(data.totp.qr_code);
       setSecret(data.totp.secret);
     } catch (mfaError) {
-      setError(mfaError instanceof Error ? mfaError.message : l('Không thể khởi tạo TOTP.', 'Could not initialize TOTP.'));
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,8 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
       setMode('success');
       onSuccess();
     } catch (mfaError) {
-      setError(mfaError instanceof Error ? mfaError.message : l('Mã xác thực không hợp lệ hoặc đã hết hạn.', 'The verification code is invalid or expired.'));
+      setError(formatAuthError(mfaError, l('vi', 'en') === 'vi').description);
+      setCode('');
     } finally {
       setBusy(false);
     }
@@ -277,20 +280,18 @@ export default function AdminMfaGate({ onSuccess, onBack }: { onSuccess: () => v
         )}
 
         {/* Error Alert */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              role="alert"
-              className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-center text-xs font-semibold text-rose-300"
-            >
-              <ShieldAlert className="h-4 w-4 shrink-0 text-rose-400" />
-              <span>{error}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {error && (
+          <div className="mt-4">
+            <AuthErrorAlert
+              error={error}
+              isVietnamese={l('vi', 'en') === 'vi'}
+              onClose={() => setError('')}
+              onRefresh={mode === 'challenge' ? verifyCode : beginEnrollment}
+              isRefreshing={busy}
+              showRefreshButton={Boolean(factorId)}
+            />
+          </div>
+        )}
 
         {/* Back to main app */}
         <div className="mt-6 border-t border-white/[0.08] pt-4 text-center">

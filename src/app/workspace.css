@@ -1,0 +1,211 @@
+/* Apexa workspace UI. Scoped to the application, independent of the public site. */
+.apexa-app-shell.apexa-design-system {
+  --cu-sidebar-width: 232px;
+  --cu-sidebar-collapsed: 64px;
+  --cu-header-height: 60px;
+  --cu-bg: #f6f7f9;
+  --cu-bg-subtle: #f6f7f9;
+  --cu-surface: #ffffff;
+  --cu-surface-2: #f1f3f6;
+  --cu-surface-3: #e7ebf0;
+  --cu-border: #e5e9f0;
+  --cu-border-strong: #cbd3df;
+  --cu-text-primary: #202938;
+  --cu-text-secondary: #526176;
+  --cu-text-muted: #66758a;
+  --cu-text-tertiary: #66758a;
+  --cu-primary: #3165e8;
+  --cu-primary-hover: #2453c9;
+  --cu-primary-subtle: #edf3ff;
+  --cu-radius-md: 10px;
+  --cu-radius-lg: 12px;
+  --cu-radius-xl: 16px;
+  --cu-radius-2xl: 18px;
+  --cu-shadow-xs: 0 1px 2px #1b294008;
+  --cu-shadow-sm: 0 2px 6px #1b29400a;
+  --cu-shadow-md: 0 8px 24px #1b29400d;
+  --cu-shadow-primary: 0 2px 4px #2453c91a;
+  --sidebar-bg: #171c26;
+  --sidebar-text: #e8edf7;
+  --sidebar-muted: #a6b1c3;
+  --sidebar-signal: #a8c2ff;
+  background: var(--cu-bg);
+  color: var(--cu-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+.dark .apexa-app-shell.apexa-design-system {
+  --cu-bg: #11151b;
+  --cu-bg-subtle: #11151b;
+  --cu-surface: #191f28;
+  --cu-surface-2: #222a35;
+  --cu-surface-3: #2e3947;
+  --cu-border: #303947;
+  --cu-border-strong: #465366;
+  --cu-text-primary: #edf1f7;
+  --cu-text-secondary: #b7c2d3;
+  --cu-text-muted: #9aa9be;
+  --cu-text-tertiary: #9aa9be;
+  --cu-primary: #7ca6ff;
+  --cu-primary-hover: #90b4ff;
+  --cu-primary-subtle: #253656;
+  --sidebar-bg: #151a22;
+}
+
+/* Readable type without making every label a heading. */
+.apexa-app-shell.apexa-design-system .apexa-route-canvas :where(.font-black, .font-extrabold) { font-weight: 650; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas .font-bold { font-weight: 600; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas :where(h1, h2, h3, h4) { font-family: var(--font-sans), sans-serif; letter-spacing: -.025em; font-weight: 650; text-wrap: balance; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas h1 { font-size: clamp(21px, 1.65vw, 28px); line-height: 1.35; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas :where(.text-slate-400, .text-slate-405) { color: var(--cu-text-muted); }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas :where(.text-\[9px\], .text-\[10px\], .text-\[10\.5px\]) { font-size: 11px; line-height: 1.5; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas .text-\[11px\] { font-size: 12px; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas .tracking-widest { letter-spacing: .07em; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas :where(p, td, [contenteditable="true"]) { user-select: text; }
+.apexa-app-shell.apexa-design-system :where(button, input, select, textarea, a, summary):focus-visible {
+  outline: 2px solid #5687f1;
+  outline-offset: 3px;
+}
+.apexa-app-shell.apexa-design-system :where(button, a, input, select, textarea) { touch-action: manipulation; }
+.apexa-app-shell.apexa-design-system :where(button:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+.apexa-app-shell.apexa-design-system :where(input, textarea)::placeholder { color: var(--cu-text-muted); opacity: .85; }
+.apexa-app-shell.apexa-design-system :where(.custom-scrollbar, .apexa-route-scroll) { scrollbar-width: thin; scrollbar-color: #a2adbb55 transparent; overscroll-behavior: contain; }
+.apexa-app-shell.apexa-design-system .apexa-content-shell, .apexa-app-shell.apexa-design-system .apexa-main-canvas { min-width: 0; background: var(--cu-bg) !important; }
+.apexa-app-shell.apexa-design-system .apexa-route-canvas { min-width: 0; }
+
+/* Compact navigation rail and a quiet, single-height top bar. */
+.apexa-app-shell.apexa-design-system .apexa-header-sidebar,
+.apexa-app-shell.apexa-design-system .apexa-desktop-sidebar,
+.apexa-app-shell.apexa-design-system .apexa-mobile-drawer { background: var(--sidebar-bg) !important; box-shadow: none !important; }
+.apexa-app-shell.apexa-design-system .apexa-header-sidebar::after { display: none; }
+.apexa-app-shell.apexa-design-system .apexa-desktop-sidebar { padding: 14px 10px !important; }
+.apexa-app-shell.apexa-design-system .apexa-sidebar-navigation { padding-top: 5px; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item { border-radius: 9px !important; min-height: 40px; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] { background: #ffffff0e !important; border-color: #ffffff12 !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] .apexa-nav-item-icon { background: transparent !important; color: #9abaff !important; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item > span:first-of-type { font-weight: 500; letter-spacing: 0; }
+.apexa-app-shell.apexa-design-system .apexa-nav-item[aria-current="page"] > span:first-of-type { font-weight: 600; }
+.apexa-app-shell.apexa-design-system .apexa-nav-active-marker { width: 3px; background: #82aaff !important; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-nav-feature-badge { background: #ffffff08 !important; border: 0 !important; color: #a6b1c3 !important; font-size: 9px; font-weight: 500; }
+.apexa-app-shell.apexa-design-system .apexa-sidebar-section-label { margin-top: 14px; color: #8d9aaf; font-size: 10px; font-weight: 500; letter-spacing: .08em; padding: 8px 12px 5px; }
+.apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 60px; background: var(--cu-surface); border-bottom: 1px solid var(--cu-border); box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-header-content { gap: 16px; }
+.apexa-app-shell.apexa-design-system .apexa-header-context { max-width: 38%; }
+.apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 8px; padding-right: 0; }
+.apexa-app-shell.apexa-design-system .apexa-header-icon-button { box-shadow: none; border-color: var(--cu-border); border-radius: 9px; }
+.apexa-app-shell.apexa-design-system .apexa-header-upgrade { background: #edf3ff !important; color: #2859cb !important; border: 1px solid #dbe6ff !important; box-shadow: none !important; font-weight: 600; }
+.dark .apexa-app-shell.apexa-design-system .apexa-header-upgrade { background: #253656 !important; color: #a9c5ff !important; border-color: #38507b !important; }
+
+/* Shared module surfaces, tables and toolbars. */
+.apexa-app-shell.apexa-design-system .apexa-module { min-width: 0; }
+.apexa-app-shell.apexa-design-system .apexa-module-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px; background: var(--cu-surface); border: 1px solid var(--cu-border); border-radius: 16px; box-shadow: var(--cu-shadow-xs); }
+.apexa-app-shell.apexa-design-system .apexa-module-toolbar { flex-wrap: wrap; gap: 12px; border-color: var(--cu-border); border-radius: 12px; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.apexa-app-shell.apexa-design-system .apexa-module table { font-size: 13px; border-collapse: separate; border-spacing: 0; }
+.apexa-app-shell.apexa-design-system .apexa-module th { background: var(--cu-surface-2); color: var(--cu-text-secondary); font-size: 11px; letter-spacing: .035em; font-weight: 600; }
+.apexa-app-shell.apexa-design-system .apexa-module :where(td, th) { padding-block: 12px; }
+.apexa-app-shell.apexa-design-system .apexa-module tbody tr:hover { background: var(--cu-primary-subtle); }
+.apexa-app-shell.apexa-design-system .cu-card { border-color: var(--cu-border); border-radius: 14px; box-shadow: var(--cu-shadow-xs); }
+
+/* Spaces: secondary navigation belongs to the workspace, not another app shell. */
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar { background: var(--cu-surface) !important; border-right: 1px solid var(--cu-border) !important; }
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar-header { min-height: 64px; background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border) !important; }
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar::after, .apexa-app-shell.apexa-design-system .apexa-space-sidebar-header::before { display: none; }
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar > div:last-child { background: var(--cu-surface) !important; }
+.apexa-app-shell.apexa-design-system .apexa-space-sidebar button { font-weight: 500; }
+.apexa-app-shell.apexa-design-system .apexa-space-header { background: var(--cu-surface) !important; border-bottom: 1px solid var(--cu-border); backdrop-filter: none; }
+.apexa-app-shell.apexa-design-system .apexa-space-header-left { min-width: 0; }
+.apexa-app-shell.apexa-design-system .apexa-space-view-dock { border-radius: 9px; background: var(--cu-surface) !important; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-space-view-tab { border-radius: 7px; font-size: 12px; }
+.apexa-app-shell.apexa-design-system .apexa-board-controls { padding: 12px 14px; border-radius: 12px; box-shadow: none; background: var(--cu-surface); }
+.apexa-app-shell.apexa-design-system .apexa-board-column { border-radius: 14px; background: var(--cu-surface-2) !important; border-color: var(--cu-border) !important; box-shadow: none !important; padding: 12px !important; gap: 10px; }
+.apexa-app-shell.apexa-design-system .apexa-space-board { min-height: 0; }
+.apexa-app-shell.apexa-design-system .apexa-task-table { background: var(--cu-surface); }
+.apexa-app-shell.apexa-design-system .apexa-task-table th { height: 44px; }
+.apexa-app-shell.apexa-design-system .apexa-task-table td { height: 52px; padding-block: 9px; }
+.apexa-app-shell.apexa-design-system .apexa-task-table :where(th, td, button) { white-space: nowrap; }
+.apexa-app-shell.apexa-design-system .apexa-module-heading,
+.apexa-app-shell.apexa-design-system .apexa-finance-header { flex-wrap: wrap; gap: 16px; background: var(--cu-surface); border-color: var(--cu-border); box-shadow: none; }
+
+/* Overview: less ornament, more room for the day's work. */
+.apexa-app-shell.apexa-design-system .apexa-dashboard { max-width: 1600px; padding: 24px; gap: 20px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard > * { margin-block: 0; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-hero { border-radius: 16px; padding: 24px; background: var(--cu-surface); box-shadow: none; gap: 18px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-hero > .pointer-events-none { display: none; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-hero h1 { font-size: clamp(20px, 1.6vw, 27px); }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-priorities { background: var(--cu-surface); border-color: var(--cu-border); box-shadow: none; border-radius: 16px; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi { min-height: 140px; border-radius: 14px; padding: 20px; background: var(--cu-surface); box-shadow: var(--cu-shadow-xs); }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi > .pointer-events-none { display: none; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-kpi:hover { box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-dashboard-panel { background: var(--cu-surface); border-color: var(--cu-border); box-shadow: var(--cu-shadow-xs); border-radius: 16px; }
+
+/* Inbox, documents, chat and team share the same surface rhythm. */
+.apexa-app-shell.apexa-design-system .apexa-inbox { gap: 16px; padding: 20px; background: var(--cu-bg); }
+.apexa-app-shell.apexa-design-system .apexa-inbox-list { border-radius: 14px; border-color: var(--cu-border); box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-inbox-detail { border-radius: 14px; border-color: var(--cu-border); box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-inbox-welcome { background: var(--cu-primary-subtle); color: var(--cu-text-primary); border: 1px solid var(--cu-border); box-shadow: none; border-radius: 12px; }
+.apexa-app-shell.apexa-design-system .apexa-inbox-welcome :where(h1, h2, h3, p, span, strong) { color: inherit; }
+.apexa-app-shell.apexa-design-system .apexa-chat { min-height: 0; border-radius: 0; border: 0; box-shadow: none; background: var(--cu-surface); }
+.apexa-app-shell.apexa-design-system .apexa-chat header { box-shadow: none; background: var(--cu-surface); }
+.apexa-app-shell.apexa-design-system .apexa-team-card { border-radius: 14px; box-shadow: var(--cu-shadow-xs); }
+.apexa-app-shell.apexa-design-system .apexa-whiteboard-card { border-radius: 14px; box-shadow: none; }
+.apexa-app-shell.apexa-design-system .apexa-whiteboard-templates { background: var(--cu-surface-2); border-color: var(--cu-border); border-radius: 14px; }
+
+/* Task details are rendered through a portal, outside the application root. */
+.apexa-task-dialog { --task-panel-border: #e5e9f0; font-size: 14px; }
+.dark .apexa-task-dialog { --task-panel-border: #303947; }
+.apexa-task-dialog :where(.font-black, .font-extrabold) { font-weight: 650; }
+.apexa-task-dialog .text-\[10px\] { font-size: 11px; }
+.apexa-task-dialog .text-\[11px\] { font-size: 12px; }
+.apexa-task-dialog :where(button, input, select, textarea):focus-visible { outline: 2px solid #5687f1; outline-offset: 2px; }
+.apexa-task-dialog .apexa-task-properties { width: 310px; padding: 20px; background: #f8f9fb; border-color: var(--task-panel-border); }
+.dark .apexa-task-dialog .apexa-task-properties { background: #191f28; }
+.apexa-task-dialog .apexa-task-properties :where(button, input) { min-height: 32px; }
+.apexa-task-dialog .apexa-task-properties .truncate { min-width: 0; }
+.apexa-task-dialog .apexa-task-properties .group\/row { flex-wrap: wrap; gap: 8px; padding-block: 12px; }
+.apexa-task-dialog .apexa-task-properties .group\/row > span { width: 100%; }
+.apexa-task-dialog .apexa-task-properties .group\/row > div { flex-basis: 100%; justify-content: flex-start; }
+.apexa-task-dialog .apexa-task-properties button { white-space: nowrap; }
+.apexa-task-dialog .apexa-task-properties .w-32 { width: 108px; }
+.apexa-task-dialog .apexa-task-detail-header { min-height: 60px; box-shadow: none; }
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .apexa-app-shell.apexa-design-system { --cu-sidebar-width: 208px; }
+  .apexa-app-shell.apexa-design-system .apexa-header-context { max-width: 32%; }
+  .apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 5px; }
+}
+@media (max-width: 1023px) {
+  .apexa-task-dialog .apexa-task-properties { width: 100%; }
+  .apexa-app-shell.apexa-design-system .apexa-module-header { align-items: flex-start; padding: 18px; }
+}
+@media (max-width: 767px) {
+  .apexa-app-shell.apexa-design-system { --cu-header-height: 56px; }
+  .apexa-app-shell.apexa-design-system .apexa-app-header { min-height: 56px; }
+  .apexa-app-shell.apexa-design-system .apexa-header-content { gap: 6px; padding-inline: 8px; }
+  .apexa-app-shell.apexa-design-system .apexa-header-context { display: none; }
+  .apexa-app-shell.apexa-design-system .apexa-header-actions { gap: 6px; margin-left: auto; }
+  .apexa-app-shell.apexa-design-system .apexa-header-upgrade { display: none !important; }
+  .apexa-app-shell.apexa-design-system .apexa-header-language { display: none; }
+  .apexa-app-shell.apexa-design-system .apexa-mobile-drawer { border-radius: 0 16px 16px 0 !important; }
+  .apexa-app-shell.apexa-design-system .apexa-mobile-drawer .apexa-nav-item { min-height: 44px; }
+  .apexa-app-shell.apexa-design-system .apexa-space-sidebar { width: min(84vw, 288px) !important; }
+  .apexa-app-shell.apexa-design-system .apexa-dashboard { padding: 16px 12px; gap: 16px; }
+  .apexa-app-shell.apexa-design-system .apexa-dashboard-hero { padding: 18px; }
+  .apexa-app-shell.apexa-design-system .apexa-dashboard-kpi { padding: 16px; min-height: 130px; }
+  .apexa-app-shell.apexa-design-system .apexa-module-header { padding: 16px; border-radius: 12px; }
+  .apexa-app-shell.apexa-design-system .apexa-module-toolbar { align-items: stretch; }
+  .apexa-app-shell.apexa-design-system .apexa-inbox { padding: 12px; gap: 12px; }
+  .apexa-app-shell.apexa-design-system .apexa-route-canvas :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { font-size: 16px; }
+  .apexa-task-dialog :where(input:not([type="checkbox"]), textarea, select) { font-size: 16px; }
+  .apexa-task-dialog .apexa-task-properties { padding: 16px; }
+  .apexa-task-dialog .apexa-task-detail-header { gap: 8px; padding-inline: 12px; }
+  .apexa-task-dialog .apexa-task-detail-header > div:first-child > :not(:first-child) { display: none; }
+  .apexa-task-dialog .apexa-task-detail-header > div:first-child { flex: 1; min-width: 0; }
+  .apexa-task-dialog .apexa-task-detail-header > div:first-child > div { min-width: 0; }
+  .apexa-task-dialog .apexa-task-detail-header > div:first-child button { max-width: 130px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apexa-app-shell.apexa-design-system *, .apexa-task-dialog * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

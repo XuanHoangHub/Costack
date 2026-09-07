@@ -7,7 +7,7 @@ import { motion, AnimatePresence, useInView } from 'motion/react';
 import {
   Kanban, Sparkles, ArrowRight, Menu, X,
   Brain, FileText, MessageSquare, Calendar, BarChart3, Timer,
-  Database, Users, Zap, Shield, Check, Play, Quote,
+  Users, Zap, Shield, Check, Play, Quote,
   LayoutGrid, Search, Mail, ListTodo,
   ChevronRight, ChevronLeft, ChevronDown, Send, Bot, CheckSquare, Plus,
   HelpCircle, ArrowUpRight, Globe, ShieldCheck, Flame, Layers,
@@ -118,7 +118,7 @@ const PLATFORM_CAPABILITIES_LIST: PlatformCapabilityItem[] = [
 ];
 
 const PLATFORM_CAPABILITIES = [
-  'Kanban', 'Smart Docs', 'Realtime Chat', 'CRM', 'ERP', 'Finance', 'Whiteboard', 'Apexa Brain AI'
+  'Kanban', 'Smart Docs', 'Realtime Chat', 'CRM', 'Finance', 'Whiteboard', 'Apexa Brain AI'
 ];
 
 function AnimatedCounter({ value, duration = 2, suffix = '', prefix = '', decimals = 0 }: { value: number; duration?: number; suffix?: string; prefix?: string; decimals?: number }) {
@@ -2419,7 +2419,6 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                           className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-white transition-colors cursor-pointer text-left"
                         >
                           <span>{cmd.label}</span>
-                          <kbd className="text-[9px] text-slate-400 font-mono">↵ Jump</kbd>
                         </button>
                       ))}
                     </div>
@@ -2999,6 +2998,17 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [faqCategory, setFaqCategory] = useState<'all' | 'features' | 'security' | 'pricing'>('all');
   const [faqSearch, setFaqSearch] = useState('');
+  const [heroEmail, setHeroEmail] = useState('');
+
+  const handleHeroEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroEmail.trim()) {
+      try {
+        localStorage.setItem('apexa_signup_email', heroEmail.trim());
+      } catch {}
+    }
+    onSignUp();
+  };
 
   // Rotating Hero dynamic phrases
   const heroPhrases = useMemo(() => isVietnamese ? [
@@ -3189,20 +3199,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
       iconColor: 'text-rose-600 dark:text-rose-400',
       category: 'task',
       visualType: 'pomodoro'
-    },
-    {
-      icon: Database,
-      title: 'Apexa Base (No-Code DB)',
-      desc: isVietnamese
-        ? 'Cơ sở dữ liệu dạng bảng quan hệ mạnh mẽ, tùy biến schema, quản lý CRM, kho nội dung và tài sản dự án không giới hạn.'
-        : 'Relational database sheets with custom schemas, CRM pipelines, content inventories, and unlimited digital asset management.',
-      badge: 'No-Code',
-      tagVariant: 'shots' as const,
-      color: 'from-blue-600 to-indigo-600',
-      bg: 'bg-blue-500/10 dark:bg-blue-500/15',
-      iconColor: 'text-blue-600 dark:text-blue-400',
-      category: 'analytics',
-      visualType: 'database'
     }
   ], [isVietnamese]);
 
@@ -3957,33 +3953,50 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
             : 'The next-gen all-in-one productivity workspace unifying Projects, Smart Docs, Team Chat, and AI Intelligence. Supercharge execution velocity and eliminate tool fragmentation with zero latency.'}
         </motion.p>
 
-        {/* CTA Actions */}
+        {/* ClickUp 3.0-Style Dual CTA: Email Input + Action Button */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mt-8 sm:mt-10"
+          className="mt-8 sm:mt-10"
         >
-          <GsapMagneticButton
-            strength={0.3}
-            glowSweep={true}
-            onClick={onSignUp}
-            className="group flex h-13 items-center justify-center gap-3 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-950 px-7 py-3.5 text-base font-extrabold shadow-[0_10px_30px_rgba(15,23,42,0.22)] dark:shadow-[0_10px_30px_rgba(255,255,255,0.18)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          <form
+            onSubmit={handleHeroEmailSubmit}
+            className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-lg mx-auto w-full"
           >
-            <span>{isVietnamese ? 'Bắt đầu trải nghiệm miễn phí' : 'Start for Free Today'}</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </GsapMagneticButton>
+            <div className="relative w-full sm:flex-1">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="email"
+                value={heroEmail}
+                onChange={(e) => setHeroEmail(e.target.value)}
+                placeholder={isVietnamese ? 'Nhập email công việc...' : 'Enter your work email...'}
+                className="w-full h-13 pl-11 pr-4 rounded-full bg-white dark:bg-white/10 border border-slate-300 dark:border-white/15 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 shadow-sm"
+              />
+            </div>
+            <GsapMagneticButton
+              strength={0.3}
+              glowSweep={true}
+              onClick={() => {}}
+              className="w-full sm:w-auto h-13 px-8 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 text-white font-extrabold text-sm shadow-[0_10px_25px_-5px_rgba(37,99,235,0.4)] hover:shadow-[0_15px_30px_-5px_rgba(37,99,235,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <span>{isVietnamese ? 'Bắt đầu miễn phí' : 'Get Started. Free'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </GsapMagneticButton>
+          </form>
 
-          <Button
-            variant="glass"
-            size="huge"
-            pill
-            onClick={() => scrollTo('features')}
-            leftIcon={<Play className="w-4 h-4 text-indigo-600 dark:text-sky-400 fill-current" />}
-            className="border border-slate-200/80 dark:border-white/15 bg-white/70 dark:bg-white/5 backdrop-blur-xl hover:bg-white dark:hover:bg-white/10 text-slate-800 dark:text-white shadow-sm"
-          >
-            {isVietnamese ? 'Khám phá tính năng' : 'Explore Features'}
-          </Button>
+          {/* Reassurance microcopy */}
+          <div className="flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium mt-3">
+            <span className="flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+              {isVietnamese ? 'Miễn phí mãi mãi' : 'Free forever'}
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+              {isVietnamese ? 'Không cần thẻ tín dụng' : 'No credit card'}
+            </span>
+          </div>
         </motion.div>
 
         {/* Social Proof Trust Avatar Stack & Rating */}

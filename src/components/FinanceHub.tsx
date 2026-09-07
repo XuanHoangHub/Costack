@@ -750,7 +750,7 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[var(--cu-bg-subtle)]">
-      <header className="shrink-0 border-b border-[var(--cu-border)] bg-[var(--cu-surface)]/95 px-4 py-3 backdrop-blur-xl lg:px-6">
+      <header className="apexa-finance-header shrink-0 border-b border-[var(--cu-border)] bg-[var(--cu-surface)]/95 px-4 py-3 backdrop-blur-xl lg:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white shadow-lg shadow-indigo-500/20"><WalletCards className="h-5 w-5" /></div>

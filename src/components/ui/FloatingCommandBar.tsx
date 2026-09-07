@@ -47,7 +47,7 @@ export function FloatingCommandBar({
               key={action.id}
               disabled={action.disabled}
               onClick={action.onClick}
-              title={action.shortcut ? `${action.label} (${action.shortcut})` : action.label}
+              title={action.label}
               className={[
                 "group relative p-2 rounded-full transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed",
                 action.active
@@ -60,11 +60,6 @@ export function FloatingCommandBar({
               {/* Tooltip */}
               <span className="pointer-events-none absolute -bottom-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 px-2.5 py-1 rounded-lg bg-slate-950 text-white text-[10px] font-bold whitespace-nowrap shadow-xl border border-white/10 flex items-center gap-1.5 z-50">
                 <span>{action.label}</span>
-                {action.shortcut && (
-                  <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-white/15 text-slate-300">
-                    {action.shortcut}
-                  </span>
-                )}
               </span>
             </button>
           );

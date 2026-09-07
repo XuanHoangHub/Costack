@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
+import { APEXA_SUPER_ADMIN_UID, isApexaSuperAdmin } from '@/lib/admin/constants';
 import type { AdminUser } from '@/lib/admin/types';
 import { isPaidBillingPlan, type BillingPlan } from '@/lib/billing/plans';
 import {
@@ -138,7 +138,7 @@ export async function PATCH(request: Request) {
     const targetUserId = asTrimmedString(body.userId, 64);
     const action = asTrimmedString(body.action, 30);
     if (!/^[0-9a-f-]{36}$/i.test(targetUserId)) throw new AdminHttpError(400, 'UID người dùng không hợp lệ.');
-    if (targetUserId === APEXA_SUPER_ADMIN_UID && action === 'suspend') throw new AdminHttpError(400, 'Không thể đình chỉ tài khoản quản trị duy nhất.');
+    if (isApexaSuperAdmin(targetUserId) && action === 'suspend') throw new AdminHttpError(400, 'Không thể đình chỉ tài khoản quản trị.');
 
     if (action === 'suspend' || action === 'restore') {
       const { error } = await admin.auth.admin.updateUserById(targetUserId, { ban_duration: action === 'suspend' ? '876000h' : 'none' });
@@ -179,7 +179,7 @@ export async function DELETE(request: Request) {
     const body = asObject(await request.json().catch(() => ({})));
     const targetUserId = asTrimmedString(body.userId, 64);
     const confirmation = asTrimmedString(body.confirmation, 254).toLowerCase();
-    if (targetUserId === APEXA_SUPER_ADMIN_UID) throw new AdminHttpError(400, 'Không thể xóa tài khoản quản trị duy nhất.');
+    if (isApexaSuperAdmin(targetUserId)) throw new AdminHttpError(400, 'Không thể xóa tài khoản quản trị.');
     const { data, error } = await admin.auth.admin.getUserById(targetUserId);
     if (error || !data.user) throw new AdminHttpError(404, 'Không tìm thấy người dùng.');
     if (!data.user.email || confirmation !== data.user.email.toLowerCase()) {

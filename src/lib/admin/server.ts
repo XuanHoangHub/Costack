@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createHash, randomUUID } from 'crypto';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
-import { APEXA_SUPER_ADMIN_UID } from '@/lib/admin/constants';
+import { APEXA_SUPER_ADMIN_UID, isApexaSuperAdmin } from '@/lib/admin/constants';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,7 +50,7 @@ export async function requireSuperAdmin(request: Request): Promise<{ user: User;
   if (!subject) {
     throw new AdminHttpError(401, 'Your session is invalid or expired.');
   }
-  if (subject !== APEXA_SUPER_ADMIN_UID) throw new AdminHttpError(403, 'You do not have access to Apexa Control Center.');
+  if (!isApexaSuperAdmin(subject)) throw new AdminHttpError(403, 'You do not have access to Apexa Control Center.');
   const requireAal2 = process.env.ADMIN_REQUIRE_AAL2 !== 'false';
   if (requireAal2 && claims?.aal !== 'aal2') {
     throw new AdminHttpError(403, 'Tài khoản quản trị phải hoàn tất xác thực hai bước (AAL2). Hãy bật TOTP trong Cài đặt bảo mật rồi đăng nhập lại.');

@@ -29,17 +29,35 @@ export default function ErrorPage({
 
   const isVi = locale === 'vi';
 
+  const isChunkError =
+    error?.name === 'ChunkLoadError' ||
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('missing:') ||
+    error?.message?.includes('Failed to fetch dynamically imported module');
+
   useEffect(() => {
     console.error('Apexa Runtime/Route Error caught by error.tsx:', error);
-  }, [error]);
+    if (isChunkError && typeof window !== 'undefined') {
+      const key = 'chunk_error_reload_lock';
+      const lastReload = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - lastReload > 6000) {
+        sessionStorage.setItem(key, String(Date.now()));
+        window.location.reload();
+      }
+    }
+  }, [error, isChunkError]);
 
   const handleRetry = useCallback(() => {
     setIsRetrying(true);
+    if (isChunkError && typeof window !== 'undefined') {
+      window.location.reload();
+      return;
+    }
     setTimeout(() => {
       reset();
       setIsRetrying(false);
     }, 400);
-  }, [reset]);
+  }, [reset, isChunkError]);
 
   // Keyboard shortcut listener
   useEffect(() => {
@@ -124,7 +142,6 @@ export default function ErrorPage({
             >
               <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 stroke-[2.5] shrink-0 ${isRetrying ? 'animate-spin' : ''}`} />
               <span className="whitespace-nowrap">{isRetrying ? (isVi ? 'Đang khôi phục...' : 'Recovering...') : (isVi ? 'Thử tải lại ngay' : 'Retry Recovery')}</span>
-              <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white/20 rounded-md text-white/90 shrink-0">↵ Enter</kbd>
             </button>
 
             {/* Secondary Action: Home */}
@@ -134,7 +151,6 @@ export default function ErrorPage({
             >
               <Home className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-slate-400 shrink-0" />
               <span className="whitespace-nowrap">{isVi ? 'Về Trang chủ' : 'Go Home'}</span>
-              <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white/10 rounded-md text-slate-300 shrink-0">Esc</kbd>
             </Link>
 
           </div>

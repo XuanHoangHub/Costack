@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   Calendar,
   MessageSquare,
-  Database,
   Grid,
   BarChart,
   Target,
@@ -219,42 +218,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       action: () => {
         onNavigateTab('chat');
         addSyncLog('Command: Opened Chat');
-      },
-    },
-    {
-      id: 'goto-base',
-      name: '/base',
-      label: isVietnamese ? 'Cơ sở dữ liệu Base' : 'Open Apexa Base',
-      description: isVietnamese ? 'Bảng dữ liệu no-code và các dạng xem linh hoạt' : 'No-code database tables and records',
-      icon: Database,
-      badge: 'Database',
-      action: () => {
-        onNavigateTab('base');
-        addSyncLog('Command: Opened Apexa Base');
-      },
-    },
-    {
-      id: 'goto-crm',
-      name: '/crm',
-      label: isVietnamese ? 'Quản lý khách hàng CRM' : 'Open CRM Pipeline',
-      description: isVietnamese ? 'Quản lý cơ hội, khách hàng doanh nghiệp và báo giá' : 'Deals pipeline, accounts and quotations',
-      icon: TrendingUp,
-      badge: 'CRM',
-      action: () => {
-        onNavigateTab('crm');
-        addSyncLog('Command: Opened CRM');
-      },
-    },
-    {
-      id: 'goto-erp',
-      name: '/erp',
-      label: isVietnamese ? 'Quản trị doanh nghiệp ERP' : 'Open ERP Enterprise Hub',
-      description: isVietnamese ? 'Kho hàng, đơn bán hàng, mua hàng và tính lương tự động' : 'Inventory, Sales Orders, Procurement & Payroll',
-      icon: Boxes,
-      badge: 'ERP',
-      action: () => {
-        onNavigateTab('erp');
-        addSyncLog('Command: Opened ERP');
       },
     },
     {
@@ -675,8 +638,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               type="text"
               placeholder={
                 isCommandMode
-                  ? (isVietnamese ? "Nhập lệnh hệ thống (ví dụ: /task, /doc, /crm, /erp, /ai)..." : "Type command (e.g. /task, /doc, /crm, /erp, /ai)...")
-                  : (isVietnamese ? "Tìm kiếm công việc, tài liệu, không gian, CRM, ERP, thành viên..." : "Search tasks, documents, spaces, CRM, ERP, members...")
+                  ? (isVietnamese ? "Nhập lệnh hệ thống (ví dụ: /task, /doc, /erp, /ai)..." : "Type command (e.g. /task, /doc, /erp, /ai)...")
+                  : (isVietnamese ? "Tìm kiếm công việc, tài liệu, không gian, ERP, thành viên..." : "Search tasks, documents, spaces, ERP, members...")
               }
               value={searchQuery}
               aria-label={isVietnamese ? "Tìm kiếm toàn cục" : "Global search input"}
@@ -870,8 +833,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
                       { query: '/task', title: 'Tạo công việc mới', desc: 'Mở bảng tạo task nhanh', icon: Briefcase, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400' },
-                      { query: '/crm', title: 'CRM & Khách hàng B2B', desc: 'Xem pipeline & cơ hội', icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' },
-                      { query: '/erp', title: 'ERP Quản trị doanh nghiệp', desc: 'Kho hàng, đơn hàng & lương', icon: Boxes, color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400' },
+                      { query: '/team', title: isVietnamese ? 'Đội ngũ & Nhân sự' : 'Team & Staff', desc: isVietnamese ? 'Xem danh bạ và phòng ban' : 'View directory & departments', icon: Users, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' },
+                      { query: '/finance', title: isVietnamese ? 'Tài chính & Hóa đơn' : 'Finance & Accounting', desc: isVietnamese ? 'Thu chi, hóa đơn & công nợ' : 'Cashflow, invoices & expenses', icon: DollarSign, color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400' },
                       { query: '/ai', title: 'Trợ lý AI Apexa Brain', desc: 'Hỏi đáp & hỗ trợ thông minh', icon: Sparkles, color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' },
                     ].map(card => (
                       <button
@@ -933,8 +896,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 </p>
                 <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
                   {isCommandMode
-                    ? (isVietnamese ? 'Không có lệnh nào khớp với từ khóa. Thử gõ /task, /doc, /crm, /erp, /ai hoặc /settings.' : 'No commands match. Try typing /task, /doc, /crm, /erp, /ai, or /settings.')
-                    : (isVietnamese ? 'Hệ thống đã tìm trong công việc, tài liệu, không gian, CRM, ERP và thành viên nhưng không có kết quả.' : 'We searched tasks, documents, spaces, CRM, ERP, and members but found no matches.')}
+                    ? (isVietnamese ? 'Không có lệnh nào khớp với từ khóa. Thử gõ /task, /doc, /team, /ai hoặc /settings.' : 'No commands match. Try typing /task, /doc, /team, /ai, or /settings.')
+                    : (isVietnamese ? 'Hệ thống đã tìm trong công việc, tài liệu, không gian và thành viên nhưng không có kết quả.' : 'We searched tasks, documents, spaces, and members but found no matches.')}
                 </p>
               </div>
             ) : (
@@ -1211,30 +1174,21 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             )}
           </div>
 
-          {/* Footer Shortcuts Guide */}
-          <div className="px-5 py-3 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-slate-500 shrink-0 select-none">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 shadow-3xs">↑↓</kbd>
-                <span>{isVietnamese ? 'Di chuyển' : 'Navigate'}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 shadow-3xs">↵</kbd>
-                <span>{isVietnamese ? 'Mở chọn' : 'Open'}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 shadow-3xs">Tab</kbd>
-                <span>{isVietnamese ? 'Đổi danh mục' : 'Category'}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-750 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 shadow-3xs">Esc</kbd>
-                <span>{isVietnamese ? 'Thoát' : 'Exit'}</span>
-              </span>
+          {/* Footer Guide */}
+          <div className="px-5 py-2.5 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-slate-500 shrink-0 select-none">
+            <div className="flex items-center gap-3 text-[11px]">
+              <span>{isVietnamese ? '↑↓ Di chuyển' : '↑↓ Navigate'}</span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span>{isVietnamese ? '↵ Mở chọn' : '↵ Open'}</span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span>{isVietnamese ? 'Tab Đổi danh mục' : 'Tab Category'}</span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span>{isVietnamese ? 'Esc Thoát' : 'Esc Exit'}</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 font-mono">
-                {isVietnamese ? 'Nhấn / để dùng lệnh' : 'Press / for commands'}
+              <span className="text-[10px] text-slate-400">
+                {isVietnamese ? 'Nhập / để dùng lệnh' : 'Type / for commands'}
               </span>
             </div>
           </div>

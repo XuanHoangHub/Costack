@@ -735,7 +735,7 @@ export default function WhiteboardHub({
         /* ========================================================================= */
         /* 2. DASHBOARD VIEW (WHITEBOARD PROJECTS & BOARDS HUB)                     */
         /* ========================================================================= */
-        <div className="w-full h-full flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="apexa-whiteboards w-full h-full flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
           
           {/* Hero Banner & Global Actions */}
           <div className="p-5 md:p-6 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
@@ -749,10 +749,10 @@ export default function WhiteboardHub({
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                      Dự Án Bảng Trắng & Ý Tưởng
+                      Bảng trắng & ý tưởng
                     </h1>
                     <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                      Independent Hub
+                      Không gian sáng tạo
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -964,7 +964,7 @@ export default function WhiteboardHub({
             </div>
 
             {/* Template Starters Showcase Row */}
-            <div className="bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 p-4 rounded-2xl border border-indigo-100/80 dark:border-indigo-950/60">
+            <div className="apexa-whiteboard-templates bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 p-4 rounded-2xl border border-indigo-100/80 dark:border-indigo-950/60">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
@@ -1011,7 +1011,7 @@ export default function WhiteboardHub({
             {/* Whiteboard Cards Grid or List */}
             {filteredBoards.length > 0 ? (
               layoutMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="apexa-module-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredBoards.map(board => {
                     const project = board.projectId ? projectMap.get(board.projectId) : null;
                     return (
@@ -1020,7 +1020,7 @@ export default function WhiteboardHub({
                         layout
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
+                        className="apexa-whiteboard-card group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/80 hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
                         onClick={() => handleOpenBoard(board.id)}
                       >
                         {/* Canvas Miniature Header / Visual Pattern */}

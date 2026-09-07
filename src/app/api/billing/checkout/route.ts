@@ -119,6 +119,9 @@ export async function POST(request: Request) {
   try {
     const { user } = await requireBillingUser(request);
     const body = await request.json().catch(() => ({}));
+    if (body?.cycle !== 'monthly' && body?.cycle !== 'yearly') {
+      throw new BillingHttpError(400, 'Chu kỳ thanh toán không hợp lệ.');
+    }
     const cycle: BillingCycle = body?.cycle === 'monthly' ? 'monthly' : 'yearly';
     if (!isSelfServeBillingPlan(body?.plan)) {
       throw new BillingHttpError(400, 'Gói thanh toán không hợp lệ.');
@@ -137,6 +140,7 @@ export async function POST(request: Request) {
     }
     if (
       liveSubscription?.provider === 'payos'
+      && (!liveSubscription.current_period_end || Date.parse(liveSubscription.current_period_end) > Date.now())
       && isBillingPlan(liveSubscription.plan)
       && BILLING_PLAN_RANK[plan] < BILLING_PLAN_RANK[liveSubscription.plan]
     ) {
@@ -372,16 +376,30 @@ export async function DELETE(request: Request) {
       return Response.json({ status: 'paid' }, { headers: { 'Cache-Control': 'private, no-store' } });
     }
     if (current.status === 'PENDING' || current.status === 'PROCESSING') {
-      await cancelPayOSPaymentLink(orderCode, 'Khách hàng hủy tại Apexa');
+      const cancelled = await cancelPayOSPaymentLink(orderCode, 'Khách hàng hủy tại Apexa');
+      if (cancelled.status === 'PAID') {
+        return Response.json({ status: 'paid' }, { headers: { 'Cache-Control': 'private, no-store' } });
+      }
+      if (cancelled.status !== 'CANCELLED') {
+        throw new BillingHttpError(409, 'Chưa xác nhận được việc hủy đơn. Vui lòng kiểm tra lại giao dịch.');
+      }
     }
 
-    const { error: updateError } = await admin
+    const { data: updated, error: updateError } = await admin
       .from('billing_orders')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('user_id', user.id)
       .eq('order_code', orderCode)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select('status')
+      .maybeSingle();
     if (updateError) throw updateError;
+
+    if (!updated) {
+      const { data: latest, error: latestError } = await admin.from('billing_orders').select('status').eq('user_id', user.id).eq('order_code', orderCode).single();
+      if (latestError) throw latestError;
+      return Response.json({ status: latest.status }, { headers: { 'Cache-Control': 'private, no-store' } });
+    }
 
     return Response.json({ status: 'cancelled' }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {

@@ -73,6 +73,11 @@ export const PricingModal: React.FC<PricingModalProps> = ({
 }) => {
   const { isVietnamese } = useTranslation();
   const dialogRef = useRef<HTMLElement>(null);
+  const verificationRef = useRef(false);
+  const checkoutGeneration = useRef(0);
+  const completedOrderRef = useRef<number | null>(null);
+  const creationRef = useRef(false);
+  const [cancelling, setCancelling] = useState(false);
   const [cycle, setCycle] = useState<BillingCycle>('yearly');
   const [showFaq, setShowFaq] = useState(false);
   const [entitlement, setEntitlement] = useState<Entitlement>({
@@ -219,6 +224,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         throw new Error(isVietnamese ? 'Vui lòng đăng nhập để quản lý gói.' : 'Please sign in to manage your plan.');
       const response = await fetch(url, {
         ...init,
+        signal: init?.signal || AbortSignal.timeout(45000),
+        cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
@@ -263,6 +270,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     try {
       const response = await fetch('/api/billing/plans', { cache: 'no-store' });
       const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error('Unable to load billing prices');
       if (response.ok) {
         setPrices(body.prices || {});
         setBillingConfigured(Boolean(body.configured));
@@ -279,6 +287,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   }, []);
 
   const closeEmbeddedCheckout = useCallback(() => {
+    checkoutGeneration.current += 1;
+    setManualChecking(false);
     setCheckout(null);
     setCheckoutStatus('pending');
     setPaymentReceipt(null);
@@ -286,164 +296,77 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   }, []);
 
   const handleModalClose = useCallback(() => {
+    if (loadingPlan || cancelling || manualChecking) return;
     closeEmbeddedCheckout();
     setCardSuccess(null);
     onClose();
-  }, [closeEmbeddedCheckout, onClose]);
+  }, [closeEmbeddedCheckout, onClose, loadingPlan, cancelling, manualChecking]);
 
-  // Manual payment verification
+  // One verifier for manual checks, polling, and provider notifications.
   const checkPaymentStatus = useCallback(
     async (activeCheckout: PayOSCheckoutData, silent = false) => {
-      setManualChecking(true);
-      setError('');
+      if (verificationRef.current || completedOrderRef.current === activeCheckout.orderCode) return false;
+      const generation = checkoutGeneration.current;
+      verificationRef.current = true;
+      if (!silent) setManualChecking(true);
       try {
         const result = await authorizedFetch('/api/billing/checkout', {
-          method: 'PUT',
-          body: JSON.stringify({ orderCode: activeCheckout.orderCode }),
+          method: 'PUT', body: JSON.stringify({ orderCode: activeCheckout.orderCode }),
         });
-        if (result.status === 'paid') {
-          const refreshed = await refreshEntitlement();
-          if (!refreshed?.is_pro && result.receipt) {
-            const confirmed: Entitlement = {
-              plan: activeCheckout.plan,
-              provider: 'payos',
-              status: 'active',
-              billing_cycle: activeCheckout.cycle,
-              is_pro: true,
-              cancel_at_period_end: true,
-              current_period_end: result.receipt.periodEnd || undefined,
-            };
-            setEntitlement(confirmed);
-            onEntitlementChange?.(confirmed);
-          }
-          addSyncLog?.(`Confirmed PayOS order ${activeCheckout.orderCode}`);
-          triggerToast?.(
-            'success',
-            isVietnamese ? 'Thanh toán thành công! 🎉' : 'Payment successful! 🎉',
-            isVietnamese
-              ? `Gói ${copy[activeCheckout.plan].name} đã được kích hoạt thành công.`
-              : `Your ${copy[activeCheckout.plan].name} plan is now active.`,
-          );
-          setPaymentReceipt(result.receipt || null);
+        if (generation !== checkoutGeneration.current) return false;
+        if (result.status === 'paid' && result.receipt) {
+          completedOrderRef.current = activeCheckout.orderCode;
+          setPaymentReceipt(result.receipt);
           setCheckoutStatus('success');
+          setError('');
+          await refreshEntitlement();
+          if (generation !== checkoutGeneration.current) return true;
+          addSyncLog?.(`Confirmed PayOS order ${activeCheckout.orderCode}`);
+          triggerToast?.('success', isVietnamese ? 'Thanh toán thành công!' : 'Payment successful!',
+            isVietnamese ? `Đã xác nhận thanh toán gói ${copy[activeCheckout.plan].name}.` : `Payment for ${copy[activeCheckout.plan].name} is confirmed.`);
           return true;
-        } else if (['cancelled', 'expired', 'failed'].includes(result.status)) {
-          setCheckoutStatus(result.status);
-          setError(
-            isVietnamese
-              ? 'Đơn thanh toán đã bị hủy hoặc hết hạn.'
-              : 'The payment was cancelled or expired.',
-          );
-        } else if (!silent) {
-          triggerToast?.(
-            'info',
-            isVietnamese ? 'Đang chờ thanh toán' : 'Awaiting payment',
-            isVietnamese
-              ? 'Hệ thống chưa nhận được tiền cho đơn này. Vui lòng quét mã VietQR và bấm kiểm tra lại.'
-              : 'Payment not received yet. Please scan the VietQR code to pay.',
-          );
+        }
+        if (['cancelled', 'expired', 'failed'].includes(result.status)) setCheckoutStatus(result.status);
+        setError('');
+        if (!silent && result.status === 'pending') {
+          setError(isVietnamese ? 'Chưa nhận được xác nhận. Nếu đã chuyển tiền, vui lòng chờ và kiểm tra lại; không chuyển thêm lần nữa.' : 'Confirmation has not arrived. If you have paid, wait and check again; do not pay twice.');
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : isVietnamese ? 'Không thể kiểm tra giao dịch.' : 'Unable to check transaction.';
-        setError(msg);
+        if (generation === checkoutGeneration.current) setError(err instanceof Error ? err.message : (isVietnamese ? 'Không thể kiểm tra giao dịch. Hệ thống sẽ thử lại.' : 'Unable to check payment. We will retry.'));
       } finally {
-        setManualChecking(false);
+        verificationRef.current = false;
+        if (generation === checkoutGeneration.current) setManualChecking(false);
       }
       return false;
-    },
-    [addSyncLog, authorizedFetch, copy, isVietnamese, onEntitlementChange, refreshEntitlement, triggerToast],
+    }, [addSyncLog, authorizedFetch, copy, isVietnamese, refreshEntitlement, triggerToast],
   );
 
-  // Background auto-polling (every 3.5s) while checkout modal is open
   useEffect(() => {
-    if (!isOpen || !checkout || checkoutStatus === 'success') return;
+    if (!isOpen || !checkout || checkoutStatus !== 'pending' || cancelling) return;
     let active = true;
-
+    let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (!active) return;
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
-        const res = await fetch('/api/billing/checkout', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ orderCode: checkout.orderCode }),
-        });
-        if (!active) return;
-        const data = await res.json().catch(() => ({}));
-        if (data?.status === 'paid') {
-          const refreshed = await refreshEntitlement();
-          if (!active) return;
-          if (!refreshed?.is_pro && data.receipt) {
-            const confirmed: Entitlement = {
-              plan: checkout.plan,
-              provider: 'payos',
-              status: 'active',
-              billing_cycle: checkout.cycle,
-              is_pro: true,
-              cancel_at_period_end: true,
-              current_period_end: data.receipt.periodEnd || undefined,
-            };
-            setEntitlement(confirmed);
-            onEntitlementChange?.(confirmed);
-          }
-          addSyncLog?.(`Confirmed PayOS order ${checkout.orderCode}`);
-          triggerToast?.(
-            'success',
-            isVietnamese ? 'Thanh toán thành công! 🎉' : 'Payment successful! 🎉',
-            isVietnamese
-              ? `Gói ${copy[checkout.plan].name} đã được kích hoạt thành công.`
-              : `Your ${copy[checkout.plan].name} plan is now active.`,
-          );
-          setPaymentReceipt(data.receipt || null);
-          setCheckoutStatus('success');
-        } else if (['cancelled', 'expired', 'failed'].includes(data?.status)) {
-          setCheckoutStatus(data.status);
-        }
-      } catch {}
+      if (document.visibilityState === 'visible') await checkPaymentStatus(checkout, true);
+      if (active) timer = setTimeout(poll, 5000);
     };
-
-    const interval = setInterval(poll, 3500);
-
+    timer = setTimeout(poll, 1500);
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible') void checkPaymentStatus(checkout, true);
+    };
     const handleMessage = (event: MessageEvent) => {
-      const validOrigins = [
-        'https://dev.pay.payos.vn',
-        'https://next.dev.pay.payos.vn',
-        'https://pay.payos.vn',
-        'https://next.pay.payos.vn',
-      ];
-      if (!validOrigins.includes(event.origin) || !active) return;
-      try {
-        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (
-          payload?.type === 'payment_response' &&
-          (payload?.status === 'PAID' || payload?.data?.status === 'PAID')
-        ) {
-          void checkPaymentStatus(checkout, true);
-        } else if (
-          payload?.type === 'payment_response' &&
-          (payload?.status === 'CANCELLED' || payload?.data?.status === 'CANCELLED')
-        ) {
-          setCheckoutStatus('cancelled');
-          setError(isVietnamese ? 'Bạn đã hủy thanh toán PayOS.' : 'You cancelled the PayOS payment.');
-        }
-      } catch {}
+      if (!['https://pay.payos.vn', 'https://next.pay.payos.vn', 'https://dev.pay.payos.vn', 'https://next.dev.pay.payos.vn'].includes(event.origin)) return;
+      // Provider messages are hints only. Always verify with the server.
+      void checkPaymentStatus(checkout, true);
     };
-
+    document.addEventListener('visibilitychange', handleVisible);
     window.addEventListener('message', handleMessage);
-
     return () => {
-      active = false;
-      clearInterval(interval);
+      active = false; clearTimeout(timer);
+      document.removeEventListener('visibilitychange', handleVisible);
       window.removeEventListener('message', handleMessage);
     };
-  }, [checkout, checkoutStatus, checkPaymentStatus, copy, isVietnamese, isOpen, onEntitlementChange, refreshEntitlement, triggerToast, addSyncLog]);
-
+  }, [isOpen, checkout, checkoutStatus, cancelling, checkPaymentStatus]);
   useEffect(() => {
     if (!isOpen) return;
     setError('');
@@ -451,16 +374,17 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     if (pendingCycle === 'monthly' || pendingCycle === 'yearly') setCycle(pendingCycle);
     const pendingPlan = window.localStorage.getItem('apexa_pending_upgrade_plan');
     const cardReturn = window.sessionStorage.getItem('apexa_billing_success_provider') === 'stripe';
-    if (cardReturn && (pendingPlan === 'starter' || pendingPlan === 'pro' || pendingPlan === 'business')) {
-      setCardSuccess({
-        plan: pendingPlan,
-        cycle: pendingCycle === 'monthly' ? 'monthly' : 'yearly',
-      });
-      window.sessionStorage.removeItem('apexa_billing_success_provider');
-    }
+    let active = true;
+    void refreshEntitlement().then(confirmed => {
+      if (active && cardReturn && confirmed?.is_pro && confirmed.provider === 'stripe' && confirmed.plan === pendingPlan && (pendingPlan === 'starter' || pendingPlan === 'pro' || pendingPlan === 'business')) {
+        setCardSuccess({ plan: pendingPlan, cycle: confirmed.billing_cycle || (pendingCycle === 'monthly' ? 'monthly' : 'yearly') });
+      }
+    });
+    window.sessionStorage.removeItem('apexa_billing_success_provider');
     window.localStorage.removeItem('apexa_pending_upgrade_cycle');
     window.localStorage.removeItem('apexa_pending_upgrade_plan');
-    void Promise.all([refreshEntitlement(), refreshPrices()]);
+    void refreshPrices();
+    return () => { active = false; };
   }, [isOpen, refreshEntitlement, refreshPrices]);
 
   useEffect(() => {
@@ -471,6 +395,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     dialogRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') handleModalClose();
+      if (event.key === 'Tab') {
+        const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), summary, [tabindex="0"]') || []).filter(element => element.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (!first) { event.preventDefault(); return; }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -504,11 +436,16 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       setError(message);
       triggerToast?.('error', isVietnamese ? 'Thanh toán chưa hoàn tất' : 'Billing not completed', message);
     } finally {
+      creationRef.current = false;
       setLoadingPlan(null);
     }
   };
 
   const startPayOSCheckout = async (plan: SelfServeBillingPlan) => {
+    if (creationRef.current) return;
+    creationRef.current = true;
+    checkoutGeneration.current += 1;
+    completedOrderRef.current = null;
     setLoadingPlan(plan);
     setError('');
     try {
@@ -523,6 +460,9 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         || !Number.isSafeInteger(data?.amount)
         || typeof data?.description !== 'string'
         || typeof data?.expiresAt !== 'string'
+        || !Number.isFinite(Date.parse(data.expiresAt))
+        || data.amount <= 0
+        || !data.qrCode?.trim()
         || typeof data?.qrCode !== 'string'
         || typeof data?.accountNumber !== 'string'
         || typeof data?.accountName !== 'string'
@@ -560,6 +500,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       setError(message);
       triggerToast?.('error', isVietnamese ? 'Thanh toán chưa hoàn tất' : 'Billing not completed', message);
     } finally {
+      creationRef.current = false;
       setLoadingPlan(null);
     }
   };
@@ -673,8 +614,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   const hasBillingIssue = ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status);
 
   const cancelCheckout = useCallback(async () => {
-    if (!checkout) return;
-    setManualChecking(true);
+    if (!checkout || verificationRef.current || cancelling) return;
+    setCancelling(true);
     setError('');
     try {
       const result = await authorizedFetch('/api/billing/checkout', {
@@ -685,14 +626,17 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         await checkPaymentStatus(checkout, true);
         return;
       }
-      setCheckoutStatus('cancelled');
+      if (!['cancelled', 'expired', 'failed'].includes(result.status)) {
+        throw new Error(isVietnamese ? 'Chưa thể xác nhận hủy đơn. Vui lòng kiểm tra lại.' : 'Cancellation is not confirmed. Please check again.');
+      }
+      setCheckoutStatus(result.status);
       addSyncLog?.(`Cancelled PayOS order ${checkout.orderCode}`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : (isVietnamese ? 'Không thể hủy đơn.' : 'Unable to cancel order.'));
     } finally {
-      setManualChecking(false);
+      setCancelling(false);
     }
-  }, [addSyncLog, authorizedFetch, checkPaymentStatus, checkout, isVietnamese]);
+  }, [addSyncLog, authorizedFetch, checkPaymentStatus, checkout, isVietnamese, cancelling]);
 
   const expireCheckout = useCallback(() => {
     if (!checkout) return;
@@ -718,7 +662,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="pricing-modal-title"
+            aria-labelledby={checkout ? (checkoutStatus === 'success' ? undefined : 'checkout-title') : cardSuccess ? undefined : 'pricing-modal-title'}
+            aria-label={checkoutStatus === 'success' || cardSuccess ? (isVietnamese ? 'Kết quả thanh toán' : 'Payment result') : undefined}
             tabIndex={-1}
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -726,7 +671,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
             transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             className={`relative z-10 my-auto w-full transition-all duration-300 ${
               checkout
-                ? 'max-w-5xl max-h-[94dvh] overflow-y-auto rounded-[32px] border border-slate-200/90 bg-[#f8fafc] shadow-[0_30px_90px_-20px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950'
+                ? 'max-w-[1060px] max-h-[94dvh] overflow-y-auto rounded-[32px] border border-slate-200/90 bg-[#f8fafc] shadow-[0_30px_90px_-20px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-950'
                 : 'max-w-[1240px] max-h-[92dvh] overflow-y-auto rounded-[32px] border border-slate-200/80 bg-[#f8fafc] shadow-[0_40px_120px_-30px_rgba(2,6,23,0.85)] dark:border-slate-800 dark:bg-slate-950'
             }`}
           >
@@ -1320,7 +1265,9 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 checkout={checkout}
                 isVietnamese={isVietnamese}
                 planName={copy[checkout.plan].name}
-                status={manualChecking ? 'checking' : checkoutStatus}
+                cancelling={cancelling}
+                checking={manualChecking}
+                status={checkoutStatus}
                 error={error}
                 receipt={paymentReceipt}
                 onBack={closeEmbeddedCheckout}

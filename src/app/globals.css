@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./design-tokens.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -1109,6 +1110,78 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
 }
 
 .dark .document-editor hr { border-top-color: #262626; }
+
+/* Editable data tables used by CSV/XLSX imports and the /table command. */
+.document-editor .tableWrapper {
+  margin: 1.1rem 0;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.document-editor table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow: hidden;
+  font-size: 0.875rem;
+}
+
+.document-editor th,
+.document-editor td {
+  position: relative;
+  min-width: 90px;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.65rem 0.75rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.document-editor th {
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.document-editor th:last-child,
+.document-editor td:last-child { border-right: 0; }
+.document-editor tr:last-child td { border-bottom: 0; }
+.document-editor th p,
+.document-editor td p { margin: 0; }
+.document-editor .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: inset 0 0 0 2px #6366f1;
+  pointer-events: none;
+  content: '';
+}
+
+.dark .document-editor .tableWrapper { border-color: #273244; }
+.dark .document-editor th,
+.dark .document-editor td { border-color: #273244; }
+.dark .document-editor th { background: #161a22; color: #cbd5e1; }
+.document-editor table tr:hover td {
+  background-color: rgba(99, 102, 241, 0.025);
+}
+.dark .document-editor table tr:hover td {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+.document-editor .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: #6366f1;
+  pointer-events: none;
+}
 /* ── iOS 27 Futuristic Aesthetic Utility System ── */
 .ios27-glass {
   background: rgba(255, 255, 255, 0.72);

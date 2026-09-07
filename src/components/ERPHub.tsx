@@ -497,7 +497,7 @@ export default function ERPHub({
   return (
     <div className="space-y-6 font-sans select-none pb-12">
       {/* Top Banner Header */}
-      <section className="flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 xl:flex-row xl:items-center xl:justify-between shadow-xs">
+      <section className="apexa-module-header flex flex-col gap-4 rounded-3xl border border-slate-200/70 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 xl:flex-row xl:items-center xl:justify-between shadow-xs">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500 text-white shadow-xl shadow-blue-500/20">
             <Boxes className="h-7 w-7" />
