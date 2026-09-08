@@ -119,3 +119,32 @@ export async function suggestTaskPriorityWithAi(title: string): Promise<'urgent'
   }
   return 'low';
 }
+
+export interface AiTaskAutofillResult {
+  suggestedPriority: 'low' | 'medium' | 'high' | 'urgent';
+  priorityReason: string;
+  suggestedHoursEstimate: number;
+  suggestedTags: string[];
+  suggestedSubtasks: string[];
+  enhancedDescription: string;
+}
+
+/**
+ * Smart autofill task attributes based on task title and context using Gemini AI.
+ */
+export async function autofillTaskWithAi(params: {
+  title: string;
+  currentDescription?: string;
+  spaceName?: string;
+}): Promise<AiTaskAutofillResult> {
+  const res = await callAiApi("/api/ai/task-autofill", params);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `AI Autofill error: ${res.statusText}`);
+  }
+  const json = await res.json();
+  if (!json.success || !json.data) {
+    throw new Error(json.error || 'Failed to generate task autofill attributes');
+  }
+  return json.data;
+}

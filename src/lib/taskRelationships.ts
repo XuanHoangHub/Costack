@@ -67,19 +67,94 @@ export const wouldCreateDependencyCycle = (
   return false;
 };
 
-export const getNextRecurringDate = (dateValue: string | undefined, recurrence: NonNullable<Task['recurrence']>) => {
-  const base = dateValue ? new Date(dateValue) : new Date();
-  const safeBase = Number.isNaN(base.getTime()) ? new Date() : base;
-  const next = new Date(safeBase);
+export const getNextRecurringDate = (
+  dateValue: string | undefined,
+  recurrence: NonNullable<Task['recurrence']>,
+  referenceDate?: Date
+): string => {
   const interval = Math.max(1, recurrence.interval || 1);
-  if (recurrence.frequency === 'daily') next.setUTCDate(next.getUTCDate() + interval);
-  if (recurrence.frequency === 'weekly') next.setUTCDate(next.getUTCDate() + (7 * interval));
-  if (recurrence.frequency === 'monthly') {
-    const preferredDay = next.getUTCDate();
-    next.setUTCDate(1);
-    next.setUTCMonth(next.getUTCMonth() + interval);
-    const daysInTargetMonth = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
-    next.setUTCDate(Math.min(preferredDay, daysInTargetMonth));
+  const now = referenceDate || new Date();
+
+  // Normalize today's date in local calendar time (midnight)
+  const todayYear = now.getFullYear();
+  const todayMonth = now.getMonth();
+  const todayDay = now.getDate();
+  const todayLocal = new Date(todayYear, todayMonth, todayDay);
+
+  let targetYear = todayYear;
+  let targetMonth = todayMonth;
+  let targetDay = todayDay;
+  let timeSuffix = '';
+
+  if (dateValue && typeof dateValue === 'string' && dateValue.trim()) {
+    const trimmed = dateValue.trim();
+    const [dPart, tPart] = trimmed.split('T');
+    if (tPart) timeSuffix = `T${tPart}`;
+
+    const dateParts = dPart.split('-');
+    if (dateParts.length === 3) {
+      const y = parseInt(dateParts[0], 10);
+      const m = parseInt(dateParts[1], 10) - 1;
+      const d = parseInt(dateParts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        targetYear = y;
+        targetMonth = m;
+        targetDay = d;
+      }
+    } else {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        targetYear = parsed.getFullYear();
+        targetMonth = parsed.getMonth();
+        targetDay = parsed.getDate();
+      }
+    }
   }
-  return next.toISOString().slice(0, 10);
+
+  let next = new Date(targetYear, targetMonth, targetDay);
+
+  if (recurrence.frequency === 'daily') {
+    // If target date is today or in the past, advance strictly from today + interval
+    // so completing today's task always lands on tomorrow (or today + interval), NEVER today!
+    if (next.getTime() <= todayLocal.getTime()) {
+      next = new Date(todayYear, todayMonth, todayDay + interval);
+    } else {
+      next.setDate(next.getDate() + interval);
+    }
+  } else if (recurrence.frequency === 'weekly') {
+    const step = 7 * interval;
+    if (next.getTime() <= todayLocal.getTime()) {
+      next = new Date(todayYear, todayMonth, todayDay + step);
+    } else {
+      next.setDate(next.getDate() + step);
+    }
+    // Ensure it strictly advances past today
+    while (next.getTime() <= todayLocal.getTime()) {
+      next.setDate(next.getDate() + step);
+    }
+  } else if (recurrence.frequency === 'monthly') {
+    const preferredDay = targetDay;
+    if (next.getTime() <= todayLocal.getTime()) {
+      next = new Date(todayYear, todayMonth, 1);
+    } else {
+      next.setDate(1);
+    }
+    next.setMonth(next.getMonth() + interval);
+    const maxDays = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    next.setDate(Math.min(preferredDay, maxDays));
+
+    // Ensure strictly after today
+    while (next.getTime() <= todayLocal.getTime()) {
+      next.setDate(1);
+      next.setMonth(next.getMonth() + interval);
+      const mDays = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+      next.setDate(Math.min(preferredDay, mDays));
+    }
+  }
+
+  const yyyy = next.getFullYear();
+  const mm = String(next.getMonth() + 1).padStart(2, '0');
+  const dd = String(next.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}${timeSuffix}`;
 };
+

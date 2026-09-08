@@ -26,6 +26,7 @@ import InviteModal from './InviteModal';
 import { setUserPresenceStatus } from '../hooks/useUserPresence';
 import { renderSpaceIcon } from './EmojiIconPicker';
 import TeamManagement, { DepartmentRow, TeamMemberRow, TeamRow } from './team/TeamManagement';
+import { TeamCommandCenter, TeamIntegrations } from './team/TeamCommandCenter';
 
 interface TeamDirectoryProps {
   members: User[];
@@ -99,13 +100,16 @@ export default function TeamDirectory({
   const { t, locale, isVietnamese } = useTranslation();
   const isVi = locale === 'vi' || isVietnamese;
 
-  // Streamlined 3 Core Views: 'directory' | 'teams' | 'org_chart'
-  const [teamOSView, setTeamOSView] = useState<'directory' | 'teams' | 'org_chart'>('directory');
+  // Streamlined 4 Core Views: 'overview' | 'directory' | 'teams' | 'org_chart'
+  const [teamOSView, setTeamOSView] = useState<'overview' | 'directory' | 'teams' | 'org_chart'>('overview');
   const [directoryViewMode, setDirectoryViewMode] = useState<'grid' | 'table'>('grid');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Custom status popover state
   const [showStatusPopover, setShowStatusPopover] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [modalTaskFilter, setModalTaskFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [orgChartDeptFilter, setOrgChartDeptFilter] = useState<string>('all');
   const me = members.find(m => m.id === currentUser?.id || m.userId === currentUser?.id || m.email === currentUser?.email)
     || members.find(m => m.id === 'user');
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
@@ -574,6 +578,23 @@ export default function TeamDirectory({
     setFilterDept('all');
   };
 
+  const handleSaveStatus = async (newStatus: 'online' | 'busy' | 'away' | 'offline', newMsg: string, newEmoji: string) => {
+    try {
+      setSavingStatus(true);
+      setStatusVal(newStatus);
+      setStatusMsg(newMsg);
+      setStatusEmj(newEmoji);
+      await setUserPresenceStatus(newStatus, newMsg, newEmoji);
+      setShowStatusPopover(false);
+      (window as any).playSystemSound?.('success');
+      onAddSyncLog(isVi ? `Đã cập nhật trạng thái: ${statusLabels[newStatus]}` : `Updated status: ${statusLabels[newStatus]}`);
+    } catch (err) {
+      console.error('Failed to update presence status:', err);
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
   const handleCopyEmail = (e: React.MouseEvent, memberId: string, email: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(email);
@@ -687,10 +708,11 @@ export default function TeamDirectory({
           </div>
         </div>
 
-        {/* 2. PRIMARY NAVIGATION: 3 Core Focused Views */}
+        {/* 2. PRIMARY NAVIGATION: 4 Core Focused Views */}
         <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between flex-wrap gap-3">
-          <nav className="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1">
+          <nav className="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/70 p-1 border border-slate-200/60 dark:border-slate-800 gap-1 flex-wrap">
             {[
+              { id: 'overview', label: isVi ? 'Tổng quan' : 'Overview', icon: LayoutDashboard },
               { id: 'directory', label: isVi ? 'Thành viên' : 'Members', icon: Users, count: totalWorkspaceCount },
               { id: 'teams', label: isVi ? 'Phòng ban & Nhóm' : 'Departments & Teams', icon: Building2, count: dbTeams.length },
               { id: 'org_chart', label: isVi ? 'Sơ đồ tổ chức' : 'Org Chart', icon: GitBranch },
@@ -727,19 +749,134 @@ export default function TeamDirectory({
             })}
           </nav>
 
-          {/* Current user quick status indicator */}
+          {/* Current user quick status indicator with interactive Popover */}
           {me && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 text-[11px] font-medium hidden sm:inline">{isVi ? 'Trạng thái của bạn:' : 'Your status:'}</span>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
-                <span className={`w-2 h-2 rounded-full ${statusColors[statusVal]}`} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowStatusPopover(!showStatusPopover)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-750 border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer shadow-2xs group"
+                title={isVi ? "Nhấn để thay đổi trạng thái" : "Click to update status"}
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${statusColors[statusVal]}`} />
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{statusLabels[statusVal]}</span>
                 {statusMsg && (
-                  <span className="text-xs text-slate-400 italic max-w-40 truncate">
+                  <span className="text-xs text-slate-400 italic max-w-36 truncate hidden sm:inline">
                     {statusEmj ? `${statusEmj} ` : ''}"{statusMsg}"
                   </span>
                 )}
-              </div>
+                <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-transform" />
+              </button>
+
+              <AnimatePresence>
+                {showStatusPopover && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowStatusPopover(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                      className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 p-4 space-y-4"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                        <div className="text-left">
+                          <p className="text-xs font-black text-slate-900 dark:text-white">{isVi ? 'Trạng thái hoạt động' : 'Presence Status'}</p>
+                          <p className="text-[10px] text-slate-400">{isVi ? 'Hiển thị cho các thành viên trong workspace' : 'Visible to all workspace members'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowStatusPopover(false)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* 4 Status Pills */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['online', 'busy', 'away', 'offline'] as const).map(st => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setStatusVal(st)}
+                            className={`p-2 rounded-xl text-left text-xs font-bold border transition-all cursor-pointer flex items-center gap-2 ${
+                              statusVal === st
+                                ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${statusColors[st]}`} />
+                            <span className="text-[11px]">{statusLabels[st]}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Custom status message */}
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {isVi ? 'Thông điệp trạng thái' : 'Status Message'}
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={80}
+                          value={statusMsg}
+                          onChange={(e) => setStatusMsg(e.target.value)}
+                          placeholder={isVi ? "Ví dụ: Đang họp sprint, Đi vắng..." : "e.g. In sprint meeting, Away for lunch..."}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-slate-100 font-semibold focus:border-indigo-500"
+                        />
+                      </div>
+
+                      {/* Quick Emojis */}
+                      <div className="space-y-1 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {isVi ? 'Biểu tượng nhanh' : 'Quick Emoji'}
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {['💻', '🎯', '🚀', '☕', '🎧', '🌴', '📞', '💡'].map(emj => (
+                            <button
+                              key={emj}
+                              type="button"
+                              onClick={() => setStatusEmj(statusEmj === emj ? '' : emj)}
+                              className={`w-8 h-8 rounded-xl text-sm flex items-center justify-center transition-all cursor-pointer ${
+                                statusEmj === emj
+                                  ? 'bg-indigo-100 dark:bg-indigo-900/60 border border-indigo-400 scale-110'
+                                  : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {emj}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                        {(statusMsg || statusEmj) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStatusMsg('');
+                              setStatusEmj('');
+                            }}
+                            className="text-[11px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                          >
+                            {isVi ? 'Xóa ghi chú' : 'Clear message'}
+                          </button>
+                        ) : <div />}
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveStatus(statusVal, statusMsg, statusEmj)}
+                          disabled={savingStatus}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                        >
+                          {savingStatus ? (isVi ? 'Đang lưu...' : 'Saving...') : (isVi ? 'Lưu trạng thái' : 'Save Status')}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>
@@ -751,6 +888,30 @@ export default function TeamDirectory({
           <button type="button" onClick={() => void fetchHierarchy()} className="rounded-lg bg-white dark:bg-slate-900 px-3 py-1.5 text-[10px] font-black shadow-xs cursor-pointer">
             {isVi ? 'Thử lại' : 'Retry'}
           </button>
+        </div>
+      )}
+
+      {/* 2.5 VIEW TAB 0: COMMAND CENTER & HEALTH HUB */}
+      {teamOSView === 'overview' && (
+        <div className="space-y-6">
+          <TeamCommandCenter
+            members={workspaceMembers}
+            tasks={workspaceTasks}
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            onInvite={() => {
+              (window as any).playSystemSound?.('click');
+              setShowInviteModal(true);
+            }}
+            onOpenDirectory={() => setTeamOSView('directory')}
+            onOpenWorkload={() => setTeamOSView('directory')}
+            onStartChat={onStartChat}
+          />
+          <TeamIntegrations
+            workspaces={workspaces}
+            members={workspaceMembers}
+            tasks={workspaceTasks}
+          />
         </div>
       )}
 
@@ -1326,18 +1487,55 @@ export default function TeamDirectory({
 
       {/* 5. VIEW TAB 3: ORGANIZATIONAL CHART */}
       {teamOSView === 'org_chart' && (
-        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-sm overflow-x-auto min-h-[500px] flex flex-col items-center">
+        <div className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-sm overflow-x-auto min-h-[520px] flex flex-col items-center">
           
-          <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-4 text-center">
-            <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
-              {isVi ? `Sơ đồ tổ chức · ${currentWorkspaceName}` : `Organization Hierarchy · ${currentWorkspaceName}`}
-            </span>
-            <h2 className="text-base font-black text-slate-900 dark:text-white mt-1">
+          <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-5 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider mb-2">
+              <GitBranch className="w-3 h-3" />
+              <span>{isVi ? `Sơ đồ tổ chức · ${currentWorkspaceName}` : `Organization Hierarchy · ${currentWorkspaceName}`}</span>
+            </div>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white">
               {isVi ? 'Cấu trúc phòng ban và nhóm chuyên môn' : 'Department & Team Squad Hierarchy'}
             </h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              {isVi ? 'Mạng lưới điều hành từ cấp quản lý tới từng squad phụ trách và nhân sự trực thuộc.' : 'Operating tree from leadership down to project squads and specialists.'}
+            </p>
+
+            {/* Department Filter Pills */}
+            <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setOrgChartDeptFilter('all')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  orgChartDeptFilter === 'all'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {isVi ? 'Tất cả phòng ban' : 'All Departments'}
+              </button>
+              {dbDepts.filter(d => d.parent_id).map(d => {
+                const deptBadge = getDeptBadge(d.id, isVi);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setOrgChartDeptFilter(d.id)}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      orgChartDeptFilter === d.id
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    {renderSpaceIcon(deptBadge.icon, "w-3 h-3")}
+                    <span>{d.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="mt-8 space-y-10 w-full max-w-3xl flex flex-col items-center">
+          <div className="mt-8 space-y-10 w-full max-w-4xl flex flex-col items-center">
             {/* Root Node: Executive HQ */}
             {dbDepts.filter(d => !d.parent_id).map(hq => {
               const manager = workspaceMembers.find(m => m.id === hq.manager_id || (m.id === 'user' && hq.manager_id?.includes('user')));
@@ -1345,26 +1543,35 @@ export default function TeamDirectory({
                 <div key={hq.id} className="flex flex-col items-center space-y-6 w-full">
                   
                   {/* HQ Box */}
-                  <div className="relative p-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 text-white rounded-2xl shadow-xl w-72 text-center border border-indigo-400/20">
-                    <span className="inline-block px-2 py-0.5 bg-white/20 text-white text-[9px] font-bold uppercase tracking-wider rounded-md mb-2">
+                  <div className="relative p-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 text-white rounded-2xl shadow-xl w-80 text-center border border-indigo-400/20 group hover:shadow-indigo-500/20 transition-all">
+                    <span className="inline-block px-2.5 py-0.5 bg-white/20 text-white text-[9px] font-black uppercase tracking-wider rounded-md mb-2">
                       {isVi ? 'Văn phòng Điều hành' : 'Executive HQ'}
                     </span>
-                    <h3 className="text-sm font-black">{hq.name}</h3>
-                    <p className="text-[10px] text-indigo-100 mt-1 leading-relaxed">{hq.description}</p>
+                    <h3 className="text-base font-black">{hq.name}</h3>
+                    <p className="text-[11px] text-indigo-100 mt-1 leading-relaxed">{hq.description}</p>
                     
-                    {manager && (
-                      <div className="mt-3.5 pt-3 border-t border-white/20 flex items-center gap-2.5 text-left">
+                    {manager ? (
+                      <div 
+                        onClick={() => handleOpenDetail(manager)}
+                        className="mt-3.5 pt-3 border-t border-white/20 flex items-center gap-2.5 text-left cursor-pointer hover:bg-white/10 p-1.5 rounded-xl transition-colors"
+                        title={isVi ? "Xem hồ sơ người phụ trách" : "View director profile"}
+                      >
                         <SignedImage 
                           filePath={manager.avatar} 
-                          className="w-8 h-8 rounded-full bg-white/10 p-0.5 object-cover" 
+                          className="w-9 h-9 rounded-full bg-white/10 p-0.5 object-cover border border-white/30" 
                           alt={manager.name} 
                         />
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold leading-tight truncate">{manager.name}</p>
-                          <span className="text-[9px] text-indigo-200 font-medium block">
-                            {isVi ? 'Tổng Giám đốc / Trưởng ban' : 'Executive Director'}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold leading-tight truncate text-white">{manager.name}</p>
+                          <span className="text-[9.5px] text-indigo-200 font-medium block">
+                            {isVi ? 'Tổng Giám đốc / Trưởng ban điều hành' : 'Executive Director'}
                           </span>
                         </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-indigo-200 opacity-60 group-hover:opacity-100" />
+                      </div>
+                    ) : (
+                      <div className="mt-3.5 pt-3 border-t border-white/20 text-[10px] text-indigo-200 font-medium">
+                        {isVi ? 'Chưa chỉ định người đứng đầu' : 'No director assigned'}
                       </div>
                     )}
                   </div>
@@ -1376,50 +1583,101 @@ export default function TeamDirectory({
 
                   {/* Child Departments Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full pt-2">
-                    {dbDepts.filter(d => d.parent_id === hq.id).map(dept => {
-                      const deptTeams = dbTeams.filter(t => t.department_id === dept.id);
-                      const deptBadge = getDeptBadge(dept.id, isVi);
+                    {dbDepts
+                      .filter(d => d.parent_id === hq.id && (orgChartDeptFilter === 'all' || orgChartDeptFilter === d.id))
+                      .map(dept => {
+                        const deptTeams = dbTeams.filter(t => t.department_id === dept.id);
+                        const deptBadge = getDeptBadge(dept.id, isVi);
 
-                      return (
-                        <div key={dept.id} className="flex flex-col items-center space-y-4">
-                          <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 shadow-xs w-60 text-center hover:border-indigo-500/40 transition-all">
-                            <div className="flex justify-center mb-1">
-                              {renderSpaceIcon(deptBadge.icon, "w-5 h-5 text-indigo-500")}
+                        return (
+                          <div key={dept.id} className="flex flex-col items-center space-y-4">
+                            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 shadow-xs w-64 text-center hover:border-indigo-500/40 transition-all">
+                              <div className="flex justify-center mb-1">
+                                {renderSpaceIcon(deptBadge.icon, "w-5 h-5 text-indigo-500")}
+                              </div>
+                              <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1">{dept.name}</h4>
+                              <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{dept.description}</p>
+                              
+                              <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-bold px-1">
+                                <span>{deptTeams.length} {isVi ? 'nhóm squad' : 'squads'}</span>
+                                <span className="text-indigo-600 dark:text-indigo-400 font-black">
+                                  {dbTeamMembers.filter(tm => deptTeams.some(dt => dt.id === tm.team_id)).length} {isVi ? 'thành viên' : 'members'}
+                                </span>
+                              </div>
                             </div>
-                            <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-1">{dept.name}</h4>
-                            <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{dept.description}</p>
-                            
-                            <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
-                              {deptTeams.length} {isVi ? 'nhóm chuyên trách' : 'squads'}
-                            </div>
-                          </div>
 
-                          {/* Squads in Department */}
-                          {deptTeams.length > 0 && (
-                            <div className="w-full space-y-2">
-                              {deptTeams.map(t => {
-                                const teamLead = workspaceMembers.find(m => m.id === t.leader_id || (m.id === 'user' && t.leader_id?.includes('user')));
-                                const memberCount = dbTeamMembers.filter(tm => tm.team_id === t.id).length;
+                            {/* Squads in Department */}
+                            {deptTeams.length > 0 ? (
+                              <div className="w-full space-y-2">
+                                {deptTeams.map(t => {
+                                  const teamLead = workspaceMembers.find(m => m.id === t.leader_id || (m.id === 'user' && t.leader_id?.includes('user')));
+                                  const squadMemberships = dbTeamMembers.filter(tm => tm.team_id === t.id);
+                                  const squadMembers = squadMemberships
+                                    .map(tm => workspaceMembers.find(m => m.id === tm.member_id || (m.id === 'user' && tm.member_id?.includes('user'))))
+                                    .filter(Boolean) as User[];
+                                  const memberCount = squadMemberships.length;
 
-                                return (
-                                  <div key={t.id} className="p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 text-left flex items-center justify-between gap-2 shadow-2xs">
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{t.name}</p>
-                                      <span className="text-[9px] text-slate-400 font-medium">
-                                        {teamLead ? `Lead: ${teamLead.name}` : `${memberCount} members`}
-                                      </span>
+                                  return (
+                                    <div 
+                                      key={t.id} 
+                                      onClick={() => setTeamOSView('teams')}
+                                      className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 text-left space-y-2 shadow-2xs hover:border-indigo-400/60 hover:shadow-md transition-all cursor-pointer group"
+                                      title={isVi ? "Nhấn để quản lý Squad này" : "Click to manage this squad"}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-xs shrink-0">
+                                            {renderSpaceIcon(t.icon || '👥', "w-3.5 h-3.5")}
+                                          </span>
+                                          <p className="text-xs font-bold text-slate-850 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                                            {t.name}
+                                          </p>
+                                        </div>
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shrink-0">
+                                          {memberCount}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                                        <span className="truncate max-w-32">
+                                          {teamLead ? (
+                                            <span className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+                                              <Crown className="w-2.5 h-2.5" /> {teamLead.name}
+                                            </span>
+                                          ) : (
+                                            `${memberCount} ${isVi ? 'thành viên' : 'members'}`
+                                          )}
+                                        </span>
+
+                                        {/* Avatar preview stack */}
+                                        <div className="flex -space-x-1.5 shrink-0">
+                                          {squadMembers.slice(0, 3).map(m => (
+                                            <SignedImage
+                                              key={m.id}
+                                              filePath={m.avatar}
+                                              className="w-5 h-5 rounded-full object-cover border border-white dark:border-slate-900"
+                                              alt={m.name}
+                                            />
+                                          ))}
+                                          {memberCount > 3 && (
+                                            <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 text-[8px] font-black text-slate-500 flex items-center justify-center border border-white dark:border-slate-900">
+                                              +{memberCount - 3}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shrink-0">
-                                      {memberCount}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-slate-400 italic py-2">
+                                {isVi ? 'Chưa có squad' : 'No squads yet'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               );
@@ -1475,13 +1733,40 @@ export default function TeamDirectory({
                         {roleLabels[selectedMember.role]?.text || 'Member'}
                       </span>
                     </div>
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold block mt-0.5 truncate">
-                      {selectedMember.email}
-                    </p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold truncate">
+                        {selectedMember.email}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyEmail(e, selectedMember.id, selectedMember.email)}
+                        className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer p-0.5"
+                        title={isVi ? "Sao chép email" : "Copy email"}
+                      >
+                        {copiedId === selectedMember.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
+                  {/* Direct Message Button in Modal Header */}
+                  {selectedMember.id !== 'user' && selectedMember.id !== me?.id && onStartChat && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetId = selectedMember.id;
+                        setSelectedMember(null);
+                        onStartChat(targetId);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      title={isVi ? "Nhắn tin trực tiếp" : "Direct Message"}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>{isVi ? 'Nhắn tin' : 'Chat'}</span>
+                    </button>
+                  )}
+
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300">
                     <span className={`w-2 h-2 rounded-full ${statusColors[(selectedMember.status || 'offline') as keyof typeof statusColors]}`} />
                     <span>{statusLabels[(selectedMember.status || 'offline') as keyof typeof statusLabels]}</span>
@@ -1594,7 +1879,7 @@ export default function TeamDirectory({
                     {/* Member Details & Tasks list */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       
-                      {/* Left: Bio & Contact info */}
+                      {/* Left: Bio, Contact info & Squads */}
                       <div className="space-y-4">
                         <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl">
                           <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
@@ -1605,6 +1890,46 @@ export default function TeamDirectory({
                             {selectedMember.bio || (isVi ? 'Chưa cập nhật tiểu sử.' : 'No biography updated yet.')}
                           </p>
                         </div>
+
+                        {/* Squads this member belongs to */}
+                        {(() => {
+                          const memberSquads = dbTeams.filter(team => {
+                            const isLead = team.leader_id === selectedMember.id || (selectedMember.id === 'user' && team.leader_id?.includes('user'));
+                            const isMember = dbTeamMembers.some(tm => tm.team_id === team.id && (tm.member_id === selectedMember.id || (selectedMember.id === 'user' && tm.member_id?.includes('user'))));
+                            return isLead || isMember;
+                          });
+
+                          return (
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2">
+                              <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                                <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>{isVi ? 'Nhóm chuyên môn (Squads)' : 'Team Squads'} ({memberSquads.length})</span>
+                              </h4>
+                              {memberSquads.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {memberSquads.map(sq => {
+                                    const isLead = sq.leader_id === selectedMember.id || (selectedMember.id === 'user' && sq.leader_id?.includes('user'));
+                                    return (
+                                      <span key={sq.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-bold text-slate-800 dark:text-slate-200 shadow-2xs">
+                                        {renderSpaceIcon(sq.icon || '👥', "w-3 h-3")}
+                                        <span>{sq.name}</span>
+                                        {isLead && (
+                                          <span className="text-[9px] font-black text-amber-500 flex items-center gap-0.5">
+                                            <Crown className="w-2.5 h-2.5" /> Lead
+                                          </span>
+                                        )}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-slate-400 italic">
+                                  {isVi ? 'Chưa tham gia nhóm chuyên môn nào.' : 'Not assigned to any squad yet.'}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl space-y-2.5">
                           <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">
@@ -1629,25 +1954,51 @@ export default function TeamDirectory({
                         </div>
                       </div>
 
-                      {/* Right: Task list */}
+                      {/* Right: Task list with filter */}
                       <div className="space-y-2.5">
-                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
-                          <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
-                          <span>{isVi ? 'Danh sách công việc' : 'Assigned Tasks'} ({workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id)).length})</span>
-                        </h4>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                            <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>{isVi ? 'Danh sách công việc' : 'Assigned Tasks'}</span>
+                          </h4>
+
+                          {/* Task Filter Tabs */}
+                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold">
+                            {(['all', 'pending', 'completed'] as const).map(f => (
+                              <button
+                                key={f}
+                                type="button"
+                                onClick={() => setModalTaskFilter(f)}
+                                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                                  modalTaskFilter === f
+                                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                {f === 'all' ? (isVi ? 'Tất cả' : 'All') : f === 'pending' ? (isVi ? 'Đang làm' : 'Active') : (isVi ? 'Xong' : 'Done')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
 
                         <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar pr-1">
                           {(() => {
                             const memberTasks = workspaceTasks.filter(t => t.assigneeId === selectedMember.id || t.assigneeIds?.includes(selectedMember.id));
-                            if (memberTasks.length === 0) {
+                            const filteredMemberTasks = memberTasks.filter(t => {
+                              if (modalTaskFilter === 'pending') return t.status !== 'completed';
+                              if (modalTaskFilter === 'completed') return t.status === 'completed';
+                              return true;
+                            });
+
+                            if (filteredMemberTasks.length === 0) {
                               return (
                                 <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 italic text-xs">
-                                  {isVi ? 'Thành viên này chưa có công việc nào được giao.' : 'No tasks currently assigned.'}
+                                  {isVi ? 'Không có công việc nào trong danh mục này.' : 'No tasks in this category.'}
                                 </div>
                               );
                             }
 
-                            return memberTasks.map(task => (
+                            return filteredMemberTasks.map(task => (
                               <div
                                 key={task.id}
                                 className={`p-3 rounded-xl border text-xs transition-all ${

@@ -1170,14 +1170,14 @@ export default function DocumentEditor({
       return { label: 'Đang kết nối lại', detail: 'Thay đổi mới sẽ được gửi khi kết nối phục hồi', tone: 'amber', icon: LoaderCircle };
     }
     if (realtimeStatus === 'error' || saveStatus === 'error') {
-      return { label: 'Chưa thể đồng bộ', detail: 'Kiểm tra kết nối hoặc quyền tài liệu', tone: 'rose', icon: WifiOff };
+      return { label: 'Chưa thể lưu', detail: 'Kiểm tra kết nối hoặc quyền tài liệu', tone: 'rose', icon: WifiOff };
     }
     if (saveStatus === 'saving') {
-      return { label: 'Đang lưu', detail: 'Đang ghi snapshot vào Supabase', tone: 'sky', icon: LoaderCircle };
+      return { label: 'Đang lưu', detail: 'Đang lưu thay đổi vào đám mây...', tone: 'sky', icon: LoaderCircle };
     }
     return {
-      label: 'Đã đồng bộ',
-      detail: lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Yjs Realtime và Supabase đã sẵn sàng',
+      label: 'Đã lưu',
+      detail: lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Tất cả thay đổi đã được lưu',
       tone: 'emerald',
       icon: Cloud,
     };
@@ -2171,7 +2171,7 @@ export default function DocumentEditor({
             <div className="mb-6 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-400 select-none pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <span className="flex items-center gap-1">
                 <History className="w-3.5 h-3.5" />
-                {lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Đã đồng bộ'}
+                {lastSavedAt ? `Đã lưu lúc ${lastSavedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Đã lưu'}
               </span>
               <span>•</span>
               <span>{words} từ</span>

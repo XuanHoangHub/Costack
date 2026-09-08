@@ -27,6 +27,7 @@ import {
   type GoogleCalendarEventInput,
   googleCalendarService,
 } from '../services/googleCalendar';
+import { saveTaskReminder } from '@/lib/notificationManager';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -299,6 +300,7 @@ export default function CalendarView({
   const [quickEndTime, setQuickEndTime] = useState<string>('10:00');
   const [quickEventColor, setQuickEventColor] = useState<string>('#2563EB');
   const [createType, setCreateType] = useState<'task' | 'event'>('task');
+  const [syncToGoogleCalendar, setSyncToGoogleCalendar] = useState<boolean>(true);
 
   // Sidebar expanded state
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
@@ -583,16 +585,40 @@ export default function CalendarView({
     const findTask = tasks.find(t => t.id === itemId);
     if (findTask && onUpdateTask) {
       const scheduledHour = hour !== undefined ? hour : 9;
+      const formattedHour = String(scheduledHour).padStart(2, '0');
       const updatedTask: Task = { 
         ...findTask, 
-        dueDate: dateStr,
-        startDate: dateStr,
+        dueDate: `${dateStr}T${formattedHour}:00:00`,
+        startDate: `${dateStr}T${formattedHour}:00:00`,
         custom_fields: {
           ...(findTask.custom_fields || {}),
           scheduledHour
         }
       };
       onUpdateTask(updatedTask);
+
+      // Keep task reminder in sync if configured
+      if (findTask.reminder && findTask.reminder !== 'none') {
+        saveTaskReminder(findTask.id, findTask.title, updatedTask.dueDate || '', findTask.reminder);
+      }
+
+      // Sync with Google Calendar if connected and event exists
+      const rawGEventId = findTask.custom_fields?.googleEventId;
+      const gEventId = typeof rawGEventId === 'string' ? rawGEventId : undefined;
+      if (gEventId && gcalConnected) {
+        const existingEvt = gcalEvents.find(e => e.id === gEventId);
+        if (existingEvt) {
+          googleCalendarService.updateEvent(
+            gEventId,
+            rescheduleGoogleEvent(existingEvt, dateStr, hour)
+          ).then(updated => {
+            setGcalEvents(previous => previous.map(e => e.id === updated.id ? updated : e));
+          }).catch(err => {
+            console.warn("Could not sync rescheduled task to Google Calendar:", err);
+          });
+        }
+      }
+
       if ((window as any).playSystemSound) (window as any).playSystemSound('success');
       addLocalSyncLog(`Rescheduled task "${findTask.title}" to ${dateStr} at ${scheduledHour}:00`);
       triggerToast?.('success', 'Đã xếp lịch ⏱', `Đã chuyển "${findTask.title}" sang ngày ${dateStr} lúc ${scheduledHour}:00.`);
@@ -610,6 +636,7 @@ export default function CalendarView({
     setQuickListId(activeListId || initialSpace?.lists?.[0]?.id || '');
     setQuickStartTime(`${String(hour).padStart(2, '0')}:00`);
     setQuickEndTime(`${String(Math.min(hour + 1, 23)).padStart(2, '0')}:00`);
+    setSyncToGoogleCalendar(gcalConnected);
     setShowAddModal(true);
   };
 
@@ -621,24 +648,54 @@ export default function CalendarView({
       const targetSpace = (spaces && spaces.find(s => s.id === quickSpaceId)) || (spaces && spaces[0]) || null;
       const targetListId = quickListId || targetSpace?.lists?.[0]?.id || undefined;
 
+      const taskStartDate = clickedDate ? `${clickedDate}T${quickStartTime || '09:00'}:00` : undefined;
+      const taskDueDate = clickedDate ? `${clickedDate}T${quickEndTime || '10:00'}:00` : undefined;
+
+      let googleEventId: string | undefined = undefined;
+      if (syncToGoogleCalendar && gcalConnected) {
+        setSavingGcal(true);
+        try {
+          const start = new Date(localDateTime(clickedDate, quickStartTime));
+          const end = new Date(localDateTime(clickedDate, quickEndTime));
+          const createdGcal = await googleCalendarService.createEvent({
+            summary: quickTitle.trim(),
+            description: quickDesc ? `${quickDesc}\n\n[Đồng bộ từ Apexa Task]` : '[Đồng bộ từ Apexa Task]',
+            start: { dateTime: start.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            end: { dateTime: end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+          });
+          googleEventId = createdGcal.id;
+          setGcalEvents(previous => [...previous.filter(event => event.id !== createdGcal.id), createdGcal]);
+          addLocalSyncLog(`Created synced Google event "${createdGcal.summary}"`);
+        } catch (error) {
+          console.warn('Could not create Google Calendar event for task:', error);
+        } finally {
+          setSavingGcal(false);
+        }
+      }
+
       onAddTask({
         title: quickTitle,
         description: quickDesc,
         priority: quickPriority,
         status: 'todo',
         assigneeId: quickAssigneeId || undefined,
-        dueDate: clickedDate,
-        startDate: clickedDate,
+        dueDate: taskDueDate,
+        startDate: taskStartDate,
         spaceId: quickSpaceId || targetSpace?.id || undefined,
         listId: targetListId,
         tags: [],
         isPinned: false,
         subtasks: [],
         custom_fields: {
-          scheduledHour: clickedHour
+          scheduledHour: clickedHour,
+          googleEventId
         }
       });
-      triggerToast?.('success', 'Tạo công việc thành công', `Đã thêm công việc "${quickTitle}".`);
+      triggerToast?.(
+        'success', 
+        'Tạo công việc thành công', 
+        googleEventId ? `Đã thêm "${quickTitle}" và đồng bộ lên Google Calendar.` : `Đã thêm công việc "${quickTitle}".`
+      );
     } else {
       if (!gcalConnected) {
         triggerToast?.('error', 'Google Calendar chưa kết nối', 'Hãy kết nối Google Calendar trước khi tạo sự kiện.');
@@ -868,7 +925,11 @@ export default function CalendarView({
 
   const getFilteredTasksForDate = (dateStr: string) => {
     if (!showTasks) return [];
-    return filteredTasks.filter(t => t.dueDate === dateStr);
+    return filteredTasks.filter(t => {
+      const due = t.dueDate ? t.dueDate.split('T')[0] : '';
+      const start = t.startDate ? t.startDate.split('T')[0] : '';
+      return due === dateStr || (!due && start === dateStr);
+    });
   };
 
   const getFilteredEventsForDate = (dateStr: string) => {
@@ -886,7 +947,10 @@ export default function CalendarView({
   // Map of dates with events for MiniCalendarNavigator dot indicators
   const eventDatesSet = useMemo(() => {
     const set = new Set<string>();
-    tasks.forEach(t => { if (t.dueDate) set.add(t.dueDate); });
+    tasks.forEach(t => { 
+      if (t.dueDate) set.add(t.dueDate.split('T')[0]); 
+      else if (t.startDate) set.add(t.startDate.split('T')[0]);
+    });
     gcalEvents.forEach(e => {
       const k = eventDateKey(e);
       if (k) set.add(k);
@@ -1552,7 +1616,18 @@ export default function CalendarView({
                       });
 
                       const hourTasks = getFilteredTasksForDate(dateStr).filter(t => {
-                        const schedHour = t.custom_fields?.scheduledHour !== undefined ? Number(t.custom_fields.scheduledHour) : 9;
+                        let schedHour: number | undefined = t.custom_fields?.scheduledHour !== undefined ? Number(t.custom_fields.scheduledHour) : undefined;
+                        if (schedHour === undefined) {
+                          if (t.dueDate && t.dueDate.includes('T')) {
+                            const timePart = t.dueDate.split('T')[1];
+                            schedHour = Number(timePart.split(':')[0]);
+                          } else if (t.startDate && t.startDate.includes('T')) {
+                            const timePart = t.startDate.split('T')[1];
+                            schedHour = Number(timePart.split(':')[0]);
+                          } else {
+                            schedHour = 9;
+                          }
+                        }
                         return schedHour === hour;
                       });
 
@@ -2243,6 +2318,33 @@ export default function CalendarView({
                         </div>
                       </>
                     )}
+
+                    {/* Giờ bắt đầu & Hạn chót của công việc */}
+                    <div className="space-y-1.5 text-left">
+                      <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Giờ bắt đầu</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={quickStartTime}
+                        onChange={e => setQuickStartTime(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-sans text-xs font-bold tabular-nums outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 transition-all shadow-3xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 text-left">
+                      <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Hạn chót (Kết thúc)</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={quickEndTime}
+                        onChange={e => setQuickEndTime(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-white font-sans text-xs font-bold tabular-nums outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 transition-all shadow-3xs"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2.5">
@@ -2294,6 +2396,33 @@ export default function CalendarView({
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Sync to Google Calendar option when creating task */}
+                {createType === 'task' && (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60 shrink-0">
+                        <CalendarDays className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Đồng bộ Google Calendar</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                          {gcalConnected ? `Tài khoản: ${gcalUserEmail || 'Đã kết nối'}` : 'Chưa kết nối tài khoản Google'}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={syncToGoogleCalendar && gcalConnected}
+                        disabled={!gcalConnected}
+                        onChange={e => setSyncToGoogleCalendar(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600 peer-disabled:opacity-40"></div>
+                    </label>
                   </div>
                 )}
 

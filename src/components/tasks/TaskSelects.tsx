@@ -14,6 +14,8 @@ import {
   REMINDER_OPTIONS,
   isBrowserNotificationSupported,
   requestBrowserNotificationPermission,
+  getBrowserNotificationPermission,
+  sendTestNotification,
   saveTaskReminder,
   getTaskReminder,
   sendSystemNotification,
@@ -700,6 +702,7 @@ export function PremiumDatePicker({
   const [localDueDateTime, setLocalDueDateTime] = useState('');
 
   const [activeSubPanel, setActiveSubPanel] = useState<'time' | 'reminder' | null>(null);
+  const [browserPerm, setBrowserPerm] = useState<NotificationPermission>(() => getBrowserNotificationPermission());
   const [selectedReminder, setSelectedReminder] = useState<ReminderOption>(() => {
     if (reminderValue) return reminderValue;
     if (taskId) return getTaskReminder(taskId);
@@ -714,6 +717,12 @@ export function PremiumDatePicker({
     }
   }, [reminderValue, taskId]);
 
+  React.useEffect(() => {
+    if (isOpen || activeSubPanel === 'reminder') {
+      setBrowserPerm(getBrowserNotificationPermission());
+    }
+  }, [isOpen, activeSubPanel]);
+
   const handleSelectReminder = async (opt: ReminderOption) => {
     setSelectedReminder(opt);
     onReminderChange?.(opt);
@@ -723,12 +732,13 @@ export function PremiumDatePicker({
     }
 
     if (opt !== 'none') {
-      if (isBrowserNotificationSupported() && Notification.permission === 'default') {
+      if (isBrowserNotificationSupported() && getBrowserNotificationPermission() === 'default') {
         const perm = await requestBrowserNotificationPermission();
+        setBrowserPerm(perm);
         if (perm === 'granted') {
           sendSystemNotification({
             title: '🔔 Thông báo nhắc nhở đã kích hoạt',
-            message: 'Apexa sẽ thông báo trực tiếp khi đến hạn công việc này.',
+            message: `Đã cài nhắc hẹn "${REMINDER_OPTIONS.find(r => r.id === opt)?.labelVi}" cho công việc này.`,
             type: 'success',
             taskId,
           });
@@ -838,6 +848,9 @@ export function PremiumDatePicker({
       setLocalDueDate(datePart);
       setLocalDueDateTime(timePart);
       onChange(fullVal);
+      if (taskId && selectedReminder !== 'none' && fullVal) {
+        saveTaskReminder(taskId, taskTitle || 'Công việc', fullVal, selectedReminder);
+      }
     }
   };
 
@@ -1156,7 +1169,7 @@ export function PremiumDatePicker({
                               : isToday
                                 ? 'font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800'
                                 : isPast
-                                  ? 'font-medium text-slate-350 dark:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-500'
+                                  ? 'font-medium text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-slate-500'
                                   : 'font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 hover:scale-[1.08] active:scale-95'
                         }`}
                     >
@@ -1172,7 +1185,7 @@ export function PremiumDatePicker({
               {/* Next month ghost days */}
               {Array.from({ length: trailingDays }).map((_, i) => (
                 <div key={`next-${i}`} className="flex h-9 items-center justify-center w-full">
-                  <span className="text-[11px] font-medium text-slate-355 dark:text-slate-700">{i + 1}</span>
+                  <span className="text-[11px] font-medium text-slate-400/60 dark:text-slate-600">{i + 1}</span>
                 </div>
               ))}
             </div>
@@ -1251,7 +1264,7 @@ export function PremiumDatePicker({
             {/* Week Days Header */}
             <div className="grid grid-cols-7 gap-1 text-center mb-2 px-1">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                <span key={i} className="text-[10px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest">{d}</span>
+                <span key={i} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{d}</span>
               ))}
             </div>
 
@@ -1323,12 +1336,12 @@ export function PremiumDatePicker({
                   <div className="flex items-center gap-2">
                     {renderSpaceIcon(item.icon, "w-4 h-4 text-indigo-500 shrink-0")}
                     <div>
-                      <div className="text-[10px] font-bold text-slate-805 dark:text-slate-200">{item.label}</div>
+                      <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200">{item.label}</div>
                       <div className="text-[9px] text-slate-400">{item.desc}</div>
                     </div>
                   </div>
                   {calcStr && (
-                    <span className="text-[9px] font-black text-indigo-650 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md border border-indigo-100/50 dark:border-indigo-900/30">
+                    <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md border border-indigo-100/50 dark:border-indigo-900/30">
                       {calcStr}
                     </span>
                   )}
@@ -1433,19 +1446,24 @@ export function PremiumDatePicker({
                         type="button"
                         onClick={async () => {
                           const res = await requestBrowserNotificationPermission();
+                          setBrowserPerm(res);
                           if (res === 'granted') {
-                            sendSystemNotification({
-                              title: '🔔 Đã kích hoạt thông báo đẩy',
-                              message: 'Apexa sẽ gửi cảnh báo trực tiếp lên màn hình thiết bị khi đến hạn.',
-                              type: 'success',
-                            });
+                            sendTestNotification();
                           }
                         }}
-                        className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        className={`text-[9px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          browserPerm === 'granted'
+                            ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800'
+                            : browserPerm === 'denied'
+                              ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800'
+                              : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                        }`}
                       >
-                        {typeof Notification !== 'undefined' && Notification.permission === 'granted'
-                          ? '✓ Đã bật đẩy màn hình'
-                          : '+ Bật thông báo đẩy'}
+                        {browserPerm === 'granted'
+                          ? '✓ Đã bật thông báo máy tính'
+                          : browserPerm === 'denied'
+                            ? '⚠ Đã bị chặn trên trình duyệt'
+                            : '+ Bật thông báo đẩy'}
                       </button>
                     )}
                   </div>

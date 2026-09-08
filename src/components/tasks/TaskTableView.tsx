@@ -191,15 +191,22 @@ function CustomFieldCellEditor({
 
     case 'number':
       return (
-        <input
-          type="number"
-          value={String(val)}
-          min={field.numberMin}
-          max={field.numberMax}
-          placeholder={field.placeholder || "0"}
-          onChange={e => onChange(e.target.value)}
-          className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none max-w-[90px] focus:border-indigo-500 transition-colors font-bold"
-        />
+        <div className="relative flex items-center max-w-[100px]">
+          <input
+            type="number"
+            value={String(val)}
+            min={field.numberMin}
+            max={field.numberMax}
+            placeholder={field.placeholder || "0"}
+            onChange={e => onChange(e.target.value)}
+            className={`px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none w-full focus:border-indigo-500 transition-colors font-bold ${field.numberUnit ? 'pr-7' : ''}`}
+          />
+          {field.numberUnit && (
+            <span className="absolute right-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 pointer-events-none select-none">
+              {field.numberUnit}
+            </span>
+          )}
+        </div>
       );
 
     case 'money':
@@ -867,7 +874,7 @@ export default function TaskTableView({
                           e.stopPropagation();
                           toggleTaskExpand(task.id);
                         }}
-                        className="p-0.5 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-655 transition-all shrink-0 cursor-pointer"
+                        className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all shrink-0 cursor-pointer"
                         title={expandedTaskIds.includes(task.id) ? "Thu gọn công việc con" : "Mở rộng công việc con"}
                       >
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expandedTaskIds.includes(task.id) ? '' : '-rotate-90'}`} />
@@ -886,7 +893,7 @@ export default function TaskTableView({
                           e.stopPropagation();
                           if (onStopGlobalTimer) onStopGlobalTimer();
                         }}
-                        className="p-0.5 rounded bg-rose-50 dark:bg-rose-955/35 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/30"
+                        className="p-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-pointer transition-all hover:bg-rose-100 border border-rose-200/30"
                         title="Dừng bấm giờ"
                       >
                         <Clock className="w-3 h-3 text-rose-500 animate-spin" />
@@ -948,7 +955,7 @@ export default function TaskTableView({
                           setInlineEditTaskId(task.id);
                           setInlineEditTitle(task.title);
                         }}
-                        className={`text-[13px] font-semibold truncate max-w-[320px] cursor-pointer hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
+                        className={`text-[13px] font-semibold truncate max-w-[320px] cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
                         title="Nhấp đúp để đổi tên công việc"
                       >
                         {task.title}
@@ -957,19 +964,19 @@ export default function TaskTableView({
 
                     {/* Dependency Badges */}
                     {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                      <span className="bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-650 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chờ công việc khác hoàn thành">
+                      <span className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-900/40 text-amber-700 dark:text-amber-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chờ công việc khác hoàn thành">
                         <Hourglass className="w-2.5 h-2.5 animate-pulse" />
                         <span>Đang chờ</span>
                       </span>
                     )}
                     {task.relationships?.blocks && task.relationships.blocks.length > 0 && (
-                      <span className="bg-rose-50/80 dark:bg-rose-955/20 border border-rose-200/50 dark:border-rose-900/30 text-rose-650 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chặn công việc khác bắt đầu">
+                      <span className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200/50 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 font-extrabold text-[9px] tracking-wide rounded-md px-1.5 py-0.5 flex items-center gap-1 select-none shrink-0" title="Đang chặn công việc khác bắt đầu">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         <span>Blocking</span>
                       </span>
                     )}
                     {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                      <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/50 bg-indigo-50/80 px-1.5 py-0.5 text-[9px] font-extrabold capitalize text-indigo-650 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Repeats every ${task.recurrence.interval} ${task.recurrence.frequency}`}>
+                      <span className="flex shrink-0 items-center gap-1 rounded-md border border-indigo-200/50 bg-indigo-50/80 px-1.5 py-0.5 text-[9px] font-extrabold capitalize text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300" title={`Repeats every ${task.recurrence.interval} ${task.recurrence.frequency}`}>
                         <Repeat2 className="h-2.5 w-2.5" />{task.recurrence.frequency}
                       </span>
                     )}
@@ -1046,11 +1053,11 @@ export default function TaskTableView({
                     {(() => {
                       const ws = task.workspaceId ? workspaces.find(w => w.id === task.workspaceId) : null;
                       return ws ? (
-                        <span className="text-[11px] font-bold text-slate-650 dark:text-slate-400">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                           {ws.name}
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-350">—</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">—</span>
                       );
                     })()}
                   </td>
@@ -1107,10 +1114,10 @@ export default function TaskTableView({
                         <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${getProgress(task)}%` }} />
                         </div>
-                        <span className="text-[10px] font-bold text-slate-550">{getProgress(task)}%</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{getProgress(task)}%</span>
                       </div>
                     ) : (
-                      <span className="text-[11px] text-slate-350">—</span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">—</span>
                     )}
                   </td>
                 )}
@@ -1119,9 +1126,9 @@ export default function TaskTableView({
                   <td className="h-11 px-3.5 border-b border-slate-200/50 dark:border-white/[0.04]">
                     <div className="flex flex-wrap gap-1">
                       {task.tags?.slice(0, 2).map(tag => (
-                        <span key={tag} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400">#{tag}</span>
+                        <span key={tag} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">#{tag}</span>
                       ))}
-                      {(!task.tags || task.tags.length === 0) && <span className="text-[11px] text-slate-350">—</span>}
+                      {(!task.tags || task.tags.length === 0) && <span className="text-[11px] text-slate-400 dark:text-slate-500">—</span>}
                     </div>
                   </td>
                 )}
@@ -1229,7 +1236,7 @@ export default function TaskTableView({
               )}
 
               {activeFields.includes('progress') && (
-                <td className="px-3.5 py-2 text-[11px] text-slate-350 border-b border-indigo-200/60 dark:border-indigo-900/40">—</td>
+                <td className="px-3.5 py-2 text-[11px] text-slate-400 dark:text-slate-500 border-b border-indigo-200/60 dark:border-indigo-900/40">—</td>
               )}
 
               {activeFields.includes('tags') && (
@@ -1380,23 +1387,24 @@ export default function TaskTableView({
         <Portal>
           <div className="fixed inset-0 z-[190] cursor-default" onClick={() => setActiveMenu(null)} />
           <div 
-            className="fixed z-[200] w-[220px] bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none animate-fadeIn"
+            className="fixed z-[200] w-[230px] bg-white dark:bg-[#1a1b1e] border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-2xl p-1.5 font-sans text-xs select-none backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5 animate-fadeIn"
             style={{ top: activeMenu.y, left: activeMenu.x }}
           >
             {/* Sort options (where applicable) */}
             {activeMenu.fieldId !== 'assignee' && activeMenu.fieldId !== 'space' && activeMenu.fieldId !== 'tags' && (
               <>
                 <button
+                  type="button"
                   onClick={() => {
                     toggleSort(activeMenu.fieldId);
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Sort</span>
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
+                  <span>Sắp xếp (Sort)</span>
                 </button>
-                <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
               </>
             )}
 
@@ -1404,6 +1412,7 @@ export default function TaskTableView({
               // Standard Columns Menu
               <>
                 <button
+                  type="button"
                   onClick={() => {
                     const oldName = activeMenu.fieldName;
                     const fieldId = activeMenu.fieldId;
@@ -1441,14 +1450,15 @@ export default function TaskTableView({
                       }
                     }
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                  <Pencil className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Đổi tên cột</span>
                 </button>
 
                 {(activeMenu.fieldId === 'status' || activeMenu.fieldId === 'priority') && (
                   <button
+                    type="button"
                     onClick={() => {
                       let options: any[] = [];
                       if (activeMenu.fieldId === 'status') options = statusConfigs;
@@ -1464,14 +1474,15 @@ export default function TaskTableView({
                       setShowSettingsModal(true);
                       setActiveMenu(null);
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                   >
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                     <span>Cấu hình tùy chọn</span>
                   </button>
                 )}
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setVisibleFields) {
                       setVisibleFields(prev => prev.filter(f => f !== activeMenu.fieldId));
@@ -1479,9 +1490,9 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                  <EyeOff className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Ẩn cột</span>
                 </button>
               </>
@@ -1489,6 +1500,7 @@ export default function TaskTableView({
               // Custom Fields Menu
               <>
                 <button
+                  type="button"
                   onClick={() => {
                     const cf = customFields.find(c => c.id === activeMenu.fieldId);
                     if (cf) {
@@ -1508,13 +1520,14 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                  <Pencil className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Cài đặt trường</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setCustomFields && customFields) {
                       const target = customFields.find(cf => cf.id === activeMenu.fieldId);
@@ -1534,15 +1547,16 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />
+                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>{customFields.find(cf => cf.id === activeMenu.fieldId)?.isPrivate ? 'Bỏ riêng tư' : 'Đặt trường riêng tư'}</span>
                 </button>
 
-                <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setCustomFields && customFields) {
                       const targetCF = customFields.find(cf => cf.id === activeMenu.fieldId);
@@ -1552,13 +1566,14 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
+                  <ArrowLeft className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Chuyển lên đầu</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setCustomFields && customFields) {
                       const targetCF = customFields.find(cf => cf.id === activeMenu.fieldId);
@@ -1568,26 +1583,28 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Chuyển xuống cuối</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (triggerToast) triggerToast?.('success', 'Automation Created', `Created smart auto-calculations for "${activeMenu.fieldName}".`);
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <Zap className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Automate</span>
+                  <Zap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span>Tự động hóa (Automate)</span>
                 </button>
 
-                <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setVisibleFields) {
                       setVisibleFields?.(prev => prev.filter(f => f !== activeMenu.fieldName));
@@ -1595,13 +1612,14 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                  <EyeOff className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span>Ẩn cột</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (setCustomFields && customFields && setVisibleFields) {
                       const dupName = `${activeMenu.fieldName} Copy`;
@@ -1626,22 +1644,23 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer"
                 >
-                  <Copy className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Duplicate</span>
+                  <Copy className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
+                  <span>Tạo bản sao</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     const oldName = activeMenu.fieldName;
                     if (openDialog && setCustomFields && setVisibleFields) {
                       openDialog?.({
-                        title: `Delete custom field "${oldName}"`,
-                        description: 'Are you sure you want to delete this custom field? This will delete all associated data for all tasks.',
+                        title: `Xóa trường tùy chỉnh "${oldName}"`,
+                        description: 'Bạn có chắc chắn muốn xóa trường này? Thao tác này sẽ xóa dữ liệu trường của tất cả công việc.',
                         type: 'confirm',
                         isDestructive: true,
-                        confirmText: 'Delete Field',
+                        confirmText: 'Xóa trường',
                         onConfirm: () => {
                           setCustomFields?.(prev => prev.filter(cf => cf.id !== activeMenu.fieldId));
                           setVisibleFields?.(prev => prev.filter(f => f !== oldName));
@@ -1655,7 +1674,7 @@ export default function TaskTableView({
                           if (onAddSyncLog) onAddSyncLog?.(`Deleted custom field "${oldName}"`);
                         }
                       });
-                    } else if (confirm(`Are you sure you want to delete this custom field "${oldName}"?`)) {
+                    } else if (confirm(`Bạn có chắc muốn xóa trường "${oldName}"?`)) {
                       setCustomFields?.(prev => prev.filter(cf => cf.id !== activeMenu.fieldId));
                       setVisibleFields?.(prev => prev.filter(f => f !== oldName));
                       filteredTasks.forEach(t => {
@@ -1669,9 +1688,9 @@ export default function TaskTableView({
                     }
                     setActiveMenu(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-955/20 rounded-xl cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
                   <span>Xóa trường</span>
                 </button>
               </>
@@ -1679,34 +1698,39 @@ export default function TaskTableView({
 
             {activeMenu.fieldType === 'date' && (
               <>
-                <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-                <div className="px-2.5 py-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                  Định dạng ngày
+                <div className="border-t border-slate-100 dark:border-white/10 my-1" />
+                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Định dạng ngày</span>
                 </div>
-                {DATE_FORMAT_PRESETS.map(preset => {
-                  const isActive = getStoredDateFormat() === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      onClick={() => {
-                        saveDateFormat(preset.id);
-                        if (typeof window !== 'undefined') {
-                          window.dispatchEvent(new Event('apexa-field-config-changed'));
-                        }
-                        if (onAddSyncLog) onAddSyncLog(`Changed date format to: "${preset.label}"`);
-                        setActiveMenu(null);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-left font-bold rounded-lg cursor-pointer transition-all ${
-                        isActive 
-                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400' 
-                          : 'text-slate-655 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-                      }`}
-                    >
-                      <span>{preset.label}</span>
-                      <span className="text-[9px] font-medium opacity-60">({preset.sample})</span>
-                    </button>
-                  );
-                })}
+                <div className="space-y-0.5">
+                  {DATE_FORMAT_PRESETS.map(preset => {
+                    const isActive = getStoredDateFormat() === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          saveDateFormat(preset.id);
+                          if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new Event('apexa-field-config-changed'));
+                          }
+                          if (onAddSyncLog) onAddSyncLog(`Changed date format to: "${preset.label}"`);
+                          setActiveMenu(null);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 text-left rounded-xl cursor-pointer transition-all ${
+                          isActive 
+                            ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-300 font-bold border border-blue-200/60 dark:border-blue-500/30 shadow-xs' 
+                            : 'text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white border border-transparent'
+                        }`}
+                      >
+                        <span className="text-xs">{preset.label}</span>
+                        <span className={`text-[10px] tabular-nums ${isActive ? 'text-blue-600 dark:text-blue-300 font-bold' : 'text-slate-400 dark:text-slate-400 font-medium'}`}>
+                          ({preset.sample})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </>
             )}
 

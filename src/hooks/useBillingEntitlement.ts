@@ -10,7 +10,7 @@ import { isApexaSuperAdmin } from '@/lib/admin/constants';
 
 export type BillingEntitlement = {
   plan: BillingPlan;
-  provider?: 'payos' | 'stripe';
+  provider?: 'payos' | 'stripe' | 'paypal';
   status: string;
   billing_cycle?: BillingCycle;
   is_pro: boolean;

@@ -14,6 +14,7 @@ import { useUiStore } from '../../store/uiStore';
 import { wouldCreateDependencyCycle } from '../../lib/taskRelationships';
 import { callAiApi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { saveTaskReminder, ReminderOption } from '@/lib/notificationManager';
 import {
   GripVertical,
   X,
@@ -54,7 +55,8 @@ import {
   Link as LinkIcon,
   ChevronRight, ChevronsLeft, ChevronsRight,
   Hourglass, AlertTriangle, Folder, Download, Copy,
-  FileDown, FileCode, Share2, Link2
+  FileDown, FileCode, Share2, Link2,
+  PanelRightClose, PanelRightOpen
 } from 'lucide-react';
 
 // ── Priority accent mapping ──
@@ -87,20 +89,20 @@ const PRIORITY_THEMES: Record<Priority, { gradient: string; accent: string; badg
 
 const getTagColor = (tag: string) => {
   const t = tag.toLowerCase();
-  if (t === 'design') return { bg: 'bg-pink-50 dark:bg-pink-955/20', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-900/30' };
-  if (t === 'frontend') return { bg: 'bg-sky-50 dark:bg-sky-955/20', text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-200/50 dark:border-sky-900/30' };
-  if (t === 'backend') return { bg: 'bg-violet-50 dark:bg-violet-955/20', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-900/30' };
-  if (t === 'bug') return { bg: 'bg-rose-50 dark:bg-rose-955/20', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-200/50 dark:border-rose-900/30' };
-  if (t === 'marketing') return { bg: 'bg-emerald-50 dark:bg-emerald-955/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-900/30' };
-  if (t === 'research') return { bg: 'bg-amber-50 dark:bg-amber-955/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-900/30' };
-  return { bg: 'bg-slate-50 dark:bg-slate-900/60', text: 'text-slate-505 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/40' };
+  if (t === 'design') return { bg: 'bg-pink-50 dark:bg-pink-950/20', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-200/50 dark:border-pink-900/30' };
+  if (t === 'frontend') return { bg: 'bg-sky-50 dark:bg-sky-950/20', text: 'text-sky-600 dark:text-sky-400', border: 'border-sky-200/50 dark:border-sky-900/30' };
+  if (t === 'backend') return { bg: 'bg-violet-50 dark:bg-violet-950/20', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-200/50 dark:border-violet-900/30' };
+  if (t === 'bug') return { bg: 'bg-rose-50 dark:bg-rose-950/20', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-200/50 dark:border-rose-900/30' };
+  if (t === 'marketing') return { bg: 'bg-emerald-50 dark:bg-emerald-950/20', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200/50 dark:border-emerald-900/30' };
+  if (t === 'research') return { bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200/50 dark:border-amber-900/30' };
+  return { bg: 'bg-slate-50 dark:bg-slate-900/60', text: 'text-slate-500 dark:text-slate-400', border: 'border-slate-200/50 dark:border-slate-800/40' };
 };
 
 const STATUS_META: Record<TaskStatus, { label: string; dot: string; bg: string }> = {
   todo: { label: 'Cần làm', dot: 'bg-slate-400', bg: 'bg-slate-100 dark:bg-slate-800' },
-  inprogress: { label: 'Đang thực hiện', dot: 'bg-amber-505', bg: 'bg-amber-50 dark:bg-amber-955/30' },
-  review: { label: 'Chờ duyệt', dot: 'bg-cyan-505', bg: 'bg-cyan-50 dark:bg-cyan-955/30' },
-  completed: { label: 'Hoàn thành', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-955/30' },
+  inprogress: { label: 'Đang thực hiện', dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  review: { label: 'Chờ duyệt', dot: 'bg-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-950/30' },
+  completed: { label: 'Hoàn thành', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
 };
 
 interface TaskDetailsPanelProps {
@@ -175,6 +177,26 @@ export default function TaskDetailsPanel({
     if (typeof window !== 'undefined') {
       localStorage.setItem('apexa_task_modal_sidebar_expanded', String(nextVal));
     }
+  };
+
+  // Properties Sidebar toggle state (for modal & fullscreen layouts) - default closed per user request ("sidebar không hiện ra sẵn")
+  const [isPropertiesSidebarOpen, setIsPropertiesSidebarOpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('apexa_task_properties_sidebar_open');
+      if (saved === 'open') return true;
+      if (saved === 'closed' || saved === 'false' || saved === 'true') return false;
+    }
+    return false;
+  });
+
+  const togglePropertiesSidebar = () => {
+    setIsPropertiesSidebarOpen(prev => {
+      const nextVal = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('apexa_task_properties_sidebar_open', nextVal ? 'open' : 'closed');
+      }
+      return nextVal;
+    });
   };
   // Redesign state variables
   const [aiPrompt, setAiPrompt] = useState('');
@@ -419,6 +441,12 @@ export default function TaskDetailsPanel({
         return;
       }
 
+      if ((event.metaKey || event.ctrlKey) && event.key === '\\') {
+        event.preventDefault();
+        togglePropertiesSidebar();
+        return;
+      }
+
       if (event.key === 'Tab' && dialogRef.current) {
         const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
@@ -437,7 +465,7 @@ export default function TaskDetailsPanel({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown]);
+  }, [layoutMenuOpen, onClose, showAssigneesDropdown, showBlockedByDropdown, showBlocksDropdown, showLinkDocDropdown, showLinkTaskDropdown, showMoreMenu, showSpaceDropdown, showTagsDropdown, togglePropertiesSidebar]);
 
   const saveTitle = () => {
     if (titleValue.trim() && titleValue !== task.title) {
@@ -790,11 +818,11 @@ export default function TaskDetailsPanel({
 
   const getFileIcon = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return { color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-955/25' };
-    if (['pdf'].includes(ext || '')) return { color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-955/25' };
-    if (['doc', 'docx'].includes(ext || '')) return { color: 'text-blue-505', bg: 'bg-blue-50 dark:bg-blue-955/25' };
-    if (['xls', 'xlsx', 'csv'].includes(ext || '')) return { color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-955/25' };
-    if (['zip', 'rar', '7z'].includes(ext || '')) return { color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-955/25' };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) return { color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/25' };
+    if (['pdf'].includes(ext || '')) return { color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/25' };
+    if (['doc', 'docx'].includes(ext || '')) return { color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/25' };
+    if (['xls', 'xlsx', 'csv'].includes(ext || '')) return { color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/25' };
+    if (['zip', 'rar', '7z'].includes(ext || '')) return { color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/25' };
     return { color: 'text-slate-400', bg: 'bg-slate-50 dark:bg-slate-900' };
   };
 
@@ -870,9 +898,9 @@ export default function TaskDetailsPanel({
       <div className="divide-y divide-slate-100 dark:divide-white/[0.04] text-xs">
         {/* Status */}
         {isShown('status') && (
-          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <CircleDot className="w-3.5 h-3.5 text-slate-400" /> Trạng thái
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <CircleDot className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Trạng thái' : 'Status'}
             </span>
             <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
               <StatusPillSelect value={task.status} onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} />
@@ -883,7 +911,7 @@ export default function TaskDetailsPanel({
                   onAddSyncLog(`Status → ${next}`);
                 }}
                 className={`p-1 rounded-lg border cursor-pointer transition-all ${task.status === 'completed' ? 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400' : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 dark:bg-slate-900 dark:border-slate-800'}`}
-                title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}>
+                title={task.status === 'completed' ? (isVietnamese ? 'Đánh dấu chưa hoàn thành' : 'Mark incomplete') : (isVietnamese ? 'Đánh dấu hoàn thành' : 'Mark complete')}>
                 <Check className="w-3.5 h-3.5" />
               </button>
               {onToggleFieldVisibility && (
@@ -891,7 +919,7 @@ export default function TaskDetailsPanel({
                   type="button" 
                   onClick={() => onToggleFieldVisibility('status')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -902,9 +930,9 @@ export default function TaskDetailsPanel({
 
         {/* Assignees */}
         {isShown('assignee') && (
-          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <UserIcon className="w-3.5 h-3.5 text-slate-400" /> Người phụ trách
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <UserIcon className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Người phụ trách' : 'Assignee'}
             </span>
             <div className="relative flex-1 min-w-0 flex items-center justify-end gap-1">
               <AssigneePillSelect
@@ -928,7 +956,7 @@ export default function TaskDetailsPanel({
                   type="button" 
                   onClick={() => onToggleFieldVisibility('assignee')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -939,9 +967,9 @@ export default function TaskDetailsPanel({
 
         {/* Priority */}
         {isShown('priority') && (
-          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <Flag className="w-3.5 h-3.5 text-slate-400" /> Mức ưu tiên
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Flag className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Mức ưu tiên' : 'Priority'}
             </span>
             <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
               <PriorityPillSelect value={task.priority} onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p || 'medium'}`); }} />
@@ -950,7 +978,7 @@ export default function TaskDetailsPanel({
                   type="button" 
                   onClick={() => onToggleFieldVisibility('priority')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -959,11 +987,11 @@ export default function TaskDetailsPanel({
           </div>
         )}
 
-        {/* Due Date */}
-        {isShown('dueDate') && (
-          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" /> Ngày tháng
+        {/* Dates (Start & Due Date) */}
+        {(isShown('dueDate') || isShown('startDate')) && (
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Ngày tháng' : 'Dates'}
             </span>
             <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
               <PremiumDatePicker 
@@ -971,30 +999,129 @@ export default function TaskDetailsPanel({
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label="Bắt đầu" 
+                label={isVietnamese ? "Bắt đầu" : "Start"} 
                 align="right"
                 taskId={task.id}
                 taskTitle={task.title}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
+                reminderValue={task.reminder || (task.custom_fields?.reminder as ReminderOption)}
+                onReminderChange={r => {
+                  onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
+                  saveTaskReminder(task.id, task.title, task.dueDate || '', r);
+                }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.startDate ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400'}`} 
               />
-              <span className="text-slate-300 dark:text-slate-700 text-xs select-none">→</span>
+              <span className="text-slate-300 dark:text-slate-600 text-xs select-none">→</span>
               <PremiumDatePicker 
                 startDateValue={task.startDate || ''}
                 onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
                 dateValue={task.dueDate || ''}
                 onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
-                label="Hạn" 
+                label={isVietnamese ? "Hạn chót" : "Due"} 
                 align="right"
                 taskId={task.id}
                 taskTitle={task.title}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} 
+                reminderValue={task.reminder || (task.custom_fields?.reminder as ReminderOption)}
+                onReminderChange={r => {
+                  onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
+                  saveTaskReminder(task.id, task.title, task.dueDate || '', r);
+                }}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400'}`} 
               />
               {onToggleFieldVisibility && (
                 <button 
                   type="button" 
                   onClick={() => onToggleFieldVisibility('dueDate')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Space (Không gian làm việc) */}
+        {isShown('space') && (
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Folder className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Không gian' : 'Space'}
+            </span>
+            <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
+              <div className="w-full max-w-[170px]">
+                <SpacePillSelect 
+                  value={task.workspaceId} 
+                  workspaces={workspaces}
+                  onChange={wsId => onUpdateTask({ ...task, workspaceId: wsId || undefined })} 
+                />
+              </div>
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('space')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recurrence (Lặp lại định kỳ) */}
+        {(isShown('Recurrence') || isShown('recurrence') || (task.recurrence && task.recurrence.frequency !== 'none')) && (
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <RefreshCw className="w-3.5 h-3.5 text-purple-500" /> {isVietnamese ? 'Lặp lại' : 'Recurrence'}
+            </span>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+              {task.recurrence && task.recurrence.frequency !== 'none' ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-3xs">
+                  <RefreshCw className="w-3 h-3 text-purple-500 shrink-0" />
+                  <span className="truncate">
+                    {task.recurrence.frequency === 'daily' ? (isVietnamese ? 'Hằng ngày' : 'Daily') :
+                     task.recurrence.frequency === 'weekly' ? (isVietnamese ? 'Hằng tuần' : 'Weekly') :
+                     (isVietnamese ? 'Hằng tháng' : 'Monthly')}
+                    {(task.recurrence.interval || 1) > 1 ? ` (${task.recurrence.interval})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateTask({ ...task, recurrence: undefined });
+                      onAddSyncLog(isVietnamese ? 'Đã bỏ lặp lại công việc' : 'Removed task recurrence');
+                    }}
+                    className="ml-0.5 p-0.5 text-purple-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-full transition-colors cursor-pointer"
+                    title={isVietnamese ? 'Bỏ lặp lại' : 'Remove recurrence'}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <Select 
+                  value="none"
+                  onChange={v => {
+                    if (v !== 'none') {
+                      onUpdateTask({ ...task, recurrence: { frequency: v as any, interval: 1 } });
+                      onAddSyncLog(isVietnamese ? `Thiết lập lặp lại: ${v}` : `Set recurrence: ${v}`);
+                    }
+                  }}
+                  size="sm"
+                  ariaLabel={isVietnamese ? "Tần suất lặp lại" : "Recurrence frequency"}
+                  options={[
+                    { value: 'none', label: isVietnamese ? 'Không lặp lại' : 'None' },
+                    { value: 'daily', label: isVietnamese ? 'Hằng ngày' : 'Daily' },
+                    { value: 'weekly', label: isVietnamese ? 'Hằng tuần' : 'Weekly' },
+                    { value: 'monthly', label: isVietnamese ? 'Hằng tháng' : 'Monthly' },
+                  ]} 
+                />
+              )}
+              {onToggleFieldVisibility && (
+                <button 
+                  type="button" 
+                  onClick={() => onToggleFieldVisibility('recurrence')}
+                  className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1004,10 +1131,10 @@ export default function TaskDetailsPanel({
         )}
 
         {/* Time Tracking */}
-        <div className="py-2.5 flex flex-col justify-center min-h-[38px] space-y-1.5">
+        <div className="py-2 px-2 -mx-1 rounded-xl flex flex-col justify-center min-h-[38px] space-y-1.5 hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
           <div className="flex items-center justify-between">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <Clock className="w-3.5 h-3.5 text-slate-400" /> Bấm giờ
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Clock className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Bấm giờ' : 'Time'}
             </span>
             <div className="flex items-center gap-2">
               {currentTimerActive ? (
@@ -1021,33 +1148,33 @@ export default function TaskDetailsPanel({
                       onClick={onTogglePauseGlobalTimer}
                       className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10.5px] font-bold cursor-pointer hover:bg-indigo-100 transition-colors border border-indigo-200/40"
                     >
-                      {currentTimerPaused ? 'Tiếp tục' : 'Tạm dừng'}
+                      {currentTimerPaused ? (isVietnamese ? 'Tiếp tục' : 'Resume') : (isVietnamese ? 'Tạm dừng' : 'Pause')}
                     </button>
                   )}
                   <button type="button" onClick={handleStopTimer}
                     className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-lg text-[10.5px] font-bold cursor-pointer hover:bg-rose-100 transition-colors border border-rose-200/60 dark:border-rose-800/30">
-                    <Square className="w-2.5 h-2.5 fill-current" /> Dừng
+                    <Square className="w-2.5 h-2.5 fill-current" /> {isVietnamese ? 'Dừng' : 'Stop'}
                   </button>
                 </>
               ) : (
                 <button type="button" onClick={handleStartTimer}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 p-1 px-2.5 rounded-lg transition-all cursor-pointer border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 shadow-3xs">
-                  <Play className="w-3 h-3 fill-slate-500 text-slate-500 shrink-0" /> Bắt đầu
+                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 p-1 px-2.5 rounded-lg transition-all cursor-pointer border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-50 shadow-3xs">
+                  <Play className="w-3 h-3 fill-slate-500 text-slate-500 shrink-0" /> {isVietnamese ? 'Bắt đầu' : 'Start'}
                 </button>
               )}
               
               {/* Manual Logger */}
               <div className="relative">
                 {showLogTimeModal ? (
-                  <div className="absolute right-0 bottom-full mb-2.5 z-40 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 shadow-xl">
+                  <div className="absolute right-0 bottom-full mb-2.5 z-40 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-xl">
                     <input 
                       type="number" 
                       min={0.1} 
                       step={0.1} 
-                      placeholder="giờ" 
+                      placeholder={isVietnamese ? "giờ" : "hrs"} 
                       value={logTimeValue}
                       onChange={e => setLogTimeValue(e.target.value)}
-                      className="w-12 text-xs text-center border border-slate-200 dark:border-slate-700 rounded-lg bg-transparent outline-none py-1 font-medium text-slate-800 dark:text-slate-200"
+                      className="w-14 text-xs text-center border border-slate-200/90 dark:border-slate-700 rounded-xl bg-slate-50/70 dark:bg-slate-800/80 outline-none py-1.5 font-bold text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs"
                     />
                     <button 
                       type="button" 
@@ -1062,9 +1189,9 @@ export default function TaskDetailsPanel({
                         setLogTimeValue('');
                         setShowLogTimeModal(false);
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold cursor-pointer shadow-3xs"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold cursor-pointer transition-all shadow-2xs"
                     >
-                      Ghi
+                      {isVietnamese ? 'Ghi' : 'Log'}
                     </button>
                     <button type="button" onClick={() => setShowLogTimeModal(false)} className="text-slate-400 hover:text-slate-600 text-xs px-1">✕</button>
                   </div>
@@ -1074,7 +1201,7 @@ export default function TaskDetailsPanel({
                     onClick={() => setShowLogTimeModal(true)}
                     className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer ml-1"
                   >
-                    + Ghi nhận
+                    + {isVietnamese ? 'Ghi nhận' : 'Log'}
                   </button>
                 )}
               </div>
@@ -1082,8 +1209,8 @@ export default function TaskDetailsPanel({
           </div>
           
           <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-            <span>{(task.hoursLogged || 0)} giờ đã ghi</span>
-            {task.hoursEstimate ? <span>{task.hoursEstimate} giờ dự kiến</span> : null}
+            <span>{(task.hoursLogged || 0)} {isVietnamese ? 'giờ đã ghi' : 'hrs logged'}</span>
+            {task.hoursEstimate ? <span>{task.hoursEstimate} {isVietnamese ? 'giờ dự kiến' : 'hrs estimate'}</span> : null}
           </div>
           {task.hoursEstimate && (task.hoursLogged || 0) > 0 ? (
             <div className="flex items-center gap-1.5 w-full mt-1">
@@ -1102,22 +1229,22 @@ export default function TaskDetailsPanel({
 
         {/* Time Estimate */}
         {isShown('progress') && (
-          <div className="py-2 flex items-center justify-between min-h-[38px] group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
-              <Timer className="w-3.5 h-3.5 text-slate-400" /> Ước tính
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-center justify-between min-h-[38px] group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none">
+              <Timer className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Ước tính' : 'Estimate'}
             </span>
             <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
               <input type="number" min={0} step={0.5} placeholder="—"
                 value={task.hoursEstimate || ''}
                 onChange={e => onUpdateTask({ ...task, hoursEstimate: parseFloat(e.target.value) || undefined })}
-                className="text-xs font-medium text-slate-700 dark:text-slate-200 bg-transparent border border-slate-200/80 dark:border-slate-800 rounded-lg outline-none px-2 py-1 w-16 text-right placeholder-slate-400 focus:border-indigo-400 transition-colors" />
-              {task.hoursEstimate ? <span className="text-[11px] text-slate-400 font-medium">giờ</span> : null}
+                className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-white/10 rounded-xl outline-none px-2.5 py-1 w-16 text-right placeholder-slate-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" />
+              {task.hoursEstimate ? <span className="text-[11px] text-slate-400 font-medium">{isVietnamese ? 'giờ' : 'hrs'}</span> : null}
               {onToggleFieldVisibility && (
                 <button 
                   type="button" 
                   onClick={() => onToggleFieldVisibility('progress')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1128,9 +1255,9 @@ export default function TaskDetailsPanel({
 
         {/* Tags */}
         {isShown('tags') && (
-          <div className="py-2 flex items-start justify-between min-h-[38px] pt-2 group/row relative">
-            <span className="w-32 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none mt-0.5">
-              <Tag className="w-3.5 h-3.5 text-slate-400" /> Nhãn
+          <div className="py-1.5 px-2 -mx-1 rounded-xl flex items-start justify-between min-h-[38px] pt-2 group/row relative hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+            <span className="w-28 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0 select-none mt-0.5">
+              <Tag className="w-3.5 h-3.5 text-slate-400" /> {isVietnamese ? 'Nhãn' : 'Tags'}
             </span>
             <div className="flex items-center gap-1.5 flex-wrap relative flex-1 min-w-0 justify-end">
               {(task.tags || []).map(tag => {
@@ -1175,14 +1302,14 @@ export default function TaskDetailsPanel({
               </div>
               {(!task.tags || task.tags.length === 0) && (
                 <button onClick={() => setShowTagsDropdown(true)}
-                  className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">Trống</button>
+                  className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">{isVietnamese ? 'Trống' : 'Empty'}</button>
               )}
               {onToggleFieldVisibility && (
                 <button 
                   type="button" 
                   onClick={() => onToggleFieldVisibility('tags')}
                   className="opacity-0 group-hover/row:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 cursor-pointer shrink-0 -mr-1"
-                  title="Ẩn trường"
+                  title={isVietnamese ? "Ẩn trường" : "Hide field"}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1196,40 +1323,55 @@ export default function TaskDetailsPanel({
 
   const renderCustomFieldsAccordion = () => {
     const isShown = (fieldKey: string) => !visibleFields || visibleFields.includes(fieldKey);
+    const visibleCustomFieldsCount = [
+      isShown('Objective') ? 1 : 0,
+      isShown('Owner') ? 1 : 0,
+      isShown('Cost') ? 1 : 0,
+      ...dynamicCustomFieldNames.filter(k => isShown(k)).map(() => 1)
+    ].reduce((a, b) => a + b, 0);
 
     return (
-      <div className="border border-slate-200/60 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900/40 shadow-3xs relative z-10">
+      <div className="border border-slate-200/80 dark:border-white/[0.08] rounded-2xl overflow-hidden bg-white dark:bg-[#1a1a1a] shadow-xs relative z-10">
         <button type="button" onClick={() => setFieldsExpanded(!fieldsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 text-xs font-bold text-slate-700 dark:text-slate-202 border-b border-slate-100 dark:border-slate-800/80 cursor-pointer select-none">
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/70 dark:bg-white/[0.02] text-xs font-bold text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-white/[0.06] cursor-pointer select-none hover:bg-slate-100/70 dark:hover:bg-white/[0.04] transition-colors">
           <div className="flex items-center gap-2">
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${fieldsExpanded ? '' : '-rotate-90'}`} />
-            <span>Trường tùy chỉnh</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 text-slate-400 ${fieldsExpanded ? '' : '-rotate-90'}`} />
+            <span>{isVietnamese ? 'Trường tùy chỉnh' : 'Custom Fields'}</span>
           </div>
-          <span className="text-[10px] text-slate-405 font-medium">{Object.keys(task.custom_fields || {}).length + 4} trường</span>
+          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-white/10 text-slate-500 dark:text-slate-400 font-semibold">
+            {visibleCustomFieldsCount} {isVietnamese ? 'trường' : 'fields'}
+          </span>
         </button>
 
         {fieldsExpanded && (
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 space-y-3.5">
+            {/* Single column layout to avoid cramped rows in sidebar */}
+            <div className="flex flex-col space-y-3">
               {/* Objective */}
               {isShown('Objective') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Mục tiêu</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      {isVietnamese ? 'Mục tiêu' : 'Objective'}
+                    </label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Objective')}
-                        className="text-[9px] text-slate-405 dark:text-slate-505 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
+                        className="text-[9px] text-slate-400 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
+                        title={isVietnamese ? "Ẩn trường" : "Hide field"}
                       >
-                        Ẩn
+                        {isVietnamese ? 'Ẩn' : 'Hide'}
                       </button>
                     )}
                   </div>
-                  <input type="text" value={String(task.custom_fields?.Objective || '')} 
+                  <input 
+                    type="text" 
+                    placeholder={isVietnamese ? "Mục tiêu cụ thể của công việc..." : "Specific task objective..."}
+                    value={String(task.custom_fields?.Objective || '')} 
                     onChange={e => { const updated = { ...(task.custom_fields || {}), Objective: e.target.value }; onUpdateTask({ ...task, custom_fields: updated }); }}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
+                    className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" 
+                  />
                 </div>
               )}
 
@@ -1237,21 +1379,27 @@ export default function TaskDetailsPanel({
               {isShown('Owner') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Chủ sở hữu</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      {isVietnamese ? 'Chủ sở hữu' : 'Owner'}
+                    </label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
                         onClick={() => onToggleFieldVisibility('Owner')}
-                        className="text-[9px] text-slate-405 dark:text-slate-505 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
+                        className="text-[9px] text-slate-400 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
+                        title={isVietnamese ? "Ẩn trường" : "Hide field"}
                       >
-                        Ẩn
+                        {isVietnamese ? 'Ẩn' : 'Hide'}
                       </button>
                     )}
                   </div>
-                  <input type="text" value={String(task.custom_fields?.Owner || '')} 
+                  <input 
+                    type="text" 
+                    placeholder={isVietnamese ? "Người chịu trách nhiệm chính..." : "Task owner..."}
+                    value={String(task.custom_fields?.Owner || '')} 
                     onChange={e => { const updated = { ...(task.custom_fields || {}), Owner: e.target.value }; onUpdateTask({ ...task, custom_fields: updated }); }}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
+                    className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" 
+                  />
                 </div>
               )}
 
@@ -1259,119 +1407,38 @@ export default function TaskDetailsPanel({
               {isShown('Cost') && (
                 <div className="space-y-1 relative group/field">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Chi phí</label>
-                    {onToggleFieldVisibility && (
-                      <button 
-                        type="button" 
-                        onClick={() => onToggleFieldVisibility('Cost')}
-                        className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
-                      >
-                        Ẩn
-                      </button>
-                    )}
-                  </div>
-                  <input type="text" value={String(task.custom_fields?.Cost || '')} 
-                    onChange={e => { const updated = { ...(task.custom_fields || {}), Cost: e.target.value }; onUpdateTask({ ...task, custom_fields: updated }); }}
-                    className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
-                </div>
-              )}
-
-              {/* Recurrence */}
-              {isShown('Recurrence') && (
-                <div className="space-y-1 relative group/field">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3 text-pink-500 animate-spin-slow" /> Lặp lại
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      {isVietnamese ? 'Chi phí' : 'Cost'}
                     </label>
                     {onToggleFieldVisibility && (
                       <button 
                         type="button" 
-                        onClick={() => onToggleFieldVisibility('Recurrence')}
-                        className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
+                        onClick={() => onToggleFieldVisibility('Cost')}
+                        className="text-[9px] text-slate-400 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
+                        title={isVietnamese ? "Ẩn trường" : "Hide field"}
                       >
-                        Ẩn
+                        {isVietnamese ? 'Ẩn' : 'Hide'}
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={task.recurrence?.frequency || 'none'}
-                      onChange={v => {
-                        onUpdateTask({ ...task, recurrence: { frequency: v, interval: task.recurrence?.interval || 1 } });
-                      }}
-                      size="sm"
-                      ariaLabel="Tần suất lặp lại"
-                      options={[
-                        { value: 'none', label: 'Không có' },
-                        { value: 'daily', label: 'Hằng ngày' },
-                        { value: 'weekly', label: 'Hằng tuần' },
-                        { value: 'monthly', label: 'Hằng tháng' },
-                      ]} />
-                    {task.recurrence?.frequency && task.recurrence.frequency !== 'none' && (
-                      <input type="number" min={1} value={task.recurrence.interval}
-                        onChange={e => { const val = parseInt(e.target.value) || 1; onUpdateTask({ ...task, recurrence: { ...task.recurrence!, interval: val } }); }}
-                        className="w-12 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-1.5 py-1 text-center outline-none font-medium text-slate-700 dark:text-slate-305" />
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Space */}
-              {isShown('space') && (
-                <div className="space-y-1 relative group/field">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Folder className="w-3 h-3 text-slate-400" /> Không gian</label>
-                    {onToggleFieldVisibility && (
-                      <button 
-                        type="button" 
-                        onClick={() => onToggleFieldVisibility('space')}
-                        className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
-                      >
-                        Ẩn
-                      </button>
-                    )}
-                  </div>
-                  <SpacePillSelect value={task.workspaceId} workspaces={workspaces}
-                    onChange={wsId => onUpdateTask({ ...task, workspaceId: wsId || undefined })} />
-                </div>
-              )}
-
-              {/* Start Date */}
-              {(isShown('startDate') || isShown('dueDate')) && (
-                <div className="space-y-1 relative group/field">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-400" /> Ngày bắt đầu</label>
-                    {onToggleFieldVisibility && (
-                      <button 
-                        type="button" 
-                        onClick={() => onToggleFieldVisibility(isShown('startDate') ? 'startDate' : 'dueDate')}
-                        className="text-[9px] text-slate-405 dark:text-slate-550 hover:text-rose-500 hover:underline opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer"
-                        title="Ẩn trường"
-                      >
-                        Ẩn
-                      </button>
-                    )}
-                  </div>
-                  <PremiumDatePicker 
-                    startDateValue={task.startDate || ''}
-                    onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
-                    dateValue={task.dueDate || ''}
-                    onChange={v => onUpdateTask({ ...task, dueDate: v || '' })}
-                    label="Bắt đầu"
-                    taskId={task.id}
-                    taskTitle={task.title}
+                  <input 
+                    type="text" 
+                    placeholder={isVietnamese ? "Ước tính chi phí (VD: 500.000 đ)..." : "Cost estimate..."}
+                    value={String(task.custom_fields?.Cost || '')} 
+                    onChange={e => { const updated = { ...(task.custom_fields || {}), Cost: e.target.value }; onUpdateTask({ ...task, custom_fields: updated }); }}
+                    className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" 
                   />
                 </div>
               )}
             </div>
 
-            {/* Dynamic custom fields */}
+            {/* Dynamic space custom fields */}
             {dynamicCustomFieldNames.filter(key => isShown(key)).length > 0 && (
-              <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trường tùy chỉnh khác</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-white/[0.06]">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                  {isVietnamese ? 'Trường tùy chỉnh khác' : 'Other Custom Fields'}
+                </label>
+                <div className="flex flex-col space-y-3">
                   {dynamicCustomFieldNames
                     .filter(key => isShown(key))
                     .map(key => {
@@ -1382,22 +1449,24 @@ export default function TaskDetailsPanel({
                         custom_fields: { ...(task.custom_fields || {}), [key]: nextValue }
                       });
                       return (
-                      <div key={key} className={`space-y-1 relative group/field ${fieldConfig?.type === 'textarea' ? 'col-span-2' : ''}`}>
+                      <div key={key} className="space-y-1 relative group/field">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-medium text-slate-555 dark:text-slate-400 capitalize">{key}</label>
+                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 capitalize">{key}</label>
                           <div className="flex items-center gap-1.5 opacity-0 group-hover/field:opacity-100 transition-opacity">
                             {onToggleFieldVisibility && (
                               <button 
                                 type="button"
                                 onClick={() => onToggleFieldVisibility(key)}
-                                className="text-[9px] text-slate-405 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
-                                title="Ẩn trường"
+                                className="text-[9px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                                title={isVietnamese ? "Ẩn trường" : "Hide field"}
                               >
-                                Ẩn
+                                {isVietnamese ? 'Ẩn' : 'Hide'}
                               </button>
                             )}
                             <button onClick={() => { const { [key]: _, ...rest } = task.custom_fields || {}; onUpdateTask({ ...task, custom_fields: rest }); }}
-                              className="text-[9px] text-rose-500 hover:underline cursor-pointer">Xóa</button>
+                              className="text-[9px] text-rose-500 hover:underline cursor-pointer">
+                              {isVietnamese ? 'Xóa' : 'Delete'}
+                            </button>
                           </div>
                         </div>
                         {fieldConfig?.type === 'dropdown' ? (
@@ -1406,21 +1475,38 @@ export default function TaskDetailsPanel({
                           <LabelsFieldSelect value={String(val)} options={fieldConfig.options || []} fieldId={fieldConfig.id} onChange={updateValue} />
                         ) : fieldConfig?.type === 'checkbox' ? (
                           <button type="button" onClick={() => updateValue(!(val === true || val === 'true'))}
-                            className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${val === true || val === 'true' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' : 'border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400'}`}>
-                            <CheckSquare className="h-3.5 w-3.5" /> {fieldConfig.checkboxLabel || 'Đánh dấu'}
+                            className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${val === true || val === 'true' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' : 'border-slate-200/90 bg-white text-slate-500 dark:border-white/10 dark:bg-[#1e1e1e] dark:text-slate-400'}`}>
+                            <CheckSquare className="h-3.5 w-3.5" /> {fieldConfig.checkboxLabel || (isVietnamese ? 'Đánh dấu' : 'Check')}
                           </button>
                         ) : fieldConfig?.type === 'textarea' ? (
                           <textarea rows={3} value={String(val)} placeholder={fieldConfig.placeholder}
                             onChange={event => updateValue(event.target.value)}
-                            className="w-full resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-805 outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-105" />
+                            className="w-full resize-y rounded-xl border border-slate-200/90 bg-slate-50/50 px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-white/10 dark:bg-[#151515] dark:text-slate-100 shadow-3xs" />
+                        ) : fieldConfig?.type === 'number' ? (
+                          <div className="relative flex items-center">
+                            <input
+                              type="number"
+                              min={fieldConfig?.numberMin}
+                              max={fieldConfig?.numberMax}
+                              value={String(val)} 
+                              placeholder={fieldConfig?.placeholder || "0"}
+                              onChange={event => updateValue(event.target.value)}
+                              className={`w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs ${fieldConfig?.numberUnit ? 'pr-12' : ''}`} 
+                            />
+                            {fieldConfig?.numberUnit && (
+                              <span className="absolute right-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500 pointer-events-none select-none">
+                                {fieldConfig.numberUnit}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <input
-                            type={fieldConfig?.type === 'date' ? 'date' : fieldConfig?.type === 'number' || fieldConfig?.type === 'money' || fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 'number' : fieldConfig?.type === 'email' ? 'email' : fieldConfig?.type === 'phone' ? 'tel' : fieldConfig?.type === 'url' ? 'url' : 'text'}
-                            min={fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 0 : fieldConfig?.numberMin}
-                            max={fieldConfig?.type === 'progress' ? fieldConfig.progressMax || 100 : fieldConfig?.type === 'rating' ? fieldConfig.ratingMax || 5 : fieldConfig?.numberMax}
+                            type={fieldConfig?.type === 'date' ? 'date' : fieldConfig?.type === 'money' || fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 'number' : fieldConfig?.type === 'email' ? 'email' : fieldConfig?.type === 'phone' ? 'tel' : fieldConfig?.type === 'url' ? 'url' : 'text'}
+                            min={fieldConfig?.type === 'progress' || fieldConfig?.type === 'rating' ? 0 : undefined}
+                            max={fieldConfig?.type === 'progress' ? fieldConfig.progressMax || 100 : fieldConfig?.type === 'rating' ? fieldConfig.ratingMax || 5 : undefined}
                             value={String(val)} placeholder={fieldConfig?.placeholder}
                             onChange={event => updateValue(event.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-805 dark:text-slate-105 outline-none focus:border-indigo-500 transition-colors" />
+                            className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/50 dark:bg-[#151515] text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1a1a1a] focus:ring-2 focus:ring-indigo-500/15 transition-all shadow-3xs" />
                         )}
                       </div>
                     );})}
@@ -1430,25 +1516,27 @@ export default function TaskDetailsPanel({
 
             {/* Inline Add Custom Field Creator */}
             {showAddCustomField ? (
-              <div className="p-3 bg-slate-50 dark:bg-slate-955/40 rounded-xl border border-slate-200/60 dark:border-slate-800/80 space-y-2 mt-2 shadow-2xs">
-                <div className="text-[9px] font-black uppercase tracking-wider text-slate-405 dark:text-slate-550">Trường tùy chỉnh mới</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="p-3 bg-slate-50 dark:bg-[#151515] rounded-xl border border-slate-200/80 dark:border-white/10 space-y-2.5 mt-2 shadow-2xs">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {isVietnamese ? 'Trường tùy chỉnh mới' : 'New Custom Field'}
+                </div>
+                <div className="flex flex-col space-y-2">
                   <input 
                     type="text" 
-                    placeholder="Tên trường" 
+                    placeholder={isVietnamese ? "Tên trường (VD: Ngân sách, Sprint...)" : "Field name..."} 
                     value={newFieldName}
                     onChange={e => setNewFieldName(e.target.value)}
-                    className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-850 rounded bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-200 outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-200/90 dark:border-white/10 rounded-xl bg-white dark:bg-[#1a1a1a] text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all"
                   />
                   <input 
                     type="text" 
-                    placeholder="Giá trị trường" 
+                    placeholder={isVietnamese ? "Giá trị ban đầu" : "Initial value..."} 
                     value={newFieldValue}
                     onChange={e => setNewFieldValue(e.target.value)}
-                    className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-855 rounded bg-white dark:bg-slate-900 text-slate-755 dark:text-slate-200 outline-none"
+                    className="w-full px-3 py-1.5 text-xs border border-slate-200/90 dark:border-white/10 rounded-xl bg-white dark:bg-[#1a1a1a] text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all"
                   />
                 </div>
-                <div className="flex justify-end gap-1.5">
+                <div className="flex justify-end gap-1.5 pt-1">
                   <button 
                     type="button" 
                     onClick={() => {
@@ -1456,9 +1544,9 @@ export default function TaskDetailsPanel({
                       setNewFieldName('');
                       setNewFieldValue('');
                     }} 
-                    className="px-2 py-1 rounded text-[10px] text-slate-455 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.04] cursor-pointer transition-colors"
                   >
-                    Hủy
+                    {isVietnamese ? 'Hủy' : 'Cancel'}
                   </button>
                   <button 
                     type="button" 
@@ -1472,17 +1560,20 @@ export default function TaskDetailsPanel({
                       setNewFieldValue('');
                       setShowAddCustomField(false);
                     }} 
-                    className="px-2.5 py-1 rounded bg-indigo-650 text-white text-[10px] font-black cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-3xs"
                   >
-                    Lưu
+                    {isVietnamese ? 'Lưu trường' : 'Save field'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="pt-1">
-                <button type="button" onClick={() => setShowAddCustomField(true)}
-                  className="text-[10px] font-bold text-indigo-550 hover:underline cursor-pointer flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Thêm trường tùy chỉnh mới
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddCustomField(true)}
+                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> {isVietnamese ? 'Thêm trường tùy chỉnh' : 'Add custom field'}
                 </button>
               </div>
             )}
@@ -1496,7 +1587,7 @@ export default function TaskDetailsPanel({
     return (
       <div className="space-y-4 pt-6 border-t border-slate-200/80 dark:border-slate-800/80 text-left select-none relative z-10">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
-          <span className="text-[11px] font-bold text-slate-850 dark:text-slate-105 flex items-center gap-1.5 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
             <Activity className="w-4 h-4 text-indigo-500" />
             Nhật ký hoạt động và bình luận
           </span>
@@ -1509,7 +1600,7 @@ export default function TaskDetailsPanel({
                 onClick={() => setTimelineFilter(f)}
                 className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer capitalize ${
                   timelineFilter === f 
-                    ? 'bg-white dark:bg-slate-900 text-indigo-650 dark:text-indigo-400 shadow-3xs' 
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-3xs' 
                     : 'hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -1539,9 +1630,9 @@ export default function TaskDetailsPanel({
                           <History className="w-3 h-3 text-white" />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5 text-left">
-                          <div className="text-[12px] text-slate-650 dark:text-slate-305">
+                          <div className="text-[12px] text-slate-700 dark:text-slate-300">
                             <span className="font-extrabold text-slate-800 dark:text-slate-100">{item.userName}</span>
-                            <span className="ml-1 text-slate-555 dark:text-slate-400">{item.content}</span>
+                            <span className="ml-1 text-slate-500 dark:text-slate-400">{item.content}</span>
                           </div>
                           <div className="text-[9.5px] text-slate-400 mt-0.5">{item.timestamp}</div>
                         </div>
@@ -1569,14 +1660,14 @@ export default function TaskDetailsPanel({
                                 const foundMember = members.find(m => m.name === item.userName || m.id === (item as any).userId);
                                 if (foundMember) useUiStore.getState().setViewingMemberProfileId(foundMember.id);
                               }}
-                              className="font-extrabold text-slate-850 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors text-left"
+                              className="font-extrabold text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors text-left"
                               title={`Xem hồ sơ của ${item.userName}`}
                             >
                               {item.userName}
                             </button>
                             <span className="text-[9.5px] text-slate-400 font-medium">{item.timestamp}</span>
                           </div>
-                          <div className="p-3.5 rounded-2xl rounded-tl-none bg-slate-50/50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800/80 text-[12px] text-slate-655 dark:text-slate-300 leading-relaxed font-semibold shadow-3xs">
+                          <div className="p-3.5 rounded-2xl rounded-tl-none bg-slate-50/50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed font-semibold shadow-3xs">
                             {item.content}
                           </div>
                         </div>
@@ -1589,16 +1680,37 @@ export default function TaskDetailsPanel({
           )}
         </div>
 
-        {/* Comment Input */}
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-955/40 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/10 transition-all">
-          <input value={commentText} onChange={e => setCommentText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addComment(); }}
-            placeholder="Viết bình luận..."
-            className="flex-1 text-[12.5px] font-medium outline-none bg-transparent text-slate-800 dark:text-slate-100 placeholder-slate-400" />
-          <button onClick={addComment} disabled={!commentText.trim()}
-            className="p-1.5 rounded-lg bg-indigo-650 text-white cursor-pointer hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm">
-            <Send className="w-3.5 h-3.5" />
-          </button>
+        {/* Modern Comment Composer */}
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/70 dark:bg-white/[0.02] shadow-3xs focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all overflow-hidden">
+          <div className="p-3">
+            <textarea
+              rows={2}
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  addComment();
+                }
+              }}
+              placeholder={isVietnamese ? "Viết bình luận hoặc trao đổi (nhấn Enter để gửi, Shift+Enter xuống dòng)..." : "Write a comment (press Enter to send, Shift+Enter for new line)..."}
+              className="w-full text-xs font-medium resize-none bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 leading-relaxed custom-scrollbar"
+            />
+          </div>
+          <div className="flex items-center justify-between px-3 py-2 bg-white/60 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.05]">
+            <span className="text-[10px] text-slate-400 font-medium select-none">
+              {isVietnamese ? "Nhấn Enter để gửi" : "Press Enter to send"}
+            </span>
+            <button
+              type="button"
+              onClick={addComment}
+              disabled={!commentText.trim()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs hover:shadow-indigo-500/20 active:scale-95"
+            >
+              <span>{isVietnamese ? "Gửi" : "Send"}</span>
+              <Send className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1654,10 +1766,26 @@ export default function TaskDetailsPanel({
                   {showLinkTaskDropdown && (
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkTaskDropdown(false)} />
-                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
-                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
-                          onChange={e => setRelationshipSearchQuery(e.target.value)}
-                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-64 max-h-56 overflow-y-auto space-y-1">
+                        <div className="relative mb-1.5">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input 
+                            type="text" 
+                            placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} 
+                            value={relationshipSearchQuery}
+                            onChange={e => setRelationshipSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-7 py-1.5 border border-slate-200/90 dark:border-slate-700 text-xs rounded-xl outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all font-medium placeholder:text-slate-400" 
+                          />
+                          {relationshipSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setRelationshipSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                         {allTasks
                           .filter(t => t.id !== task.id && !task.relationships?.tasks?.includes(t.id))
                           .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
@@ -1722,10 +1850,26 @@ export default function TaskDetailsPanel({
                   {showLinkDocDropdown && (
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowLinkDocDropdown(false)} />
-                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
-                        <input type="text" placeholder={isVietnamese ? "Tìm tài liệu..." : "Search docs..."} value={relationshipSearchQuery}
-                          onChange={e => setRelationshipSearchQuery(e.target.value)}
-                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-64 max-h-56 overflow-y-auto space-y-1">
+                        <div className="relative mb-1.5">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input 
+                            type="text" 
+                            placeholder={isVietnamese ? "Tìm tài liệu..." : "Search docs..."} 
+                            value={relationshipSearchQuery}
+                            onChange={e => setRelationshipSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-7 py-1.5 border border-slate-200/90 dark:border-slate-700 text-xs rounded-xl outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all font-medium placeholder:text-slate-400" 
+                          />
+                          {relationshipSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setRelationshipSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                         {allDocs
                           .filter(d => !task.relationships?.docs?.includes(d.id))
                           .filter(d => d.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
@@ -1793,10 +1937,26 @@ export default function TaskDetailsPanel({
                   {showBlockedByDropdown && (
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlockedByDropdown(false)} />
-                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
-                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
-                          onChange={e => setRelationshipSearchQuery(e.target.value)}
-                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-64 max-h-56 overflow-y-auto space-y-1">
+                        <div className="relative mb-1.5">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input 
+                            type="text" 
+                            placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} 
+                            value={relationshipSearchQuery}
+                            onChange={e => setRelationshipSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-7 py-1.5 border border-slate-200/90 dark:border-slate-700 text-xs rounded-xl outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all font-medium placeholder:text-slate-400" 
+                          />
+                          {relationshipSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setRelationshipSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                         {allTasks
                           .filter(t => t.id !== task.id && !task.relationships?.blockedBy?.includes(t.id) && !task.relationships?.blocks?.includes(t.id))
                           .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
@@ -1861,10 +2021,26 @@ export default function TaskDetailsPanel({
                   {showBlocksDropdown && (
                     <>
                       <div className="fixed inset-0 z-20 cursor-default" onClick={() => setShowBlocksDropdown(false)} />
-                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-60 max-h-48 overflow-y-auto space-y-1">
-                        <input type="text" placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} value={relationshipSearchQuery}
-                          onChange={e => setRelationshipSearchQuery(e.target.value)}
-                          className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-750 text-xs rounded-lg mb-1 outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/60" />
+                      <div className="absolute right-0 mt-1.5 z-30 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-64 max-h-56 overflow-y-auto space-y-1">
+                        <div className="relative mb-1.5">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input 
+                            type="text" 
+                            placeholder={isVietnamese ? "Tìm công việc..." : "Search task..."} 
+                            value={relationshipSearchQuery}
+                            onChange={e => setRelationshipSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-7 py-1.5 border border-slate-200/90 dark:border-slate-700 text-xs rounded-xl outline-none text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15 transition-all font-medium placeholder:text-slate-400" 
+                          />
+                          {relationshipSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setRelationshipSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                         {allTasks
                           .filter(t => t.id !== task.id && !task.relationships?.blocks?.includes(t.id) && !task.relationships?.blockedBy?.includes(t.id))
                           .filter(t => t.title.toLowerCase().includes(relationshipSearchQuery.toLowerCase()))
@@ -1986,15 +2162,15 @@ export default function TaskDetailsPanel({
     const response = aiResponseText || aiSummary;
 
     return (
-      <section className="rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-gradient-to-r from-indigo-50/60 via-sky-50/20 to-purple-50/30 dark:from-indigo-950/20 dark:via-slate-900/40 dark:to-purple-950/15 overflow-hidden shadow-xs">
-        <div className="w-full flex items-center justify-between gap-3 px-3.5 py-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center shadow-2xs shrink-0">
+      <section className="rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-sky-50/60 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-sky-950/20 overflow-hidden shadow-3xs transition-all">
+        <div className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-500 text-white flex items-center justify-center shadow-2xs shrink-0 ring-2 ring-indigo-500/20">
               <Sparkles className="w-3 h-3" />
             </div>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 shrink-0">Apexa Brain AI</span>
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate hidden sm:inline">• {isVietnamese ? 'Trợ lý phân tích & tối ưu công việc' : 'Smart task copilot'}</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white shrink-0 tracking-tight">Apexa Brain AI</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate hidden sm:inline">• {isVietnamese ? 'Trợ lý phân tích & copilot công việc' : 'Smart task copilot'}</span>
             </div>
           </div>
 
@@ -2003,25 +2179,25 @@ export default function TaskDetailsPanel({
               type="button"
               onClick={() => onAiSummary(task)}
               disabled={isSummarizing}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900/90 border border-indigo-200/70 dark:border-indigo-900/60 text-[10.5px] font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all cursor-pointer shadow-3xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-850 border border-indigo-200/80 dark:border-indigo-800/60 text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-indigo-200 transition-all cursor-pointer shadow-3xs disabled:opacity-50 active:scale-95"
             >
-              <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin' : ''}`} />
+              <Sparkles className={`w-3 h-3 ${isSummarizing ? 'animate-spin text-indigo-500' : 'text-indigo-500'}`} />
               <span>{isSummarizing ? 'Đang tóm tắt…' : 'Tóm tắt'}</span>
             </button>
             <button
               type="button"
               onClick={() => onAiSubtasks(task)}
               disabled={aiGenerating}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900/90 border border-emerald-200/70 dark:border-emerald-900/60 text-[10.5px] font-semibold text-emerald-600 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-all cursor-pointer shadow-3xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-850 border border-emerald-200/80 dark:border-emerald-800/60 text-[11px] font-bold text-emerald-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-emerald-200 transition-all cursor-pointer shadow-3xs disabled:opacity-50 active:scale-95"
             >
-              <CheckSquare className="w-3 h-3" />
+              <CheckSquare className="w-3 h-3 text-emerald-500" />
               <span>{aiGenerating ? 'Đang tạo…' : 'Tạo việc con'}</span>
             </button>
             <button
               type="button"
               onClick={() => setIsAiPanelOpen(open => !open)}
               aria-expanded={isAiPanelOpen}
-              className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-white/80 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
               title={isAiPanelOpen ? "Thu gọn AI" : "Mở rộng hỏi đáp AI"}
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAiPanelOpen ? 'rotate-180' : ''}`} />
@@ -2038,7 +2214,40 @@ export default function TaskDetailsPanel({
               className="overflow-hidden"
             >
               <div className="px-4 pb-3.5 pt-1 border-t border-indigo-100/80 dark:border-indigo-900/40 space-y-2.5">
-                <div className="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 p-1.5 focus-within:border-indigo-400 transition-colors shadow-3xs">
+                {/* AI Copilot Quick Actions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider select-none mr-1">
+                    Gợi ý nhanh:
+                  </span>
+                  <button
+                    type="button"
+                    disabled={aiGeneratingResponse}
+                    onClick={() => handleAiQuery('Phân tích chuyên sâu về rủi ro kỹ thuật, giả định, sự phụ thuộc (dependencies) và điểm nghẽn (bottlenecks) có thể gây chậm trễ cho công việc này. Đưa ra 3 khuyến nghị hành động cụ thể để phòng ngừa.')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100/80 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/50 text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                    <span>Phân tích rủi ro & điểm nghẽn</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={aiGeneratingResponse}
+                    onClick={() => handleAiQuery('Cải thiện mô tả: Viết lại toàn bộ mô tả công việc này theo chuẩn Agile User Story chuyên nghiệp (Format: Là một [Vai trò], Tôi muốn [Hành động], Để [Giá trị mang lại]) kèm theo danh sách Acceptance Criteria (Tiêu chí nghiệm thu) dạng Checklist chi tiết, rõ ràng và có thể kiểm thử được.')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50 text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    <Sparkles className="w-3 h-3 text-indigo-500" />
+                    <span>Chuẩn hóa Agile (User Story)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSuggestTags}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                  >
+                    <Tag className="w-3 h-3 text-slate-500" />
+                    <span>Gợi ý nhãn</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-1.5 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-3xs">
                   <input
                     type="text"
                     value={aiPrompt}
@@ -2050,7 +2259,7 @@ export default function TaskDetailsPanel({
                       }
                     }}
                     placeholder="Đặt câu hỏi hoặc yêu cầu Apexa Brain hỗ trợ công việc này…"
-                    className="flex-1 bg-transparent outline-none px-2 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    className="flex-1 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none px-2 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
                   <button
                     type="button"
@@ -2241,11 +2450,11 @@ export default function TaskDetailsPanel({
                 {/* Share Button & Popover */}
                 <div className="relative">
                   <button 
-                    type="button"
+                    type="button" 
                     onClick={() => setShowSharePopover(!showSharePopover)}
-                    className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-blue-50/80 hover:bg-blue-100/80 dark:bg-sky-950/40 dark:hover:bg-sky-950/70 border border-blue-200/60 dark:border-sky-800/50 text-[11px] font-bold text-blue-700 dark:text-sky-400 transition-all cursor-pointer shadow-3xs sm:mr-1"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] text-[11px] font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-3xs sm:mr-1"
                   >
-                    <Users className="w-3.5 h-3.5" />
+                    <Share2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                     <span className="hidden sm:inline">{isVietnamese ? 'Chia sẻ' : 'Share'}</span>
                   </button>
 
@@ -2272,7 +2481,7 @@ export default function TaskDetailsPanel({
                             <input 
                               readOnly 
                               value={createTaskLink()} 
-                              className="w-full text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none select-all truncate" 
+                              className="w-full text-[11px] font-mono text-slate-600 dark:text-slate-300 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 select-all truncate" 
                             />
                             <button
                               type="button"
@@ -2482,7 +2691,29 @@ export default function TaskDetailsPanel({
                   </button>
                 )}
 
-                <button type="button" onClick={onClose} aria-label="Đóng chi tiết công việc" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-655 hover:bg-slate-105 dark:hover:bg-slate-800 transition-all cursor-pointer">
+                {modalLayout !== 'sidebar' && (
+                  <button 
+                    type="button" 
+                    onClick={togglePropertiesSidebar}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                      isPropertiesSidebarOpen 
+                        ? 'bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/60 shadow-3xs' 
+                        : 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/10'
+                    }`}
+                    title={isPropertiesSidebarOpen ? (isVietnamese ? "Thu gọn thuộc tính (Ctrl+\\)" : "Collapse properties (Ctrl+\\)") : (isVietnamese ? "Mở thuộc tính (Ctrl+\\)" : "Expand properties (Ctrl+\\)")}
+                  >
+                    {isPropertiesSidebarOpen ? (
+                      <PanelRightClose className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    ) : (
+                      <PanelRightOpen className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                    )}
+                    <span className="hidden sm:inline text-[11px] font-bold">
+                      {isPropertiesSidebarOpen ? (isVietnamese ? 'Thu gọn' : 'Collapse') : (isVietnamese ? 'Thuộc tính' : 'Properties')}
+                    </span>
+                  </button>
+                )}
+
+                <button type="button" onClick={onClose} aria-label="Đóng chi tiết công việc" className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer" title={isVietnamese ? "Đóng (Esc)" : "Close (Esc)"}>
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2501,23 +2732,23 @@ export default function TaskDetailsPanel({
             {/* ── Content Body Render ── */}
             {isTwoColumn ? (
               // ── Two Column Layout (Linear style) ──
-              <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden">
+              <div className="flex-1 flex flex-col lg:flex-row min-w-0 overflow-y-auto lg:overflow-hidden relative">
                 
                 {/* Left: Main details (Scrollable) */}
                 <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-4 sm:p-5 md:p-6 lg:px-7 space-y-5 sm:space-y-6">
                   
                   {/* Blocked Warning Banner */}
                   {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                    <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/50 dark:bg-amber-955/20 border border-amber-250/55 dark:border-amber-900/30 rounded-2xl text-left select-none shadow-3xs relative z-10">
-                      <Hourglass className="w-4.5 h-4.5 text-amber-550 shrink-0 mt-0.5 animate-pulse" />
+                    <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl text-left select-none shadow-3xs relative z-10">
+                      <Hourglass className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
                       <div className="space-y-1">
-                        <div className="text-xs font-black text-amber-800 dark:text-amber-305">Công việc này đang chờ các công việc khác</div>
-                        <div className="text-[11.5px] font-semibold text-amber-705 dark:text-amber-400/80 leading-relaxed">
+                        <div className="text-xs font-black text-amber-900 dark:text-amber-200">Công việc này đang chờ các công việc khác</div>
+                        <div className="text-[11.5px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
                           Trước khi bắt đầu, bạn phải hoàn thành: {' '}
                           {task.relationships.blockedBy.map((id, index) => {
                             const t = allTasks.find(item => item.id === id);
                             return (
-                              <span key={id} className="font-extrabold text-amber-800 dark:text-amber-300">
+                              <span key={id} className="font-extrabold text-amber-900 dark:text-amber-200">
                                 {index > 0 ? ', ' : ''}
                                 "{t?.title || id}"
                               </span>
@@ -2545,14 +2776,14 @@ export default function TaskDetailsPanel({
                           (window as any).playSystemSound?.('toggle');
                         }
                       }}
-                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-110 mt-0.5 shadow-2xs ${
+                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer transition-all hover:scale-105 mt-1 shadow-2xs ${
                         task.status === 'completed'
-                          ? 'border-emerald-500 bg-emerald-500 text-white animate-pulse-once'
+                          ? 'border-emerald-500 bg-emerald-500 text-white ring-4 ring-emerald-500/15 animate-pulse-once'
                           : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-transparent hover:border-emerald-500 hover:text-emerald-500'
                       }`}
-                      title={task.status === 'completed' ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+                      title={task.status === 'completed' ? (isVietnamese ? 'Đánh dấu chưa hoàn thành' : 'Mark incomplete') : (isVietnamese ? 'Đánh dấu hoàn thành' : 'Mark completed')}
                     >
-                      <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                      <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
                     </button>
 
                     <div className="flex-1 min-w-0">
@@ -2578,12 +2809,121 @@ export default function TaskDetailsPanel({
                     </div>
                   </div>
 
+                  {/* Collapsed Sidebar Quick-Properties Strip (Linear style) */}
+                  {!isPropertiesSidebarOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex flex-wrap items-center gap-2 p-2 px-3 rounded-2xl bg-slate-50/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] shadow-3xs"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-0.5 hidden sm:inline select-none">
+                        {isVietnamese ? 'Thuộc tính:' : 'Properties:'}
+                      </span>
+
+                      {/* Status */}
+                      <StatusPillSelect 
+                        value={task.status} 
+                        onChange={s => { onUpdateTask({ ...task, status: s }); onAddSyncLog(`Status → ${s}`); }} 
+                      />
+
+                      {/* Assignee */}
+                      <AssigneePillSelect
+                        value={task.assigneeIds && task.assigneeIds.length > 0 ? task.assigneeIds : (task.assigneeId ? [task.assigneeId] : [])}
+                        members={members}
+                        onChange={newIds => {
+                          const nextIds = newIds || [];
+                          onUpdateTask({
+                            ...task,
+                            assigneeIds: nextIds,
+                            assigneeId: nextIds[0] || undefined,
+                            custom_fields: {
+                              ...(task.custom_fields || {}),
+                              assigneeIds: nextIds
+                            }
+                          });
+                        }}
+                      />
+
+                      {/* Priority */}
+                      <PriorityPillSelect 
+                        value={task.priority} 
+                        onChange={p => { onUpdateTask({ ...task, priority: p || 'medium' }); onAddSyncLog(`Priority → ${p}`); }} 
+                      />
+
+                      {/* Due Date */}
+                      <PremiumDatePicker 
+                        startDateValue={task.startDate || ''}
+                        onStartDateChange={v => onUpdateTask({ ...task, startDate: v || '' })}
+                        dateValue={task.dueDate || ''}
+                        onChange={v => onUpdateTask({ ...task, dueDate: v || '' })} 
+                        label={isVietnamese ? "Hạn chót" : "Due date"} 
+                        align="left"
+                        taskId={task.id}
+                        taskTitle={task.title}
+                        reminderValue={task.reminder || (task.custom_fields?.reminder as ReminderOption)}
+                        onReminderChange={r => {
+                          onUpdateTask({ ...task, reminder: r, custom_fields: { ...(task.custom_fields || {}), reminder: r } });
+                          saveTaskReminder(task.id, task.title, task.dueDate || '', r);
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${task.dueDate ? 'text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900'}`} 
+                      />
+
+                      {/* Recurrence Pill with Bỏ lặp lại button */}
+                      {task.recurrence && task.recurrence.frequency !== 'none' ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-3xs">
+                          <RefreshCw className="w-3 h-3 text-purple-500 animate-spin-slow" />
+                          <span>
+                            {task.recurrence.frequency === 'daily' ? (isVietnamese ? 'Hằng ngày' : 'Daily') :
+                             task.recurrence.frequency === 'weekly' ? (isVietnamese ? 'Hằng tuần' : 'Weekly') :
+                             (isVietnamese ? 'Hằng tháng' : 'Monthly')}
+                            {(task.recurrence.interval || 1) > 1 ? ` (${task.recurrence.interval})` : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onUpdateTask({ ...task, recurrence: undefined });
+                              onAddSyncLog(isVietnamese ? 'Đã bỏ lặp lại công việc' : 'Removed task recurrence');
+                            }}
+                            className="ml-0.5 p-0.5 text-purple-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-full transition-colors cursor-pointer"
+                            title={isVietnamese ? 'Bỏ lặp lại' : 'Remove recurrence'}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onUpdateTask({ ...task, recurrence: { frequency: 'daily', interval: 1 } });
+                            onAddSyncLog(isVietnamese ? 'Đã bật lặp lại hằng ngày' : 'Set daily recurrence');
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-medium text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-dashed border-slate-200/80 dark:border-slate-800 hover:border-purple-300 transition-all cursor-pointer"
+                          title={isVietnamese ? 'Bật lặp lại hằng ngày' : 'Set daily recurrence'}
+                        >
+                          <RefreshCw className="w-3 h-3 text-purple-400" />
+                          <span className="hidden md:inline">{isVietnamese ? '+ Lặp lại' : '+ Repeat'}</span>
+                        </button>
+                      )}
+
+                      {/* Open Full Sidebar button */}
+                      <button
+                        type="button"
+                        onClick={togglePropertiesSidebar}
+                        className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer select-none"
+                        title={isVietnamese ? 'Mở bảng thuộc tính chi tiết (Ctrl+\\)' : 'Open full properties (Ctrl+\\)'}
+                      >
+                        <PanelRightOpen className="w-3.5 h-3.5" />
+                        <span>{isVietnamese ? 'Mở thuộc tính' : 'All properties'}</span>
+                      </button>
+                    </motion.div>
+                  )}
+
                   {/* Quick Actions Bar */}
                   <div className="flex flex-wrap items-center gap-2 py-2 border-y border-slate-100 dark:border-white/[0.06]">
                     <button 
                       type="button"
                       onClick={focusSubtaskComposer}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-indigo-50/60 dark:bg-white/[0.04] dark:hover:bg-indigo-950/30 border border-slate-200/80 hover:border-indigo-200/80 dark:border-white/[0.08] dark:hover:border-indigo-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-200 dark:hover:text-indigo-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
                     >
                       <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
                       <span>{isVietnamese ? 'Công việc con' : 'Subtask'}</span>
@@ -2591,7 +2931,7 @@ export default function TaskDetailsPanel({
                     <button 
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-amber-50/60 dark:bg-white/[0.04] dark:hover:bg-amber-950/30 border border-slate-200/80 hover:border-amber-200/80 dark:border-white/[0.08] dark:hover:border-amber-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-amber-600 dark:text-slate-200 dark:hover:text-amber-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
                     >
                       <Paperclip className="w-3.5 h-3.5 text-amber-500" />
                       <span>{isVietnamese ? 'Đính kèm tệp' : 'Attach File'}</span>
@@ -2599,7 +2939,7 @@ export default function TaskDetailsPanel({
                     <button 
                       type="button"
                       onClick={scrollToRelationships}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-sky-50/60 dark:bg-white/[0.04] dark:hover:bg-sky-950/30 border border-slate-200/80 hover:border-sky-200/80 dark:border-white/[0.08] dark:hover:border-sky-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-sky-600 dark:text-slate-200 dark:hover:text-sky-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
                     >
                       <Tag className="w-3.5 h-3.5 text-sky-500" />
                       <span>{isVietnamese ? 'Liên kết mục' : 'Link Items'}</span>
@@ -2607,7 +2947,7 @@ export default function TaskDetailsPanel({
                     <button 
                       type="button"
                       onClick={onOpenFieldsPanel} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-slate-200/80 dark:border-white/[0.08] rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer select-none shadow-3xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-purple-50/60 dark:bg-white/[0.04] dark:hover:bg-purple-950/30 border border-slate-200/80 hover:border-purple-200/80 dark:border-white/[0.08] dark:hover:border-purple-800/60 rounded-xl text-xs font-semibold text-slate-700 hover:text-purple-600 dark:text-slate-200 dark:hover:text-purple-400 transition-all cursor-pointer select-none shadow-3xs active:scale-95"
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" />
                       <span>{isVietnamese ? 'Thêm trường' : 'Custom Field'}</span>
@@ -2685,7 +3025,7 @@ export default function TaskDetailsPanel({
                                         onChange={e => setEditingSubtaskValue(e.target.value)}
                                         onKeyDown={e => { if (e.key === 'Enter') editSubtask(sub.id, editingSubtaskValue); if (e.key === 'Escape') setEditingSubtaskId(null); }}
                                         onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
-                                        className="flex-1 text-[12.5px] font-semibold bg-transparent border-b-2 border-indigo-405 outline-none py-0.5 text-slate-855 dark:text-slate-200" />
+                                        className="flex-1 w-full text-[12.5px] font-bold bg-transparent border-b-2 border-indigo-500 outline-none focus:outline-none focus:ring-0 py-0.5 text-slate-900 dark:text-slate-100" />
                                     ) : (
                                       <span onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
                                         className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200 font-bold'}`}>
@@ -2693,25 +3033,25 @@ export default function TaskDetailsPanel({
                                       </span>
                                     )}
 
-                                    <div className="w-4.5 h-4.5 rounded-full bg-slate-105 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[8px] font-black select-none shrink-0 border border-slate-200/50 dark:border-slate-700/50" title="Người phụ trách">
+                                    <div className="w-4.5 h-4.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center text-[8px] font-black select-none shrink-0 border border-slate-200/50 dark:border-slate-700/50" title="Người phụ trách">
                                       {members.find(m => m.id === task.assigneeId)?.name.substring(0, 1) || 'A'}
                                     </div>
 
-                                    <span className="text-[8px] bg-slate-105 dark:bg-slate-805 text-slate-455 px-1 py-0.5 rounded flex items-center gap-0.5 select-none shrink-0 font-bold">
+                                    <span className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1 py-0.5 rounded flex items-center gap-0.5 select-none shrink-0 font-bold">
                                       <Calendar className="w-2.5 h-2.5" />
                                       <span>Hôm nay</span>
                                     </span>
 
                                     <button 
                                       onClick={() => convertChecklistItemToSubtask(sub.id, sub.title)}
-                                      className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-55 dark:bg-indigo-955/40 text-indigo-650 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
+                                      className="px-1.5 py-0.5 rounded text-[8px] font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
                                       title="Chuyển mục kiểm tra thành công việc con"
                                     >
                                       Chuyển đổi
                                     </button>
 
                                     <button onClick={() => deleteSubtask(sub.id)}
-                                      className="p-1 text-slate-355 hover:text-rose-500 hover:bg-rose-55 dark:hover:bg-rose-955/20 rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0">
+                                      className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0">
                                       <X className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
@@ -2724,14 +3064,27 @@ export default function TaskDetailsPanel({
                       </Droppable>
                     </DragDropContext>
 
-                    <div className="flex items-center gap-2.5 px-3">
-                      <div className="w-[18px] h-[18px] rounded-md border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0">
-                        <Plus className="w-2.5 h-2.5 text-slate-400" />
+                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.02] border border-dashed border-slate-200/80 dark:border-white/[0.08] focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-solid focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-3xs">
+                      <div className="w-5 h-5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                        <Plus className="w-3 h-3" />
                       </div>
-                      <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
+                      <input 
+                        ref={newSubtaskInputRef} 
+                        value={newSubtaskTitle} 
+                        onChange={e => setNewSubtaskTitle(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
-                        placeholder="Thêm công việc con mới..."
-                        className="flex-1 text-[12.5px] font-medium text-slate-700 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none py-1.5 placeholder-slate-400 transition-colors" />
+                        placeholder={isVietnamese ? "Thêm công việc con mới (nhấn Enter)..." : "Add subtask item (press Enter)..."}
+                        className="flex-1 text-xs font-medium text-slate-800 dark:text-slate-100 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 placeholder:text-slate-400" 
+                      />
+                      {newSubtaskTitle.trim() && (
+                        <button
+                          type="button"
+                          onClick={addSubtask}
+                          className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                        >
+                          {isVietnamese ? "Thêm" : "Add"}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -2744,29 +3097,63 @@ export default function TaskDetailsPanel({
                   {renderTimelineFeed()}
                 </div>
 
-                {/* Right: Sidebar properties panel (Scrollable) */}
-                <div className="apexa-task-properties w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto p-4 sm:p-5 space-y-4 text-left relative z-10 custom-scrollbar">
-                  <div>
-                    <div className="flex items-center justify-between mb-2 select-none">
-                      <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                        {isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}
-                      </h3>
-                      <button 
-                        type="button" 
-                        onClick={onOpenFieldsPanel} 
-                        className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer"
-                      >
-                        + {isVietnamese ? 'Tùy chỉnh' : 'Customize'}
-                      </button>
-                    </div>
-                    <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
-                      {renderPropertiesTable()}
-                    </div>
-                  </div>
-                  <div>
-                    {renderCustomFieldsAccordion()}
-                  </div>
-                </div>
+                {/* Docked Edge Tab to reopen sidebar when collapsed */}
+                {!isPropertiesSidebarOpen && (
+                  <button
+                    type="button"
+                    onClick={togglePropertiesSidebar}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 hidden lg:flex items-center justify-center py-3.5 px-1.5 rounded-l-xl bg-white dark:bg-[#1a1a1a] border border-r-0 border-slate-200/80 dark:border-white/10 shadow-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all cursor-pointer group"
+                    title={isVietnamese ? "Mở thuộc tính công việc (Ctrl+\\)" : "Expand task properties (Ctrl+\\)"}
+                  >
+                    <PanelRightOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
+
+                {/* Right: Sidebar properties panel (Collapsible) */}
+                <AnimatePresence initial={false}>
+                  {isPropertiesSidebarOpen && (
+                    <motion.div 
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 350, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                      className="apexa-task-properties w-full lg:w-[350px] shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200/80 dark:border-white/[0.08] bg-slate-50/40 dark:bg-[#151515] lg:overflow-y-auto text-left relative z-10 custom-scrollbar overflow-x-hidden"
+                    >
+                      <div className="w-[350px] p-4 sm:p-5 space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5 select-none">
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              {isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}
+                            </h3>
+                            <div className="flex items-center gap-1.5">
+                              <button 
+                                type="button" 
+                                onClick={onOpenFieldsPanel} 
+                                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline cursor-pointer"
+                              >
+                                + {isVietnamese ? 'Tùy chỉnh' : 'Customize'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={togglePropertiesSidebar}
+                                className="p-1 rounded-md hover:bg-slate-200/80 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+                                title={isVietnamese ? 'Thu gọn thuộc tính' : 'Collapse properties'}
+                              >
+                                <PanelRightClose className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-3.5 border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
+                            {renderPropertiesTable()}
+                          </div>
+                        </div>
+                        <div>
+                          {renderCustomFieldsAccordion()}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
               </div>
             ) : (
@@ -2775,16 +3162,16 @@ export default function TaskDetailsPanel({
                 
                 {/* Blocked Warning Banner */}
                 {task.relationships?.blockedBy && task.relationships.blockedBy.length > 0 && (
-                  <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/50 dark:bg-amber-955/20 border border-amber-250/55 dark:border-amber-900/30 rounded-2xl text-left select-none shadow-3xs relative z-10">
-                    <Hourglass className="w-4.5 h-4.5 text-amber-550 shrink-0 mt-0.5 animate-pulse" />
+                  <div className="flex items-start gap-2.5 p-3.5 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl text-left select-none shadow-3xs relative z-10">
+                    <Hourglass className="w-4.5 h-4.5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
                     <div className="space-y-1">
-                      <div className="text-xs font-black text-amber-800 dark:text-amber-305">Công việc này đang chờ các công việc khác</div>
-                      <div className="text-[11.5px] font-semibold text-amber-705 dark:text-amber-400/80 leading-relaxed">
+                      <div className="text-xs font-black text-amber-900 dark:text-amber-200">Công việc này đang chờ các công việc khác</div>
+                      <div className="text-[11.5px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
                         Trước khi bắt đầu, bạn phải hoàn thành: {' '}
                         {task.relationships.blockedBy.map((id, index) => {
                           const t = allTasks.find(item => item.id === id);
                           return (
-                            <span key={id} className="font-extrabold text-amber-800 dark:text-amber-300">
+                            <span key={id} className="font-extrabold text-amber-900 dark:text-amber-200">
                               {index > 0 ? ', ' : ''}
                               "{t?.title || id}"
                             </span>
@@ -2936,10 +3323,10 @@ export default function TaskDetailsPanel({
                                       onChange={e => setEditingSubtaskValue(e.target.value)}
                                       onKeyDown={e => { if (e.key === 'Enter') editSubtask(sub.id, editingSubtaskValue); if (e.key === 'Escape') setEditingSubtaskId(null); }}
                                       onBlur={() => editSubtask(sub.id, editingSubtaskValue)}
-                                      className="flex-1 text-[12.5px] font-medium bg-transparent border-b-2 border-indigo-400 outline-none py-0.5 text-slate-850 dark:text-slate-205" />
+                                      className="flex-1 text-[12.5px] font-bold bg-transparent border-b-2 border-indigo-500 outline-none focus:outline-none focus:ring-0 py-0.5 text-slate-900 dark:text-slate-100" />
                                   ) : (
                                     <span onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskValue(sub.title); }}
-                                      className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-405 dark:text-slate-500' : 'text-slate-700 dark:text-slate-250 font-bold'}`}>
+                                      className={`flex-1 text-[12.5px] cursor-text text-left transition-all ${sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-100 font-bold'}`}>
                                       {sub.title}
                                     </span>
                                   )}
@@ -2958,11 +3345,27 @@ export default function TaskDetailsPanel({
                     </Droppable>
                   </DragDropContext>
 
-                  <div className="flex items-center gap-2.5 px-3">
-                    <input ref={newSubtaskInputRef} value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)}
+                  <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.02] border border-dashed border-slate-200/80 dark:border-white/[0.08] focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-solid focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-3xs">
+                    <div className="w-5 h-5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                      <Plus className="w-3 h-3" />
+                    </div>
+                    <input 
+                      ref={newSubtaskInputRef} 
+                      value={newSubtaskTitle} 
+                      onChange={e => setNewSubtaskTitle(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addSubtask(); }}
-                      placeholder="Thêm công việc con..."
-                      className="flex-1 text-[12px] font-medium text-slate-755 dark:text-slate-200 bg-transparent border-b border-transparent focus:border-indigo-405 outline-none py-1 placeholder-slate-450" />
+                      placeholder={isVietnamese ? "Thêm công việc con mới (nhấn Enter)..." : "Add subtask item (press Enter)..."}
+                      className="flex-1 text-xs font-medium text-slate-800 dark:text-slate-100 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 placeholder:text-slate-400" 
+                    />
+                    {newSubtaskTitle.trim() && (
+                      <button
+                        type="button"
+                        onClick={addSubtask}
+                        className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                      >
+                        {isVietnamese ? "Thêm" : "Add"}
+                      </button>
+                    )}
                   </div>
                 </div>
 

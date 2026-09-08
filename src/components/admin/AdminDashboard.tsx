@@ -737,7 +737,7 @@ export default function AdminDashboard() {
                               30 ngày
                             </span>
                           </div>
-                          <p className="mt-1 text-[10.5px] font-medium text-slate-400">Đăng ký mới xác thực từ Supabase Auth</p>
+                          <p className="mt-1 text-[10.5px] font-medium text-slate-400">Tài khoản đăng ký mới đã xác thực</p>
                         </div>
                         <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
                           <TrendingUp className="h-4 w-4" />
@@ -926,7 +926,7 @@ export default function AdminDashboard() {
                 <div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white">Quản lý người dùng</h2>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Supabase Auth · Hồ sơ quản trị · Subscription · Trạng thái truy cập
+                    Tài khoản hệ thống · Hồ sơ người dùng · Gói dịch vụ · Trạng thái truy cập
                   </p>
                 </div>
                 <button
@@ -1169,7 +1169,7 @@ export default function AdminDashboard() {
       {/* ── MODAL: MỜI NGƯỜI DÙNG ── */}
       <AnimatePresence>
         {showInvite && (
-          <Modal title="Mời người dùng mới" description="Supabase Auth sẽ gửi email xác nhận bảo mật kèm liên kết truy cập." onClose={() => setShowInvite(false)}>
+          <Modal title="Mời người dùng mới" description="Hệ thống sẽ gửi email xác nhận bảo mật kèm liên kết kích hoạt tài khoản." onClose={() => setShowInvite(false)}>
             <Field label="Địa chỉ Email">
               <input
                 type="email"
@@ -1397,7 +1397,7 @@ export default function AdminDashboard() {
             }
             description={
               confirmAction.type === 'delete'
-                ? 'Tài khoản sẽ bị đánh dấu xóa trong Supabase Auth. Mọi hành động được ghi vào Audit Log bất biến.'
+                ? 'Tài khoản sẽ bị vô hiệu hóa quyền truy cập. Mọi hành động được ghi vào Nhật ký hệ thống bất biến.'
                 : `${confirmAction.user.email} · Mọi thay đổi trạng thái sẽ có hiệu lực tức thì.`
             }
             onClose={() => { setConfirmAction(null); setDeleteConfirmation(''); }}

@@ -68,6 +68,12 @@
   outline: 2px solid #5687f1;
   outline-offset: 3px;
 }
+.apexa-app-shell.apexa-design-system :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+.apexa-app-shell.apexa-design-system :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
 .apexa-app-shell.apexa-design-system :where(button, a, input, select, textarea) { touch-action: manipulation; }
 .apexa-app-shell.apexa-design-system :where(button:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
 .apexa-app-shell.apexa-design-system :where(input, textarea)::placeholder { color: var(--cu-text-muted); opacity: .85; }
@@ -159,17 +165,11 @@
 .apexa-task-dialog :where(.font-black, .font-extrabold) { font-weight: 650; }
 .apexa-task-dialog .text-\[10px\] { font-size: 11px; }
 .apexa-task-dialog .text-\[11px\] { font-size: 12px; }
-.apexa-task-dialog :where(button, input, select, textarea):focus-visible { outline: 2px solid #5687f1; outline-offset: 2px; }
-.apexa-task-dialog .apexa-task-properties { width: 310px; padding: 20px; background: #f8f9fb; border-color: var(--task-panel-border); }
-.dark .apexa-task-dialog .apexa-task-properties { background: #191f28; }
-.apexa-task-dialog .apexa-task-properties :where(button, input) { min-height: 32px; }
+.apexa-task-dialog :where(button, input, select, textarea):focus-visible { outline: none; }
+.apexa-task-dialog .apexa-task-properties { border-color: var(--task-panel-border); }
 .apexa-task-dialog .apexa-task-properties .truncate { min-width: 0; }
-.apexa-task-dialog .apexa-task-properties .group\/row { flex-wrap: wrap; gap: 8px; padding-block: 12px; }
-.apexa-task-dialog .apexa-task-properties .group\/row > span { width: 100%; }
-.apexa-task-dialog .apexa-task-properties .group\/row > div { flex-basis: 100%; justify-content: flex-start; }
-.apexa-task-dialog .apexa-task-properties button { white-space: nowrap; }
-.apexa-task-dialog .apexa-task-properties .w-32 { width: 108px; }
 .apexa-task-dialog .apexa-task-detail-header { min-height: 60px; box-shadow: none; }
+
 
 @media (min-width: 768px) and (max-width: 1199px) {
   .apexa-app-shell.apexa-design-system { --cu-sidebar-width: 208px; }

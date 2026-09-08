@@ -273,17 +273,17 @@
   --slate-900: #0a0a0a;
   --slate-950: #000000;
 
-  --slate-55: #0a0a0a;
-  --slate-101: #0f0f0f;
-  --slate-105: #121212;
-  --slate-150: #181818;
-  --slate-202: #1c1c1c;
+  --slate-55: #fafafa;
+  --slate-101: #f4f4f5;
+  --slate-105: #f4f4f5;
+  --slate-150: #e4e4e7;
+  --slate-202: #e4e4e7;
   --slate-205: #e4e4e7;
-  --slate-250: #222222;
-  --slate-255: #222222;
-  --slate-305: #27272a;
-  --slate-350: #27272a;
-  --slate-355: #27272a;
+  --slate-250: #d4d4d8;
+  --slate-255: #d4d4d8;
+  --slate-305: #cbd5e1;
+  --slate-350: #cbd5e1;
+  --slate-355: #cbd5e1;
   --slate-404: #a0a0a0;
   --slate-405: #a0a0a0;
   --slate-450: #a0a0a0;
@@ -2035,6 +2035,13 @@ html[data-blur-intensity='immersive'] [class*='backdrop-blur'] {
   outline-offset: 2px;
 }
 
+.apexa-app-shell :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+.apexa-app-shell :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
 .apexa-app-shell :where(input, textarea, select)::placeholder {
   color: var(--cu-text-muted);
   opacity: 0.8;
@@ -2898,6 +2905,13 @@ input[type="checkbox"]:not(.sr-only):disabled {
   outline-offset: 2px;
 }
 
+.apexa-space-shell :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus,
+.apexa-space-shell :where(input[data-no-focus-outline="true"], input.border-none, input.outline-none, .apexa-search-input):focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
 .apexa-space-filterbar {
   margin-top: 0;
   border-radius: 0;
@@ -3400,3 +3414,16 @@ input[type="checkbox"]:not(.sr-only):disabled {
     min-height: 38px !important;
   }
 }
+
+/* Universal modern input reset: eliminate browser default double borders, sharp outlines, and raw focus rings */
+input, textarea, select {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+input:focus, textarea:focus, select:focus,
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+

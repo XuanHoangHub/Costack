@@ -1464,14 +1464,21 @@ export default function SpacePage({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
-  interface AiSuggestions {
-    suggestions?: string[];
-    generalSummary?: string;
-    explanation?: string;
-    suggestedTasks?: Task[];
+  interface PrioritySuggestionItem {
+    taskId: string;
+    taskTitle: string;
+    estimatedDifficulty: string;
+    analysis: string;
+    suggestedPriority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW' | 'urgent' | 'high' | 'medium' | 'low';
+    reasoningScore: number;
+  }
+
+  interface AiPriorityResponse {
+    suggestions: PrioritySuggestionItem[];
+    generalSummary: string;
   }
   
-  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AiPriorityResponse | null>(null);
 
   const [isFocusActive, setIsFocusActive] = useState(false);
   const [timerTask, setTimerTask] = useState<Task | null>(null);
@@ -1756,7 +1763,12 @@ export default function SpacePage({
       const res = await callAiApi('/api/ai/priority-suggestions', { tasks: active });
       const data = await res.json();
       if (data.success && data.text) {
-        setAiSuggestions(JSON.parse(data.text));
+        try {
+          const parsed = JSON.parse(data.text);
+          setAiSuggestions(parsed);
+        } catch (e) {
+          console.error('Failed to parse AI priority suggestions JSON:', e);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -4347,49 +4359,196 @@ export default function SpacePage({
 
       {/* AI Urgency Suggestion Modal */}
       {showAiPriorityModal && (
-        <div className="fixed inset-0 z-[140] bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[140] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="absolute inset-0 cursor-pointer" onClick={() => setShowAiPriorityModal(false)} />
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4"
+            className="relative z-10 w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 flex items-center gap-2">
-                <Bot className="w-5 h-5 text-indigo-500" />
-                <span>Đề xuất mức khẩn cấp từ AI</span>
-              </h3>
-              <button onClick={() => setShowAiPriorityModal(false)} className="text-slate-400 hover:text-slate-650 text-sm">✕</button>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between shrink-0 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white flex items-center justify-center shadow-2xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>Apexa AI Triage</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
+                      Gemini 2.5
+                    </span>
+                  </h3>
+                  <p className="text-[11px] font-medium text-slate-400">
+                    Phân tích deadline, độ phức tạp và đề xuất mức độ ưu tiên tối ưu
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowAiPriorityModal(false)} 
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {loadingAiPriority ? (
-              <div className="text-center py-10 space-y-3">
-                <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
-                <p className="text-xs text-slate-400 font-bold">Apexa AI đang tính toán các yếu tố khẩn cấp...</p>
+              <div className="text-center py-14 space-y-3 my-auto">
+                <RefreshCw className="w-9 h-9 text-indigo-500 animate-spin mx-auto" />
+                <p className="text-xs text-slate-700 dark:text-slate-200 font-bold">Apexa AI đang phân tích toàn bộ công việc...</p>
+                <p className="text-[11px] text-slate-400">Đối chiếu hạn chót, mô tả, độ phức tạp và tính phụ thuộc</p>
               </div>
             ) : (
-              <div className="space-y-4 text-xs font-semibold text-slate-600 dark:text-slate-350">
-                <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl">
-                  <p className="leading-relaxed">{aiSuggestions?.explanation}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase">Hành động đề xuất</h4>
-                  {aiSuggestions?.suggestedTasks?.map((t: Task) => (
-                    <div 
-                      key={t.id} 
-                      className="p-3 rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 flex items-center justify-between gap-3 cursor-pointer hover:border-indigo-500/30 transition-all"
-                      onClick={() => {
-                        setSelectedTask(t);
-                        setShowAiPriorityModal(false);
-                      }}
-                    >
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{t.title}</span>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${
-                        t.priority === 'urgent' ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-amber-50 border-amber-100 text-amber-600'
-                      }`}>{t.priority}</span>
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1 text-xs">
+                {/* Strategic General Summary Banner */}
+                {aiSuggestions?.generalSummary && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-pink-50/40 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-pink-950/20 border border-indigo-200/80 dark:border-indigo-800/60 space-y-1.5 shadow-3xs">
+                    <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-black text-xs">
+                      <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>Chiến lược hành động đề xuất</span>
                     </div>
-                  ))}
+                    <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                      {aiSuggestions.generalSummary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Suggestions List Section */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Đề xuất ưu tiên ({aiSuggestions?.suggestions?.length || 0} việc)
+                    </h4>
+                    {aiSuggestions?.suggestions && aiSuggestions.suggestions.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          let appliedCount = 0;
+                          aiSuggestions.suggestions.forEach(item => {
+                            const targetTask = tasks.find(t => t.id === item.taskId);
+                            if (targetTask) {
+                              const normalizedPrio = item.suggestedPriority.toLowerCase() as Priority;
+                              guardedUpdateTask({ ...targetTask, priority: normalizedPrio });
+                              appliedCount++;
+                            }
+                          });
+                          onAddSyncLog(`Applied AI priority triage to ${appliedCount} tasks`);
+                          triggerToast?.('success', 'Đã áp dụng toàn bộ ưu tiên AI', `Cập nhật độ ưu tiên cho ${appliedCount} công việc.`);
+                          setShowAiPriorityModal(false);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-2xs hover:shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Áp dụng tất cả</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {(!aiSuggestions?.suggestions || aiSuggestions.suggestions.length === 0) ? (
+                    <div className="p-8 text-center text-slate-400 font-medium bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                      Không có công việc nào cần đề xuất lại mức ưu tiên.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {aiSuggestions.suggestions.map((item) => {
+                        const targetTask = tasks.find(t => t.id === item.taskId);
+                        const normalizedPrio = item.suggestedPriority.toLowerCase() as Priority;
+                        
+                        const prioColors: Record<string, string> = {
+                          urgent: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-600 dark:text-rose-400',
+                          high: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-600 dark:text-amber-400',
+                          medium: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-400',
+                          low: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        };
+
+                        const diffColors: Record<string, string> = {
+                          'Cực kỳ khó': 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 border-purple-200',
+                          'Khó': 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 border-rose-200',
+                          'Trung bình': 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 border-blue-200',
+                          'Dễ': 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border-emerald-200'
+                        };
+
+                        const isAlreadyApplied = targetTask?.priority === normalizedPrio;
+
+                        return (
+                          <div 
+                            key={item.taskId}
+                            className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (targetTask) {
+                                      setSelectedTask(targetTask);
+                                      setShowAiPriorityModal(false);
+                                    }
+                                  }}
+                                  className="text-left font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors line-clamp-1 cursor-pointer"
+                                  title="Mở chi tiết công việc"
+                                >
+                                  {item.taskTitle}
+                                </button>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${diffColors[item.estimatedDifficulty] || 'bg-slate-100 text-slate-600'}`}>
+                                    {item.estimatedDifficulty}
+                                  </span>
+                                  {item.reasoningScore !== undefined && (
+                                    <span className="text-[10px] font-semibold text-slate-400">
+                                      Điểm khẩn: <strong className="text-slate-600 dark:text-slate-300">{item.reasoningScore}/100</strong>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="text-right">
+                                  <div className="text-[9px] font-bold text-slate-400 uppercase">Đề xuất</div>
+                                  <span className={`inline-block text-[10px] font-black px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${prioColors[normalizedPrio] || prioColors.medium}`}>
+                                    {item.suggestedPriority}
+                                  </span>
+                                </div>
+
+                                {targetTask && (
+                                  <button
+                                    type="button"
+                                    disabled={isAlreadyApplied}
+                                    onClick={() => {
+                                      guardedUpdateTask({ ...targetTask, priority: normalizedPrio });
+                                      onAddSyncLog(`Updated priority of "${targetTask.title}" to ${normalizedPrio} (AI)`);
+                                      triggerToast?.('success', 'Đã cập nhật ưu tiên', `"${targetTask.title}" → ${item.suggestedPriority}`);
+                                    }}
+                                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                      isAlreadyApplied 
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-default'
+                                        : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200/60 dark:border-indigo-800/40'
+                                    }`}
+                                  >
+                                    {isAlreadyApplied ? (
+                                      <>
+                                        <Check className="w-3 h-3" />
+                                        <span>Đã nhận</span>
+                                      </>
+                                    ) : (
+                                      <span>Áp dụng</span>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {item.analysis && (
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed bg-white dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/80">
+                                {item.analysis}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

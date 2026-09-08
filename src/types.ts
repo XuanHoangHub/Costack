@@ -76,6 +76,7 @@ export interface CustomFieldDefinition {
   numberMin?: number;
   numberMax?: number;
   numberPrecision?: number;
+  numberUnit?: string;
   dateFormat?: string;
   includeTime?: boolean;
   defaultToToday?: boolean;
@@ -185,6 +186,7 @@ export interface Task {
     frequency: 'daily' | 'weekly' | 'monthly' | 'none';
     interval: number;
   };
+  reminder?: 'none' | 'at_time' | '5m' | '10m' | '30m' | '1h' | '1d';
 }
 
 export interface Document {
@@ -264,6 +266,7 @@ export interface NotificationSettings {
   dndScheduleEnd?: string;
   dndAllowUrgent?: boolean;
   enableChatMessages: boolean;
+  enableBrowserNotifications?: boolean;
 }
 
 export interface ChatMessage {

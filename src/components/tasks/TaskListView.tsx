@@ -448,7 +448,7 @@ const TaskListView = React.memo(function TaskListView({
               label: localizedStatusLabel.toUpperCase(),
               dot: '',
               bg: 'bg-slate-50/50 dark:bg-slate-800/20',
-              text: 'text-slate-700 dark:text-slate-350',
+              text: 'text-slate-700 dark:text-slate-200',
               border: 'border-slate-200 dark:border-slate-700',
               colorStyle: { backgroundColor: statusItem.color }
             };
@@ -464,7 +464,7 @@ const TaskListView = React.memo(function TaskListView({
                 
                 {/* ── Group Header ── */}
                 <div className="w-full flex items-center justify-between py-1.5 cursor-pointer select-none transition-all group mb-1.5">
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0" onClick={() => toggleGroup(statusItem.id)}>
+                  <button type="button" className="flex items-center gap-2.5 flex-1 min-w-0 text-left" aria-expanded={isExpanded} onClick={() => toggleGroup(statusItem.id)}>
                     <span className={`p-0.5 rounded hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all ${isExpanded ? '' : '-rotate-90'}`}>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors" />
                     </span>
@@ -499,7 +499,7 @@ const TaskListView = React.memo(function TaskListView({
                         </span>
                       </div>
                     )}
-                  </div>
+                  </button>
 
                   {/* Header right controls */}
                   <div className="flex items-center gap-2 shrink-0">

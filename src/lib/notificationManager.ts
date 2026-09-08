@@ -1,6 +1,7 @@
 'use client';
 
 import { useNotificationStore } from '@/store/notificationStore';
+import { Task } from '@/types';
 
 export type ReminderOption = 'none' | 'at_time' | '5m' | '10m' | '30m' | '1h' | '1d';
 
@@ -105,15 +106,41 @@ export function sendSystemNotification({
         body: message,
         icon: '/icon.png',
         badge: '/icon.png',
-        tag: taskId ? `apexa-task-${taskId}` : undefined,
+        tag: taskId ? `apexa-task-${taskId}-${Date.now()}` : `apexa-notify-${Date.now()}`,
       });
 
       notification.onclick = () => {
         window.focus();
+        if (taskId) {
+          window.dispatchEvent(new CustomEvent('apexa-open-task', { detail: { taskId } }));
+        }
         notification.close();
       };
-    } catch {}
+    } catch (err) {
+      console.warn('Could not show native Notification:', err);
+    }
   }
+}
+
+/**
+ * Send a test desktop notification to confirm permission and sound.
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  if (!isBrowserNotificationSupported()) return false;
+  let perm = Notification.permission;
+  if (perm === 'default') {
+    perm = await requestBrowserNotificationPermission();
+  }
+  if (perm === 'granted') {
+    sendSystemNotification({
+      title: '🔔 Apexa: Kiểm tra thông báo trình duyệt',
+      message: 'Thông báo trên màn hình máy tính đã hoạt động hoàn hảo! Bạn sẽ nhận được cảnh báo khi đến hạn công việc.',
+      type: 'success',
+      playSound: true,
+    });
+    return true;
+  }
+  return false;
 }
 
 // ── Local Task Reminders Storage & Scheduler ──
@@ -128,16 +155,37 @@ export interface TaskReminderRecord {
   targetTimestamp: number;
 }
 
+/**
+ * Parses date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss) into local Date object without timezone shift.
+ */
+export function parseDueDateTime(dueIso: string): Date | null {
+  if (!dueIso) return null;
+  try {
+    if (dueIso.includes('T')) {
+      const [datePart, timePart] = dueIso.split('T');
+      const [y, m, d] = datePart.split('-').map(Number);
+      const [h = 9, min = 0, s = 0] = timePart.split(':').map(Number);
+      if (!y || !m || !d) return null;
+      return new Date(y, m - 1, d, h, min, s);
+    }
+    const [y, m, d] = dueIso.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 18, 0, 0); // Default to 18:00 local on due date
+  } catch {
+    return null;
+  }
+}
+
 export function calculateReminderTimestamp(dueIso: string, reminder: ReminderOption): number | null {
   if (!dueIso || reminder === 'none') return null;
-  const dueDate = new Date(dueIso);
-  if (isNaN(dueDate.getTime())) return null;
+  const dueDate = parseDueDateTime(dueIso);
+  if (!dueDate || isNaN(dueDate.getTime())) return null;
 
   const config = REMINDER_OPTIONS.find((r) => r.id === reminder);
   if (!config || config.offsetMinutes < 0) return null;
 
   if (reminder === '1d') {
-    // 1 day before at 09:00
+    // 1 day before at 09:00 AM
     const oneDayBefore = new Date(dueDate.getTime() - 24 * 60 * 60 * 1000);
     oneDayBefore.setHours(9, 0, 0, 0);
     return oneDayBefore.getTime();
@@ -189,30 +237,93 @@ export function getTaskReminder(taskId: string): ReminderOption {
   }
 }
 
-export function checkAndFirePendingReminders() {
+/**
+ * Checks all tasks for pending deadline reminders and imminent deadlines.
+ * Triggers browser notification, sound, and in-app toast when due.
+ */
+export function checkAndFirePendingReminders(tasks?: Task[]) {
   if (typeof window === 'undefined') return;
   try {
     const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
-    if (!raw) return;
-    const list: Record<string, TaskReminderRecord> = JSON.parse(raw);
+    const list: Record<string, TaskReminderRecord> = raw ? JSON.parse(raw) : {};
     const firedRaw = localStorage.getItem(FIRED_REMINDER_STORAGE_KEY);
     const firedSet = new Set<string>(firedRaw ? JSON.parse(firedRaw) : []);
 
     const now = Date.now();
     let firedCount = 0;
 
+    // 1. Process tasks passed from runtime state (takes precedence)
+    if (tasks && tasks.length > 0) {
+      for (const t of tasks) {
+        if (t.status === 'completed' || !t.dueDate) continue;
+
+        const reminder = t.reminder || (t.custom_fields?.reminder as ReminderOption) || list[t.id]?.reminder || 'none';
+        
+        // Check configured reminder
+        if (reminder !== 'none') {
+          const targetTimestamp = calculateReminderTimestamp(t.dueDate, reminder);
+          if (targetTimestamp) {
+            const timeKey = Math.floor(targetTimestamp / 60000); // per-minute bucket
+            const reminderKey = `rem_${t.id}_${reminder}_${timeKey}`;
+
+            // Trigger if within [target, target + 24 hours]
+            if (!firedSet.has(reminderKey) && now >= targetTimestamp && now <= targetTimestamp + 24 * 60 * 60 * 1000) {
+              const option = REMINDER_OPTIONS.find((o) => o.id === reminder);
+              const reminderDesc = option ? option.labelVi : 'Đến giờ hẹn';
+              const dateObj = parseDueDateTime(t.dueDate);
+              const formattedDate = dateObj ? dateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : t.dueDate;
+
+              sendSystemNotification({
+                title: `🔔 Nhắc hẹn: ${t.title}`,
+                message: `Hạn chót: ${formattedDate} (${reminderDesc}). Nhấn vào đây để xem chi tiết.`,
+                type: 'deadline',
+                taskId: t.id,
+              });
+
+              firedSet.add(reminderKey);
+              firedCount++;
+            }
+          }
+        }
+
+        // Check imminent deadline: due in <= 30 minutes
+        const dueObj = parseDueDateTime(t.dueDate);
+        if (dueObj) {
+          const diffMs = dueObj.getTime() - now;
+          const diffMinutes = Math.floor(diffMs / 60000);
+
+          if (diffMinutes > 0 && diffMinutes <= 30) {
+            const urgentKey = `urgent_30m_${t.id}_${t.dueDate}`;
+            if (!firedSet.has(urgentKey)) {
+              sendSystemNotification({
+                title: `⚠️ Sắp hết hạn trong ${diffMinutes} phút: ${t.title}`,
+                message: `Công việc sẽ đến hạn lúc ${dueObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}. Vui lòng hoàn tất kịp thời!`,
+                type: 'deadline',
+                taskId: t.id,
+              });
+              firedSet.add(urgentKey);
+              firedCount++;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Also check any standalone stored records in localStorage
     for (const [taskId, record] of Object.entries(list)) {
-      const reminderKey = `${taskId}_${record.reminder}_${record.targetTimestamp}`;
+      const timeKey = Math.floor(record.targetTimestamp / 60000);
+      const reminderKey = `rem_${taskId}_${record.reminder}_${timeKey}`;
       if (firedSet.has(reminderKey)) continue;
 
-      // If target time reached (and not more than 24h expired)
       if (now >= record.targetTimestamp && now <= record.targetTimestamp + 24 * 60 * 60 * 1000) {
         const option = REMINDER_OPTIONS.find((o) => o.id === record.reminder);
         const reminderDesc = option ? option.labelVi : 'Đến hạn';
+        const dateObj = parseDueDateTime(record.dueIso);
+        const formattedDate = dateObj ? dateObj.toLocaleString('vi-VN') : record.dueIso;
 
         sendSystemNotification({
-          title: `🔔 Nhắc việc: ${record.taskTitle}`,
-          message: `Hạn chót: ${new Date(record.dueIso).toLocaleString('vi-VN')} (${reminderDesc}).`,
+          title: `🔔 Nhắc hẹn: ${record.taskTitle}`,
+          message: `Hạn chót: ${formattedDate} (${reminderDesc}). Nhấn vào đây để xem chi tiết.`,
           type: 'deadline',
           taskId: record.taskId,
         });
@@ -223,7 +334,7 @@ export function checkAndFirePendingReminders() {
     }
 
     if (firedCount > 0) {
-      localStorage.setItem(FIRED_REMINDER_STORAGE_KEY, JSON.stringify(Array.from(firedSet).slice(-200)));
+      localStorage.setItem(FIRED_REMINDER_STORAGE_KEY, JSON.stringify(Array.from(firedSet).slice(-250)));
     }
   } catch (err) {
     console.error('Error checking reminders:', err);

@@ -462,10 +462,10 @@ const PRIORITY_META: Record<Priority, { label: string; dot: string; bg: string; 
   low: { 
     label: 'LOW', 
     dot: 'bg-slate-400', 
-    bg: 'bg-slate-55/50 dark:bg-slate-800/30', 
-    text: 'text-slate-500', 
-    badgeBg: 'bg-slate-105 dark:bg-slate-800', 
-    badgeText: 'text-slate-600 dark:text-slate-350 font-extrabold' 
+    bg: 'bg-slate-100/60 dark:bg-slate-800/40', 
+    text: 'text-slate-500 dark:text-slate-400', 
+    badgeBg: 'bg-slate-100 dark:bg-slate-800', 
+    badgeText: 'text-slate-700 dark:text-slate-300 font-extrabold' 
   },
 };
 
@@ -745,20 +745,20 @@ export default function TaskBoardView({
       const meta = dynamicStatusMeta[colKey];
       return meta 
         ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } 
-        : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-105 dark:bg-slate-800', badgeText: 'text-slate-655 dark:text-slate-350' };
+        : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-100 dark:bg-slate-800', badgeText: 'text-slate-700 dark:text-slate-300' };
     }
     if (boardGroupBy === 'priority') {
       const meta = dynamicPriorityMeta[colKey];
-      return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-105', badgeText: 'text-slate-500' };
+      return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: colKey.toUpperCase(), badgeBg: 'bg-slate-100 dark:bg-slate-800', badgeText: 'text-slate-500 dark:text-slate-400' };
     }
     if (colKey === 'unassigned') {
-      return { label: locale === 'vi' ? 'Chưa phân công' : 'Unassigned', badgeBg: 'bg-slate-105 dark:bg-slate-800', badgeText: 'text-slate-500 dark:text-slate-400 font-extrabold' };
+      return { label: locale === 'vi' ? 'Chưa phân công' : 'Unassigned', badgeBg: 'bg-slate-100 dark:bg-slate-800', badgeText: 'text-slate-500 dark:text-slate-400 font-extrabold' };
     }
     const user = members.find(m => m.id === colKey);
     return { 
       label: user ? user.name : 'Unknown', 
-      badgeBg: 'bg-indigo-55/65 dark:bg-indigo-950/20', 
-      badgeText: 'text-indigo-650 dark:text-indigo-400 font-extrabold',
+      badgeBg: 'bg-indigo-50 dark:bg-indigo-950/20', 
+      badgeText: 'text-indigo-600 dark:text-indigo-400 font-extrabold',
       avatar: user?.avatar
     };
   }, [boardGroupBy, dynamicStatusMeta, dynamicPriorityMeta, locale, members]);
@@ -768,11 +768,11 @@ export default function TaskBoardView({
       const meta = dynamicStatusMeta[rowKey];
       return meta 
         ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } 
-        : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-105 dark:bg-slate-800', badgeText: 'text-slate-655 dark:text-slate-350' };
+        : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-100 dark:bg-slate-800', badgeText: 'text-slate-700 dark:text-slate-300' };
     }
     if (boardSwimlaneBy === 'priority') {
       const meta = dynamicPriorityMeta[rowKey];
-      return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-105', badgeText: 'text-slate-500' };
+      return meta ? { label: meta.label, badgeBg: meta.badgeBg, badgeText: meta.badgeText } : { label: rowKey.toUpperCase(), badgeBg: 'bg-slate-100 dark:bg-slate-800', badgeText: 'text-slate-500 dark:text-slate-400' };
     }
     if (rowKey === 'unassigned') {
       return { label: locale === 'vi' ? 'Chưa phân công' : 'Unassigned', badgeBg: 'bg-slate-105 dark:bg-slate-850', badgeText: 'text-slate-500 dark:text-slate-400 font-extrabold' };
@@ -1363,10 +1363,10 @@ export default function TaskBoardView({
         <div className={paddingCls}>
           {localCardSize === 'small' ? (
             <div className="flex items-center gap-2">
-              <div className="text-slate-350 dark:text-slate-600 p-1 rounded shrink-0">
+              <div className="text-slate-400 dark:text-slate-500 p-1 rounded shrink-0">
                 <GripVertical className="w-3.5 h-3.5" />
               </div>
-              <h4 className={`${titleCls} leading-snug truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-850 dark:text-slate-101'}`}>
+              <h4 className={`${titleCls} leading-snug truncate flex-1 ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
                 {task.title}
               </h4>
             </div>
@@ -1374,25 +1374,25 @@ export default function TaskBoardView({
             <>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
-                  <div className="text-slate-355 dark:text-slate-600 p-1 rounded shrink-0">
+                  <div className="text-slate-400 dark:text-slate-500 p-1 rounded shrink-0">
                     <GripVertical className="w-3.5 h-3.5" />
                   </div>
-                  <input type="checkbox" checked={selectedTaskIds.includes(task.id)} readOnly className="w-3.5 h-3.5 rounded border-slate-355 text-indigo-655 focus:ring-indigo-505/20 accent-indigo-600" />
+                  <input type="checkbox" checked={selectedTaskIds.includes(task.id)} readOnly className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20 accent-indigo-600" />
                   {task.isPinned && <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />}
                 </div>
                 <div className="flex items-center gap-1">
                   <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-lg select-none border ${
-                    task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-955/20 dark:border-rose-900/30 dark:text-rose-400' :
-                    task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-955/20 dark:border-orange-900/30 dark:text-orange-400' :
-                    task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-955/20 dark:border-yellow-900/30 dark:text-yellow-400' :
-                    'bg-slate-50 border-slate-200 text-slate-550 dark:bg-slate-800/40 dark:border-slate-705 dark:text-slate-400'
+                    task.priority === 'urgent' ? 'bg-rose-50/70 border-rose-100 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' :
+                    task.priority === 'high' ? 'bg-orange-50/70 border-orange-100 text-orange-600 dark:bg-orange-950/20 dark:border-orange-900/30 dark:text-orange-400' :
+                    task.priority === 'medium' ? 'bg-yellow-50/70 border-yellow-100 text-yellow-700 dark:bg-yellow-950/20 dark:border-yellow-900/30 dark:text-yellow-400' :
+                    'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-400'
                   }`}>
                     {dynamicPriorityMeta[task.priority]?.label || task.priority}
                   </span>
                 </div>
               </div>
 
-              <h4 className={`${titleCls} leading-snug ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-505' : 'text-slate-850 dark:text-slate-101'}`}>
+              <h4 className={`${titleCls} leading-snug ${task.status === 'completed' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
                 {task.title}
               </h4>
 
@@ -1491,7 +1491,7 @@ export default function TaskBoardView({
       <div className="apexa-space-board flex flex-col h-full w-full">
         
         {/* Kanban Board Controls Panel */}
-        <div className="apexa-board-controls flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#121212]/85 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-655 dark:text-slate-350 select-none shadow-3xs">
+        <div className="apexa-board-controls flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 bg-white/80 dark:bg-[#121212]/85 backdrop-blur-2xl border border-slate-200/80 dark:border-white/[0.08] rounded-2xl p-2.5 sm:p-3 mb-4 text-xs font-bold text-slate-700 dark:text-slate-200 select-none shadow-3xs">
           <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0">
             
             {/* Group By selector */}
@@ -1590,6 +1590,7 @@ export default function TaskBoardView({
                   key={col} 
                   role="group"
                   aria-label={`${colMeta.label}: ${colTasks.length} ${locale === 'vi' ? 'công việc' : 'tasks'}`}
+                  style={{ '--column-accent': boardGroupBy === 'status' ? ({ todo: '#8190a8', inprogress: '#e9a23b', review: '#7c6ce7', completed: '#26a885' }[col] || '#8190a8') : boardGroupBy === 'priority' ? ({ urgent: '#dc668b', high: '#e9a23b', medium: '#5871e9', low: '#26a885' }[col] || '#8190a8') : '#5871e9' } as React.CSSProperties}
                   className={`apexa-board-column min-w-[288px] sm:min-w-[300px] w-[288px] sm:w-[300px] flex-shrink-0 snap-center bg-slate-100/60 dark:bg-[#181818]/80 backdrop-blur-2xl p-3.5 sm:p-4 rounded-[22px] flex flex-col gap-3 transition-all duration-300 border border-slate-200/70 dark:border-white/[0.08] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] hover:border-slate-300 dark:hover:border-slate-700/90 hover:shadow-[0_12px_36px_-6px_rgba(0,0,0,0.08)] ${
                     isOverColumn ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30 dark:bg-indigo-950/30 border-indigo-400/50' : ''
                   }`}
@@ -1776,7 +1777,7 @@ export default function TaskBoardView({
                     )}
 
                     {colTasks.length === 0 && inlineAddCell !== col && (
-                      <div className="flex flex-col items-center justify-center text-center py-8 px-3 rounded-2xl border border-dashed border-slate-200/80 dark:border-white/[0.06] bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm group hover:border-indigo-400/40 dark:hover:border-indigo-500/30 transition-colors">
+                      <div className="space-board-empty flex flex-col items-center justify-center text-center py-8 px-3 rounded-2xl border border-dashed border-slate-200/80 dark:border-white/[0.06] bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm group hover:border-indigo-400/40 dark:hover:border-indigo-500/30 transition-colors">
                         <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800/70 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1.5">
                           <Check className="w-3.5 h-3.5 opacity-60" />
                         </div>
@@ -2014,18 +2015,18 @@ export default function TaskBoardView({
                                           else if (e.key === 'Escape') { setInlineAddCell(null); setInlineTitle(''); }
                                         }}
                                         placeholder={locale === 'vi' ? 'Tên công việc...' : 'Task name...'}
-                                        className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-101 outline-none"
+                                        className="w-full text-xs font-semibold bg-transparent text-slate-800 dark:text-slate-100 outline-none"
                                         autoFocus
                                       />
                                       <div className="flex justify-end gap-1.5 text-[9px] font-bold">
-                                        <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-455 hover:bg-slate-105 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
+                                        <button onClick={() => { setInlineAddCell(null); setInlineTitle(''); }} className="px-2 py-0.5 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{locale === 'vi' ? 'Hủy' : 'Cancel'}</button>
                                         <button onClick={() => handleInlineAddSubmit(col, row)} className="px-2 py-0.5 rounded bg-indigo-600 text-white hover:bg-indigo-700">{locale === 'vi' ? 'Lưu' : 'Save'}</button>
                                       </div>
                                     </div>
                                   ) : (
                                     <button 
                                       onClick={() => { setInlineAddCell(cellId); setInlineTitle(''); }}
-                                      className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-455 hover:text-slate-700 dark:hover:text-slate-205 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
+                                      className="w-full flex items-center justify-start gap-1.5 px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40 rounded-xl transition-all cursor-pointer text-left"
                                     >
                                       <Plus className="w-3.5 h-3.5 text-slate-400" />
                                       <span>{locale === 'vi' ? 'Thêm công việc' : 'Add Task'}</span>

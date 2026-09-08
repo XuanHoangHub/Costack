@@ -138,6 +138,9 @@ export async function POST(request: Request) {
     if (liveSubscription?.provider === 'stripe') {
       throw new BillingHttpError(409, 'Bạn đang có gói Stripe. Hãy quản lý gói đó trong Billing Portal trước khi chuyển sang PayOS.');
     }
+    if (liveSubscription?.provider === 'paypal') {
+      throw new BillingHttpError(409, 'Bạn đang có gói PayPal. Vui lòng gia hạn bằng PayPal hoặc liên hệ hỗ trợ để chuyển cổng thanh toán.');
+    }
     if (
       liveSubscription?.provider === 'payos'
       && (!liveSubscription.current_period_end || Date.parse(liveSubscription.current_period_end) > Date.now())

@@ -12,7 +12,9 @@ import { isCreationConfirmation, shouldPersistInInbox } from '@/lib/notification
 import { embedTaskRelationships, extractTaskRelationships, getIncompleteBlockers, getNextRecurringDate } from '@/lib/taskRelationships';
 import { checkAndFirePendingReminders } from '@/lib/notificationManager';
 import { getTaskAssigneeIds, isUserAssignedToTask } from '@/lib/taskAssignees';
-import { useUiStore } from '@/store/uiStore';
+import { useUiStore, SidebarZone } from '@/store/uiStore';
+import { SidebarZoneGroup } from '@/components/sidebar/SidebarZoneGroup';
+import { SidebarZoneModal } from '@/components/sidebar/SidebarZoneModal';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import { useSpaceStore } from '@/store/spaceStore';
 import { useTaskStore } from '@/store/taskStore';
@@ -185,6 +187,8 @@ const getShortLabel = (label: string) => {
   if (label === 'Tổng quan trang chủ') return 'Tổng quan';
   if (label === 'Avaxa Base') return 'Base';
   if (label === 'Team Directory') return 'Team';
+  if (label === 'Thành viên & Đội ngũ') return 'Đội ngũ';
+  if (label === 'Danh bạ thành viên') return 'Thành viên';
   if (label === 'Không gian làm việc') return 'Không gian';
   if (label === 'Hộp thư đến') return 'Hộp thư';
   if (label === 'Mục tiêu (OKRs)') return 'Mục tiêu';
@@ -1466,6 +1470,18 @@ export default function App() {
   const sidebarOrder = useMemo(() => rawSidebarOrder || DEFAULT_SIDEBAR_ORDER, [rawSidebarOrder]);
   const setSidebarOrder = useUiStore((s) => s.setSidebarOrder);
 
+  const rawSidebarZones = useUiStore((s) => s.sidebarZones);
+  const sidebarZones = useMemo(() => rawSidebarZones || [], [rawSidebarZones]);
+  const createSidebarZone = useUiStore((s) => s.createSidebarZone);
+  const updateSidebarZone = useUiStore((s) => s.updateSidebarZone);
+  const deleteSidebarZone = useUiStore((s) => s.deleteSidebarZone);
+  const moveItemToZone = useUiStore((s) => s.moveItemToZone);
+  const removeItemFromZone = useUiStore((s) => s.removeItemFromZone);
+  const reorderSidebarZones = useUiStore((s) => s.reorderSidebarZones);
+
+  const [editingZone, setEditingZone] = useState<SidebarZone | null>(null);
+  const [showZoneModal, setShowZoneModal] = useState(false);
+
   const { invitations: workspaceInvitations } = useWorkspaceInvitations(currentUser?.email, isOffline);
   const { handleSendWorkspaceInvites, handleAcceptWorkspaceInvite, handleDeclineWorkspaceInvite } = useAppActions();
 
@@ -1501,53 +1517,6 @@ export default function App() {
   };
 
   const handleDragEnd = () => {
-    setDraggedItemId(null);
-    setDragOverItemId(null);
-    setDragOverSide(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    const sourceId = draggedItemId || e.dataTransfer.getData('text/plain');
-    if (!sourceId || sourceId === targetId) {
-      setDraggedItemId(null);
-      setDragOverItemId(null);
-      setDragOverSide(null);
-      return;
-    }
-
-    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
-    const currentOrder = [...sidebarOrder];
-    
-    // Ensure all default items are present
-    defaultOrder.forEach((id) => {
-      if (!currentOrder.includes(id)) {
-        currentOrder.push(id);
-      }
-    });
-
-    const draggedIndex = currentOrder.indexOf(sourceId);
-    if (draggedIndex !== -1) {
-      currentOrder.splice(draggedIndex, 1);
-      const adjustedTargetIndex = currentOrder.indexOf(targetId);
-      if (adjustedTargetIndex !== -1) {
-        const insertIndex = dragOverSide === 'top' ? adjustedTargetIndex : adjustedTargetIndex + 1;
-        currentOrder.splice(insertIndex, 0, sourceId);
-        setSidebarOrder(currentOrder);
-        if (typeof window !== 'undefined') {
-          (window as any).playSystemSound?.('toggle');
-        }
-        const meta = sidebarItemsMeta[sourceId as keyof typeof sidebarItemsMeta];
-        triggerToast(
-          'success',
-          locale === 'vi' ? 'Đã đổi vị trí module' : 'Module Reordered',
-          locale === 'vi' 
-            ? `Đã di chuyển "${meta?.label || sourceId}" đến vị trí mới`
-            : `Moved "${meta?.label || sourceId}" to new position`
-        );
-      }
-    }
-
     setDraggedItemId(null);
     setDragOverItemId(null);
     setDragOverSide(null);
@@ -1637,6 +1606,11 @@ export default function App() {
         };
       });
   }, [sidebarOrder, sidebarItemsMeta]);
+
+  const rootOrderedItems = useMemo(() => {
+    const zoneItemIds = new Set((sidebarZones || []).flatMap(z => z.itemIds));
+    return orderedItems.filter(item => !zoneItemIds.has(item.id));
+  }, [orderedItems, sidebarZones]);
 
   // Filtered lists for the Global Search modal
   const filteredTasks = useMemo(() => {
@@ -1939,12 +1913,24 @@ export default function App() {
 
   // Periodic standard task reminder worker
   useEffect(() => {
-    checkAndFirePendingReminders();
+    checkAndFirePendingReminders(tasks);
     const interval = setInterval(() => {
-      checkAndFirePendingReminders();
+      checkAndFirePendingReminders(tasks);
     }, 20_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [tasks]);
+
+  useEffect(() => {
+    const handleOpenTask = (e: Event) => {
+      const customEvent = e as CustomEvent<{ taskId: string }>;
+      const targetTaskId = customEvent.detail?.taskId;
+      if (!targetTaskId) return;
+      setActiveTab('tasks');
+      setInitialSelectedTaskId(targetTaskId);
+    };
+    window.addEventListener('apexa-open-task', handleOpenTask);
+    return () => window.removeEventListener('apexa-open-task', handleOpenTask);
+  }, [setActiveTab, setInitialSelectedTaskId]);
 
   // Global Supabase Realtime subscription for chat message notifications
   // This runs independently of ChatRoom mount state so notifications work across all tabs
@@ -2050,7 +2036,7 @@ export default function App() {
   }, [currentUser?.email]);
 
   // Global SyncLog adder
-  const addSyncLog = (action: string, category: 'task' | 'space' | 'workspace' | 'doc' | 'member' | 'security' | 'system' = 'workspace') => {
+  const addSyncLog = useCallback((action: string, category: 'task' | 'space' | 'workspace' | 'doc' | 'member' | 'security' | 'system' = 'workspace') => {
     const isTechnical = 
       action.includes('Supabase') ||
       action.includes('supabase') ||
@@ -2089,6 +2075,150 @@ export default function App() {
         !l.action.includes('Entered List:')
       )
     ].slice(0, 100));
+  }, [isOffline, currentUser?.name, currentUser?.avatar, setSyncLogs]);
+
+  const handleNavItemClick = useCallback((itemId: string, label: string) => {
+    if (itemId === 'tasks') {
+      setActiveTab('tasks');
+      setActiveSpaceId(null);
+      setActiveListId(null);
+    } else {
+      setActiveTab(itemId);
+      setActiveSpaceId(null);
+      setActiveListId(null);
+    }
+    setIsMobileSidebarOpen(false);
+    addSyncLog(`Switched to: ${label}`);
+  }, [setActiveTab, setActiveSpaceId, setActiveListId, setIsMobileSidebarOpen, addSyncLog]);
+
+  const handleMoveZone = useCallback((zoneId: string, direction: 'up' | 'down') => {
+    const index = sidebarZones.findIndex(z => z.id === zoneId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sidebarZones.length) return;
+    const updated = [...sidebarZones];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    reorderSidebarZones(updated);
+    if (typeof window !== 'undefined') {
+      (window as any).playSystemSound?.('toggle');
+    }
+  }, [sidebarZones, reorderSidebarZones]);
+
+  const handleDropOnZone = useCallback((e: React.DragEvent, zoneId: string) => {
+    e.preventDefault();
+    const sourceId = draggedItemId || e.dataTransfer.getData('text/plain');
+    if (!sourceId) return;
+
+    const targetZone = sidebarZones.find(z => z.id === zoneId);
+    if (!targetZone) return;
+
+    if (targetZone.itemIds.includes(sourceId)) {
+      setDraggedItemId(null);
+      setDragOverItemId(null);
+      setDragOverSide(null);
+      return;
+    }
+
+    moveItemToZone(sourceId, zoneId);
+
+    if (typeof window !== 'undefined') {
+      (window as any).playSystemSound?.('toggle');
+    }
+
+    const meta = sidebarItemsMeta[sourceId as keyof typeof sidebarItemsMeta];
+    triggerToast(
+      'success',
+      locale === 'vi' ? 'Đã chuyển vào Vùng' : 'Moved to Zone',
+      locale === 'vi'
+        ? `Đã di chuyển "${meta?.label || sourceId}" vào vùng "${targetZone.name}"`
+        : `Moved "${meta?.label || sourceId}" into zone "${targetZone.name}"`
+    );
+
+    setDraggedItemId(null);
+    setDragOverItemId(null);
+    setDragOverSide(null);
+  }, [draggedItemId, sidebarZones, moveItemToZone, sidebarItemsMeta, triggerToast, locale]);
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = draggedItemId || e.dataTransfer.getData('text/plain');
+    if (!sourceId || sourceId === targetId) {
+      setDraggedItemId(null);
+      setDragOverItemId(null);
+      setDragOverSide(null);
+      return;
+    }
+
+    // Check if target is inside a zone
+    const targetZone = sidebarZones.find(z => z.itemIds.includes(targetId));
+    if (targetZone) {
+      const targetIndex = targetZone.itemIds.indexOf(targetId);
+      const insertIndex = dragOverSide === 'top' ? targetIndex : targetIndex + 1;
+      moveItemToZone(sourceId, targetZone.id, insertIndex);
+
+      if (typeof window !== 'undefined') {
+        (window as any).playSystemSound?.('toggle');
+      }
+      const meta = sidebarItemsMeta[sourceId as keyof typeof sidebarItemsMeta];
+      triggerToast(
+        'success',
+        locale === 'vi' ? 'Đã đổi vị trí module' : 'Module Reordered',
+        locale === 'vi' 
+          ? `Đã chuyển "${meta?.label || sourceId}" vào vùng "${targetZone.name}"`
+          : `Moved "${meta?.label || sourceId}" into zone "${targetZone.name}"`
+      );
+      setDraggedItemId(null);
+      setDragOverItemId(null);
+      setDragOverSide(null);
+      return;
+    }
+
+    // Target is at root level
+    const sourceZone = sidebarZones.find(z => z.itemIds.includes(sourceId));
+    const defaultOrder = DEFAULT_SIDEBAR_ORDER;
+    const currentOrder = [...sidebarOrder];
+    
+    // Ensure all default items are present
+    defaultOrder.forEach((id) => {
+      if (!currentOrder.includes(id)) {
+        currentOrder.push(id);
+      }
+    });
+
+    const adjustedTargetIndex = currentOrder.indexOf(targetId);
+    if (adjustedTargetIndex !== -1) {
+      const insertIndex = dragOverSide === 'top' ? adjustedTargetIndex : adjustedTargetIndex + 1;
+
+      if (sourceZone) {
+        removeItemFromZone(sourceId, sourceZone.id, insertIndex);
+      } else {
+        const draggedIndex = currentOrder.indexOf(sourceId);
+        if (draggedIndex !== -1) {
+          currentOrder.splice(draggedIndex, 1);
+          const newTargetIndex = currentOrder.indexOf(targetId);
+          const finalIndex = dragOverSide === 'top' ? newTargetIndex : newTargetIndex + 1;
+          currentOrder.splice(finalIndex, 0, sourceId);
+          setSidebarOrder(currentOrder);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        (window as any).playSystemSound?.('toggle');
+      }
+      const meta = sidebarItemsMeta[sourceId as keyof typeof sidebarItemsMeta];
+      triggerToast(
+        'success',
+        locale === 'vi' ? 'Đã đổi vị trí module' : 'Module Reordered',
+        locale === 'vi' 
+          ? `Đã di chuyển "${meta?.label || sourceId}" đến vị trí mới`
+          : `Moved "${meta?.label || sourceId}" to new position`
+      );
+    }
+
+    setDraggedItemId(null);
+    setDragOverItemId(null);
+    setDragOverSide(null);
   };
 
   // Sync animation triggers when going online
@@ -3804,8 +3934,25 @@ export default function App() {
     }
 
     if (isNewCompletion && updated.recurrence && updated.recurrence.frequency !== 'none') {
-      const nextStartDate = updated.startDate ? getNextRecurringDate(updated.startDate, updated.recurrence) : undefined;
-      const nextDueDate = getNextRecurringDate(updated.dueDate, updated.recurrence);
+      const originalRecurrence = { ...updated.recurrence };
+      const nextStartDate = updated.startDate ? getNextRecurringDate(updated.startDate, originalRecurrence) : undefined;
+      const nextDueDate = getNextRecurringDate(updated.dueDate, originalRecurrence);
+
+      // Bỏ lặp lại trên task cũ vừa hoàn thành (chuyển giao chu kỳ lặp lại sang task mới)
+      setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, recurrence: undefined } : t));
+      if (!isOffline) {
+        try {
+          await supabase.from('tasks').update({ recurrence: null }).eq('id', updated.id);
+        } catch (clearErr) {
+          console.error('Failed to clear recurrence on completed task:', clearErr);
+        }
+      } else {
+        setOfflineTasksQueue(prev => ({
+          ...prev,
+          [updated.id]: { ...updated, recurrence: undefined }
+        }));
+      }
+
       await handleAddTask({
         title: updated.title,
         description: updated.description,
@@ -3833,9 +3980,9 @@ export default function App() {
           _recurrenceSourceTaskId: updated.id,
         },
         relationships: updated.relationships,
-        recurrence: updated.recurrence,
+        recurrence: originalRecurrence,
       });
-      addSyncLog(`Đã tạo chu kỳ lặp lại tiếp theo cho "${updated.title}" vào ngày ${nextDueDate}`, 'task');
+      addSyncLog(`Đã hoàn thành chu kỳ, tạo lịch tiếp theo cho "${updated.title}" vào ngày ${nextDueDate} (đã bỏ lặp lại task cũ)`, 'task');
     }
   };
 
@@ -4230,7 +4377,7 @@ export default function App() {
     { id: 'goals', label: locale === 'vi' ? 'Mục tiêu (OKRs)' : 'Goals & OKRs', icon: Target, category: 'workspace' },
     { id: 'chat', label: 'Chat Room', icon: MessageSquare, category: 'collaboration' },
     { id: 'docs', label: 'Wiki Docs', icon: Edit3, category: 'collaboration' },
-    { id: 'team', label: 'Team Directory', icon: Users, category: 'collaboration' },
+    { id: 'team', label: locale === 'vi' ? 'Thành viên & Đội ngũ' : 'Team Directory', icon: Users, category: 'collaboration' },
     { id: 'profile', label: 'User Profile', icon: UserIcon, category: 'system' },
     { id: 'settings', label: 'System Settings', icon: Settings, category: 'system' },
   ];
@@ -5474,7 +5621,7 @@ export default function App() {
               </div>
 
               <nav className="custom-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Các khu vực trong ứng dụng">
-                {orderedItems.map((item) => {
+                {rootOrderedItems.map((item) => {
                   const isActive = item.id === 'tasks'
                     ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
                     : activeTab === item.id;
@@ -5487,16 +5634,67 @@ export default function App() {
                       isActive={isActive}
                       count={item.count}
                       badge={item.badge}
-                      onClick={() => {
-                        setActiveTab(item.id);
-                        setActiveSpaceId(null);
-                        setActiveListId(null);
-                        setIsMobileSidebarOpen(false);
-                        addSyncLog(`Switched to: ${item.label}`);
-                      }}
+                      onClick={() => handleNavItemClick(item.id, item.label)}
                     />
                   );
                 })}
+
+                {sidebarZones.map((zone, zIdx) => (
+                  <SidebarZoneGroup
+                    key={`mobile-zone-${zone.id}`}
+                    zone={zone}
+                    collapsed={false}
+                    activeTab={activeTab}
+                    activeSpaceId={activeSpaceId}
+                    activeListId={activeListId}
+                    sidebarItemsMeta={sidebarItemsMeta}
+                    draggedItemId={draggedItemId}
+                    dragOverItemId={dragOverItemId}
+                    dragOverSide={dragOverSide}
+                    onDragStart={handleDragStart}
+                    onDragOverItem={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDragEnd={handleDragEnd}
+                    onDropOnItem={handleDrop}
+                    onDropOnZone={handleDropOnZone}
+                    onItemClick={handleNavItemClick}
+                    onEditZone={(z) => {
+                      setEditingZone(z);
+                      setShowZoneModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    onDeleteZone={(zId) => {
+                      deleteSidebarZone(zId);
+                      triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
+                    }}
+                    onMoveZone={handleMoveZone}
+                    isFirstZone={zIdx === 0}
+                    isLastZone={zIdx === sidebarZones.length - 1}
+                    getShortLabel={getShortLabel}
+                  />
+                ))}
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingZone(null);
+                      setShowZoneModal(true);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-white/12 bg-white/[0.02] text-zinc-400 hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-300 transition-all cursor-pointer text-left group"
+                  >
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-zinc-400 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
+                      <Plus className="h-3 w-3" />
+                    </div>
+                    <span className="text-xs font-semibold tracking-tight truncate">
+                      {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
+                    </span>
+                    <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-500 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
+                      + Zone
+                    </span>
+                  </button>
+                </div>
               </nav>
 
               <div className="mt-4 flex items-center gap-3 rounded-[18px] border border-white/10 bg-white/[0.05] p-3">
@@ -5565,7 +5763,8 @@ export default function App() {
 
           {/* Scrollable Navigation List */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-0.5 pr-0.5">
-            {orderedItems.map((item) => {
+            {/* Root Modules */}
+            {rootOrderedItems.map((item) => {
               const isActive = item.id === 'tasks'
                 ? (activeTab === 'tasks' && activeSpaceId === null && activeListId === null)
                 : (activeTab === item.id);
@@ -5588,18 +5787,7 @@ export default function App() {
                   onDragLeave={handleDragLeave}
                   onDragEnd={handleDragEnd}
                   onDrop={(e) => handleDrop(e, item.id)}
-                  onClick={() => {
-                    if (item.id === 'tasks') {
-                      setActiveTab('tasks');
-                      setActiveSpaceId(null);
-                      setActiveListId(null);
-                    } else {
-                      setActiveTab(item.id);
-                      setActiveSpaceId(null);
-                      setActiveListId(null);
-                    }
-                    addSyncLog(`Switched to: ${item.label}`);
-                  }}
+                  onClick={() => handleNavItemClick(item.id, item.label)}
                   dragIndicator={dragOverItemId === item.id && dragOverSide ? (
                     <div
                       className={`absolute left-1 right-1 h-1 z-30 pointer-events-none rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all ${
@@ -5614,6 +5802,77 @@ export default function App() {
                 />
               );
             })}
+
+            {/* Custom Workspace Zones */}
+            {sidebarZones.map((zone, zIdx) => (
+              <SidebarZoneGroup
+                key={zone.id}
+                zone={zone}
+                collapsed={isMainSidebarCollapsed}
+                activeTab={activeTab}
+                activeSpaceId={activeSpaceId}
+                activeListId={activeListId}
+                sidebarItemsMeta={sidebarItemsMeta}
+                draggedItemId={draggedItemId}
+                dragOverItemId={dragOverItemId}
+                dragOverSide={dragOverSide}
+                onDragStart={handleDragStart}
+                onDragOverItem={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDragEnd={handleDragEnd}
+                onDropOnItem={handleDrop}
+                onDropOnZone={handleDropOnZone}
+                onItemClick={handleNavItemClick}
+                onEditZone={(z) => {
+                  setEditingZone(z);
+                  setShowZoneModal(true);
+                }}
+                onDeleteZone={(zId) => {
+                  deleteSidebarZone(zId);
+                  triggerToast('info', locale === 'vi' ? 'Đã xóa Vùng' : 'Zone Deleted', locale === 'vi' ? 'Các module đã quay lại thanh bên' : 'Modules moved back to root');
+                }}
+                onMoveZone={handleMoveZone}
+                isFirstZone={zIdx === 0}
+                isLastZone={zIdx === sidebarZones.length - 1}
+                getShortLabel={getShortLabel}
+              />
+            ))}
+
+            {/* Create New Zone Button */}
+            <div className="pt-1 pb-0.5">
+              {isMainSidebarCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingZone(null);
+                    setShowZoneModal(true);
+                  }}
+                  title={locale === 'vi' ? 'Tạo Vùng mới (+ Zone)' : 'Create New Zone'}
+                  className="flex h-10 w-10 mx-auto items-center justify-center rounded-[13px] border border-dashed border-white/15 bg-white/[0.02] text-zinc-400 hover:border-sky-400/50 hover:bg-sky-500/10 hover:text-sky-300 transition-all cursor-pointer group"
+                >
+                  <Plus className="h-4 w-4 group-hover:scale-115 transition-transform" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingZone(null);
+                    setShowZoneModal(true);
+                  }}
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 rounded-xl border border-dashed border-white/12 bg-white/[0.02] text-zinc-400 hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-sky-300 transition-all cursor-pointer group text-left"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-zinc-400 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
+                    <Plus className="h-3 w-3" />
+                  </div>
+                  <span className="text-xs font-semibold tracking-tight truncate">
+                    {locale === 'vi' ? 'Tạo Vùng mới' : 'New Zone'}
+                  </span>
+                  <span className="ml-auto text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/[0.04] text-zinc-500 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
+                    + Zone
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
 
@@ -5801,6 +6060,7 @@ export default function App() {
                       triggerToast={triggerToast}
                       onAddTask={handleAddTask}
                       onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
                       spaces={spaces.filter(s => s.workspaceId === activeWorkspaceId)}
                       activeSpaceId={activeSpaceId}
                       activeListId={activeListId}
@@ -5836,9 +6096,10 @@ export default function App() {
                       onAddSyncLog={addSyncLog}
                       currentUser={currentUser}
                       onSendWorkspaceInvites={handleSendWorkspaceInvites}
-                      onStartChat={() => {
+                      onStartChat={(memberId) => {
                         setActiveTab('chat');
-                        triggerToast('info', 'Chat đội nhóm', 'Chọn thành viên trong Direct Messages để bắt đầu trao đổi.');
+                        const targetMember = currentWorkspaceMembers.find(m => m.id === memberId);
+                        triggerToast('info', 'Chat đội nhóm', targetMember ? `Đang mở cuộc trò chuyện với ${targetMember.name}.` : 'Đang chuyển đến kênh trò chuyện.');
                       }}
                     />
                   )}
@@ -6574,6 +6835,19 @@ export default function App() {
           onClose={() => setShowSidebarOrderModal(false)}
           sidebarOrder={sidebarOrder}
           setSidebarOrder={setSidebarOrder}
+          sidebarItemsMeta={sidebarItemsMeta}
+          triggerToast={triggerToast}
+        />
+      )}
+
+      {showZoneModal && (
+        <SidebarZoneModal
+          isOpen={showZoneModal}
+          onClose={() => {
+            setShowZoneModal(false);
+            setEditingZone(null);
+          }}
+          zone={editingZone}
           sidebarItemsMeta={sidebarItemsMeta}
           triggerToast={triggerToast}
         />

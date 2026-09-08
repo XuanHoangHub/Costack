@@ -20,6 +20,7 @@ import {
   Smartphone,
   Sparkles,
   Users,
+  Wallet,
   X,
   Zap,
 } from 'lucide-react';
@@ -28,10 +29,11 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import { SUGGESTED_PRICES, type BillingCycle, type BillingPlan, type SelfServeBillingPlan } from '@/lib/billing/plans';
 import { PayOSCheckout, type PaymentReceipt, type PayOSCheckoutData } from '@/components/billing/PayOSCheckout';
 import { CardPaymentSuccess } from '@/components/billing/CardPaymentSuccess';
+import { PAYPAL_DEFAULT_PRICES } from '@/lib/billing/paypal-prices';
 
 export type Entitlement = {
   plan: BillingPlan;
-  provider?: 'payos' | 'stripe';
+  provider?: 'payos' | 'stripe' | 'paypal';
   status: string;
   billing_cycle?: BillingCycle;
   is_pro: boolean;
@@ -49,7 +51,7 @@ type BillingPrice = {
 };
 
 type PriceMap = Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, BillingPrice>>>>;
-type PaymentMethod = 'vietqr' | 'momo' | 'card';
+type PaymentMethod = 'vietqr' | 'momo' | 'card' | 'paypal';
 type CardAvailability = Partial<Record<SelfServeBillingPlan, Partial<Record<BillingCycle, boolean>>>>;
 
 export interface PricingModalProps {
@@ -89,6 +91,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
   const [billingConfigured, setBillingConfigured] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr');
   const [cardAvailability, setCardAvailability] = useState<CardAvailability>({});
+  const [paypalConfigured, setPaypalConfigured] = useState(false);
+  const [paypalPrices, setPaypalPrices] = useState<PriceMap>({});
   const [pricesLoading, setPricesLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<BillingPlan | null>(null);
   const [checking, setChecking] = useState(false);
@@ -275,12 +279,16 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         setPrices(body.prices || {});
         setBillingConfigured(Boolean(body.configured));
         setCardAvailability(body.paymentMethods?.card || {});
+        setPaypalConfigured(Boolean(body.paymentMethods?.paypal));
+        setPaypalPrices(body.paypalPrices || {});
         if (body.configured) setError('');
       }
     } catch {
       setPrices({});
       setBillingConfigured(false);
       setCardAvailability({});
+      setPaypalConfigured(false);
+      setPaypalPrices({});
     } finally {
       setPricesLoading(false);
     }
@@ -422,7 +430,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       });
       if (data?.url) {
         addSyncLog?.(
-          endpoint.includes('portal') ? 'Opened secure billing portal' : `Started PayOS ${plan} ${cycle} checkout`,
+          endpoint.includes('portal') ? 'Opened secure billing portal' : `Started ${endpoint.includes('paypal') ? 'PayPal' : endpoint.includes('card') ? 'Stripe' : 'PayOS'} ${plan} ${cycle} checkout`,
         );
         window.location.assign(data.url);
       }
@@ -529,8 +537,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         void redirectToBilling(plan, '/api/billing/portal');
       } else if (entitlement.is_pro) {
         const message = isVietnamese
-          ? 'Gói PayOS là gói trả trước, không tự động gia hạn và sẽ tự trở về Free khi hết hạn.'
-          : 'PayOS plans are prepaid, do not auto-renew, and return to Free when the paid period ends.';
+          ? 'Gói trả trước không tự động gia hạn và sẽ tự trở về Free khi hết hạn.'
+          : 'Prepaid plans do not auto-renew and return to Free when the paid period ends.';
         triggerToast?.('info', isVietnamese ? 'Không có gia hạn tự động' : 'No automatic renewal', message);
       }
       return;
@@ -544,6 +552,16 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       (entitlement.is_pro || ['incomplete', 'unpaid', 'past_due'].includes(entitlement.status))
     ) {
       void redirectToBilling(plan, '/api/billing/portal');
+      return;
+    }
+    if (paymentMethod === 'paypal') {
+      if (!paypalConfigured) {
+        setError(isVietnamese ? 'PayPal đang được thiết lập. Vui lòng chọn phương thức khác.' : 'PayPal is being set up. Please choose another payment method.');
+        return;
+      }
+      if (creationRef.current) return;
+      creationRef.current = true;
+      void redirectToBilling(plan, '/api/billing/paypal-checkout', { plan, cycle });
       return;
     }
     if (paymentMethod === 'card') {
@@ -566,7 +584,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
     new Intl.NumberFormat(numberLocale, {
       style: 'currency',
       currency: currency.toUpperCase(),
-      maximumFractionDigits: 0,
+      maximumFractionDigits: currency.toLowerCase() === 'usd' ? 2 : 0,
     }).format(amount / (zeroDecimalCurrencies.has(currency.toLowerCase()) ? 1 : 100));
 
   const displayPrice = (plan: BillingPlan) => {
@@ -591,21 +609,25 @@ export const PricingModal: React.FC<PricingModalProps> = ({
       };
     }
 
-    const live = prices[plan]?.[cycle];
-    const amount = live?.unit_amount ?? SUGGESTED_PRICES[plan][cycle];
-    const rawMonthlyPrice = prices[plan]?.monthly?.unit_amount ?? SUGGESTED_PRICES[plan].monthly;
+    const paypal = paymentMethod === 'paypal';
+    const catalog = paypal ? paypalPrices : prices;
+    const defaults = paypal ? PAYPAL_DEFAULT_PRICES : SUGGESTED_PRICES;
+    const live = catalog[plan]?.[cycle];
+    const currency = paypal ? 'usd' : (live?.currency || 'vnd');
+    const amount = live?.unit_amount ?? defaults[plan][cycle];
+    const rawMonthlyPrice = catalog[plan]?.monthly?.unit_amount ?? defaults[plan].monthly;
 
     // Clean rounded monthly breakdown (e.g. 149.000 instead of 149.167)
     const exactMonthly = cycle === 'yearly' ? amount / 12 : amount;
-    const roundedMonthly = Math.round(exactMonthly / 1000) * 1000;
+    const roundedMonthly = paypal ? Math.round(exactMonthly) : Math.round(exactMonthly / 1000) * 1000;
 
     return {
-      value: formatMoney(roundedMonthly, live?.currency || 'vnd'),
+      value: formatMoney(roundedMonthly, currency),
       suffix: isVietnamese ? '/ tháng' : '/ month',
-      totalValue: formatMoney(amount, live?.currency || 'vnd'),
+      totalValue: formatMoney(amount, currency),
       rawMonthly: roundedMonthly,
       rawTotal: amount,
-      originalMonthly: cycle === 'yearly' ? formatMoney(rawMonthlyPrice, live?.currency || 'vnd') : null,
+      originalMonthly: cycle === 'yearly' ? formatMoney(rawMonthlyPrice, currency) : null,
     };
   };
 
@@ -706,8 +728,8 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   </h2>
                   <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm text-pretty">
                     {isVietnamese
-                      ? 'Nâng cấp nhanh qua VietQR 24/7 · Không ràng buộc hợp đồng · Kích hoạt tự động sau đối soát.'
-                      : 'Instant VietQR payment · Zero contracts · Activated automatically after verification.'}
+                      ? 'Thanh toán qua VietQR, thẻ hoặc PayPal · Kích hoạt tự động sau khi xác nhận giao dịch.'
+                      : 'Pay with VietQR, card or PayPal · Activated automatically after payment verification.'}
                   </p>
 
                   {/* Interactive Switcher with Animated Pill */}
@@ -764,7 +786,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                               : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
                           }`}
                         >
-                          -25%
+                          {paymentMethod === 'paypal' ? (isVietnamese ? 'Giá năm' : 'Annual rate') : '-25%'}
                         </span>
                       </span>
                     </button>
@@ -773,7 +795,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
 
                 <div className="relative mx-auto mb-5 max-w-3xl px-4 sm:px-6">
                   <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-                    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label={isVietnamese ? 'Phương thức thanh toán' : 'Payment method'}>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4" role="radiogroup" aria-label={isVietnamese ? 'Phương thức thanh toán' : 'Payment method'}>
                       {([
                         {
                           id: 'vietqr' as const,
@@ -798,6 +820,14 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                           shortTitle: isVietnamese ? 'Thẻ' : 'Card',
                           detail: 'Visa · Mastercard',
                           enabled: corePlans.some((plan) => Boolean(cardAvailability[plan]?.[cycle])),
+                        },
+                        {
+                          id: 'paypal' as const,
+                          icon: Wallet,
+                          title: 'PayPal',
+                          shortTitle: 'PayPal',
+                          detail: paypalConfigured ? 'USD · PayPal' : (isVietnamese ? 'Đang thiết lập' : 'Coming soon'),
+                          enabled: true,
                         },
                       ]).map((method) => {
                         const MethodIcon = method.icon;
@@ -830,7 +860,11 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                     </div>
                     <div className="mt-2 flex items-center justify-center gap-1.5 px-2 pb-1 text-center text-[10px] font-semibold text-slate-400">
                       <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                      {paymentMethod === 'card'
+                      {paymentMethod === 'paypal'
+                        ? (!paypalConfigured
+                          ? (isVietnamese ? 'PayPal đang được thiết lập. Bạn có thể xem giá USD và chọn phương thức khác để thanh toán.' : 'PayPal is being set up. You can preview USD prices and use another payment method.')
+                          : (isVietnamese ? 'Thanh toán bằng USD qua PayPal; tự động kích hoạt sau xác nhận, không tự động gia hạn.' : 'Pay in USD with PayPal; automatic activation after confirmation, no automatic renewal.'))
+                        : paymentMethod === 'card'
                         ? (isVietnamese ? 'Thanh toán định kỳ bảo mật qua Stripe; quản lý hoặc hủy bất kỳ lúc nào.' : 'Secure recurring billing through Stripe; manage or cancel anytime.')
                         : paymentMethod === 'momo'
                           ? (isVietnamese ? 'Mở MoMo, chọn Quét mã và thanh toán qua mã VietQR được tạo riêng cho đơn.' : 'Open MoMo and scan the order-specific VietQR code.')
@@ -913,7 +947,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       const info = copy[plan];
                       const price = displayPrice(plan);
                       const current = entitlement.is_pro && entitlement.plan === plan;
-                      const canRenew = current && entitlement.provider === 'payos';
+                      const canRenew = current && (entitlement.provider === 'payos' || entitlement.provider === 'paypal');
                       const loading = loadingPlan === plan;
                       return (
                         <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-900">
@@ -945,7 +979,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                                 <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
                                   <span className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                    ({price.totalValue}/năm)
+                                    ({price.totalValue}/{isVietnamese ? 'năm' : 'year'})
                                   </span>
                                 )}
                               </div>
@@ -956,7 +990,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                             <button
                               type="button"
                               onClick={() => selectPlan(plan)}
-                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading || (paymentMethod === 'paypal' && !paypalConfigured)}
                               className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60"
                             >
                               {loading ? (
@@ -1004,7 +1038,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       const info = copy[plan];
                       const price = displayPrice(plan);
                       const current = entitlement.is_pro && entitlement.plan === plan;
-                      const canRenew = current && entitlement.provider === 'payos';
+                      const canRenew = current && (entitlement.provider === 'payos' || entitlement.provider === 'paypal');
                       const loading = loadingPlan === plan;
                       return (
                         <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white p-5 shadow-[0_20px_50px_-15px_rgba(79,70,229,0.35)] ring-2 ring-indigo-500/20 dark:bg-slate-900 dark:shadow-[0_20px_50px_-15px_rgba(79,70,229,0.5)]">
@@ -1043,7 +1077,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                                 <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
                                   <span className="text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
-                                    ({price.totalValue}/năm)
+                                    ({price.totalValue}/{isVietnamese ? 'năm' : 'year'})
                                   </span>
                                 )}
                               </div>
@@ -1054,7 +1088,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                             <button
                               type="button"
                               onClick={() => selectPlan(plan)}
-                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading || (paymentMethod === 'paypal' && !paypalConfigured)}
                               className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-indigo-500/25 transition hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5 disabled:opacity-60 whitespace-nowrap shrink-0"
                             >
                               {loading ? (
@@ -1104,7 +1138,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       const info = copy[plan];
                       const price = displayPrice(plan);
                       const current = entitlement.is_pro && entitlement.plan === plan;
-                      const canRenew = current && entitlement.provider === 'payos';
+                      const canRenew = current && (entitlement.provider === 'payos' || entitlement.provider === 'paypal');
                       const loading = loadingPlan === plan;
                       return (
                         <article className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs transition-all hover:border-amber-200 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-900/60">
@@ -1136,7 +1170,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                                 <span>{price.suffix}</span>{' '}
                                 {cycle === 'yearly' && (
                                   <span className="text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                    ({price.totalValue}/năm)
+                                    ({price.totalValue}/{isVietnamese ? 'năm' : 'year'})
                                   </span>
                                 )}
                               </div>
@@ -1147,7 +1181,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                             <button
                               type="button"
                               onClick={() => selectPlan(plan)}
-                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading}
+                              disabled={(current && !canRenew) || Boolean(loadingPlan) || checking || pricesLoading || (paymentMethod === 'paypal' && !paypalConfigured)}
                               className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-black text-slate-800 transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-800/80 dark:text-white dark:hover:bg-slate-800"
                             >
                               {loading ? (
@@ -1238,7 +1272,9 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                   <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-bold text-slate-400">
                     <span className="flex items-center gap-1.5">
                       <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                      {isVietnamese ? 'Thanh toán bảo mật VietQR qua PayOS' : 'Secure VietQR via PayOS'}
+                      {paymentMethod === 'paypal'
+                        ? (isVietnamese ? 'Thanh toán bảo mật qua PayPal · USD' : 'Secure PayPal payment · USD')
+                        : (isVietnamese ? 'Thanh toán bảo mật' : 'Secure payment')}
                     </span>
                     <span>•</span>
                     <span>{isVietnamese ? 'Gói trả trước · Không tự động trừ tiền' : 'Prepaid access · No auto-debit'}</span>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "./workspace.css";
+import "../components/spaces/spaces.css";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import InlineHeadScript from "@/components/InlineHeadScript";
 

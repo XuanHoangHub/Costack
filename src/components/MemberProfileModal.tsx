@@ -413,7 +413,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           role="dialog"
           aria-modal="true"
           aria-labelledby="member-profile-title"
-          className="relative w-full max-w-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 flex flex-col max-h-[92vh] text-slate-800 dark:text-slate-100"
+          className="relative w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[32px] shadow-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden z-10 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-100"
         >
           {/* Header Banner (Custom image or Mesh gradient) */}
           <div 
@@ -425,7 +425,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             onTouchStart={handleBannerTouchStart}
             onTouchMove={handleBannerTouchMove}
             onTouchEnd={handleBannerMouseUp}
-            className={`h-52 sm:h-60 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none transition-all ${
+            className={`h-52 sm:h-64 bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 relative shrink-0 overflow-hidden group select-none transition-all ${
               isRepositioningBanner 
                 ? (isDraggingBanner ? 'cursor-grabbing ring-2 ring-inset ring-sky-400' : 'cursor-grab ring-2 ring-inset ring-sky-400/80') 
                 : ''
@@ -471,7 +471,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
             {/* Reposition Mode Guide Pill */}
             {isRepositioningBanner && (
-              <div className="absolute top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-slate-950/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-sky-400/60 text-white text-xs font-bold shadow-2xl animate-fade-in pointer-events-none select-none">
+              <div className="absolute top-3.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 bg-slate-950/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-sky-400/60 text-white text-xs font-bold shadow-2xl animate-fade-in pointer-events-none select-none">
                 <Move className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
                 <span>{isVietnamese ? 'Kéo để căn chỉnh vị trí ảnh bìa' : 'Drag image to reposition banner'}</span>
               </div>
@@ -483,7 +483,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <button
                   type="button"
                   onClick={saveBannerPosition}
-                  className="px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  className="px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
                 >
                   <Check className="w-3.5 h-3.5 text-white" />
                   <span>{isVietnamese ? 'Lưu vị trí' : 'Save'}</span>
@@ -492,7 +492,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <button
                   type="button"
                   onClick={resetBannerCenter}
-                  className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  className="px-3 py-1.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
                   title={isVietnamese ? 'Căn giữa (50% 50%)' : 'Reset center'}
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
@@ -502,7 +502,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <button
                   type="button"
                   onClick={cancelRepositionBanner}
-                  className="px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  className="px-3 py-1.5 rounded-full bg-black/60 hover:bg-rose-600/80 border border-white/25 backdrop-blur-md text-white text-xs font-bold flex items-center gap-1 shadow-xl transition-all cursor-pointer hover:scale-105 active:scale-95"
                 >
                   <X className="w-3.5 h-3.5 text-rose-300" />
                   <span>{isVietnamese ? 'Hủy' : 'Cancel'}</span>
@@ -590,7 +590,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
 
             {/* Feedback notification pill */}
             {bannerFeedback && (
-              <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-slate-950/85 border border-white/20 text-white text-[11px] font-bold backdrop-blur-md shadow-lg z-10 animate-fade-in">
+              <div className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-full bg-slate-950/85 border border-white/20 text-white text-[11px] font-bold backdrop-blur-md shadow-lg z-10 animate-fade-in">
                 {bannerFeedback}
               </div>
             )}
@@ -607,7 +607,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 border border-white/20 backdrop-blur-md text-white flex items-center justify-center transition-all cursor-pointer z-10 active:scale-90 shadow-md"
+              className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 border border-white/20 backdrop-blur-md text-white flex items-center justify-center transition-all cursor-pointer z-10 active:scale-90 shadow-md"
               title={locale === 'vi' ? 'Đóng' : 'Close'}
             >
               <X className="w-4 h-4" />
@@ -615,22 +615,22 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           </div>
 
           {/* Profile Header Details Bar */}
-          <div className="px-6 md:px-8 pb-5 relative shrink-0 border-b border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-18 mb-4 gap-4">
+          <div className="px-6 sm:px-8 pb-5 relative shrink-0 border-b border-slate-200/70 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between -mt-16 sm:-mt-20 mb-4 gap-4">
               {/* Avatar with HD Ring & Live Status */}
               <div 
                 className="relative group self-start cursor-pointer"
                 onClick={() => setLightboxImage({ url: member.avatar, title: `${member.name} Avatar` })}
                 title={isVietnamese ? 'Nhấp để xem ảnh đại diện HD' : 'Click to view HD avatar'}
               >
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl ring-4 ring-white dark:ring-slate-900 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center transition-all group-hover:ring-indigo-400">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[28px] ring-4 ring-white dark:ring-slate-900 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center transition-all group-hover:ring-indigo-400">
                   <SignedImage
                     filePath={member.avatar}
                     style={{ imageRendering: '-webkit-optimize-contrast' }}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     alt={member.name}
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-3xl">
+                  <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[28px]">
                     <Eye className="w-5 h-5 text-white" />
                   </div>
                 </div>
@@ -645,10 +645,10 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               {/* Action Buttons */}
               <div className="flex items-center gap-2.5 self-start sm:self-auto">
                 <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleOpenChat}
-                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                  className="px-4.5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>
@@ -659,10 +659,10 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 </motion.button>
 
                 <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleFilterTasks}
-                  className="px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 text-xs font-black flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-xs transition-all cursor-pointer"
+                  className="px-4.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 text-xs font-bold flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-xs transition-all cursor-pointer"
                 >
                   <Briefcase className="w-4 h-4 text-indigo-500" />
                   <span>{locale === 'vi' ? 'Xem công việc' : 'View tasks'}</span>
@@ -691,7 +691,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 )}
               </div>
 
-              {/* Email with Quick Copy */}
+              {/* Email with Quick Copy & Live Presence */}
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <button
                   type="button"
@@ -735,14 +735,14 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
           </div>
 
           {/* Modal Body Scrollable */}
-          <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+          <div className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
             {/* Bento Stat Cards Strip */}
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {/* Card 1: Assigned Tasks */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-100 dark:border-indigo-900/30 text-left space-y-1 relative overflow-hidden group">
+              <div className="p-4 rounded-[22px] bg-gradient-to-br from-indigo-50/80 to-blue-50/40 dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-100/80 dark:border-indigo-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-indigo-500 dark:text-indigo-400">
                   <FolderKanban className="w-4 h-4" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">
                     {inProgressTasksCount > 0 ? `${inProgressTasksCount} ${locale === 'vi' ? 'đang làm' : 'active'}` : ''}
                   </span>
                 </div>
@@ -755,7 +755,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
 
               {/* Card 2: Completed Tasks */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-100 dark:border-emerald-900/30 text-left space-y-1 relative overflow-hidden group">
+              <div className="p-4 rounded-[22px] bg-gradient-to-br from-emerald-50/80 to-teal-50/40 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-100/80 dark:border-emerald-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-emerald-500 dark:text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                   {assignedTasks.length > 0 && (
@@ -773,7 +773,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
 
               {/* Card 3: Logged Hours */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:from-amber-950/20 dark:to-slate-900 border border-amber-100 dark:border-amber-900/30 text-left space-y-1 relative overflow-hidden group">
+              <div className="p-4 rounded-[22px] bg-gradient-to-br from-amber-50/80 to-orange-50/40 dark:from-amber-950/20 dark:to-slate-900 border border-amber-100/80 dark:border-amber-900/30 text-left space-y-1 relative overflow-hidden group shadow-2xs">
                 <div className="flex items-center justify-between text-amber-500 dark:text-amber-400">
                   <Clock className="w-4 h-4" />
                   {totalHoursEstimate > 0 && (
@@ -792,7 +792,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
             </div>
 
             {/* Profile Info Details List */}
-            <div className="space-y-3 p-4.5 rounded-3xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 text-xs">
+            <div className="space-y-3 p-5 rounded-[24px] bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 text-xs shadow-2xs">
               <div className="flex items-center justify-between py-1.5 border-b border-slate-200/50 dark:border-slate-700/40 text-left">
                 <span className="font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-indigo-500" />
@@ -842,7 +842,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {locale === 'vi' ? 'Giới thiệu bản thân' : 'Biography'}
                 </h4>
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border-l-4 border-l-indigo-500">
+                <div className="p-4 rounded-[22px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border-l-4 border-l-indigo-500 shadow-2xs">
                   "{member.bio}"
                 </div>
               </div>
@@ -857,7 +857,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {member.skills.map(skill => (
-                    <span key={skill} className="rounded-xl border border-indigo-200/70 bg-indigo-50/80 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
+                    <span key={skill} className="rounded-xl border border-indigo-200/70 bg-indigo-50/80 px-3 py-1 text-[11px] font-bold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300 shadow-2xs">
                       {skill}
                     </span>
                   ))}
@@ -871,7 +871,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                 <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                   <FolderKanban className="w-3.5 h-3.5 text-indigo-500" />
                   <span>{locale === 'vi' ? 'Công việc phụ trách gần đây' : 'Recent Assigned Tasks'}</span>
-                  <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                  <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold">
                     {assignedTasks.length}
                   </span>
                 </h4>
@@ -889,8 +889,8 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
               </div>
 
               {assignedTasks.length === 0 ? (
-                <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center text-xs space-y-1.5">
-                  <CheckCircle2 className="w-7 h-7 mx-auto text-slate-300 dark:text-slate-600" />
+                <div className="p-8 rounded-[24px] border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center text-xs space-y-1.5">
+                  <CheckCircle2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
                   <p className="font-bold text-slate-600 dark:text-slate-300">
                     {locale === 'vi' ? 'Thành viên này chưa có công việc được giao' : 'No tasks assigned to this member'}
                   </p>
@@ -899,7 +899,7 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                   {assignedTasks.slice(0, 5).map((task) => {
                     const isDone = task.status === 'completed';
                     return (
@@ -911,14 +911,14 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                             onSelectTask(task);
                           }
                         }}
-                        className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-400/50 transition-all flex items-center justify-between cursor-pointer group shadow-2xs"
+                        className="p-3.5 rounded-[20px] border border-slate-200/70 dark:border-slate-800/80 bg-white dark:bg-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-400/50 transition-all flex items-center justify-between cursor-pointer group shadow-2xs hover:shadow-sm"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 pr-3">
-                          <CheckCircle2
-                            className={`w-4 h-4 shrink-0 transition-colors ${
-                              isDone ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600 group-hover:text-indigo-500'
-                            }`}
-                          />
+                        <div className="flex items-center gap-3 min-w-0 pr-3">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                            isDone ? 'bg-emerald-500/15 text-emerald-500' : 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 group-hover:text-indigo-500'
+                          }`}>
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
                           <div className="min-w-0 text-left">
                             <p className={`text-xs font-bold truncate transition-colors ${
                               isDone 
@@ -928,16 +928,16 @@ export default function MemberProfileModal({ memberId, onClose, onSelectTask }: 
                               {task.title}
                             </p>
                             {task.hoursEstimate ? (
-                              <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                              <span className="text-[10.5px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
                                 <Clock className="w-2.5 h-2.5" />
-                                {task.hoursEstimate}h {locale === 'vi' ? 'dự kiến' : 'est'}
+                                <span>{task.hoursEstimate}h {locale === 'vi' ? 'dự kiến' : 'est'}</span>
                               </span>
                             ) : null}
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[9.5px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
                             {getLocalizedOptionLabel(task.status, 'status', isVietnamese ? 'vi' : 'en')}
                           </span>
                         </div>

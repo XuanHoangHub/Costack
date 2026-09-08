@@ -1320,10 +1320,10 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                     </button>
                   </div>
                   <div className="space-y-1 text-slate-600 dark:text-slate-300">
-                    <div className="flex justify-between"><span>Supabase Realtime:</span> <span className="font-mono text-emerald-500 font-bold">11.2ms</span></div>
-                    <div className="flex justify-between"><span>IndexedDB Cache:</span> <span className="font-mono text-indigo-400 font-bold">0.8ms</span></div>
-                    <div className="flex justify-between"><span>CRDTs Engine:</span> <span className="font-mono text-blue-400 font-bold">Yjs v13</span></div>
-                    <div className="flex justify-between"><span>Offline Pending:</span> <span className="font-mono text-emerald-400 font-bold">0 mutations</span></div>
+                    <div className="flex justify-between"><span>Cloud Realtime:</span> <span className="font-mono text-emerald-500 font-bold">11.2ms</span></div>
+                    <div className="flex justify-between"><span>Cache Engine:</span> <span className="font-mono text-indigo-400 font-bold">0.8ms</span></div>
+                    <div className="flex justify-between"><span>Collaboration:</span> <span className="font-mono text-blue-400 font-bold">Active</span></div>
+                    <div className="flex justify-between"><span>Network Status:</span> <span className="font-mono text-emerald-400 font-bold">Connected</span></div>
                   </div>
                 </div>
               )}
@@ -1939,7 +1939,7 @@ function ApexaWorkspaceShowcase({ onSignUp }: { onSignUp: () => void }) {
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-dashed border-indigo-400/50 dark:border-indigo-500/30 space-y-1.5">
                         <div className="flex items-center justify-between text-[10px] font-black uppercase text-indigo-500">
                           <span className="flex items-center gap-1.5"><Kanban className="w-3 h-3" /> {isVietnamese ? 'Thẻ Kanban nhúng trực tiếp:' : 'Embedded Live Kanban Card:'}</span>
-                          <span className="text-emerald-500 font-bold">● Live Synced</span>
+                          <span className="text-emerald-500 font-bold">● {isVietnamese ? 'Trực tuyến' : 'Live'}</span>
                         </div>
                         <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -2981,6 +2981,61 @@ function ComparisonMatrix({ onSignUp }: { onSignUp?: () => void }) {
   );
 }
 
+/**
+ * Isolated desktop mouse spotlight that directly updates DOM styles via requestAnimationFrame.
+ * ZERO React re-renders of the root LandingPage component.
+ * Completely disabled on mobile/touch devices (pointer: fine and min-width: 768px required).
+ */
+function AmbientMouseSpotlight() {
+  const spotlightRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Strict capability check: Only run if device has a physical mouse/trackpad AND screen is at least tablet/desktop size
+    const finePointerMedia = window.matchMedia('(pointer: fine) and (min-width: 768px)');
+    if (!finePointerMedia.matches) return;
+
+    let rafId: number | null = null;
+    let targetX = 50;
+    let targetY = 50;
+
+    const onMouseMove = (e: MouseEvent) => {
+      targetX = (e.clientX / window.innerWidth) * 100;
+      targetY = (e.clientY / window.innerHeight) * 100;
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (spotlightRef.current) {
+            spotlightRef.current.style.background = `radial-gradient(850px circle at ${targetX.toFixed(1)}% ${targetY.toFixed(1)}%, rgba(59, 130, 246, 0.16), transparent 70%)`;
+          }
+          rafId = null;
+        });
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={spotlightRef}
+      className="fixed inset-0 pointer-events-none z-0 opacity-50 dark:opacity-75 transition-opacity duration-300 hidden md:block"
+      style={{
+        background: 'radial-gradient(850px circle at 50% 50%, rgba(59, 130, 246, 0.16), transparent 70%)',
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
 /* =========================================================================
    MAIN LANDING PAGE EXPORT
    ========================================================================= */
@@ -2989,7 +3044,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   const { isVietnamese } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly');
@@ -3626,17 +3680,6 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   }, [faqs, faqCategory, faqSearch]);
 
   useEffect(() => {
-    const handleMouse = (e: MouseEvent) => {
-      setMousePos({
-        x: (e.clientX / window.innerWidth) * 100,
-        y: (e.clientY / window.innerHeight) * 100,
-      });
-    };
-    window.addEventListener('mousemove', handleMouse);
-    return () => window.removeEventListener('mousemove', handleMouse);
-  }, []);
-
-  useEffect(() => {
     let active = true;
     fetch('/api/billing/plans', { cache: 'no-store' })
       .then(async response => response.ok ? response.json() : Promise.reject(new Error('Pricing unavailable')))
@@ -3724,26 +3767,28 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
   return (
     <div ref={containerRef} className="relative w-full overflow-x-clip bg-[#fafbfc] dark:bg-[#000000] transition-colors duration-300 font-sans text-slate-800 dark:text-slate-100 selection:bg-blue-500 selection:text-white">
       
-      {/* Dynamic Ambient Mouse Spotlight */}
+      {/* Dynamic Ambient Mouse Spotlight (Desktop only, 0 React re-renders) */}
+      <AmbientMouseSpotlight />
+
+      {/* Mobile-optimized lightweight static ambient background (Zero GPU blur overhead, no JS execution) */}
       <div
-        className="fixed inset-0 pointer-events-none z-0 opacity-50 dark:opacity-75 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(850px circle at ${mousePos.x}% ${mousePos.y}%, rgba(59, 130, 246, 0.16), transparent 70%)`
-        }}
+        className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent_70%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.18),transparent_70%)] md:hidden"
+        aria-hidden="true"
       />
       
-      {/* High-Tech Dotted Matrix Pattern Overlay */}
+      {/* High-Tech Dotted Matrix Pattern Overlay (Desktop & Tablet only to avoid expensive WebKit masks on mobile) */}
       <div 
-        className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-20"
+        className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-20 hidden sm:block"
         style={{
           backgroundImage: `radial-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px)`,
           backgroundSize: '24px 24px',
           maskImage: 'radial-gradient(ellipse 70% 55% at 50% 35%, black 30%, transparent 100%)',
           WebkitMaskImage: 'radial-gradient(ellipse 70% 55% at 50% 35%, black 30%, transparent 100%)'
         }}
+        aria-hidden="true"
       />
 
-      {/* Atmospheric Floating Aurora Orbs */}
+      {/* Atmospheric Floating Aurora Orbs (Desktop only with GPU hardware acceleration) */}
       <motion.div
         animate={{
           x: [0, 50, -40, 0],
@@ -3751,7 +3796,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           scale: [1, 1.12, 0.95, 1],
         }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed top-[-10%] left-[-10%] w-[700px] h-[700px] bg-gradient-to-tr from-blue-600/20 via-indigo-500/15 to-transparent rounded-full blur-[140px] pointer-events-none z-0"
+        className="fixed top-[-10%] left-[-10%] w-[700px] h-[700px] bg-gradient-to-tr from-blue-600/20 via-indigo-500/15 to-transparent rounded-full blur-[140px] pointer-events-none z-0 hidden md:block transform-gpu will-change-transform"
+        aria-hidden="true"
       />
       <motion.div
         animate={{
@@ -3760,7 +3806,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           scale: [1, 0.92, 1.1, 1],
         }}
         transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed bottom-[10%] right-[-10%] w-[650px] h-[650px] bg-gradient-to-br from-indigo-600/20 via-sky-500/15 to-transparent rounded-full blur-[130px] pointer-events-none z-0"
+        className="fixed bottom-[10%] right-[-10%] w-[650px] h-[650px] bg-gradient-to-br from-indigo-600/20 via-sky-500/15 to-transparent rounded-full blur-[130px] pointer-events-none z-0 hidden md:block transform-gpu will-change-transform"
+        aria-hidden="true"
       />
       <motion.div
         animate={{
@@ -3769,7 +3816,8 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           scale: [1, 1.08, 0.92, 1],
         }}
         transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
-        className="fixed top-[40%] right-[20%] w-[450px] h-[450px] bg-gradient-to-bl from-cyan-500/10 via-teal-500/10 to-transparent rounded-full blur-[120px] pointer-events-none z-0"
+        className="fixed top-[40%] right-[20%] w-[450px] h-[450px] bg-gradient-to-bl from-cyan-500/10 via-teal-500/10 to-transparent rounded-full blur-[120px] pointer-events-none z-0 hidden md:block transform-gpu will-change-transform"
+        aria-hidden="true"
       />
 
       {/* TOP NOTIFICATION MARQUEE BANNER */}
@@ -4348,7 +4396,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           ========================================================================= */}
       <section id="comparison" className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         {/* Ambient Subtle Section Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[300px] bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-sky-500/10 rounded-full blur-[140px] pointer-events-none -z-10" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[650px] h-[200px] sm:h-[300px] bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-sky-500/10 rounded-full blur-2xl sm:blur-[140px] pointer-events-none -z-10 transform-gpu" />
         
         <FadeInSection>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-end mb-12 lg:mb-14 text-left">
@@ -4555,7 +4603,7 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           ========================================================================= */}
       <section id="pricing" className="relative z-10 max-w-7xl 2xl:max-w-[1400px] mx-auto px-5 sm:px-6 py-16 lg:py-24 border-t border-slate-200/70 dark:border-white/10">
         {/* Ambient Subtle Section Glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[350px] bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-sky-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] sm:w-[850px] h-[220px] sm:h-[350px] bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-sky-500/10 rounded-full blur-2xl sm:blur-[150px] pointer-events-none -z-10 transform-gpu" />
         
         <FadeInSection>
           <div className="text-center space-y-3.5 max-w-3xl mx-auto mb-14">
@@ -5187,9 +5235,9 @@ export default function LandingPage({ onSignUp, onSignIn }: LandingPageProps) {
           <div className="relative rounded-[36px] sm:rounded-[44px] p-8 sm:p-14 lg:p-20 text-center text-white overflow-hidden shadow-2xl border border-white/15 dark:border-white/10 bg-gradient-to-b from-[#0b162c] via-[#0d1c3a] to-[#080d1a] dark:from-[#181818] dark:via-[#121212] dark:to-[#0a0a0a]">
             
             {/* Ambient Cosmic Aurora Light Flares */}
-            <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[750px] h-[360px] bg-gradient-to-r from-blue-500/25 via-indigo-500/35 to-purple-500/25 rounded-full blur-[130px] pointer-events-none -z-0" />
-            <div className="absolute -bottom-24 right-[-10%] w-[500px] h-[300px] bg-gradient-to-tl from-cyan-500/20 via-sky-500/20 to-transparent rounded-full blur-[110px] pointer-events-none -z-0" />
-            <div className="absolute top-1/2 left-[-10%] w-[400px] h-[300px] bg-gradient-to-tr from-purple-500/15 to-transparent rounded-full blur-[100px] pointer-events-none -z-0" />
+            <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[340px] sm:w-[750px] h-[200px] sm:h-[360px] bg-gradient-to-r from-blue-500/25 via-indigo-500/35 to-purple-500/25 rounded-full blur-2xl sm:blur-[130px] pointer-events-none -z-0 transform-gpu" />
+            <div className="hidden sm:block absolute -bottom-24 right-[-10%] w-[500px] h-[300px] bg-gradient-to-tl from-cyan-500/20 via-sky-500/20 to-transparent rounded-full blur-[110px] pointer-events-none -z-0 transform-gpu" />
+            <div className="hidden sm:block absolute top-1/2 left-[-10%] w-[400px] h-[300px] bg-gradient-to-tr from-purple-500/15 to-transparent rounded-full blur-[100px] pointer-events-none -z-0 transform-gpu" />
 
             {/* Dotted Pattern Overlay */}
             <div

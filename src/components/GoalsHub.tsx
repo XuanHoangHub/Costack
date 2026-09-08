@@ -303,7 +303,7 @@ export default function GoalsHub({
 
       if (goalError) {
         if (!cancelled) {
-          setError(isVietnamese ? 'Không thể tải mục tiêu từ Supabase.' : 'Unable to load goals from Supabase.');
+          setError(isVietnamese ? 'Không thể tải dữ liệu mục tiêu. Vui lòng thử lại sau.' : 'Unable to load goals. Please try again later.');
           setIsLoading(false);
         }
         return;

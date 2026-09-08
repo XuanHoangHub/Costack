@@ -27,6 +27,12 @@ import { formatAuthError } from '@/lib/authError';
 import type { ThemePreference } from '@/lib/theme';
 import type { NotificationSettings, SyncLog, Task, User, Workspace } from '@/types';
 import { ApexaAiIcon } from './ApexaAiIcon';
+import { 
+  getBrowserNotificationPermission, 
+  requestBrowserNotificationPermission, 
+  sendTestNotification, 
+  isBrowserNotificationSupported 
+} from '@/lib/notificationManager';
 
 export const WORKSPACE_COVERS = [
   { id: 'cover1', name: 'Amethyst Quartz', url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80' },
@@ -227,6 +233,13 @@ export default function SettingsPanel({
   const [mfaError, setMfaError] = useState('');
   const [confirmDisableMfaModal, setConfirmDisableMfaModal] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [browserPerm, setBrowserPerm] = useState<NotificationPermission>(() => getBrowserNotificationPermission());
+
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      setBrowserPerm(getBrowserNotificationPermission());
+    }
+  }, [activeTab]);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -981,9 +994,60 @@ export default function SettingsPanel({
                   <SettingRow title={t('enableNotificationSound') || (isVietnamese ? 'Âm thanh thông báo' : 'Notification Sound')} description={t('enableNotificationSoundDesc') || (isVietnamese ? 'Phát âm thanh ngắn khi có cảnh báo.' : 'Play a chime when a notification arrives.')}>
                     <Toggle checked={notificationSettings.enableSound} disabled={!notificationSettings.enableAll} onChange={value => { setNotificationSettings(previous => ({ ...previous, enableSound: value })); setSoundEnabled(value); }} label="Notification Sound" />
                   </SettingRow>
-                  <SettingRow title={t('onlyImportantUpdates') || (isVietnamese ? 'Chỉ cập nhật quan trọng' : 'Only Important Updates')} description={t('onlyImportantUpdatesDesc') || (isVietnamese ? 'Giảm nhiễu bằng cách ưu tiên việc được giao và hạn chót.' : 'Reduce noise by prioritizing assignments and deadlines.')} last>
+                  <SettingRow title={t('onlyImportantUpdates') || (isVietnamese ? 'Chỉ cập nhật quan trọng' : 'Only Important Updates')} description={t('onlyImportantUpdatesDesc') || (isVietnamese ? 'Giảm nhiễu bằng cách ưu tiên việc được giao và hạn chót.' : 'Reduce noise by prioritizing assignments and deadlines.')}>
                     <Toggle checked={notificationSettings.onlyImportant} disabled={!notificationSettings.enableAll} onChange={value => setNotificationSettings(previous => ({ ...previous, onlyImportant: value }))} label="Only Important Updates" />
                   </SettingRow>
+                  {isBrowserNotificationSupported() && (
+                    <SettingRow 
+                      title={isVietnamese ? 'Thông báo trên màn hình máy tính (Browser Desktop Notifications)' : 'Browser Desktop Notifications'} 
+                      description={isVietnamese ? 'Gửi thông báo pop-up trực tiếp lên màn hình khi đến hạn công việc ngay cả khi bạn đang chuyển sang tab hay ứng dụng khác.' : 'Get system notifications when tasks reach deadlines even if you are on another tab.'}
+                      last
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          browserPerm === 'granted' 
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
+                            : browserPerm === 'denied'
+                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                              : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                        }`}>
+                          {browserPerm === 'granted' 
+                            ? (isVietnamese ? 'Đã cho phép' : 'Allowed') 
+                            : browserPerm === 'denied' 
+                              ? (isVietnamese ? 'Đã bị chặn' : 'Blocked') 
+                              : (isVietnamese ? 'Chưa cấp quyền' : 'Default')}
+                        </span>
+                        <Toggle 
+                          checked={Boolean(notificationSettings.enableBrowserNotifications && browserPerm === 'granted')} 
+                          disabled={!notificationSettings.enableAll} 
+                          onChange={async (value) => {
+                            if (value) {
+                              const res = await requestBrowserNotificationPermission();
+                              setBrowserPerm(res);
+                              if (res === 'granted') {
+                                setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: true }));
+                                sendTestNotification();
+                              } else {
+                                setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
+                              }
+                            } else {
+                              setNotificationSettings(previous => ({ ...previous, enableBrowserNotifications: false }));
+                            }
+                          }} 
+                          label="Browser Desktop Notifications" 
+                        />
+                        {browserPerm === 'granted' && (
+                          <button
+                            type="button"
+                            onClick={() => sendTestNotification()}
+                            className="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-3xs"
+                          >
+                            {isVietnamese ? 'Bắn thử' : 'Test popup'}
+                          </button>
+                        )}
+                      </div>
+                    </SettingRow>
+                  )}
                 </SettingsCard>
 
                 <SettingsCard title={t('notificationContentTitle') || (isVietnamese ? 'Nội dung cần thông báo' : 'Notification Triggers')} description={t('notificationContentSubtitle') || (isVietnamese ? 'Tinh chỉnh những hoạt động có thể làm gián đoạn sự tập trung.' : 'Fine-tune which activities can interrupt your focus.')} icon={SlidersHorizontal}>

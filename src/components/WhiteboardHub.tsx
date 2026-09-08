@@ -161,7 +161,7 @@ const generateTemplateElements = (type: string): WhiteboardElement[] => {
         { id: `ar-2-${now}`, type: 'rectangle', x: 240, y: 150, width: 130, height: 80, color: '#6366f1', text: 'API Gateway &\nAuth Shield' },
         { id: `ar-3-${now}`, type: 'rectangle', x: 420, y: 70, width: 140, height: 75, color: '#ec4899', text: 'Whiteboard Engine\n(WebSocket Realtime)' },
         { id: `ar-4-${now}`, type: 'rectangle', x: 420, y: 230, width: 140, height: 75, color: '#f59e0b', text: 'AI Analysis Worker\n(Gemini)' },
-        { id: `ar-5-${now}`, type: 'cylinder', x: 620, y: 150, width: 130, height: 85, color: '#10b981', text: 'Supabase Cloud\nPostgreSQL & Storage' },
+        { id: `ar-5-${now}`, type: 'cylinder', x: 620, y: 150, width: 130, height: 85, color: '#10b981', text: 'Cloud Database\nStorage & Records' },
         { id: `ar-l1-${now}`, type: 'line', x: 190, y: 190, points: { fromId: `ar-1-${now}`, toId: `ar-2-${now}`, fromSocket: 'right', toSocket: 'left' }, color: '#0ea5e9' },
         { id: `ar-l2-${now}`, type: 'line', x: 370, y: 160, points: { fromId: `ar-2-${now}`, toId: `ar-3-${now}`, fromSocket: 'right', toSocket: 'left' }, color: '#ec4899' },
         { id: `ar-l3-${now}`, type: 'line', x: 370, y: 210, points: { fromId: `ar-2-${now}`, toId: `ar-4-${now}`, fromSocket: 'right', toSocket: 'left' }, color: '#f59e0b' },
@@ -173,7 +173,7 @@ const generateTemplateElements = (type: string): WhiteboardElement[] => {
         { id: `wf-2-${now}`, type: 'rectangle', x: 60, y: 115, width: 500, height: 110, color: '#6366f1', text: 'Hero Section:\nTIÊU ĐỀ CHÍNH NỔI BẬT\nMô tả giải pháp & Nút dùng thử miễn phí' },
         { id: `wf-3-${now}`, type: 'rectangle', x: 60, y: 240, width: 155, height: 100, color: '#0ea5e9', text: 'Thẻ Tính năng 1:\nQuản lý Dự án' },
         { id: `wf-4-${now}`, type: 'rectangle', x: 232, y: 240, width: 155, height: 100, color: '#10b981', text: 'Thẻ Tính năng 2:\nVẽ Sơ đồ AI' },
-        { id: `wf-5-${now}`, type: 'rectangle', x: 405, y: 240, width: 155, height: 100, color: '#f59e0b', text: 'Thẻ Tính năng 3:\nĐồng bộ Realtime' },
+        { id: `wf-5-${now}`, type: 'rectangle', x: 405, y: 240, width: 155, height: 100, color: '#f59e0b', text: 'Thẻ Tính năng 3:\nCộng tác Thời gian thực' },
       ];
     default:
       return [];

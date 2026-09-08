@@ -48,10 +48,10 @@ export async function POST(request: Request) {
       .in('status', ['trialing', 'active', 'past_due', 'unpaid', 'paused', 'incomplete'])
       .maybeSingle();
     if (error) throw error;
-    if (liveSubscription?.provider === 'payos') {
+    if (liveSubscription?.provider === 'payos' || liveSubscription?.provider === 'paypal') {
       throw new BillingHttpError(
         409,
-        'Gói PayOS trả trước của bạn vẫn còn hiệu lực. Vui lòng gia hạn bằng VietQR hoặc liên hệ hỗ trợ để chuyển cổng thanh toán.',
+        'Bạn đang có gói trả trước. Vui lòng gia hạn bằng cổng thanh toán hiện tại hoặc liên hệ hỗ trợ để chuyển cổng thanh toán.',
       );
     }
     if (liveSubscription?.provider === 'stripe') {

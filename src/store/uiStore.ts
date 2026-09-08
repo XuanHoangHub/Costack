@@ -70,6 +70,7 @@ interface UiState {
   setIsMobileSidebarOpen: (open: boolean) => void;
 
   sidebarOrder: string[];
+  sidebarZones: SidebarZone[];
 
   setActiveTab: (tab: string) => void;
   setIsMainSidebarCollapsed: (collapsed: boolean) => void;
@@ -124,6 +125,23 @@ interface UiState {
 
   setShowPomoSettings: (show: boolean) => void;
   setSidebarOrder: (order: string[]) => void;
+  setSidebarZones: (zones: SidebarZone[]) => void;
+  createSidebarZone: (zone: Omit<SidebarZone, 'id'>) => string;
+  updateSidebarZone: (zoneId: string, updates: Partial<SidebarZone>) => void;
+  deleteSidebarZone: (zoneId: string) => void;
+  toggleSidebarZoneCollapse: (zoneId: string) => void;
+  moveItemToZone: (itemId: string, targetZoneId: string, targetIndex?: number) => void;
+  removeItemFromZone: (itemId: string, zoneId?: string, rootIndex?: number) => void;
+  reorderSidebarZones: (zones: SidebarZone[]) => void;
+}
+
+export interface SidebarZone {
+  id: string;
+  name: string;
+  emoji?: string;
+  color?: 'sky' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'purple';
+  itemIds: string[];
+  isCollapsed?: boolean;
 }
 
 export const DEFAULT_SIDEBAR_ORDER: string[] = [
@@ -199,6 +217,7 @@ export const useUiStore = create<UiState>()(
       viewingMemberProfileId: null,
       isMobileSidebarOpen: false,
       sidebarOrder: [...DEFAULT_SIDEBAR_ORDER],
+      sidebarZones: [],
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setIsMobileSidebarOpen: (isMobileSidebarOpen) => set({ isMobileSidebarOpen }),
@@ -262,10 +281,97 @@ export const useUiStore = create<UiState>()(
       setShowPomoSettings: (showPomoSettings) => set({ showPomoSettings }),
       setViewingMemberProfileId: (viewingMemberProfileId) => set({ viewingMemberProfileId }),
       setSidebarOrder: (sidebarOrder) => set({ sidebarOrder: (sidebarOrder || []).filter(id => id !== 'crm') }),
+      setSidebarZones: (sidebarZones) => set({ sidebarZones: sidebarZones || [] }),
+      createSidebarZone: (zoneData) => {
+        const id = `zone_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const newZone: SidebarZone = {
+          id,
+          name: zoneData.name.trim() || 'New Zone',
+          emoji: zoneData.emoji || '📁',
+          color: zoneData.color || 'sky',
+          itemIds: zoneData.itemIds || [],
+          isCollapsed: zoneData.isCollapsed ?? false,
+        };
+        const existingZones = (get().sidebarZones || []).map(z => ({
+          ...z,
+          itemIds: z.itemIds.filter(itemId => !(newZone.itemIds.includes(itemId)))
+        }));
+        set({ sidebarZones: [...existingZones, newZone] });
+        return id;
+      },
+      updateSidebarZone: (zoneId, updates) => {
+        set(state => ({
+          sidebarZones: (state.sidebarZones || []).map(z => {
+            if (z.id !== zoneId) return z;
+            return { ...z, ...updates };
+          })
+        }));
+      },
+      deleteSidebarZone: (zoneId) => {
+        const state = get();
+        const zoneToDelete = (state.sidebarZones || []).find(z => z.id === zoneId);
+        if (!zoneToDelete) return;
+        const newSidebarOrder = [...(state.sidebarOrder || DEFAULT_SIDEBAR_ORDER)];
+        zoneToDelete.itemIds.forEach(itemId => {
+          if (!newSidebarOrder.includes(itemId)) {
+            newSidebarOrder.push(itemId);
+          }
+        });
+        set({
+          sidebarOrder: newSidebarOrder,
+          sidebarZones: (state.sidebarZones || []).filter(z => z.id !== zoneId),
+        });
+      },
+      toggleSidebarZoneCollapse: (zoneId) => {
+        set(state => ({
+          sidebarZones: (state.sidebarZones || []).map(z => 
+            z.id === zoneId ? { ...z, isCollapsed: !z.isCollapsed } : z
+          )
+        }));
+      },
+      moveItemToZone: (itemId, targetZoneId, targetIndex) => {
+        set(state => {
+          const currentZones = state.sidebarZones || [];
+          const updatedZones = currentZones.map(z => {
+            const filtered = z.itemIds.filter(id => id !== itemId);
+            if (z.id === targetZoneId) {
+              const newItems = [...filtered];
+              if (typeof targetIndex === 'number' && targetIndex >= 0 && targetIndex <= newItems.length) {
+                newItems.splice(targetIndex, 0, itemId);
+              } else {
+                newItems.push(itemId);
+              }
+              return { ...z, itemIds: newItems };
+            }
+            return { ...z, itemIds: filtered };
+          });
+          return { sidebarZones: updatedZones };
+        });
+      },
+      removeItemFromZone: (itemId, zoneId, rootIndex) => {
+        set(state => {
+          const currentZones = state.sidebarZones || [];
+          const updatedZones = currentZones.map(z => {
+            if (zoneId && z.id !== zoneId) return z;
+            return { ...z, itemIds: z.itemIds.filter(id => id !== itemId) };
+          });
+          const newSidebarOrder = (state.sidebarOrder || DEFAULT_SIDEBAR_ORDER).filter(id => id !== itemId);
+          if (typeof rootIndex === 'number' && rootIndex >= 0 && rootIndex <= newSidebarOrder.length) {
+            newSidebarOrder.splice(rootIndex, 0, itemId);
+          } else {
+            newSidebarOrder.push(itemId);
+          }
+          return {
+            sidebarZones: updatedZones,
+            sidebarOrder: newSidebarOrder,
+          };
+        });
+      },
+      reorderSidebarZones: (zones) => set({ sidebarZones: zones || [] }),
     }),
     {
       name: 'apexa_ui',
-      version: 3,
+      version: 4,
       migrate: (persistedState) => {
         const state = persistedState as Partial<UiState>;
         return {
@@ -273,6 +379,7 @@ export const useUiStore = create<UiState>()(
           presencePreference: state.presencePreference || 'online',
           themePreference: getStoredThemePreference(),
           sidebarOrder: (state.sidebarOrder || []).filter(id => id !== 'crm'),
+          sidebarZones: Array.isArray(state.sidebarZones) ? state.sidebarZones : [],
         } as UiState;
       },
       onRehydrateStorage: () => (state) => {
@@ -283,6 +390,9 @@ export const useUiStore = create<UiState>()(
         state.isDarkMode = isDarkMode;
         if (state.sidebarOrder) {
           state.sidebarOrder = state.sidebarOrder.filter(id => id !== 'crm');
+        }
+        if (!state.sidebarZones || !Array.isArray(state.sidebarZones)) {
+          state.sidebarZones = [];
         }
       },
     }

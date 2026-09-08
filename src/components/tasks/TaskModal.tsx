@@ -37,14 +37,16 @@ import {
   AlignLeft,
   RefreshCw,
   HelpCircle,
-  FolderOpen
+  FolderOpen,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, User, Space, Workspace, SubTask } from '../../types';
 import { PriorityPillSelect, StatusPillSelect, AssigneePillSelect, PremiumDatePicker, DropdownFieldSelect, LabelsFieldSelect } from './TaskSelects';
 import { Select } from '../ui/Select';
 import NotionDocEditor from './NotionDocEditor';
 import SignedImage from '../SignedImage';
-import { callAiApi, generateSubtasksWithAi } from '@/lib/aiClient';
+import { callAiApi, generateSubtasksWithAi, autofillTaskWithAi } from '@/lib/aiClient';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { getColorOption, COLOR_PALETTE } from '../../utils/fieldConfig';
 
@@ -107,10 +109,13 @@ export default function TaskModal({
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
 
-  // UI Enhancements State
+  // UI Enhancements State - properties sidebar collapsed by default ("sidebar không hiện ra sẵn")
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isAutofillingAi, setIsAutofillingAi] = useState(false);
+  const [aiAutofillHint, setAiAutofillHint] = useState<string | null>(null);
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -152,6 +157,7 @@ export default function TaskModal({
     setNewTagInput('');
     setShowTagInput(false);
     setValidationError('');
+    setAiAutofillHint(null);
 
     const focusTimer = window.setTimeout(() => titleInputRef.current?.focus(), 100);
     return () => window.clearTimeout(focusTimer);
@@ -314,6 +320,85 @@ export default function TaskModal({
     setTags(prev => prev.filter(t => t !== tagToRemove));
   };
 
+  // AI Smart Autofill Handler
+  const handleSmartAutofill = async () => {
+    if (!title.trim()) {
+      titleInputRef.current?.focus();
+      return;
+    }
+
+    try {
+      setIsAutofillingAi(true);
+      setAiAutofillHint(null);
+
+      const currentSpace = spaces.find(s => s.id === spaceId);
+      const res = await autofillTaskWithAi({
+        title: title.trim(),
+        currentDescription: description.trim(),
+        spaceName: currentSpace?.name
+      });
+
+      if (res) {
+        // 1. Priority
+        if (res.suggestedPriority) {
+          setPriority(res.suggestedPriority);
+        }
+
+        // 2. Hours Estimate (fill if currently empty or 0)
+        if (res.suggestedHoursEstimate && (!hoursEstimate || hoursEstimate === '0')) {
+          setHoursEstimate(String(res.suggestedHoursEstimate));
+        }
+
+        // 3. Tags (merge without duplicates)
+        if (Array.isArray(res.suggestedTags) && res.suggestedTags.length > 0) {
+          setTags(prev => Array.from(new Set([...prev, ...res.suggestedTags])));
+        }
+
+        // 4. Subtasks (append)
+        if (Array.isArray(res.suggestedSubtasks) && res.suggestedSubtasks.length > 0) {
+          const newSubs: SubTask[] = res.suggestedSubtasks.map((stTitle, idx) => ({
+            id: `st-ai-autofill-${Date.now()}-${idx}`,
+            title: stTitle,
+            completed: false
+          }));
+          setSubtasks(prev => [...prev, ...newSubs]);
+        }
+
+        // 5. Enhanced description
+        if (res.enhancedDescription) {
+          if (!description.trim()) {
+            setDescription(res.enhancedDescription);
+          } else {
+            setDescription(prev => `${prev}\n\n${res.enhancedDescription}`);
+          }
+        }
+
+        // 6. User feedback hint
+        const priorityLabels: Record<string, string> = {
+          urgent: isVietnamese ? 'Khẩn cấp' : 'Urgent',
+          high: isVietnamese ? 'Cao' : 'High',
+          medium: isVietnamese ? 'Trung bình' : 'Medium',
+          low: isVietnamese ? 'Thấp' : 'Low'
+        };
+        const prioText = priorityLabels[res.suggestedPriority] || res.suggestedPriority;
+        setAiAutofillHint(
+          isVietnamese
+            ? `AI đã điền: Ưu tiên ${prioText} (${res.priorityReason}), ước lượng ${res.suggestedHoursEstimate}h, thêm ${res.suggestedTags.length} thẻ & ${res.suggestedSubtasks.length} việc con.`
+            : `AI Autofilled: Priority ${prioText} (${res.priorityReason}), ${res.suggestedHoursEstimate}h, ${res.suggestedTags.length} tags & ${res.suggestedSubtasks.length} subtasks.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Smart autofill error:', err);
+      setAiAutofillHint(
+        isVietnamese
+          ? `Không thể phân tích bằng AI: ${err.message || 'Vui lòng thử lại'}`
+          : `AI Autofill error: ${err.message || 'Please try again'}`
+      );
+    } finally {
+      setIsAutofillingAi(false);
+    }
+  };
+
   // AI Description Generator
   const handleGenerateWithAi = async () => {
     if (!title.trim()) {
@@ -425,6 +510,22 @@ export default function TaskModal({
 
               <button
                 type="button"
+                onClick={() => setShowProperties(!showProperties)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                  showProperties
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-800/60 shadow-3xs'
+                    : 'bg-slate-50 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
+                }`}
+                title={showProperties ? (isVietnamese ? 'Thu gọn thuộc tính' : 'Collapse properties') : (isVietnamese ? 'Mở thuộc tính' : 'Expand properties')}
+              >
+                {showProperties ? <PanelRightClose className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline text-[11px] font-bold">
+                  {showProperties ? (isVietnamese ? 'Thu gọn' : 'Collapse') : (isVietnamese ? 'Thuộc tính' : 'Properties')}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 title={isExpanded ? (isVietnamese ? 'Thu nhỏ' : 'Collapse') : (isVietnamese ? 'Phóng to' : 'Expand')}
@@ -449,23 +550,132 @@ export default function TaskModal({
             {/* LEFT COLUMN: Title, Description, Subtasks, AI Assistant */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-6 space-y-5">
               
-              {/* Task Title Input */}
-              <div className="space-y-1.5">
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  required
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder={isVietnamese ? 'Tên công việc cần thực hiện...' : 'Task title or objective...'}
-                  className="w-full text-base sm:text-lg font-black text-slate-900 dark:text-white placeholder:text-slate-350 dark:placeholder:text-slate-600 bg-transparent border-0 outline-none focus:ring-0 p-0"
-                />
+              {/* Task Title Input & AI Smart Autofill */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    required
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder={isVietnamese ? 'Tên công việc cần thực hiện...' : 'Task title or objective...'}
+                    className="w-full text-base sm:text-lg font-black text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 leading-tight"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSmartAutofill}
+                    disabled={isAutofillingAi || !title.trim()}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:via-purple-500/20 hover:to-pink-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/60 text-xs font-bold transition-all shadow-3xs hover:shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title={isVietnamese ? 'AI tự động phân tích tiêu đề, điền độ ưu tiên, ước lượng giờ, gắn tag, việc con và mô tả' : 'AI Smart Autofill'}
+                  >
+                    {isAutofillingAi ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
+                        <span className="hidden sm:inline">{isVietnamese ? 'Đang phân tích...' : 'Analyzing...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>{isVietnamese ? 'AI Điền thông minh' : 'Smart Autofill'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {aiAutofillHint && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/90 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200/60 dark:border-indigo-800/50 text-[11px] text-indigo-900 dark:text-indigo-200 font-medium"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                      <span>{aiAutofillHint}</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setAiAutofillHint(null)}
+                      className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 p-0.5 rounded cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </motion.div>
+                )}
+
                 {validationError && (
                   <p role="alert" className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
                     {validationError}
                   </p>
                 )}
               </div>
+
+              {/* Quick Properties Strip when right sidebar is collapsed */}
+              {!showProperties && (
+                <div className="flex flex-wrap items-center gap-2 p-2 px-3 rounded-2xl bg-slate-50/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/[0.08] shadow-3xs">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-0.5 hidden sm:inline select-none">
+                    {isVietnamese ? 'Thuộc tính:' : 'Properties:'}
+                  </span>
+
+                  <PriorityPillSelect value={priority} onChange={(v) => setPriority(v || 'medium')} />
+
+                  <AssigneePillSelect
+                    value={assigneeIds}
+                    members={members}
+                    onChange={(ids) => setAssigneeIds(ids || [])}
+                  />
+
+                  <PremiumDatePicker
+                    startDateValue={startDate}
+                    onStartDateChange={(val) => setStartDate(val || '')}
+                    dateValue={dueDate}
+                    onChange={(val) => setDueDate(val || '')}
+                    label={isVietnamese ? 'Hạn chót' : 'Due date'}
+                    align="left"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium cursor-pointer border border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 transition-all ${dueDate ? 'text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900'}`}
+                  />
+
+                  {recurrenceFrequency !== 'none' ? (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 text-xs font-semibold shadow-3xs">
+                      <RefreshCw className="w-3 h-3 text-purple-500 animate-spin-slow" />
+                      <span>
+                        {recurrenceFrequency === 'daily' ? (isVietnamese ? 'Hằng ngày' : 'Daily') :
+                         recurrenceFrequency === 'weekly' ? (isVietnamese ? 'Hằng tuần' : 'Weekly') :
+                         (isVietnamese ? 'Hằng tháng' : 'Monthly')}
+                        {recurrenceInterval > 1 ? ` (${recurrenceInterval})` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setRecurrenceFrequency('none')}
+                        className="ml-0.5 p-0.5 text-purple-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-full transition-colors cursor-pointer"
+                        title={isVietnamese ? 'Bỏ lặp lại' : 'Remove recurrence'}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setRecurrenceFrequency('daily')}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-medium text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 border border-dashed border-slate-200/80 dark:border-slate-800 hover:border-purple-300 transition-all cursor-pointer"
+                      title={isVietnamese ? 'Bật lặp lại hằng ngày' : 'Set daily recurrence'}
+                    >
+                      <RefreshCw className="w-3 h-3 text-purple-400" />
+                      <span className="hidden md:inline">{isVietnamese ? '+ Lặp lại' : '+ Repeat'}</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowProperties(true)}
+                    className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer select-none"
+                    title={isVietnamese ? 'Mở bảng thuộc tính chi tiết' : 'Open full properties'}
+                  >
+                    <PanelRightOpen className="w-3.5 h-3.5" />
+                    <span>{isVietnamese ? 'Mở thuộc tính' : 'All properties'}</span>
+                  </button>
+                </div>
+              )}
 
               {/* Subtasks / Checklist Builder Section */}
               <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
@@ -540,7 +750,10 @@ export default function TaskModal({
                 )}
 
                 {/* Add Subtask Input */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50/70 dark:bg-white/[0.02] border border-dashed border-slate-200/80 dark:border-white/[0.08] focus-within:border-indigo-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-solid focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-3xs">
+                  <div className="w-5 h-5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Plus className="w-3 h-3" />
+                  </div>
                   <input
                     type="text"
                     value={newSubtaskTitle}
@@ -551,16 +764,18 @@ export default function TaskModal({
                         handleAddSubtask();
                       }
                     }}
-                    placeholder={isVietnamese ? '+ Thêm mục kiểm tra con (nhấn Enter)...' : '+ Add checklist item (press Enter)...'}
-                    className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50/50 dark:bg-slate-950/30 border border-slate-200/70 dark:border-slate-800/70 outline-none focus:border-indigo-500 font-medium text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400"
+                    placeholder={isVietnamese ? 'Thêm mục kiểm tra con (nhấn Enter)...' : 'Add checklist item (press Enter)...'}
+                    className="flex-1 text-xs font-medium text-slate-800 dark:text-slate-100 bg-transparent border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-none p-0 placeholder:text-slate-400"
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddSubtask}
-                    className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-600 hover:text-indigo-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  {newSubtaskTitle.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleAddSubtask}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                    >
+                      {isVietnamese ? 'Thêm' : 'Add'}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -595,12 +810,30 @@ export default function TaskModal({
             </div>
 
             {/* RIGHT COLUMN: Attributes Panel & Custom Fields */}
-            <div className="w-full md:w-[320px] lg:w-[340px] bg-slate-50/60 dark:bg-slate-900/30 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 p-5 space-y-4 overflow-y-auto custom-scrollbar shrink-0">
-              
-              <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5">
-                <SlidersHorizontal className="w-3 h-3 text-indigo-500" />
-                <span>{isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}</span>
-              </div>
+            <AnimatePresence initial={false}>
+              {showProperties && (
+                <motion.div 
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 340, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="w-full md:w-[320px] lg:w-[340px] bg-slate-50/60 dark:bg-slate-900/30 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 p-5 space-y-4 overflow-y-auto custom-scrollbar shrink-0 overflow-x-hidden"
+                >
+                  <div className="w-full min-w-[280px] space-y-4">
+                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1.5 select-none">
+                      <div className="flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-3 h-3 text-indigo-500" />
+                        <span>{isVietnamese ? 'Thuộc tính công việc' : 'Task Properties'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowProperties(false)}
+                        className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md transition-colors cursor-pointer"
+                        title={isVietnamese ? 'Thu gọn thuộc tính' : 'Collapse properties'}
+                      >
+                        <PanelRightClose className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
               {/* Priority */}
               <div className="space-y-1.5">
@@ -640,7 +873,7 @@ export default function TaskModal({
                       value={hoursEstimate}
                       onChange={event => setHoursEstimate(event.target.value)}
                       placeholder={isVietnamese ? 'Ước tính (giờ)' : 'Estimate (hours)'}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-8 pr-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 shadow-3xs placeholder:text-slate-400"
                     />
                   </label>
                   <label className="relative">
@@ -652,16 +885,27 @@ export default function TaskModal({
                       value={hoursLogged}
                       onChange={event => setHoursLogged(event.target.value)}
                       placeholder={isVietnamese ? 'Đã làm (giờ)' : 'Logged (hours)'}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-8 pr-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 shadow-3xs placeholder:text-slate-400"
                     />
                   </label>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {isVietnamese ? 'Lặp lại công việc' : 'Task recurrence'}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {isVietnamese ? 'Lặp lại công việc' : 'Task recurrence'}
+                  </label>
+                  {recurrenceFrequency !== 'none' && (
+                    <button
+                      type="button"
+                      onClick={() => setRecurrenceFrequency('none')}
+                      className="text-[10px] font-bold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer"
+                    >
+                      {isVietnamese ? 'Bỏ lặp lại' : 'Remove'}
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-[1fr_88px] gap-2">
                   <Select
                     value={recurrenceFrequency}
@@ -671,9 +915,9 @@ export default function TaskModal({
                     ariaLabel={isVietnamese ? 'Tần suất lặp lại' : 'Recurrence frequency'}
                     options={[
                       { value: 'none', label: isVietnamese ? 'Không lặp lại' : 'Does not repeat' },
-                      { value: 'daily', label: isVietnamese ? 'Hàng ngày' : 'Daily' },
-                      { value: 'weekly', label: isVietnamese ? 'Hàng tuần' : 'Weekly' },
-                      { value: 'monthly', label: isVietnamese ? 'Hàng tháng' : 'Monthly' },
+                      { value: 'daily', label: isVietnamese ? 'Hằng ngày' : 'Daily' },
+                      { value: 'weekly', label: isVietnamese ? 'Hằng tuần' : 'Weekly' },
+                      { value: 'monthly', label: isVietnamese ? 'Hằng tháng' : 'Monthly' },
                     ]}
                   />
                   <input
@@ -684,7 +928,7 @@ export default function TaskModal({
                     value={recurrenceInterval}
                     onChange={event => setRecurrenceInterval(Math.max(1, Number(event.target.value) || 1))}
                     aria-label={isVietnamese ? 'Chu kỳ lặp' : 'Repeat interval'}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-center text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 transition-all shadow-3xs"
                   />
                 </div>
               </div>
@@ -772,12 +1016,12 @@ export default function TaskModal({
                         }
                       }}
                       placeholder="Tên nhãn mới..."
-                      className="flex-1 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none font-bold"
+                      className="flex-1 px-3 py-1.5 text-xs border border-slate-200/90 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 font-bold text-slate-800 dark:text-slate-100 transition-all shadow-3xs"
                     />
                     <button
                       type="button"
                       onClick={handleAddTag}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-2xs"
                     >
                       Lưu
                     </button>
@@ -870,7 +1114,7 @@ export default function TaskModal({
                                 placeholder={field.placeholder || "0.00"}
                                 value={String(curVal || '')}
                                 onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-bold"
+                                className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200/90 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 font-bold transition-all shadow-3xs"
                               />
                             </div>
                           ) : field.type === 'textarea' ? (
@@ -879,14 +1123,14 @@ export default function TaskModal({
                               placeholder={field.placeholder || '...'}
                               value={String(curVal || '')}
                               onChange={event => setCustomFieldValues(prev => ({ ...prev, [field.name]: event.target.value }))}
-                              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                              className="w-full resize-y rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 shadow-3xs"
                             />
                           ) : field.type === 'date' ? (
                             <input
                               type="date"
                               value={String(curVal || '')}
                               onChange={event => setCustomFieldValues(prev => ({ ...prev, [field.name]: event.target.value }))}
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                              className="w-full rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 shadow-3xs"
                             />
                           ) : (
                             <input
@@ -894,7 +1138,7 @@ export default function TaskModal({
                               placeholder={field.placeholder || '...'}
                               value={String(curVal || '')}
                               onChange={e => setCustomFieldValues(prev => ({ ...prev, [field.name]: e.target.value }))}
-                              className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-semibold"
+                              className="w-full px-3 py-1.5 text-xs border border-slate-200/90 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 font-medium transition-all shadow-3xs"
                             />
                           )}
                         </div>
@@ -904,7 +1148,10 @@ export default function TaskModal({
                 </div>
               )}
             </div>
-          </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </form>
 
           {/* Modal Footer Bar */}
           <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/60 flex items-center justify-between gap-3 shrink-0">

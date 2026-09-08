@@ -9,9 +9,7 @@ import {
   UsersRound,
   UserRound,
   ArrowUpRight,
-  ShieldCheck,
   WifiOff,
-  Cloud,
   Layers,
   FileText
 } from 'lucide-react';
@@ -101,30 +99,12 @@ export default function DashboardHeader({
               <span className="truncate max-w-[200px]">{workspaceName || 'Apexa Workspace'}</span>
             </span>
 
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
-              isOffline
-                ? 'bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-                : isSynced
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-                : 'bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60'
-            }`}>
-              {isOffline ? (
-                <>
-                  <WifiOff className="h-3 w-3 animate-pulse" />
-                  <span>{locale === 'vi' ? 'Ngoại tuyến' : 'Offline'}</span>
-                </>
-              ) : isSynced ? (
-                <>
-                  <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                  <span>{locale === 'vi' ? 'Đã đồng bộ' : 'Synced'}</span>
-                </>
-              ) : (
-                <>
-                  <Cloud className="h-3 w-3 text-blue-500" />
-                  <span>{locale === 'vi' ? 'Trực tiếp' : 'Live'}</span>
-                </>
-              )}
-            </span>
+            {isOffline && (
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60">
+                <WifiOff className="h-3 w-3 animate-pulse" />
+                <span>{locale === 'vi' ? 'Ngoại tuyến' : 'Offline'}</span>
+              </span>
+            )}
           </div>
 
           {/* Heading */}

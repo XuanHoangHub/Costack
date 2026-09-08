@@ -929,27 +929,15 @@ Error contacting Apexa AI. Please retry or check your subscription and network c
           </div>
           
           <div className="flex flex-wrap items-center gap-2.5">
-            <span
-              role="status"
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-black ${
-                syncState === 'synced'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
-                  : syncState === 'syncing'
-                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300'
-                    : syncState === 'error'
-                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300'
-                      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'
-              }`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${syncState === 'synced' ? 'bg-emerald-500' : syncState === 'syncing' ? 'animate-pulse bg-indigo-500' : syncState === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
-              {syncState === 'synced'
-                ? (locale === 'vi' ? 'Đã đồng bộ' : 'Synced')
-                : syncState === 'syncing'
-                  ? (locale === 'vi' ? 'Đang đồng bộ' : 'Syncing')
-                  : syncState === 'error'
-                    ? (locale === 'vi' ? 'Lưu cục bộ' : 'Saved locally')
-                    : (locale === 'vi' ? 'Ngoại tuyến' : 'Offline')}
-            </span>
+            {isOffline && (
+              <span
+                role="status"
+                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                <span>{locale === 'vi' ? 'Ngoại tuyến' : 'Offline'}</span>
+              </span>
+            )}
             <span className="text-xs font-mono font-medium text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 px-2.5 py-1.5 rounded-lg">
               {locale === 'vi' ? 'Giờ địa phương' : 'Local'}: {new Date().toLocaleTimeString(locale === 'vi' ? 'vi-VN' : 'en-US', { hour12: false })}
             </span>

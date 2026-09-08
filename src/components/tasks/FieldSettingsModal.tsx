@@ -87,6 +87,7 @@ export interface FieldSettingsModalProps {
     numberMin?: number;
     numberMax?: number;
     numberPrecision?: number;
+    numberUnit?: string;
     dateFormat?: string;
     includeTime?: boolean;
     defaultToToday?: boolean;
@@ -111,6 +112,7 @@ export interface FieldSettingsModalProps {
     numberMin?: number;
     numberMax?: number;
     numberPrecision?: number;
+    numberUnit?: string;
     dateFormat?: string;
     includeTime?: boolean;
     defaultToToday?: boolean;
@@ -143,6 +145,7 @@ export default function FieldSettingsModal({
   const [numberMin, setNumberMin] = useState<number | undefined>(undefined);
   const [numberMax, setNumberMax] = useState<number | undefined>(undefined);
   const [numberPrecision, setNumberPrecision] = useState<number>(0);
+  const [numberUnit, setNumberUnit] = useState<string>('');
   const [selectedDateFormat, setSelectedDateFormat] = useState(getStoredDateFormat());
   const [includeTime, setIncludeTime] = useState(false);
   const [defaultToToday, setDefaultToToday] = useState(false);
@@ -170,6 +173,7 @@ export default function FieldSettingsModal({
       setNumberMin(config.numberMin);
       setNumberMax(config.numberMax);
       setNumberPrecision(config.numberPrecision ?? 0);
+      setNumberUnit(config.numberUnit || '');
       setSelectedDateFormat((config.dateFormat as any) || getStoredDateFormat());
       setIncludeTime(!!config.includeTime);
       setDefaultToToday(!!config.defaultToToday);
@@ -283,6 +287,7 @@ export default function FieldSettingsModal({
       numberMin,
       numberMax,
       numberPrecision,
+      numberUnit: numberUnit.trim() || undefined,
       dateFormat: selectedDateFormat,
       includeTime,
       defaultToToday,
@@ -409,7 +414,7 @@ export default function FieldSettingsModal({
                   value={placeholder}
                   onChange={e => setPlaceholder(e.target.value)}
                   placeholder={isVietnamese ? 'Gợi ý hiển thị khi ô trống...' : 'Hint shown when empty...'}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 font-medium text-slate-800 dark:text-slate-100 transition-all text-xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-medium text-slate-800 dark:text-slate-100 transition-all text-xs"
                 />
               </div>
             </div>
@@ -578,63 +583,79 @@ export default function FieldSettingsModal({
               )}
 
               {type === 'number' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Định dạng số' : 'Format'}
-                    </label>
-                    <Select
-                      value={numberFormat}
-                      onChange={v => setNumberFormat(v)}
-                      className="w-full"
-                      size="sm"
-                      ariaLabel={isVietnamese ? 'Định dạng số' : 'Format'}
-                      options={[
-                        { value: 'normal', label: isVietnamese ? 'Số thuần (1.234)' : 'Standard (1,234)' },
-                        { value: 'percent', label: isVietnamese ? 'Phần trăm (%)' : 'Percentage (%)' },
-                        { value: 'currency', label: isVietnamese ? 'Tiền tệ' : 'Currency' },
-                      ]}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
-                    </label>
-                    <Select<number>
-                      value={numberPrecision}
-                      onChange={v => setNumberPrecision(v)}
-                      className="w-full"
-                      size="sm"
-                      ariaLabel={isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
-                      options={[
-                        { value: 0, label: '0 (Số nguyên 100)' },
-                        { value: 1, label: '1 (100.5)' },
-                        { value: 2, label: '2 (100.25)' },
-                      ]}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Giới hạn (Min - Max)' : 'Range'}
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        placeholder="Min"
-                        value={numberMin ?? ''}
-                        onChange={e => setNumberMin(e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Max"
-                        value={numberMax ?? ''}
-                        onChange={e => setNumberMax(e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        {isVietnamese ? 'Định dạng số' : 'Format'}
+                      </label>
+                      <Select
+                        value={numberFormat}
+                        onChange={v => setNumberFormat(v)}
+                        className="w-full"
+                        size="sm"
+                        ariaLabel={isVietnamese ? 'Định dạng số' : 'Format'}
+                        options={[
+                          { value: 'normal', label: isVietnamese ? 'Số thuần (1.234)' : 'Standard (1,234)' },
+                          { value: 'percent', label: isVietnamese ? 'Phần trăm (%)' : 'Percentage (%)' },
+                          { value: 'currency', label: isVietnamese ? 'Tiền tệ' : 'Currency' },
+                        ]}
                       />
                     </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        {isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
+                      </label>
+                      <Select<number>
+                        value={numberPrecision}
+                        onChange={v => setNumberPrecision(v)}
+                        className="w-full"
+                        size="sm"
+                        ariaLabel={isVietnamese ? 'Số chữ số thập phân' : 'Decimals'}
+                        options={[
+                          { value: 0, label: '0 (Số nguyên 100)' },
+                          { value: 1, label: '1 (100.5)' },
+                          { value: 2, label: '2 (100.25)' },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        {isVietnamese ? 'Giới hạn (Min - Max)' : 'Range'}
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          placeholder="Min"
+                          value={numberMin ?? ''}
+                          onChange={e => setNumberMin(e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max"
+                          value={numberMax ?? ''}
+                          onChange={e => setNumberMax(e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                      <span>{isVietnamese ? 'Đơn vị đo lường (Tùy chọn)' : 'Unit of Measurement (Optional)'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">VD: kg, giờ, điểm, pts, km...</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={isVietnamese ? 'VD: kg, giờ, điểm, pts...' : 'e.g. kg, hrs, pts...'}
+                      value={numberUnit}
+                      onChange={e => setNumberUnit(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors font-medium"
+                    />
                   </div>
                 </div>
               )}

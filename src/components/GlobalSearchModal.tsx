@@ -152,90 +152,98 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       id: 'create-task',
       name: '/task',
       label: isVietnamese ? 'Tạo công việc mới' : 'Create New Task',
+      shortLabel: isVietnamese ? 'Tạo công việc' : 'New Task',
       description: isVietnamese ? 'Mở bảng công việc để tạo việc mới' : 'Quickly open task board to create a new task',
       icon: Plus,
-      badge: 'Công việc',
+      badge: isVietnamese ? 'Công việc' : 'Task',
       action: () => {
         onNavigateTab('tasks');
-        addSyncLog('Command: Navigated to Tasks');
+        addSyncLog(isVietnamese ? 'Lệnh: Chuyển sang Công việc' : 'Command: Navigated to Tasks');
       },
     },
     {
       id: 'create-doc',
       name: '/doc',
       label: isVietnamese ? 'Tạo tài liệu mới' : 'Create New Document',
+      shortLabel: isVietnamese ? 'Tạo tài liệu' : 'New Document',
       description: isVietnamese ? 'Mở trình soạn thảo tài liệu & wiki' : 'Quickly open documentation wiki to write a new doc',
       icon: FileText,
-      badge: 'Tài liệu',
+      badge: isVietnamese ? 'Tài liệu' : 'Doc',
       action: () => {
         onNavigateTab('docs');
-        addSyncLog('Command: Navigated to Docs');
+        addSyncLog(isVietnamese ? 'Lệnh: Chuyển sang Tài liệu' : 'Command: Navigated to Docs');
       },
     },
     {
       id: 'goto-inbox',
       name: '/inbox',
       label: isVietnamese ? 'Hộp thư thông báo' : 'Go to Inbox',
+      shortLabel: isVietnamese ? 'Hộp thư & Cảnh báo' : 'Inbox & Alerts',
       description: isVietnamese ? 'Kiểm tra thông báo và hoạt động mới' : 'Check unread notifications and activity updates',
       icon: LayoutDashboard,
-      badge: 'Thông báo',
+      badge: isVietnamese ? 'Thông báo' : 'Inbox',
       action: () => {
         onNavigateTab('inbox');
-        addSyncLog('Command: Opened Inbox');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Hộp thư' : 'Command: Opened Inbox');
       },
     },
     {
       id: 'goto-calendar',
       name: '/calendar',
       label: isVietnamese ? 'Lịch biểu & Hạn chót' : 'Go to Calendar',
+      shortLabel: isVietnamese ? 'Lịch biểu & Hạn chót' : 'Calendar & Schedule',
       description: isVietnamese ? 'Xem lịch làm việc, hạn chót và sự kiện' : 'View schedule, deadlines, and events',
       icon: Calendar,
-      badge: 'Lịch',
+      badge: isVietnamese ? 'Lịch' : 'Calendar',
       action: () => {
         onNavigateTab('calendar');
-        addSyncLog('Command: Opened Calendar');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Lịch biểu' : 'Command: Opened Calendar');
       },
     },
     {
       id: 'goto-goals',
       name: '/goals',
       label: isVietnamese ? 'Mục tiêu & OKRs' : 'Goals & OKRs',
+      shortLabel: isVietnamese ? 'Mục tiêu & OKRs' : 'Goals & OKRs',
       description: isVietnamese ? 'Theo dõi mục tiêu, key results và tiến độ chiến lược' : 'Track objectives, key results, and strategic progress',
       icon: Target,
       badge: 'OKR',
       action: () => {
         onNavigateTab('goals');
-        addSyncLog('Command: Opened Goals & OKRs');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Mục tiêu & OKRs' : 'Command: Opened Goals & OKRs');
       },
     },
     {
       id: 'goto-chat',
       name: '/chat',
       label: isVietnamese ? 'Kênh trò chuyện nhóm' : 'Go to Chat Channels',
+      shortLabel: isVietnamese ? 'Kênh trò chuyện' : 'Team Chat',
       description: isVietnamese ? 'Nhắn tin thảo luận thời gian thực' : 'Open real-time team messaging',
       icon: MessageSquare,
-      badge: 'Trò chuyện',
+      badge: isVietnamese ? 'Trò chuyện' : 'Chat',
       action: () => {
         onNavigateTab('chat');
-        addSyncLog('Command: Opened Chat');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Kênh trò chuyện' : 'Command: Opened Chat');
       },
     },
     {
       id: 'goto-finance',
       name: '/finance',
       label: isVietnamese ? 'Tài chính & Hóa đơn' : 'Open Finance & Invoices',
+      shortLabel: isVietnamese ? 'Tài chính & Thu chi' : 'Finance & Invoices',
       description: isVietnamese ? 'Quản lý thu chi, công nợ và xuất hóa đơn VAT' : 'Cashflow, invoices, expenses and profit analytics',
       icon: DollarSign,
-      badge: 'Tài chính',
+      badge: isVietnamese ? 'Tài chính' : 'Finance',
       action: () => {
         onNavigateTab('finance');
-        addSyncLog('Command: Opened Finance');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Tài chính & Kế toán' : 'Command: Opened Finance');
       },
     },
     {
       id: 'open-ai',
       name: '/ai',
       label: isVietnamese ? 'Trợ lý AI Apexa Brain' : 'Launch Apexa Brain AI Assistant',
+      shortLabel: isVietnamese ? 'Trợ lý Apexa AI' : 'Apexa AI Brain',
       description: isVietnamese ? 'Hỏi AI, tóm tắt không gian, tạo PRD hoặc lập kế hoạch' : 'Ask AI, summarize workspace, generate tasks or PRDs',
       icon: Sparkles,
       badge: 'AI',
@@ -244,92 +252,99 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           const aiBtn = document.getElementById('btn_apexa_ai_float');
           if (aiBtn) aiBtn.click();
         }
-        addSyncLog('Command: Launched Apexa Brain AI Assistant');
+        addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Apexa Brain' : 'Command: Launched Apexa Brain AI Assistant');
       },
     },
     {
       id: 'goto-whiteboard',
       name: '/whiteboard',
       label: isVietnamese ? 'Bảng vẽ tương tác' : 'Open Whiteboard',
+      shortLabel: isVietnamese ? 'Bảng vẽ tương tác' : 'Whiteboard',
       description: isVietnamese ? 'Phác thảo ý tưởng, vẽ sơ đồ tư duy & flow' : 'Interactive canvas for sketching & diagramming',
       icon: Grid,
-      badge: 'Bảng vẽ',
+      badge: isVietnamese ? 'Bảng vẽ' : 'Whiteboard',
       action: () => {
         onNavigateTab('whiteboard');
-        addSyncLog('Command: Opened Whiteboard');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Bảng vẽ' : 'Command: Opened Whiteboard');
       },
     },
     {
       id: 'goto-analytics',
       name: '/analytics',
       label: isVietnamese ? 'Báo cáo & Phân tích' : 'Open Analytics',
+      shortLabel: isVietnamese ? 'Báo cáo hiệu suất' : 'Analytics',
       description: isVietnamese ? 'Biểu đồ hiệu suất, tỷ lệ hoàn thành công việc' : 'Performance metrics and completion charts',
       icon: BarChart,
-      badge: 'Báo cáo',
+      badge: isVietnamese ? 'Báo cáo' : 'Analytics',
       action: () => {
         onNavigateTab('analytics');
-        addSyncLog('Command: Opened Analytics');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Báo cáo & Phân tích' : 'Command: Opened Analytics');
       },
     },
     {
       id: 'goto-team',
       name: '/team',
       label: isVietnamese ? 'Danh bạ nhân sự Team OS' : 'Open Team OS',
+      shortLabel: isVietnamese ? 'Danh bạ nhân sự' : 'Team OS',
       description: isVietnamese ? 'Xem danh sách thành viên, sơ đồ tổ chức và vai trò' : 'View team members directory and roles',
       icon: Users,
-      badge: 'Nhân sự',
+      badge: isVietnamese ? 'Nhân sự' : 'Team',
       action: () => {
         onNavigateTab('team');
-        addSyncLog('Command: Opened Team OS');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Team OS' : 'Command: Opened Team OS');
       },
     },
     {
       id: 'open-settings',
       name: '/settings',
       label: isVietnamese ? 'Cài đặt không gian làm việc' : 'Open Workspace Settings',
+      shortLabel: isVietnamese ? 'Cài đặt hệ thống' : 'Settings',
       description: isVietnamese ? 'Cấu hình quyền hạn, thông báo & tùy chỉnh' : 'Configure workspace, notifications & preferences',
       icon: Settings,
-      badge: 'Cài đặt',
+      badge: isVietnamese ? 'Cài đặt' : 'Settings',
       action: () => {
         if (onOpenSettings) onOpenSettings();
         else onNavigateTab('settings');
-        addSyncLog('Command: Opened Settings');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Cài đặt' : 'Command: Opened Settings');
       },
     },
     {
       id: 'open-automations',
       name: '/automation',
       label: isVietnamese ? 'Quy trình tự động hóa' : 'Automation Rules Engine',
+      shortLabel: isVietnamese ? 'Tự động hóa' : 'Automation',
       description: isVietnamese ? 'Thiết lập kích hoạt không cần mã code & cảnh báo' : 'Configure no-code triggers, alerts, and workflow rules',
       icon: Zap,
-      badge: 'Tự động',
+      badge: isVietnamese ? 'Tự động' : 'Automation',
       action: () => {
         if (onOpenAutomations) onOpenAutomations();
-        addSyncLog('Command: Opened Automation Engine');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Tự động hóa' : 'Command: Opened Automation Engine');
       },
     },
     {
       id: 'open-export',
       name: '/export',
       label: isVietnamese ? 'Xuất dữ liệu & Sao lưu' : 'Export Data & Backup',
+      shortLabel: isVietnamese ? 'Xuất dữ liệu' : 'Export Data',
       description: isVietnamese ? 'Tải về toàn bộ công việc, tài liệu dạng CSV / JSON' : 'Download workspace tasks, docs, CSV, or HTML report',
       icon: Download,
-      badge: 'Dữ liệu',
+      badge: isVietnamese ? 'Dữ liệu' : 'Data',
       action: () => {
         if (onOpenExport) onOpenExport();
-        addSyncLog('Command: Opened Export Center');
+        addSyncLog(isVietnamese ? 'Lệnh: Mở Trung tâm Xuất dữ liệu' : 'Command: Opened Export Center');
       },
     },
     {
       id: 'toggle-theme',
       name: '/theme',
       label: isDarkMode ? (isVietnamese ? 'Chuyển sang giao diện Sáng' : 'Switch to Light Mode') : (isVietnamese ? 'Chuyển sang giao diện Tối' : 'Switch to Dark Mode'),
+      shortLabel: isDarkMode ? (isVietnamese ? 'Bật chế độ Sáng' : 'Light Theme') : (isVietnamese ? 'Bật chế độ Tối' : 'Dark Theme'),
       description: isVietnamese ? 'Thay đổi chủ đề màu sắc hệ thống' : 'Toggle UI color theme',
       icon: isDarkMode ? Sun : Moon,
-      badge: 'Giao diện',
+      badge: isVietnamese ? 'Giao diện' : 'Theme',
       action: () => {
         if (onToggleDarkMode) onToggleDarkMode();
-        addSyncLog('Command: Toggled Dark/Light Mode');
+        addSyncLog(isVietnamese ? 'Lệnh: Đổi giao diện Sáng/Tối' : 'Command: Toggled Dark/Light Mode');
       },
     },
   ], [onNavigateTab, onOpenSettings, onOpenAutomations, onOpenExport, onToggleDarkMode, isDarkMode, addSyncLog, isVietnamese]);
@@ -785,9 +800,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 {recentSearches.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] uppercase font-mono font-black tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                        <History className="w-3 h-3" />
-                        <span>TÌM KIẾM GẦN ĐÂY</span>
+                      <span className="text-[10.5px] uppercase font-mono font-bold tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5" />
+                        <span>{isVietnamese ? 'TÌM KIẾM GẦN ĐÂY' : 'RECENT SEARCHES'}</span>
                       </span>
                       <button
                         type="button"
@@ -795,9 +810,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           setRecentSearches([]);
                           localStorage.removeItem(RECENT_SEARCHES_KEY);
                         }}
-                        className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                        className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer transition-colors"
                       >
-                        Xóa lịch sử
+                        {isVietnamese ? 'Xóa lịch sử' : 'Clear history'}
                       </button>
                     </div>
 
@@ -807,14 +822,14 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           key={item}
                           type="button"
                           onClick={() => setSearchQuery(item)}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 text-xs font-bold flex items-center gap-2 group cursor-pointer transition-all"
+                          className="px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-700/50 text-xs font-semibold flex items-center gap-2 group cursor-pointer transition-all"
                         >
                           <History className="w-3 h-3 text-slate-400 group-hover:text-indigo-500" />
                           <span>{item}</span>
                           <span
                             onClick={(e) => removeRecentSearch(e, item)}
                             className="text-slate-400 hover:text-rose-500 p-0.5 rounded"
-                            title="Xóa mục này"
+                            title={isVietnamese ? 'Xóa mục này' : 'Remove item'}
                           >
                             ×
                           </span>
@@ -826,62 +841,165 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
                 {/* Quick Navigation Cards */}
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-mono font-black tracking-wider text-slate-400 dark:text-slate-500 block px-1">
-                    GỢI Ý TRUY CẬP NHANH
-                  </span>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10.5px] uppercase font-mono font-bold tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>{isVietnamese ? 'GỢI Ý TRUY CẬP NHANH' : 'QUICK ACCESS SUGGESTIONS'}</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium hidden sm:inline">
+                      {isVietnamese ? 'Phím tắt mở ngay' : 'Instant shortcuts'}
+                    </span>
+                  </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {[
-                      { query: '/task', title: 'Tạo công việc mới', desc: 'Mở bảng tạo task nhanh', icon: Briefcase, color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400' },
-                      { query: '/team', title: isVietnamese ? 'Đội ngũ & Nhân sự' : 'Team & Staff', desc: isVietnamese ? 'Xem danh bạ và phòng ban' : 'View directory & departments', icon: Users, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400' },
-                      { query: '/finance', title: isVietnamese ? 'Tài chính & Hóa đơn' : 'Finance & Accounting', desc: isVietnamese ? 'Thu chi, hóa đơn & công nợ' : 'Cashflow, invoices & expenses', icon: DollarSign, color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400' },
-                      { query: '/ai', title: 'Trợ lý AI Apexa Brain', desc: 'Hỏi đáp & hỗ trợ thông minh', icon: Sparkles, color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' },
-                    ].map(card => (
-                      <button
-                        key={card.query}
-                        onClick={() => {
-                          setSearchQuery(card.query);
-                        }}
-                        className="p-3 text-left bg-slate-50/80 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`p-2 rounded-xl shrink-0 ${card.color}`}>
-                            <card.icon className="w-4 h-4" />
+                      {
+                        id: 'task',
+                        query: '/task',
+                        title: isVietnamese ? 'Tạo công việc mới' : 'Create New Task',
+                        desc: isVietnamese ? 'Mở bảng tạo task nhanh' : 'Open quick task creator',
+                        icon: Plus,
+                        color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/40',
+                        badge: '/task',
+                        action: () => {
+                          onClose();
+                          onNavigateTab('tasks');
+                          addSyncLog(isVietnamese ? 'Lệnh: Chuyển sang Công việc' : 'Command: Navigated to Tasks');
+                        }
+                      },
+                      {
+                        id: 'team',
+                        query: '/team',
+                        title: isVietnamese ? 'Đội ngũ & Nhân sự' : 'Team & Staff',
+                        desc: isVietnamese ? 'Xem danh bạ và phòng ban' : 'View directory & departments',
+                        icon: Users,
+                        color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/40',
+                        badge: '/team',
+                        action: () => {
+                          onClose();
+                          onNavigateTab('team');
+                          addSyncLog(isVietnamese ? 'Lệnh: Mở Team OS' : 'Command: Opened Team OS');
+                        }
+                      },
+                      {
+                        id: 'finance',
+                        query: '/finance',
+                        title: isVietnamese ? 'Tài chính & Hóa đơn' : 'Finance & Accounting',
+                        desc: isVietnamese ? 'Thu chi, hóa đơn & công nợ' : 'Cashflow, invoices & expenses',
+                        icon: DollarSign,
+                        color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/40',
+                        badge: '/finance',
+                        action: () => {
+                          onClose();
+                          onNavigateTab('finance');
+                          addSyncLog(isVietnamese ? 'Lệnh: Mở Tài chính & Kế toán' : 'Command: Opened Finance');
+                        }
+                      },
+                      {
+                        id: 'ai',
+                        query: '/ai',
+                        title: isVietnamese ? 'Trợ lý AI Apexa Brain' : 'Apexa Brain AI Assistant',
+                        desc: isVietnamese ? 'Hỏi đáp & hỗ trợ thông minh' : 'Smart insights & assistance',
+                        icon: Sparkles,
+                        color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/70 dark:text-purple-400 border border-purple-200/50 dark:border-purple-900/40',
+                        badge: '/ai',
+                        action: () => {
+                          onClose();
+                          if (typeof document !== 'undefined') {
+                            const aiBtn = document.getElementById('btn_apexa_ai_float');
+                            if (aiBtn) aiBtn.click();
+                          }
+                          addSyncLog(isVietnamese ? 'Lệnh: Kích hoạt Trợ lý AI Apexa Brain' : 'Command: Launched Apexa Brain AI Assistant');
+                        }
+                      },
+                    ].map(card => {
+                      const CardIcon = card.icon;
+                      return (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={card.action}
+                          className="p-3 text-left bg-slate-50/70 dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-800/90 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600/70 hover:shadow-xs transition-all flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${card.color} shadow-2xs`}>
+                              <CardIcon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100 block truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {card.title}
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate mt-0.5">
+                                {card.desc}
+                              </span>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">{card.title}</span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">{card.desc}</span>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <span className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200/70 dark:border-slate-700/60 group-hover:border-indigo-300 dark:group-hover:border-indigo-700 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {card.badge}
+                            </span>
+                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
                           </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 {/* Popular Modules Shortcuts */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                  <span className="text-[10px] uppercase font-mono font-black tracking-wider text-slate-400 dark:text-slate-500 block px-1">
-                    LỆNH HỆ THỐNG PHỔ BIẾN
-                  </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {systemCommands.slice(0, 8).map(cmd => (
-                      <button
-                        key={cmd.id}
-                        onClick={() => {
-                          onClose();
-                          cmd.action();
-                        }}
-                        className="p-2 text-left bg-white dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl border border-slate-200/60 dark:border-slate-800 flex items-center gap-2 group cursor-pointer transition-all"
-                      >
-                        <span className="text-[10px] font-mono font-black text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-900/60">
-                          {cmd.name}
-                        </span>
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
-                          {cmd.label}
-                        </span>
-                      </button>
-                    ))}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10.5px] uppercase font-mono font-bold tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-purple-500" />
+                      <span>{isVietnamese ? 'LỆNH HỆ THỐNG PHỔ BIẾN' : 'POPULAR SYSTEM COMMANDS'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('/');
+                        setSearchCategory('commands');
+                      }}
+                      className="text-[10.5px] font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 hover:underline cursor-pointer transition-colors"
+                    >
+                      <span>{isVietnamese ? 'Xem tất cả' : 'View all'} ({systemCommands.length})</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {systemCommands.slice(0, 8).map(cmd => {
+                      const CmdIcon = cmd.icon;
+                      return (
+                        <button
+                          key={cmd.id}
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            cmd.action();
+                          }}
+                          className="px-3 py-2 text-left bg-slate-50/60 dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-800/90 rounded-xl border border-slate-200/70 dark:border-slate-800/80 hover:border-purple-300 dark:hover:border-purple-700/70 hover:shadow-2xs flex items-center justify-between group cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-slate-500 dark:text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:border-purple-200 dark:group-hover:border-purple-800 transition-colors shrink-0 shadow-2xs">
+                              <CmdIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-mono text-[11px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/70 px-1.5 py-0.5 rounded border border-purple-200/60 dark:border-purple-900/60 shrink-0">
+                              {cmd.name}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
+                              {cmd.shortLabel || cmd.label}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all -translate-x-1 group-hover:translate-x-0 ml-1.5">
+                            <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">
+                              {isVietnamese ? 'Chạy' : 'Run'}
+                            </span>
+                            <CornerDownLeft className="w-3 h-3 text-purple-500" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -943,7 +1061,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase font-mono px-2 py-0.5 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-100 dark:border-purple-900">
-                            {cmd.badge || 'LỆNH'}
+                            {cmd.badge || (isVietnamese ? 'LỆNH' : 'COMMAND')}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-purple-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1004,7 +1122,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                                 : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/80'
                             }`}
                           >
-                            {t.status}
+                            {t.status === 'completed' ? (isVietnamese ? 'Hoàn thành' : 'Done') :
+                             t.status === 'inprogress' ? (isVietnamese ? 'Đang làm' : 'In Progress') :
+                             (isVietnamese ? 'Cần làm' : 'To Do')}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-indigo-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1043,7 +1163,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[8px] font-black bg-pink-50 dark:bg-pink-950 border border-pink-200 dark:border-pink-900 text-pink-600 dark:text-pink-400 px-2 py-0.5 rounded-lg uppercase font-mono">
-                            TÀI LIỆU
+                            {isVietnamese ? 'TÀI LIỆU' : 'DOC'}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-pink-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1082,7 +1202,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[8px] font-black bg-cyan-50 dark:bg-cyan-950 border border-cyan-200 dark:border-cyan-900 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-lg uppercase font-mono">
-                            KHÔNG GIAN
+                            {isVietnamese ? 'KHÔNG GIAN' : 'SPACE'}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-cyan-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1121,7 +1241,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[8px] font-black bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-lg uppercase font-mono">
-                            TRÒ CHUYỆN
+                            {isVietnamese ? 'TRÒ CHUYỆN' : 'CHAT'}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-purple-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1160,7 +1280,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[8px] font-black bg-teal-50 dark:bg-teal-950 border border-teal-200 dark:border-teal-900 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-lg uppercase font-mono">
-                            THÀNH VIÊN
+                            {isVietnamese ? 'THÀNH VIÊN' : 'MEMBER'}
                           </span>
                           <CornerDownLeft className={`w-3.5 h-3.5 text-teal-500 transition-all ${isSelected ? 'opacity-100 translate-x-0.5' : 'opacity-0 group-hover:opacity-100'}`} />
                         </div>
@@ -1175,21 +1295,33 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </div>
 
           {/* Footer Guide */}
-          <div className="px-5 py-2.5 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-slate-500 shrink-0 select-none">
-            <div className="flex items-center gap-3 text-[11px]">
-              <span>{isVietnamese ? '↑↓ Di chuyển' : '↑↓ Navigate'}</span>
+          <div className="px-5 py-3 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/50 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500 shrink-0 select-none">
+            <div className="flex items-center gap-2.5 text-[11px]">
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">↑↓</kbd>
+                <span>{isVietnamese ? 'Điều hướng' : 'Navigate'}</span>
+              </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
-              <span>{isVietnamese ? '↵ Mở chọn' : '↵ Open'}</span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">↵</kbd>
+                <span>{isVietnamese ? 'Mở chọn' : 'Open'}</span>
+              </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
-              <span>{isVietnamese ? 'Tab Đổi danh mục' : 'Tab Category'}</span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">Tab</kbd>
+                <span>{isVietnamese ? 'Danh mục' : 'Category'}</span>
+              </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
-              <span>{isVietnamese ? 'Esc Thoát' : 'Esc Exit'}</span>
+              <span className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold shadow-2xs">Esc</kbd>
+                <span>{isVietnamese ? 'Thoát' : 'Exit'}</span>
+              </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400">
-                {isVietnamese ? 'Nhập / để dùng lệnh' : 'Type / for commands'}
-              </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <span>{isVietnamese ? 'Gõ' : 'Type'}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/80 border border-purple-200 dark:border-purple-850 font-mono text-[10px] text-purple-600 dark:text-purple-400 font-bold shadow-2xs">/</kbd>
+              <span>{isVietnamese ? 'để dùng lệnh hệ thống' : 'for system commands'}</span>
             </div>
           </div>
         </motion.div>

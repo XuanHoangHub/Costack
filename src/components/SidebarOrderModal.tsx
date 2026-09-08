@@ -6,10 +6,12 @@ import {
   X, GripVertical, ChevronUp, ChevronDown, RotateCcw, 
   Check, SlidersHorizontal, Sparkles, LayoutDashboard,
   Inbox, Calendar, Target,
-  Landmark, FileText, MessageSquare, Users, Layers
+  Landmark, FileText, MessageSquare, Users, Layers,
+  Plus, Edit3, Folder
 } from 'lucide-react';
-import { DEFAULT_SIDEBAR_ORDER, useUiStore } from '@/store/uiStore';
+import { DEFAULT_SIDEBAR_ORDER, useUiStore, SidebarZone } from '@/store/uiStore';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { SidebarZoneModal } from '@/components/sidebar/SidebarZoneModal';
 
 interface SidebarOrderModalProps {
   isOpen: boolean;
@@ -39,6 +41,10 @@ export function SidebarOrderModal({
 
   const storeSidebarOrder = useUiStore((s) => s.sidebarOrder);
   const storeSetSidebarOrder = useUiStore((s) => s.setSidebarOrder);
+  const sidebarZones = useUiStore((s) => s.sidebarZones || []);
+
+  const [showZoneModal, setShowZoneModal] = useState(false);
+  const [editingZone, setEditingZone] = useState<SidebarZone | null>(null);
 
   const activeSidebarOrder = propSidebarOrder || storeSidebarOrder || DEFAULT_SIDEBAR_ORDER;
   const activeSetSidebarOrder = propSetSidebarOrder || storeSetSidebarOrder;
@@ -276,16 +282,72 @@ export function SidebarOrderModal({
                 : 'Changes are automatically saved and applied immediately.'}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleResetDefault}
-            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-sky-300 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-white/[0.06]"
-            title={isVi ? 'Khôi phục về thứ tự gốc ban đầu' : 'Reset to original default order'}
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>{isVi ? 'Khôi phục mặc định' : 'Reset default'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingZone(null);
+                setShowZoneModal(true);
+              }}
+              className="flex items-center gap-1 text-[11px] font-bold text-sky-300 hover:text-white bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 transition-colors cursor-pointer px-2 py-1 rounded-md"
+            >
+              <Plus className="w-3 h-3" />
+              <span>{isVi ? 'Tạo Vùng mới' : 'New Zone'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetDefault}
+              className="flex items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-sky-300 transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-white/[0.06]"
+              title={isVi ? 'Khôi phục về thứ tự gốc ban đầu' : 'Reset to original default order'}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>{isVi ? 'Khôi phục mặc định' : 'Reset default'}</span>
+            </button>
+          </div>
         </div>
+
+        {/* Active Zones strip */}
+        {sidebarZones.length > 0 && (
+          <div className="px-5 py-2.5 border-b border-white/[0.08] bg-white/[0.015]">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <Folder className="w-3 h-3 text-sky-400" />
+                {isVi ? 'Các Vùng làm việc (Zones)' : 'Workspace Zones'}
+                <span className="text-[10px] text-zinc-500 font-normal">({sidebarZones.length})</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingZone(null);
+                  setShowZoneModal(true);
+                }}
+                className="text-[10px] font-bold text-sky-400 hover:underline cursor-pointer"
+              >
+                {isVi ? '+ Thêm vùng' : '+ Add zone'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {sidebarZones.map((z) => (
+                <button
+                  key={z.id}
+                  type="button"
+                  onClick={() => {
+                    setEditingZone(z);
+                    setShowZoneModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-white/[0.04] border border-white/[0.08] hover:border-sky-500/40 hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-all cursor-pointer group"
+                >
+                  <span>{z.emoji || '📁'}</span>
+                  <span className="font-medium text-white">{z.name}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                    {z.itemIds.length}
+                  </span>
+                  <Edit3 className="w-2.5 h-2.5 text-zinc-500 group-hover:text-sky-400 ml-0.5" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-1.5">
@@ -298,6 +360,7 @@ export function SidebarOrderModal({
               const isLast = index === items.length - 1;
               const isDragged = draggedModalItemId === id;
               const isOver = dragOverModalItemId === id;
+              const itemZone = sidebarZones.find(z => z.itemIds.includes(id));
 
               return (
                 <motion.div
@@ -341,13 +404,19 @@ export function SidebarOrderModal({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-white tracking-tight truncate">
                         {meta.label}
                       </span>
                       {meta.badge && (
                         <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
                           {meta.badge}
+                        </span>
+                      )}
+                      {itemZone && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">
+                          <span>{itemZone.emoji || '📁'}</span>
+                          <span className="truncate max-w-[100px]">{itemZone.name}</span>
                         </span>
                       )}
                     </div>
@@ -418,6 +487,19 @@ export function SidebarOrderModal({
           </div>
         </div>
       </motion.div>
+
+      {showZoneModal && (
+        <SidebarZoneModal
+          isOpen={showZoneModal}
+          onClose={() => {
+            setShowZoneModal(false);
+            setEditingZone(null);
+          }}
+          zone={editingZone}
+          sidebarItemsMeta={resolvedMeta}
+          triggerToast={triggerToast}
+        />
+      )}
     </div>
   );
 }

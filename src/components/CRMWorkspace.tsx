@@ -312,9 +312,6 @@ export default function CRMWorkspace({
               <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
                 {isVietnamese ? 'Apexa CRM Workspace' : 'Apexa CRM Workspace'}
               </h2>
-              <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
-                {isVietnamese ? 'Đồng bộ Realtime' : 'Realtime Synced'}
-              </span>
             </div>
             <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
               {isVietnamese ? 'Pipeline Kéo thả · Khách hàng · Báo giá · Chăm sóc AI · Phân tích Doanh thu' : 'Drag & Drop Pipeline · Contacts · Quotes · AI Sales · Revenue Analytics'}
@@ -329,7 +326,7 @@ export default function CRMWorkspace({
               onClick={upgradeCRM} 
               className="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[10px] font-black text-violet-700 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-400 hover:bg-violet-100 transition-colors cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5" /> {isVietnamese ? 'Nâng cấp Doanh nghiệp & Hoạt động' : 'Upgrade Schema'}
+              <Sparkles className="h-3.5 w-3.5" /> {isVietnamese ? 'Nâng cấp Doanh nghiệp & Hoạt động' : 'Upgrade CRM'}
             </button>
           )}
 

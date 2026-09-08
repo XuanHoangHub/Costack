@@ -33,6 +33,7 @@ export function GsapCard3DTilt({
       gsap.set(card, {
         transformPerspective: 1200,
         transformStyle: "preserve-3d",
+        willChange: "transform",
       });
 
       const handleMouseMove = (e: MouseEvent) => {
@@ -100,8 +101,7 @@ export function GsapCard3DTilt({
   return (
     <div
       ref={cardRef}
-      className={`relative will-change-transform ${className}`}
-      style={{ transformStyle: "preserve-3d" }}
+      className={`relative ${className}`}
     >
       {glare && (
         <div

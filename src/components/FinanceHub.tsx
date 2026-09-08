@@ -759,12 +759,14 @@ export function FinanceHub({ activeWorkspaceId = "", onAddSyncLog, triggerToast 
                 <h1 className="truncate text-base font-black tracking-tight text-[var(--cu-text-primary)]">
                   {profile.displayName || (isVietnamese ? "Hồ sơ tài chính" : "Financial Profile")}
                 </h1>
-                <Badge variant={realtime === "live" ? "success" : realtime === "connecting" ? "warning" : "danger"} dot>
-                  {realtime === "live" ? "Realtime" : realtime === "connecting" ? (isVietnamese ? "Đang kết nối" : "Connecting") : (isVietnamese ? "Mất kết nối" : "Offline")}
-                </Badge>
+                {realtime !== "live" && (
+                  <Badge variant={realtime === "connecting" ? "warning" : "danger"} dot>
+                    {realtime === "connecting" ? (isVietnamese ? "Đang kết nối" : "Connecting") : (isVietnamese ? "Ngoại tuyến" : "Offline")}
+                  </Badge>
+                )}
               </div>
               <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--cu-text-tertiary)]">
-                {profile.currency} · {lastSync ? (isVietnamese ? `Cập nhật ${lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : `Updated ${lastSync.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`) : (isVietnamese ? "Chưa đồng bộ" : "Not synced")}
+                {profile.currency} · {lastSync ? (isVietnamese ? `Cập nhật ${lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : `Updated ${lastSync.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`) : (isVietnamese ? "Đã lưu" : "Saved")}
               </p>
             </div>
           </div>

@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
 import {
   List, Kanban, Plus, Bot, Calendar, Table, CheckSquare, Clock,
   Sparkles, Pin, Hash, MoreHorizontal, ChevronRight, ChevronLeft,
@@ -300,6 +310,8 @@ export default function SpaceViewTabBar({
 
   // Add view modal/menu state
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [addMenuCoords, setAddMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   const [searchViewQuery, setSearchViewQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'core' | 'planning' | 'creative'>('all');
   const [newTabPin, setNewTabPin] = useState(false);
@@ -343,10 +355,47 @@ export default function SpaceViewTabBar({
     const activeButton = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-space-view-tab]'))
       .find(button => button.dataset.tabId === activeTabId);
     if (!activeButton) return;
-    activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
     const timer = window.setTimeout(checkScroll, 260);
     return () => window.clearTimeout(timer);
   }, [activeTabId, checkScroll]);
+
+  // Close context menu and add menu on window scroll/resize
+  useEffect(() => {
+    if (!contextMenu.show && !showAddMenu) return;
+    const handleClose = () => {
+      setContextMenu(prev => ({ ...prev, show: false }));
+      setShowAddMenu(false);
+    };
+    window.addEventListener('resize', handleClose);
+    window.addEventListener('scroll', handleClose, true);
+    return () => {
+      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('scroll', handleClose, true);
+    };
+  }, [contextMenu.show, showAddMenu]);
+
+  const handleToggleAddMenu = (e?: React.MouseEvent) => {
+    if (showAddMenu) {
+      setShowAddMenu(false);
+      return;
+    }
+    const btn = addBtnRef.current || (e?.currentTarget as HTMLElement);
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const menuWidth = 400;
+      let left = rect.right - menuWidth;
+      if (typeof window !== 'undefined') {
+        left = Math.max(12, Math.min(left, window.innerWidth - menuWidth - 12));
+      }
+      setAddMenuCoords({
+        top: rect.bottom + 8,
+        left,
+      });
+    }
+    setSearchViewQuery('');
+    setShowAddMenu(true);
+  };
 
   const scroll = (direction: 'left' | 'right') => {
     const el = scrollContainerRef.current;
@@ -520,10 +569,31 @@ export default function SpaceViewTabBar({
     e.preventDefault();
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 250;
+    const menuHeight = 360;
+
+    const isRightClick = e.type === 'contextmenu';
+
+    // For right click: anchor to mouse position.
+    // For click (3-dots button): anchor directly below the button.
+    let x = isRightClick ? e.clientX : rect.left;
+    let y = isRightClick ? e.clientY + 4 : rect.bottom + 6;
+
+    if (typeof window !== 'undefined') {
+      if (x + menuWidth > window.innerWidth - 12) {
+        x = Math.max(12, isRightClick ? e.clientX - menuWidth : rect.right - menuWidth);
+      }
+      x = Math.max(12, Math.min(x, window.innerWidth - menuWidth - 12));
+
+      if (y + menuHeight > window.innerHeight - 12) {
+        y = Math.max(12, (isRightClick ? e.clientY : rect.top) - menuHeight - 6);
+      }
+    }
+
     setContextMenu({
       show: true,
-      x: Math.min(e.clientX, window.innerWidth - 260),
-      y: rect.bottom + 8,
+      x,
+      y,
       tabId,
     });
   };
@@ -689,11 +759,9 @@ export default function SpaceViewTabBar({
         {/* Add View "+" Button */}
         <div className="relative shrink-0 pl-1 border-l border-slate-200/80 dark:border-slate-800/80">
           <button
+            ref={addBtnRef}
             type="button"
-            onClick={() => {
-              setShowAddMenu(!showAddMenu);
-              setSearchViewQuery('');
-            }}
+            onClick={handleToggleAddMenu}
             className={`apexa-space-add-view flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               showAddMenu
                 ? 'bg-indigo-600 text-white shadow-xs'
@@ -721,7 +789,7 @@ export default function SpaceViewTabBar({
 
       {/* Modern Tab Context Menu Dropdown */}
       {contextMenu.show && contextTab && (
-        <>
+        <Portal>
           <div
             className="fixed inset-0 z-50 bg-transparent"
             onClick={() => setContextMenu(prev => ({ ...prev, show: false }))}
@@ -855,15 +923,15 @@ export default function SpaceViewTabBar({
               </>
             )}
           </div>
-        </>
+        </Portal>
       )}
 
       {/* Add View Modal/Dropdown */}
       <AnimatePresence>
         {showAddMenu && (
-          <>
+          <Portal>
             <div
-              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-2xs"
+              className="fixed inset-0 z-50 bg-black/20 backdrop-blur-2xs"
               onClick={() => setShowAddMenu(false)}
             />
             <motion.div
@@ -871,7 +939,12 @@ export default function SpaceViewTabBar({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="absolute left-0 top-full mt-2 w-[340px] sm:w-[420px] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-3.5 font-sans select-none"
+              style={{
+                position: 'fixed',
+                top: addMenuCoords?.top ?? 60,
+                left: addMenuCoords?.left ?? 16,
+              }}
+              className="w-[340px] sm:w-[420px] max-w-[calc(100vw-24px)] bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-3.5 font-sans select-none"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80 mb-2.5">
@@ -1004,7 +1077,7 @@ export default function SpaceViewTabBar({
                 </label>
               </div>
             </motion.div>
-          </>
+          </Portal>
         )}
       </AnimatePresence>
     </div>
